@@ -1,0 +1,2 @@
+class SimilarityIndexOptimizer:
+    pass

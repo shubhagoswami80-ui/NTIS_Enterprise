@@ -1,0 +1,2 @@
+class PatternLearningMatrix:
+    pass

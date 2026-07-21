@@ -1,0 +1,2 @@
+class HistoricalConfidenceOverlay:
+    pass

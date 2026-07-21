@@ -1,0 +1,2 @@
+class HmmeReplayConfig:
+    pass

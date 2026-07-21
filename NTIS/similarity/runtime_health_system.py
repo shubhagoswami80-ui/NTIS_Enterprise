@@ -1,0 +1,2 @@
+class RuntimeHealthSystem:
+    pass

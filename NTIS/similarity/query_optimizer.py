@@ -1,0 +1,2 @@
+class QueryOptimizer:
+    pass

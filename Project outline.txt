@@ -159,3 +159,10 @@ Risk/reward analysis
 
 
 http://localhost:8501/
+
+No repeating the roadmap.
+No repeating the agreed process.
+No implementation summaries unless you ask.
+I'll respond with the requested file or release only.
+
+When you send Continue R1, I'll return only the next complete replacement file.

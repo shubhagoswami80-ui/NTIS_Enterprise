@@ -1,0 +1,2 @@
+class TradeQualityMonitor:
+    pass

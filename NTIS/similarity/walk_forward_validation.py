@@ -1,0 +1,2 @@
+class WalkForwardValidation:
+    pass

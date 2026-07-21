@@ -1,0 +1,2 @@
+class FinalSignalValidator:
+    pass

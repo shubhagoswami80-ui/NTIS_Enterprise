@@ -1,0 +1,2 @@
+class TrendStateDetector:
+    pass

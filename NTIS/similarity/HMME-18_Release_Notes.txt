@@ -1,0 +1,9 @@
+HMME-18 Historical Dataset Loader + Bhav Copy Integration
+
+Includes:
+- Historical data loader
+- Bhav copy loader
+- Intraday snapshot loader
+- Data normalization
+- Validation rules
+- Configuration

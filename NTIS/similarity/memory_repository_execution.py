@@ -1,0 +1,2 @@
+class MemoryRepositoryExecution:
+    pass

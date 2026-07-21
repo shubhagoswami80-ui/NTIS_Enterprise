@@ -1,0 +1,2 @@
+class SimilarityExecutionRunner:
+    pass

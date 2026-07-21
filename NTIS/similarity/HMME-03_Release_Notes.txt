@@ -1,0 +1,20 @@
+# HMME-03 Learning Statistics Release
+
+Purpose:
+Convert qualified historical market memories into statistics.
+
+Features:
+- Group based calculations
+- Success rate calculation
+- Average move calculation
+- Confidence classification
+- Config driven minimum sample size
+
+Designed for:
+- Intraday memory
+- EOD memory
+- Future incremental learning
+
+Does not:
+- Generate trading signals
+- Replace probability engine

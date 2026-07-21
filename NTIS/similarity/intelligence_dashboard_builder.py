@@ -1,0 +1,2 @@
+class IntelligenceDashboardBuilder:
+    pass

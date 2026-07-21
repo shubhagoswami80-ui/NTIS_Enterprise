@@ -1,0 +1,2 @@
+class NTISOutputReader:
+    pass

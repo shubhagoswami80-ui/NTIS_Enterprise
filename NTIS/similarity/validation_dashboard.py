@@ -1,0 +1,2 @@
+class ValidationDashboard:
+    pass

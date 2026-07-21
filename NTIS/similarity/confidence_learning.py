@@ -1,0 +1,2 @@
+class ConfidenceLearning:
+    pass

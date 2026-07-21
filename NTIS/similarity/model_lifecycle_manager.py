@@ -1,0 +1,2 @@
+class ModelLifecycleManager:
+    pass

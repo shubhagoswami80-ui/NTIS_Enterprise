@@ -1,0 +1,2 @@
+class NTISProductionConnector:
+    pass

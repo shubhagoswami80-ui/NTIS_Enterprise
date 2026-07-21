@@ -1,0 +1,2 @@
+class DataQualityControl:
+    pass

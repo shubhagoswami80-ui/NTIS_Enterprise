@@ -1,0 +1,2 @@
+class FinalTradeRanker:
+    pass

@@ -1,0 +1,2 @@
+class PortfolioSignalManager:
+    pass

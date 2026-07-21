@@ -1,0 +1,2 @@
+class HistoricalDatasetManager:
+    pass

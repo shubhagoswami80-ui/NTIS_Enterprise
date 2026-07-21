@@ -1,0 +1,2 @@
+class StockBehaviourPrediction:
+    pass

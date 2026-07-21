@@ -1,0 +1,2 @@
+class TradePolicyManager:
+    pass

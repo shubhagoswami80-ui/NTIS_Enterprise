@@ -1,0 +1,18 @@
+# HMME-07 Calibration Layer
+
+Purpose:
+Bridge HMME learning intelligence with NTIS probability.
+
+Rules:
+- Existing Probability Engine remains unchanged.
+- Historical memory adjusts confidence only.
+- No direct trade signal generation.
+
+Pipeline:
+
+NTIS Probability
+        +
+Historical Memory Statistics
+        |
+        v
+Calibrated Confidence

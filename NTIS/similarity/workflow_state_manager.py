@@ -1,0 +1,2 @@
+class WorkflowStateManager:
+    pass

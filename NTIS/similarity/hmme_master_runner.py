@@ -1,0 +1,2 @@
+class HMMEMasterRunner:
+    pass

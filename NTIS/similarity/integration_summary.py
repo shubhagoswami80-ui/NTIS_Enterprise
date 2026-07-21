@@ -1,0 +1,2 @@
+class IntegrationSummary:
+    pass

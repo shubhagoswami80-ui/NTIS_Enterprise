@@ -1,0 +1,26 @@
+# HMME-04 Memory Repository
+
+Purpose:
+Create reusable storage for learned historical memories.
+
+Implemented:
+- CSV based repository
+- Save
+- Load
+- Incremental update
+- Duplicate removal
+
+Architecture:
+
+Outcome Filter
+      |
+      v
+Learning Statistics
+      |
+      v
+Memory Repository
+
+Future:
+- SQLite migration
+- Memory indexing
+- Faster lookup engine

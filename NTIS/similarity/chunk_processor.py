@@ -1,0 +1,2 @@
+class ChunkProcessor:
+    pass

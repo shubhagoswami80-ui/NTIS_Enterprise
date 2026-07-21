@@ -1,0 +1,2 @@
+class HmmeResourceConfig:
+    pass

@@ -1,0 +1,2 @@
+class NtisDatasetRegistry:
+    pass

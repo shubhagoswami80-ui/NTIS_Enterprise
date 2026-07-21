@@ -1,0 +1,11 @@
+HMME-16 Runtime Execution Pack
+
+Purpose:
+Runtime foundation for actual dataset execution.
+
+Includes:
+- Runtime executor
+- Dataset runner
+- Memory reporting
+- Execution summary
+- Runtime configuration

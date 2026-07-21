@@ -1,0 +1,2 @@
+class AuditTrailTest:
+    pass

@@ -1,0 +1,12 @@
+HMME-15 Real Data Execution & Validation Pack
+
+Purpose:
+Foundation for real NTIS data execution.
+
+Includes:
+- Data validation
+- Execution manager
+- Memory builder
+- Validation reporting
+- Performance monitoring
+- Run configuration

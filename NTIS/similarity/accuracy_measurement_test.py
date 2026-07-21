@@ -1,0 +1,2 @@
+class AccuracyMeasurementTest:
+    pass

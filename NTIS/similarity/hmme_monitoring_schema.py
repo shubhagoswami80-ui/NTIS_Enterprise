@@ -1,0 +1,2 @@
+class HmmeMonitoringSchema:
+    pass

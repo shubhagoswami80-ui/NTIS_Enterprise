@@ -1,0 +1,2 @@
+class FailureRecoveryManager:
+    pass

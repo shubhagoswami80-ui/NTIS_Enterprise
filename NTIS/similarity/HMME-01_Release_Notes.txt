@@ -1,0 +1,24 @@
+# HMME-01 Candidate Selector Release
+
+Status: Initial Production Foundation
+
+Purpose:
+Create a fast filtering layer before similarity calculations.
+
+Implemented:
+- Trade Bias filtering
+- Pattern filtering
+- NTIS Score window filtering
+- Input validation
+- Logging
+
+Design rules:
+- No probability logic
+- No trading decisions
+- No replacement of existing similarity modules
+
+Future enhancements:
+- Historical index
+- Cached candidate lookup
+- Multi-factor pre-filtering
+- Large dataset optimization

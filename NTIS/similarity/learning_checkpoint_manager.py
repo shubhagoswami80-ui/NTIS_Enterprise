@@ -1,0 +1,2 @@
+class LearningCheckpointManager:
+    pass

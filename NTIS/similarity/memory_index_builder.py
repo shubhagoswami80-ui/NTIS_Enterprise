@@ -1,0 +1,2 @@
+class MemoryIndexBuilder:
+    pass

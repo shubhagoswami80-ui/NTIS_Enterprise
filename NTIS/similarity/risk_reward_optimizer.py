@@ -1,0 +1,2 @@
+class RiskRewardOptimizer:
+    pass

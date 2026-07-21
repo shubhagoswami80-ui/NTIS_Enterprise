@@ -1,0 +1,2 @@
+class HmmeAuditSchema:
+    pass

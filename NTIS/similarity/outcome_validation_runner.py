@@ -1,0 +1,2 @@
+class OutcomeValidationRunner:
+    pass

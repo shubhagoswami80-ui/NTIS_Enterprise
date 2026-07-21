@@ -1,0 +1,2 @@
+class SignalExplanationManager:
+    pass

@@ -1,0 +1,2 @@
+class RuntimePerformanceTest:
+    pass

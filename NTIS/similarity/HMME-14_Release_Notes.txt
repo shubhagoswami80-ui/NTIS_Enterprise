@@ -1,0 +1,11 @@
+HMME-14 Production Integration Pack
+
+Purpose:
+Production execution foundation.
+
+Includes:
+- Pipeline controller
+- Daily runner
+- Report generator
+- Health checks
+- Test runner

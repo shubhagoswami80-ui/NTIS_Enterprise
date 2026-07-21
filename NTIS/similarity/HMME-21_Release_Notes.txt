@@ -1,0 +1,10 @@
+HMME-21 Historical Learning Intelligence Layer
+
+Purpose:
+Learn from historical successful and failed patterns.
+
+Includes:
+- Pattern performance tracking
+- Outcome learning
+- Confidence adjustment foundation
+- Learning configuration

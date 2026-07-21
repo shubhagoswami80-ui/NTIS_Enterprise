@@ -1,0 +1,2 @@
+class NtisOutputIntegration:
+    pass

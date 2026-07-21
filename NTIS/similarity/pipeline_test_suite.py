@@ -1,0 +1,2 @@
+class PipelineTestSuite:
+    pass

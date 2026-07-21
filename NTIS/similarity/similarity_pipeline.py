@@ -1,0 +1,2 @@
+class SimilarityPipeline:
+    pass

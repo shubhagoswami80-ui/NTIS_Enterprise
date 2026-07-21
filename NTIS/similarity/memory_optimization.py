@@ -1,0 +1,2 @@
+class MemoryOptimization:
+    pass

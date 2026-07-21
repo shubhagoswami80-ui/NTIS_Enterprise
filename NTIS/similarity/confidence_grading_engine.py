@@ -1,0 +1,2 @@
+class ConfidenceGradingEngine:
+    pass

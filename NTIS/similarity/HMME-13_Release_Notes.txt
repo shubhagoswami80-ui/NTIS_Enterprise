@@ -1,0 +1,12 @@
+HMME-13 Integration Adapter + Real Data Runner
+
+Purpose:
+Connect NTIS existing outputs with HMME pipeline.
+
+Includes:
+- Data adapter
+- Live runner foundation
+- Batch runner foundation
+- Output manager
+- Validation layer
+- Path management

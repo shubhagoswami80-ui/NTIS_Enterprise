@@ -1,0 +1,2 @@
+class ProductionStabilityManager:
+    pass

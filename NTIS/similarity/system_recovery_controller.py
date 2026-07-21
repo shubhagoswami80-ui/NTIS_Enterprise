@@ -1,0 +1,2 @@
+class SystemRecoveryController:
+    pass

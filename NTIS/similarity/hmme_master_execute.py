@@ -1,0 +1,2 @@
+class HMMEMasterExecute:
+    pass

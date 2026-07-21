@@ -1,0 +1,26 @@
+# HMME-06 Orchestrator Release
+
+Purpose:
+Create single controller for historical memory building.
+
+Pipeline:
+
+Candidate Selector
+        |
+        v
+Outcome Filter
+        |
+        v
+Learning Statistics
+        |
+        v
+Memory Repository
+        |
+        v
+Memory Index
+
+Design:
+- Keeps live trading engine separate
+- No probability logic
+- No trade signals
+- Config driven foundation

@@ -1,0 +1,2 @@
+class SummaryGenerator:
+    pass

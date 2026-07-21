@@ -1,0 +1,11 @@
+HMME-20 Similarity Matching Optimization Layer
+
+Purpose:
+Improve speed for large historical datasets.
+
+Includes:
+- Candidate reduction
+- Fast matching foundation
+- Feature cache
+- Ranking optimization
+- Performance configuration

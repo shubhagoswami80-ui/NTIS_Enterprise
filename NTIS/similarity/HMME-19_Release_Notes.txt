@@ -1,0 +1,11 @@
+HMME-19 Feature Engineering + Market State Builder
+
+Purpose:
+Prepare historical market states for similarity comparison.
+
+Includes:
+- Feature engineering foundation
+- Market state builder
+- Feature models
+- Configuration
+- Validation

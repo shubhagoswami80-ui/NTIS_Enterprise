@@ -1,0 +1,2 @@
+class RegimeClassifier:
+    pass

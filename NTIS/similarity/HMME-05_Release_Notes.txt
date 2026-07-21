@@ -1,0 +1,27 @@
+# HMME-05 Memory Index Release
+
+Purpose:
+Create fast lookup layer before similarity calculation.
+
+Features:
+- Snapshot based indexing
+- Pattern indexing
+- Trade Bias indexing
+- Groupby based build
+- Future database indexing ready
+
+Supports:
+- 09:45
+- 10:00
+- 10:15
+- EOD
+
+Architecture:
+
+Memory Repository
+        |
+        v
+Memory Index
+        |
+        v
+Similarity Engine

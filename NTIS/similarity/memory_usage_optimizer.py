@@ -1,0 +1,2 @@
+class MemoryUsageOptimizer:
+    pass

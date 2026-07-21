@@ -1,0 +1,2 @@
+class OutcomeComparisonService:
+    pass

@@ -1,0 +1,2 @@
+class HmmeAutonomousValidation:
+    pass

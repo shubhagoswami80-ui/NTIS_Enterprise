@@ -1,0 +1,2 @@
+class HmmeAutonomousConfig:
+    pass

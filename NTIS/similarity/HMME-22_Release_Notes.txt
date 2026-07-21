@@ -1,0 +1,11 @@
+HMME-22 Adaptive Model Preparation Layer
+
+Purpose:
+Prepare adaptive learning inputs without changing NTIS core engines.
+
+Includes:
+- Adaptive model foundation
+- Feature weight management
+- Model input builder
+- Learning dataset manager
+- Configuration

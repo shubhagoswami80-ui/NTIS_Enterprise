@@ -1,0 +1,2 @@
+class HistoricalPerformanceAnalyzer:
+    pass

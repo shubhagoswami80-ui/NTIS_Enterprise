@@ -1,0 +1,2 @@
+class PatternCluster:
+    pass

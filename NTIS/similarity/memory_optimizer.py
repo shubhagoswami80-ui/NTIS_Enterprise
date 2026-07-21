@@ -1,0 +1,2 @@
+class MemoryOptimizer:
+    pass

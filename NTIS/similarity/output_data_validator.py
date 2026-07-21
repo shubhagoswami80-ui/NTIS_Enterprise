@@ -1,0 +1,2 @@
+class OutputDataValidator:
+    pass

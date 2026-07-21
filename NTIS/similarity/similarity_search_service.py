@@ -1,0 +1,2 @@
+class SimilaritySearchService:
+    pass

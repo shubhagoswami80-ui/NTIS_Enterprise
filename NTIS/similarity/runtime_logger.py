@@ -1,0 +1,2 @@
+class RuntimeLogger:
+    pass

@@ -1,0 +1,2 @@
+class HMMEAlertManager:
+    pass

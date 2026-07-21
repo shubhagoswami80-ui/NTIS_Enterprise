@@ -1,0 +1,2 @@
+class ConfidenceOptimization:
+    pass

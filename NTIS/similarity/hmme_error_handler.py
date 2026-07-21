@@ -1,0 +1,2 @@
+class HMMEErrorHandler:
+    pass

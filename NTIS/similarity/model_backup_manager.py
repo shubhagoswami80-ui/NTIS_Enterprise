@@ -1,0 +1,2 @@
+class ModelBackupManager:
+    pass

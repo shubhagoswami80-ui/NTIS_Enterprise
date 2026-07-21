@@ -1,0 +1,2 @@
+class NtisDailyOrchestrator:
+    pass

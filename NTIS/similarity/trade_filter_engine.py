@@ -1,0 +1,2 @@
+class TradeFilterEngine:
+    pass

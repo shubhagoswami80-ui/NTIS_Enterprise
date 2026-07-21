@@ -1,0 +1,2 @@
+class TradeSimulator:
+    pass

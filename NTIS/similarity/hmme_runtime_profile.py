@@ -1,0 +1,2 @@
+class HmmeRuntimeProfile:
+    pass

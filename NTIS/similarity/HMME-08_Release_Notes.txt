@@ -1,0 +1,13 @@
+# HMME-08 Intraday/EOD Memory Manager
+
+Purpose:
+Manage time-specific historical comparison.
+
+Supports:
+- 09:45
+- 10:00
+- 10:15
+- EOD
+
+Rule:
+Same snapshot comparison only.

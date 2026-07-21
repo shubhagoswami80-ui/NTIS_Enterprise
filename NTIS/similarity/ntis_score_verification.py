@@ -1,0 +1,2 @@
+class NtisScoreVerification:
+    pass

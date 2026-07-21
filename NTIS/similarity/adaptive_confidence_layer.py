@@ -1,0 +1,2 @@
+class AdaptiveConfidenceLayer:
+    pass

@@ -1,0 +1,2 @@
+class RecoveryOptimizer:
+    pass

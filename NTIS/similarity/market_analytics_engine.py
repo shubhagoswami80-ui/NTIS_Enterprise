@@ -1,0 +1,2 @@
+class MarketAnalyticsEngine:
+    pass

@@ -1,0 +1,2 @@
+class TradeQualityScoring:
+    pass

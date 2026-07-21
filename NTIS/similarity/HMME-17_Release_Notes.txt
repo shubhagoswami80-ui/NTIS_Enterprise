@@ -1,0 +1,10 @@
+HMME-17 Stress Test & Performance Pack
+
+Purpose:
+Prepare HMME for 1+ year historical datasets.
+
+Includes:
+- Stress testing
+- Batch optimization
+- Memory monitoring
+- Performance configuration

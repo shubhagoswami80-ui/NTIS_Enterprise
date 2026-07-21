@@ -1,0 +1,2 @@
+class ProductionReadinessCheck:
+    pass

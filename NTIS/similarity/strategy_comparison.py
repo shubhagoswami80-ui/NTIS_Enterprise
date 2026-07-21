@@ -1,0 +1,2 @@
+class StrategyComparison:
+    pass

@@ -1,0 +1,2 @@
+class DailySummaryEngine:
+    pass

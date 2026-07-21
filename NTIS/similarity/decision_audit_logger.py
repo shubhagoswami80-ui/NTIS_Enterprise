@@ -1,0 +1,2 @@
+class DecisionAuditLogger:
+    pass

@@ -1,0 +1,2 @@
+class SectorIntelligenceLayer:
+    pass

@@ -1,0 +1,2 @@
+class BacktestReport:
+    pass

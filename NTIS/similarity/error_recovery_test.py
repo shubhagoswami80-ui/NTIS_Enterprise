@@ -1,0 +1,2 @@
+class ErrorRecoveryTest:
+    pass

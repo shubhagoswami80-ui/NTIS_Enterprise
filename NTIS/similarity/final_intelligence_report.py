@@ -1,0 +1,2 @@
+class FinalIntelligenceReport:
+    pass

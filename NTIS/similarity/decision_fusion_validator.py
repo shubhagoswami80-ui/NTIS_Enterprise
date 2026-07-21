@@ -1,0 +1,2 @@
+class DecisionFusionValidator:
+    pass

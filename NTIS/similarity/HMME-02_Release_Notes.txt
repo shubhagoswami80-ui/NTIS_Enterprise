@@ -1,0 +1,20 @@
+# HMME-02 Outcome Filter Release
+
+Purpose:
+Extract meaningful historical market experiences.
+
+Uses:
+- Existing ntis_outcome_report.csv
+- Existing Outcome Engine output
+
+Features:
+- BUY/SELL aware filtering
+- Config driven 1.5%-2% movement threshold
+- Vectorized pandas operations
+- Memory optimization
+- Future chunk processing ready
+
+Does NOT:
+- Calculate returns
+- Replace Outcome Engine
+- Generate trading signals
