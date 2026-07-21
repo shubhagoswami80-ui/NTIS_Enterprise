@@ -1,0 +1,161 @@
+
+
+Across the next 6 responses, you'll receive complete replacement files that fit together as one project. Each response will be self-contained, and every Python file will be complete—no truncated code and no manual merging.
+
+Response 1 — Project Foundation
+config.py
+constants.py (new)
+utils.py (new)
+requirements.txt
+README.md
+Standard folder structure
+Shared configuration and logging
+Response 2 — Data Processing
+importer.py
+scoring_engine.py
+pattern_engine.py
+
+These will be aligned to your actual CSV schema (CMP, Price Chg %, OI Chg %, etc.).
+
+Response 3 — Prediction
+probability_engine.py
+scoring_rules.py (new)
+
+This version will:
+
+Read CMP correctly
+Produce more realistic probabilities
+Handle Rank safely
+Be fully compatible with your uploaded files
+Response 4 — Validation
+outcome_engine.py
+history_manager.py
+accuracy_engine.py (new)
+Response 5 — Learning
+learning_engine.py
+pattern_statistics.py
+probability_calibrator.py
+
+This is where historical learning, pattern success rates, and future enhancements (PCR, ATM Straddle, IV/HV, Option Chain Sentiment) will integrate.
+
+Response 6 — Dashboard & Release
+dashboard.py
+dashboard_utils.py
+app.py
+Final README
+Installation guide
+Project tree
+Execution order
+One improvement before we start
+
+I'd like to make one architectural improvement to avoid future problems.
+
+Instead of every engine reading from the previous engine's CSV with slightly different columns, we'll define a single standard schema.
+
+For example:
+
+Category	Standard Columns
+Identity	Rank, Symbol
+Market	CMP, Price Chg %, OI Chg %, Volume Chg (%)
+Analysis	NTIS Score, Signal, Pattern, Pattern Reason
+Prediction	BUY Probability %, SELL Probability %, Confidence, Trade Bias
+Validation	Entry Price, Exit Price, Return %, Outcome
+Learning	Pattern Accuracy %, Historical Win %, Model Score
+
+Each engine can add columns, but it won't rename or remove existing ones. This consistency will prevent issues like the CMP vs Close mismatch.
+
+Starting next
+
+The next response will be Response 1 – Project Foundation, containing the complete replacement files for:
+
+config.py
+constants.py
+utils.py
+requirements.txt
+README.md
+
+After that, we'll proceed through the remaining responses in order until the NTIS v2.0 project is complete.
+
+
+
+Files to Replace
+
+We'll only replace these:
+
+probability_engine.py
+outcome_engine.py
+history_manager.py
+New Files
+
+We'll add these:
+
+learning_engine.py
+accuracy_engine.py
+dashboard.py
+
+
+
+
+Updated NTIS Roadmap
+Module	Status
+config.py	✅ Complete
+importer.py	✅ Complete
+scoring_rules.py	✅ Complete
+scoring_engine.py	✅ Complete
+pattern_engine.py	✅ Complete
+history_manager.py	✅ Complete
+outcome_engine.py	✅ Complete
+probability_engine.py	✅ Complete + Grading Optimization
+Probability Backtesting Calibration	⏸ Later
+Trade Validation Engine	🔜 Next
+PCR / IV / ATM Straddle Integration	🔜 Future Enhancement
+
+
+Updated NTIS Roadmap
+Module	Status
+config.py	✅ Done
+importer.py	✅ Done
+scoring_engine.py	✅ Done
+pattern_engine.py	✅ Done
+history_manager.py	✅ Done
+outcome_engine.py	✅ Done
+probability_engine.py	✅ Done
+Trade Validation Engine	🔜 Next
+Historical Replay Engine	⏸ Planned
+Probability Calibration Engine	⏸ Planned
+Backtesting Reports Dashboard	⏸ Planned
+
+Next Independent Development
+
+Sprint 8 — Trade Validation Engine
+
+Focus:
+
+Validate probability signals
+Add support/resistance checks
+Define entry quality
+Add stop loss logic
+Add target calculation
+Add risk classification
+Generate final actionable trade list
+
+Output:
+
+E:\NSE_Daily_Analysis\Output\tis_trade_candidates.csv
+⏸ Planned Future Modules (Recorded)
+Historical Replay Engine
+Upload old NSE data
+Replay past trading days
+Generate historical predictions
+Probability Backtesting Calibration
+Compare predicted probability vs actual outcome
+Adjust confidence grading
+Improve accuracy over time
+Backtesting Performance Dashboard
+Pattern-wise accuracy
+BUY/SELL accuracy
+Monthly performance
+Risk/reward analysis
+
+
+http://localhost:8501/
