@@ -1,0 +1,2 @@
+class ReplayCacheManager(dict):
+    pass
