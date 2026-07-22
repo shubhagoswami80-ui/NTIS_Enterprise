@@ -5,24 +5,12 @@ from similarity_core.integration.functional_gateway import FunctionalGateway
 from similarity_core.integration.ntis_data_bridge import NTISDataBridge
 from similarity_core.reporting.hmme_production_report import HMMEProductionReport
 
-
 class ProductionRuntime:
-
     def __init__(self):
         self.context = ExecutionContext()
         self.gateway = FunctionalGateway()
 
     def run(self):
-
         executor = HMMERuntimeExecutor(self.gateway)
-
         result = executor.execute()
-
-        data = NTISDataBridge().load_data()
-
-        report_file = HMMEProductionReport().generate(data)
-
-        return ResultCollector().collect({
-            "runtime": result,
-            "report": str(report_file)
-        })
+        return ResultCollector().collect(result)
