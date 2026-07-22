@@ -1,0 +1,7 @@
+Pattern,Signals,Successful Signals,Accuracy %,Original Probability,Adjusted Probability,Confidence Adjustment
+Fresh Long Buildup,25,0,0,0,0,PENDING
+Long Unwinding,44,0,0,0,0,PENDING
+Neutral,3,0,0,0,0,PENDING
+Short Buildup,130,0,0,0,0,PENDING
+Short Covering,15,0,0,0,0,PENDING
+Volume Expansion,1,0,0,0,0,PENDING

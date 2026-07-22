@@ -32,7 +32,7 @@ Thumbs.db
 
 # Logs
 *.log
-Logs/
+#Logs/
 
 # Testing / coverage
 .pytest_cache/
@@ -40,16 +40,16 @@ Logs/
 htmlcov/
 
 #NTIS genrated Output
-Output/
-Database/
-Historical_Data/
+#Output/
+#Database/
+#Historical_Data/
 Archive/
-08_Predictions/
+#08_Predictions/
 
 # Yearly Market Data
 2024/
 2025/
-2026/
+#2026/
 2027/
 2028/
 2029/
@@ -58,7 +58,7 @@ Archive/
 # Market Reports
 #####################################################
 
-*.xlsx
+#*.xlsx
 *.xls
 *.xlsm
 
@@ -66,7 +66,7 @@ Archive/
 # Generated CSV Files
 #####################################################
 
-*.csv
+#*.csv
 
 #####################################################
 # SQLite
@@ -86,3 +86,5 @@ Archive/
 *.bak
 *.old
 
+OCR/
+#Intraday/Output/2026/July/2026-07-22/OCR

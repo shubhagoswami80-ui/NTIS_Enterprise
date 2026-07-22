@@ -1,0 +1,113 @@
+© Convert to Excel
+
+€e can
+
+Chartinc BB | (5 ShareMarket [5 Resume
+
+6S
+
+(13) ChatGPT
+
+@ New chat
+D tibrary
+© Projects
+© Scheduled
+@ Plugins
+© Codex
+
+More
+
+Pinned
+
+6 nts
+
+Recents
+Convert to Excel
+
+NTIS Probability Model Issue
+NTIS scoring rules
+
+GitHub NTIS Integration
+
+Python Name€rror Fix
+
+Store Entry Price Explanation
+History Manager Update
+
+NTIS Probability Engine Update
+NTIS Stock Analysis
+
+NTIS Stock Analysis
+
+Stock Analysis for Tomorrow
+Activate Python Virtualeny
+YouTube Banner Creation
+
+Karna Battlefield Video Prompt
+
+Sudhir Goswami
+Go
+
+chatgpt.com /c/6a603448-a43c-83ee-84d1-9b66d7edeb8e
+
+ane ORO14G:
+| [Dall Bookmarks
+
+mi share
+This gives each area a distinct role
+© EOD: validated daily reports used by the existing NTIS workflow, historical analysis, and backtesting,
+© Intraday: timestamped market snapshots used by the intraday intelligence engine for detecting evolving
+patterns.
+* NTIS; unchanged analytical modules consuming the data they require.
+
+One additional refinement
+
+I would also keep a separate Raw area for the screenshots themselves:
+
+intraday eo
+|
+
+[OLE
+
+| a6
+
+| ber
+
+| La
+
+|
+FE snapshats
+| Canes
+Ler
+La
+
+Hes-25-00
+Hs 20-09
+
+|
+|
+|
+|
+|
+|
+Lpracessing_Logs
+
+That way:
+1. Raw screenshots are preserved for reprocessing if needed.
+2. Structured snapshot data is available to the intraday intelligence engine.
+3. EOD reports remain untouched and continue to support the current NTIS architecture.
+
+This aligns well with the architecture you've already frozen: instead of modifying the existing EOD repository,
+we're simply introducing a new top-level layer dedicated to intraday processing and intelligence, while keeping
+the current EOD workflow intact.
+
+OGD AS ~~ OSources
+
+CChatGPT can make mistakes. Check important info,
+
++ Ask anything
+
+©
+=)
+a
+
