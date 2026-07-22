@@ -1,0 +1,2 @@
+class AutomatedReportPublisher:
+    pass

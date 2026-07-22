@@ -1,0 +1,2 @@
+class ProductionNotificationService:
+    pass

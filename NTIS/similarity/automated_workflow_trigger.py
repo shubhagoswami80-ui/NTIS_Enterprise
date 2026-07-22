@@ -1,0 +1,2 @@
+class AutomatedWorkflowTrigger:
+    pass

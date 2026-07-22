@@ -1,0 +1,2 @@
+class ProductionErrorHandler:
+    pass
