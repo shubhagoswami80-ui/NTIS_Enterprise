@@ -1,0 +1,2 @@
+class HmmeFeature:
+    pass

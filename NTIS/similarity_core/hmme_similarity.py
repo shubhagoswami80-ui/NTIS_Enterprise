@@ -1,0 +1,2 @@
+class HmmeSimilarity:
+    pass

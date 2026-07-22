@@ -1,0 +1,2 @@
+class HmmeReporting:
+    pass
