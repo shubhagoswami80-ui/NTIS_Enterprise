@@ -1,0 +1,14 @@
+HMME PRODUCTION ARCHITECTURE PLAN
+================================
+
+Total Files : 184
+
+Function_Group
+CORE            53
+UNCLASSIFIED    49
+CONTROL         24
+LEARNING        16
+MEMORY          14
+REPORT          11
+EXECUTION       10
+DECISION         7

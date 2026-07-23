@@ -1,0 +1,11 @@
+
+HMME REVIEW CLASSIFICATION
+==========================
+
+Classification
+DELETE_CANDIDATE    308
+KEEP_CORE            94
+REVIEW_REQUIRED      53
+MERGE                29
+KEEP_SUPPORT         28
+ARCHIVE               2

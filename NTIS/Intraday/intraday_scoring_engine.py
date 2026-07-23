@@ -1,3 +1,4 @@
+from datetime import datetime
 """
 =========================================================
 NTIS Intraday Scoring Engine
@@ -22,11 +23,11 @@ import pandas as pd
 
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_market_master_schema.csv"
+    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_market_master_schema.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_scored_stocks.csv"
+    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_scored_stocks.csv"
 )
 
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 """
 NTIS Intraday Market Master Normalizer
 Version: 1.0
@@ -14,11 +15,11 @@ import pandas as pd
 
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_market_master_clean.csv"
+    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_market_master_clean.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_market_master_ntis.csv"
+    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_market_master_ntis.csv"
 )
 
 

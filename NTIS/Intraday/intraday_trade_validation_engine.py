@@ -1,3 +1,4 @@
+from datetime import datetime
 """
 =========================================================
 NTIS Intraday Trade Validation Engine
@@ -21,11 +22,11 @@ import pandas as pd
 
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_probability_analysis.csv"
+    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_probability_analysis.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_trade_candidates.csv"
+    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_trade_candidates.csv"
 )
 
 

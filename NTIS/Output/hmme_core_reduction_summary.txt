@@ -1,0 +1,15 @@
+HMME ACTIVE REDUCTION SUMMARY
+============================
+
+Active Files : 184
+
+Group
+CORE_ENGINE     48
+UNCLASSIFIED    47
+CONTROLLER      34
+MEMORY          14
+LEARNING        13
+REPORTING       11
+UTILITY          6
+DECISION         6
+EXECUTION        5

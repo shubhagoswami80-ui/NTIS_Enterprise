@@ -1,0 +1,6 @@
+HMME CONSOLIDATION SUMMARY
+==========================
+
+KEEP    : 28
+ARCHIVE : 1422
+REVIEW  : 514

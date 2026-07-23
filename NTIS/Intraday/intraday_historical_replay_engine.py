@@ -1,3 +1,4 @@
+from datetime import datetime
 """
 =========================================================
 NTIS Intraday Historical Replay Engine
@@ -24,11 +25,11 @@ import pandas as pd
 
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_accuracy_report.csv"
+    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_accuracy_report.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_backtest_results.csv"
+    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_backtest_results.csv"
 )
 
 
