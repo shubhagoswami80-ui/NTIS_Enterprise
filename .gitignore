@@ -88,3 +88,15 @@ Archive/
 
 OCR/
 #Intraday/Output/2026/July/2026-07-22/OCR
+
+# NTIS temporary backups
+NTIS/Intraday - Copy (2)/
+NTIS/Intraday/*_Old.py
+NTIS/Intraday/intraday_path_config.py
+
+# HMME experimental runtimes
+NTIS/similarity_core/integration/*Old*.py
+NTIS/similarity_core/integration/hmme_dataset_importer_1.py
+NTIS/similarity_core/integration/production_runtime4.py
+NTIS/Intraday/INSTALL_NOTES.txt
+
