@@ -23,13 +23,15 @@ from pathlib import Path
 from datetime import datetime
 import pandas as pd
 
+from intraday_config import OUTPUT_FOLDER
+
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_trade_candidates.csv"
+    OUTPUT_FOLDER / "intraday_trade_candidates.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_accuracy_report.csv"
+    OUTPUT_FOLDER / "intraday_accuracy_report.csv"
 )
 
 

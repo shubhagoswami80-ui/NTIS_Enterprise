@@ -1,71 +1,51 @@
 """
-NTIS Intraday Current Report Importer
-Runner
+NTIS Intraday Current Report Importer v1.5.4
 
-Connects:
-- intraday_import_core.py
-- intraday_report_parser.py
-- intraday_snapshot_manager.py
-- intraday_output_writer.py
-
-Intraday pipeline only.
+Adds registry based file tracking.
 """
 
-from intraday_import_core import IntradayImportCore
-from intraday_report_parser import IntradayReportParser
-from intraday_snapshot_manager import SnapshotManager
-from intraday_output_writer import IntradayOutputWriter
+from intraday_config import INPUT_FOLDER
+from intraday_file_registry import IntradayFileRegistry
 
 
-def main():
+def discover_files():
+
+    if not INPUT_FOLDER.exists():
+        print("Report folder not found:")
+        print(INPUT_FOLDER)
+        return []
+
+    return list(INPUT_FOLDER.glob("*.xlsx"))
+
+
+def filter_files():
+
+    registry = IntradayFileRegistry()
+
+    files = discover_files()
+
+    process_files = []
 
     print("=" * 70)
-    print("NTIS INTRADAY CURRENT REPORT IMPORTER")
+    print("NTIS INTRADAY FILE REGISTRY CHECK")
     print("=" * 70)
-
-    core = IntradayImportCore()
-    parser = IntradayReportParser()
-    snapshot = SnapshotManager()
-    writer = IntradayOutputWriter()
-
-    files = core.discover_excel_files()
-
-    print("Excel files found:", len(files))
-
-    records = []
 
     for file in files:
-        try:
-            report_type = parser.detect_report_type(file.name)
-            df = parser.load_excel(file)
 
-            records.append({
-                "File": file.name,
-                "Path": str(file),
-                "Report Type": report_type,
-                "Rows": len(df),
-                "Status": "SUCCESS"
-            })
+        status = registry.check_file(file)
 
-            print(f"OK : {file.name} -> {report_type}")
+        print(status, ":", file.name)
 
-        except Exception as exc:
-            records.append({
-                "File": file.name,
-                "Path": str(file),
-                "Report Type": "UNKNOWN",
-                "Rows": 0,
-                "Status": str(exc)
-            })
+        if status in ["NEW", "MODIFIED"]:
+            process_files.append(file)
+            registry.update(file)
 
-    snapshot.save(records, core.output)
-    writer.write(records, core.output)
+    print("-" * 70)
+    print("Total files:", len(files))
+    print("Processing required:", len(process_files))
 
-    print("=" * 70)
-    print("IMPORT COMPLETED")
-    print("Output:", core.output)
-    print("=" * 70)
+    return process_files
 
 
 if __name__ == "__main__":
-    main()
+    filter_files()

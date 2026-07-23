@@ -1,4 +1,3 @@
-from datetime import datetime
 """
 =========================================================
 NTIS Intraday Daily Report Generator
@@ -20,13 +19,15 @@ Independent Intraday Module
 from pathlib import Path
 import pandas as pd
 
+from intraday_config import OUTPUT_FOLDER
+
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_trade_candidates.csv"
+    OUTPUT_FOLDER / "intraday_trade_candidates.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_daily_trade_report.xlsx"
+    OUTPUT_FOLDER / "intraday_daily_trade_report.xlsx"
 )
 
 

@@ -1,4 +1,5 @@
 """
+from intraday_config import OUTPUT_FOLDER
 NTIS Intraday Scoring Bridge
 Version: 1.0
 
@@ -12,11 +13,11 @@ import pandas as pd
 
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_market_master_ntis.csv"
+    OUTPUT_FOLDER / "intraday_market_master_ntis.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\2026-07-22\intraday_scoring_input.csv"
+    OUTPUT_FOLDER / "intraday_scoring_input.csv"
 )
 
 

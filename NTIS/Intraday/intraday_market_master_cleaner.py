@@ -1,4 +1,3 @@
-from datetime import datetime
 """
 =========================================================
 NTIS Intraday Market Master Cleaner
@@ -19,15 +18,17 @@ Intraday pipeline only.
 
 from pathlib import Path
 import pandas as pd
+
+from intraday_config import OUTPUT_FOLDER
 import re
 
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_market_master_latest.csv"
+    OUTPUT_FOLDER / "intraday_market_master_latest.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_market_master_clean.csv"
+    OUTPUT_FOLDER / "intraday_market_master_clean.csv"
 )
 
 

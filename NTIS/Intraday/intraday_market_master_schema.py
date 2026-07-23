@@ -1,4 +1,3 @@
-from datetime import datetime
 """
 =========================================================
 NTIS Intraday Final Schema Consolidator
@@ -19,13 +18,15 @@ Output:
 from pathlib import Path
 import pandas as pd
 
+from intraday_config import OUTPUT_FOLDER
+
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_market_master_ntis.csv"
+    OUTPUT_FOLDER / "intraday_market_master_ntis.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_market_master_schema.csv"
+    OUTPUT_FOLDER / "intraday_market_master_schema.csv"
 )
 
 

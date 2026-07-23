@@ -21,15 +21,17 @@ Notes:
 
 from pathlib import Path
 import pandas as pd
+
+from intraday_config import OUTPUT_FOLDER
 from datetime import datetime
 
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_probability_analysis.csv"
+    OUTPUT_FOLDER / "intraday_probability_analysis.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_signal_evolution.csv"
+    OUTPUT_FOLDER / "intraday_signal_evolution.csv"
 )
 
 

@@ -10,8 +10,8 @@ import pandas as pd
 try:
     from intraday_config import SCREENSHOT_ROOT, OUTPUT_ROOT
 except Exception:
-    SCREENSHOT_ROOT = Path(r"D:\My-data\Share_P&L\Ichart Data\Screenshot")
-    OUTPUT_ROOT = Path(r"E:\NSE_Daily_Analysis\Intraday\Output")
+    SCREENSHOT_ROOT = Path(r"D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot")
+    OUTPUT_ROOT = Path(r"E:\\NSE_Daily_Analysis\\Intraday\\Output")
 
 
 class IntradayMarketMasterBuilder:

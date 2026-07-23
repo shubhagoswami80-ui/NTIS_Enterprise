@@ -1,0 +1,33 @@
+NTIS Intraday Module v1.5 FINAL
+
+Purpose:
+Complete Intraday analysis module package.
+
+Included:
+- Report ingestion framework
+- OCR/support utilities
+- Market master processing
+- Scoring engine
+- Pattern engine
+- Probability engine
+- Trade validation
+- Accuracy tracking
+- Historical replay
+- Probability calibration
+- Signal evolution
+- Lightweight Streamlit dashboard
+
+Design decisions:
+- Intraday Dashboard is a module, not NTIS Home page.
+- Dashboard reads generated outputs only.
+- No analysis engines run inside dashboard.
+- Future NTIS Home will contain Intraday, EOD, Swing Trade and Weekly modules.
+
+Install location:
+E:\NSE_Daily_Analysis\NTIS\Intraday\
+
+Run pipeline:
+python run_intraday_pipeline.py
+
+Run dashboard:
+streamlit run intraday_dashboard.py

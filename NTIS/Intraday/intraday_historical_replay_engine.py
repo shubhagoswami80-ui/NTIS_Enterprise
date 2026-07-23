@@ -1,4 +1,3 @@
-from datetime import datetime
 """
 =========================================================
 NTIS Intraday Historical Replay Engine
@@ -23,13 +22,15 @@ Notes:
 from pathlib import Path
 import pandas as pd
 
+from intraday_config import OUTPUT_FOLDER
+
 
 INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_accuracy_report.csv"
+    OUTPUT_FOLDER / "intraday_accuracy_report.csv"
 )
 
 OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_backtest_results.csv"
+    OUTPUT_FOLDER / "intraday_backtest_results.csv"
 )
 
 

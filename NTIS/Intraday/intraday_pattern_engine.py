@@ -20,6 +20,7 @@ Independent Intraday Module
 
 from pathlib import Path
 import pandas as pd
+from intraday_config import OUTPUT_FOLDER
 
 
 INPUT_FILE = Path(

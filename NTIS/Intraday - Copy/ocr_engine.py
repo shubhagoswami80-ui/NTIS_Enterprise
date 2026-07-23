@@ -24,7 +24,7 @@ import logging
 import pytesseract
 
 pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 )
 from image_loader import ImageLoader
 from intraday_config import output_path
