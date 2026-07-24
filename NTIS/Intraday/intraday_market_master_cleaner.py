@@ -1,7 +1,7 @@
 """
 =========================================================
 NTIS Intraday Market Master Cleaner
-Version : 1.0
+Version : 1.1
 
 Purpose:
     Clean intraday_market_master_latest.csv
@@ -12,27 +12,36 @@ Input:
 Output:
     intraday_market_master_clean.csv
 
-Intraday pipeline only.
+Update:
+    Uses central dynamic Intraday output path.
 =========================================================
 """
 
 from pathlib import Path
 import pandas as pd
 
-from intraday_config import OUTPUT_FOLDER
-import re
+from intraday_path_config import get_today_output
 
 
-INPUT_FILE = Path(
-    OUTPUT_FOLDER / "intraday_market_master_latest.csv"
+OUTPUT_FOLDER = get_today_output()
+
+
+INPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_market_master_latest.csv"
 )
 
-OUTPUT_FILE = Path(
-    OUTPUT_FOLDER / "intraday_market_master_clean.csv"
+
+OUTPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_market_master_clean.csv"
 )
 
 
 class IntradayMarketMasterCleaner:
+
 
     def remove_noise_columns(self, df):
 
@@ -98,7 +107,10 @@ class IntradayMarketMasterCleaner:
             ]:
                 mapping[col] = "Symbol"
 
-        return df.rename(columns=mapping)
+
+        return df.rename(
+            columns=mapping
+        )
 
 
     def clean_symbol(self, df):
@@ -115,6 +127,7 @@ class IntradayMarketMasterCleaner:
         return df
 
 
+
     def run(self):
 
         if not INPUT_FILE.exists():
@@ -123,31 +136,50 @@ class IntradayMarketMasterCleaner:
                 INPUT_FILE
             )
 
+
         df = pd.read_csv(
             INPUT_FILE
         )
 
-        df = self.remove_noise_columns(df)
 
-        df = self.normalize_columns(df)
+        df = self.remove_noise_columns(
+            df
+        )
 
-        df = self.clean_symbol(df)
+
+        df = self.normalize_columns(
+            df
+        )
+
+
+        df = self.clean_symbol(
+            df
+        )
+
 
         df = df.drop_duplicates(
             keep="last"
         )
+
 
         df.to_csv(
             OUTPUT_FILE,
             index=False
         )
 
+
         return OUTPUT_FILE
+
 
 
 if __name__ == "__main__":
 
-    result = IntradayMarketMasterCleaner().run()
+
+    result = (
+        IntradayMarketMasterCleaner()
+        .run()
+    )
+
 
     print("=" * 60)
     print("INTRADAY MASTER CLEAN COMPLETE")

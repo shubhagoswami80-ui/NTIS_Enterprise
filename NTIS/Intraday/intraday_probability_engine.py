@@ -1,8 +1,7 @@
-from datetime import datetime
 """
 =========================================================
 NTIS Intraday Probability Engine
-Version : 1.0
+Version : 1.1
 
 Purpose:
     Convert Intraday score + pattern into probability.
@@ -13,21 +12,31 @@ Input:
 Output:
     intraday_probability_analysis.csv
 
-Independent Intraday Module
+Update:
+    Uses central dynamic Intraday output path.
 =========================================================
 """
 
 from pathlib import Path
 import pandas as pd
-from intraday_config import OUTPUT_FOLDER
+
+from intraday_path_config import get_today_output
 
 
-INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_pattern_analysis.csv"
+OUTPUT_FOLDER = get_today_output()
+
+
+INPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_pattern_analysis.csv"
 )
 
-OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_probability_analysis.csv"
+
+OUTPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_probability_analysis.csv"
 )
 
 
@@ -72,17 +81,24 @@ class IntradayProbabilityEngine:
 
         adjustment = 0
 
+
         if score >= 70:
+
             adjustment += 15
 
+
         elif score >= 50:
+
             adjustment += 5
 
+
         elif score < 30:
+
             adjustment -= 15
 
 
         probability = base + adjustment
+
 
         probability = max(
             10,
@@ -92,18 +108,25 @@ class IntradayProbabilityEngine:
             )
         )
 
+
         return probability
+
 
 
     def confidence(self, probability):
 
         if probability >= 75:
+
             return "HIGH"
 
+
         elif probability >= 55:
+
             return "MEDIUM"
 
+
         return "LOW"
+
 
 
     def run(self):
@@ -130,6 +153,7 @@ class IntradayProbabilityEngine:
 
 
         df["Final Bias"] = "NEUTRAL"
+
 
         df.loc[
             df["Intraday Probability %"] >= 70,
@@ -161,7 +185,12 @@ class IntradayProbabilityEngine:
 
 if __name__ == "__main__":
 
-    result = IntradayProbabilityEngine().run()
+
+    result = (
+        IntradayProbabilityEngine()
+        .run()
+    )
+
 
     print("=" * 60)
     print("INTRADAY PROBABILITY COMPLETE")

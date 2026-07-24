@@ -1,7 +1,7 @@
 """
 =========================================================
 NTIS Intraday Dashboard
-Version : 1.0
+Version : 1.1
 
 Purpose:
     Visual dashboard for Intraday outputs.
@@ -16,6 +16,11 @@ Technology:
 
 Run:
     streamlit run intraday_dashboard.py
+
+Update:
+    v1.1
+    - Removed hardcoded output date
+    - Uses dynamic Intraday output path
 =========================================================
 """
 
@@ -23,10 +28,12 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from intraday_path_config import get_latest_output
 
-BASE = Path(
-    r"E:\\NSE_Daily_Analysis\\Intraday\\Output\\2026-07-22"
-)
+
+# Dynamic latest trading output folder
+
+BASE = get_latest_output()
 
 
 TRADE_FILE = BASE / "intraday_trade_candidates.csv"
@@ -41,6 +48,13 @@ st.set_page_config(
 
 
 st.title("NTIS Intraday Dashboard")
+
+
+# Display loaded data folder
+
+st.caption(
+    f"Data Source: {BASE}"
+)
 
 
 # Load files
@@ -104,6 +118,7 @@ c4.metric(
 
 st.header("Top Intraday Opportunities")
 
+
 show = trade_df[
     [
         "Symbol",
@@ -128,6 +143,7 @@ st.dataframe(
 
 st.header("Signal Evolution")
 
+
 st.dataframe(
     evolution_df.head(20),
     use_container_width=True
@@ -137,6 +153,7 @@ st.dataframe(
 # Probability distribution
 
 st.header("Probability Ranking")
+
 
 st.bar_chart(
     prob_df.set_index("Symbol")

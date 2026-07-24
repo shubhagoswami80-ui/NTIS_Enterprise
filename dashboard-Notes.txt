@@ -1,0 +1,31 @@
+NTIS Dashboard Coordination Rule
+
+Before any dashboard/config changes:
+
+1. Audit existing dashboard structure first.
+2. Protect current Intraday Dashboard.
+3. Do not modify Intraday entry files/config/routing without review.
+4. Identify shared files separately.
+5. Build EOD Dashboard as a separate module.
+
+Target architecture:
+
+NTIS Dashboard Portal
+        |
+        +----------------+
+        |                |
+        ↓                ↓
+
+ EOD Swing Dashboard   Intraday Dashboard
+
+        |                |
+        ↓                ↓
+
+ EOD Intelligence   Intraday Intelligence
+
+
+Rules:
+- No overlap
+- No replacement
+- No duplicate configs
+- Shared components only after review

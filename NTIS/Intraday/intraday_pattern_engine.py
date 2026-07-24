@@ -1,8 +1,7 @@
-from datetime import datetime
 """
 =========================================================
 NTIS Intraday Pattern Engine
-Version : 1.0
+Version : 1.1
 
 Purpose:
     Convert intraday scores and market behaviour
@@ -14,21 +13,31 @@ Input:
 Output:
     intraday_pattern_analysis.csv
 
-Independent Intraday Module
+Update:
+    Uses central dynamic Intraday output path.
 =========================================================
 """
 
 from pathlib import Path
 import pandas as pd
-from intraday_config import OUTPUT_FOLDER
+
+from intraday_path_config import get_today_output
 
 
-INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_scored_stocks.csv"
+OUTPUT_FOLDER = get_today_output()
+
+
+INPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_scored_stocks.csv"
 )
 
-OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_pattern_analysis.csv"
+
+OUTPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_pattern_analysis.csv"
 )
 
 
@@ -65,6 +74,7 @@ class IntradayPatternEngine:
         if "long" in fut.lower():
             return "Futures Long Setup"
 
+
         if "short" in fut.lower():
             return "Futures Short Setup"
 
@@ -72,9 +82,13 @@ class IntradayPatternEngine:
         return "Neutral"
 
 
+
     def run(self):
 
-        df = pd.read_csv(INPUT_FILE)
+        df = pd.read_csv(
+            INPUT_FILE
+        )
+
 
         df["Pattern"] = df.apply(
             self.identify_pattern,
@@ -87,13 +101,19 @@ class IntradayPatternEngine:
             index=False
         )
 
+
         return OUTPUT_FILE
 
 
 
 if __name__ == "__main__":
 
-    result = IntradayPatternEngine().run()
+
+    result = (
+        IntradayPatternEngine()
+        .run()
+    )
+
 
     print("=" * 60)
     print("INTRADAY PATTERN ANALYSIS COMPLETE")

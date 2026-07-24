@@ -1,8 +1,7 @@
-from datetime import datetime
 """
 =========================================================
 NTIS Intraday Trade Validation Engine
-Version : 1.0
+Version : 1.1
 
 Purpose:
     Convert probability output into trade candidates.
@@ -13,22 +12,33 @@ Input:
 Output:
     intraday_trade_candidates.csv
 
-Independent Intraday Module
+Update:
+    Uses central dynamic Intraday output path.
 =========================================================
 """
 
 from pathlib import Path
 import pandas as pd
-from intraday_config import OUTPUT_FOLDER
+
+from intraday_path_config import get_today_output
 
 
-INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_probability_analysis.csv"
+OUTPUT_FOLDER = get_today_output()
+
+
+INPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_probability_analysis.csv"
 )
 
-OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_trade_candidates.csv"
+
+OUTPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_trade_candidates.csv"
 )
+
 
 
 class IntradayTradeValidationEngine:
@@ -70,6 +80,7 @@ class IntradayTradeValidationEngine:
         return "WATCH"
 
 
+
     def risk_level(self, row):
 
         probability = row.get(
@@ -78,12 +89,15 @@ class IntradayTradeValidationEngine:
         )
 
         if probability >= 80:
+
             return "LOW"
 
         elif probability >= 60:
+
             return "MEDIUM"
 
         return "HIGH"
+
 
 
     def run(self):
@@ -138,7 +152,12 @@ class IntradayTradeValidationEngine:
 
 if __name__ == "__main__":
 
-    result = IntradayTradeValidationEngine().run()
+
+    result = (
+        IntradayTradeValidationEngine()
+        .run()
+    )
+
 
     print("=" * 60)
     print("INTRADAY TRADE VALIDATION COMPLETE")

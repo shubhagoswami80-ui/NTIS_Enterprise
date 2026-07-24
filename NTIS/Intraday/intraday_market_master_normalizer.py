@@ -1,35 +1,49 @@
-from datetime import datetime
 """
 NTIS Intraday Market Master Normalizer
-Version: 1.0
+Version: 1.1
 
 Input:
 intraday_market_master_clean.csv
 
 Output:
 intraday_market_master_ntis.csv
+
+Update:
+- Dynamic YYYY/Month/Date output structure
 """
 
 from pathlib import Path
 import pandas as pd
 
+from intraday_path_config import get_today_output
 
-INPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_market_master_clean.csv"
+
+OUTPUT_FOLDER = get_today_output()
+
+
+INPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_market_master_clean.csv"
 )
 
-OUTPUT_FILE = Path(
-    r"E:\NSE_Daily_Analysis\Intraday\Output\\" + datetime.today().strftime("%Y-%m-%d") + r"\intraday_market_master_ntis.csv"
+
+OUTPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_market_master_ntis.csv"
 )
 
 
 class IntradayMarketMasterNormalizer:
+
 
     def rename_columns(self, df):
 
         rename = {}
 
         for col in df.columns:
+
             c = str(col).lower().strip()
 
             if c.startswith("price chg"):
@@ -56,7 +70,10 @@ class IntradayMarketMasterNormalizer:
             elif c == "fut buildup":
                 rename[col] = "Fut Buildup"
 
-        return df.rename(columns=rename)
+
+        return df.rename(
+            columns=rename
+        )
 
 
     def consolidate_columns(self, df):
@@ -69,29 +86,49 @@ class IntradayMarketMasterNormalizer:
             "OI"
         ]
 
+
         for target in targets:
 
             cols = [
-                c for c in df.columns
+                c
+                for c in df.columns
                 if c == target
             ]
 
+
             if len(cols) > 1:
-                df[target] = df[cols].bfill(axis=1).iloc[:, 0]
+
+                df[target] = (
+                    df[cols]
+                    .bfill(axis=1)
+                    .iloc[:, 0]
+                )
+
 
         return df
 
 
+
     def run(self):
 
-        df = pd.read_csv(INPUT_FILE)
+        df = pd.read_csv(
+            INPUT_FILE
+        )
 
-        df = self.rename_columns(df)
 
-        df = self.consolidate_columns(df)
+        df = self.rename_columns(
+            df
+        )
+
+
+        df = self.consolidate_columns(
+            df
+        )
+
 
         keep = [
-            c for c in [
+            c
+            for c in [
                 "Symbol",
                 "Price",
                 "Price Chg %",
@@ -113,24 +150,33 @@ class IntradayMarketMasterNormalizer:
             if c in df.columns
         ]
 
+
         df = df[keep]
+
 
         df = df.drop_duplicates(
             subset=["Symbol"],
             keep="last"
         )
 
+
         df.to_csv(
             OUTPUT_FILE,
             index=False
         )
 
+
         return OUTPUT_FILE
+
 
 
 if __name__ == "__main__":
 
-    result = IntradayMarketMasterNormalizer().run()
+    result = (
+        IntradayMarketMasterNormalizer()
+        .run()
+    )
+
 
     print("=" * 60)
     print("INTRADAY NTIS MASTER CREATED")
