@@ -1,0 +1,150 @@
+Folder PATH listing for volume New Volume
+Volume serial number is 6A7C-09C1
+E:.
+³   tree.txt
+³   
+ÃÄÄÄDatabase
+³       intraday_file_registry.csv
+³       
+ÃÄÄÄLogs
+³       intraday.log
+³       
+ÃÄÄÄOutput
+³   ÃÄÄÄ2026
+³   ³   ÀÄÄÄJuly
+³   ³       ÃÄÄÄ2026-07-22
+³   ³       ³   ³   report_registry.csv
+³   ³       ³   ³   
+³   ³       ³   ÀÄÄÄOCR
+³   ³       ³           2026-07-22_09-12-00.623.txt
+³   ³       ³           2026-07-22_09-13-30.599.txt
+³   ³       ³           2026-07-22_09-15-00.769.txt
+³   ³       ³           2026-07-22_09-16-30.668.txt
+³   ³       ³           2026-07-22_09-17-13.129.txt
+³   ³       ³           2026-07-22_09-18-43.445.txt
+³   ³       ³           2026-07-22_09-20-13.400.txt
+³   ³       ³           2026-07-22_09-21-43.397.txt
+³   ³       ³           2026-07-22_09-23-13.464.txt
+³   ³       ³           2026-07-22_09-24-43.425.txt
+³   ³       ³           2026-07-22_09-26-13.440.txt
+³   ³       ³           2026-07-22_09-27-43.547.txt
+³   ³       ³           2026-07-22_09-29-13.453.txt
+³   ³       ³           2026-07-22_09-30-43.453.txt
+³   ³       ³           2026-07-22_09-32-13.514.txt
+³   ³       ³           2026-07-22_09-33-43.483.txt
+³   ³       ³           2026-07-22_09-35-13.482.txt
+³   ³       ³           2026-07-22_09-36-43.529.txt
+³   ³       ³           2026-07-22_09-38-13.777.txt
+³   ³       ³           2026-07-22_09-39-43.575.txt
+³   ³       ³           2026-07-22_09-41-13.626.txt
+³   ³       ³           2026-07-22_09-42-43.685.txt
+³   ³       ³           2026-07-22_09-44-13.557.txt
+³   ³       ³           2026-07-22_09-45-43.594.txt
+³   ³       ³           2026-07-22_09-47-13.607.txt
+³   ³       ³           2026-07-22_09-48-43.597.txt
+³   ³       ³           2026-07-22_09-50-13.738.txt
+³   ³       ³           2026-07-22_09-51-43.593.txt
+³   ³       ³           2026-07-22_09-53-13.617.txt
+³   ³       ³           2026-07-22_09-54-43.637.txt
+³   ³       ³           2026-07-22_09-56-13.628.txt
+³   ³       ³           2026-07-22_09-57-43.630.txt
+³   ³       ³           2026-07-22_09-59-13.641.txt
+³   ³       ³           2026-07-22_10-00-43.649.txt
+³   ³       ³           2026-07-22_10-02-13.722.txt
+³   ³       ³           2026-07-22_10-03-43.657.txt
+³   ³       ³           2026-07-22_10-05-13.641.txt
+³   ³       ³           2026-07-22_10-06-43.642.txt
+³   ³       ³           2026-07-22_10-08-13.668.txt
+³   ³       ³           2026-07-22_10-09-43.725.txt
+³   ³       ³           2026-07-22_10-11-13.657.txt
+³   ³       ³           2026-07-22_10-12-43.663.txt
+³   ³       ³           2026-07-22_10-14-13.726.txt
+³   ³       ³           2026-07-22_10-15-43.692.txt
+³   ³       ³           2026-07-22_10-17-13.675.txt
+³   ³       ³           2026-07-22_10-18-43.694.txt
+³   ³       ³           2026-07-22_10-20-13.696.txt
+³   ³       ³           2026-07-22_10-21-43.695.txt
+³   ³       ³           2026-07-22_10-23-13.710.txt
+³   ³       ³           2026-07-22_10-24-43.714.txt
+³   ³       ³           2026-07-22_10-26-13.804.txt
+³   ³       ³           2026-07-22_10-27-43.722.txt
+³   ³       ³           2026-07-22_10-29-13.731.txt
+³   ³       ³           2026-07-22_10-30-43.739.txt
+³   ³       ³           2026-07-22_10-32-13.743.txt
+³   ³       ³           2026-07-22_10-33-43.759.txt
+³   ³       ³           2026-07-22_10-35-13.756.txt
+³   ³       ³           2026-07-22_10-36-43.755.txt
+³   ³       ³           2026-07-22_10-38-13.791.txt
+³   ³       ³           2026-07-22_10-39-43.800.txt
+³   ³       ³           2026-07-22_10-41-13.821.txt
+³   ³       ³           2026-07-22_10-42-43.829.txt
+³   ³       ³           2026-07-22_10-44-13.853.txt
+³   ³       ³           2026-07-22_10-45-43.860.txt
+³   ³       ³           2026-07-22_10-47-13.861.txt
+³   ³       ³           2026-07-22_10-48-43.842.txt
+³   ³       ³           2026-07-22_10-50-13.850.txt
+³   ³       ³           2026-07-22_10-51-43.867.txt
+³   ³       ³           2026-07-22_10-53-13.913.txt
+³   ³       ³           2026-07-22_10-54-43.912.txt
+³   ³       ³           2026-07-22_10-56-13.925.txt
+³   ³       ³           2026-07-22_10-57-43.964.txt
+³   ³       ³           2026-07-22_10-59-13.957.txt
+³   ³       ³           2026-07-22_11-00-44.012.txt
+³   ³       ³           2026-07-22_11-02-13.974.txt
+³   ³       ³           2026-07-22_11-03-43.971.txt
+³   ³       ³           2026-07-22_11-05-13.913.txt
+³   ³       ³           2026-07-22_11-06-43.968.txt
+³   ³       ³           2026-07-22_11-08-14.210.txt
+³   ³       ³           2026-07-22_11-09-43.981.txt
+³   ³       ³           2026-07-22_11-11-13.980.txt
+³   ³       ³           2026-07-22_11-12-43.996.txt
+³   ³       ³           2026-07-22_11-14-13.984.txt
+³   ³       ³           2026-07-22_11-15-44.008.txt
+³   ³       ³           2026-07-22_11-17-14.003.txt
+³   ³       ³           2026-07-22_11-18-44.018.txt
+³   ³       ³           2026-07-22_11-20-14.044.txt
+³   ³       ³           2026-07-22_11-21-44.027.txt
+³   ³       ³           2026-07-22_11-23-14.049.txt
+³   ³       ³           2026-07-22_11-24-44.057.txt
+³   ³       ³           
+³   ³       ÀÄÄÄ2026-07-23
+³   ÃÄÄÄ2026-07-22
+³   ³       intraday_accuracy_report.csv
+³   ³       intraday_backtest_results.csv
+³   ³       intraday_backtest_results.xlsx
+³   ³       intraday_daily_trade_report.xlsx
+³   ³       intraday_import_summary.csv
+³   ³       intraday_market_master_clean.csv
+³   ³       intraday_market_master_latest.csv
+³   ³       intraday_market_master_ntis.csv
+³   ³       intraday_market_master_schema.csv
+³   ³       intraday_pattern_analysis.csv
+³   ³       intraday_probability_analysis.csv
+³   ³       intraday_probability_calibration.csv
+³   ³       intraday_scored_stocks.csv
+³   ³       intraday_signal_evolution.csv
+³   ³       intraday_snapshot_history.csv
+³   ³       intraday_trade_candidates.csv
+³   ³       
+³   ÀÄÄÄ2026-07-23
+³           intraday_accuracy_report.csv
+³           intraday_backtest_results.csv
+³           intraday_backtest_results.xlsx
+³           intraday_daily_trade_report.xlsx
+³           intraday_import_summary.csv
+³           intraday_market_master_clean.csv
+³           intraday_market_master_latest.csv
+³           intraday_market_master_ntis.csv
+³           intraday_market_master_schema.csv
+³           intraday_pattern_analysis.csv
+³           intraday_probability_analysis.csv
+³           intraday_probability_calibration.csv
+³           intraday_scored_stocks.csv
+³           intraday_signal_evolution.csv
+³           intraday_snapshot_history.csv
+³           intraday_trade_candidates.csv
+³           
+ÀÄÄÄWorking
+    ÀÄÄÄ2026
+        ÀÄÄÄJuly
+            ÀÄÄÄ2026-07-22
