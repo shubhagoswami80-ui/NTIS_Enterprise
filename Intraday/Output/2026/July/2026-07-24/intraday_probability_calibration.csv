@@ -1,0 +1,4 @@
+Pattern,Signals,Target_Hits,Stop_Loss_Hits,EOD_Exits,EOD_Positive_Exits,EOD_Negative_Exits,Average_Return,Original_Probability,Target Success %,Stop Loss Rate %,EOD Success %,Pattern Quality Score,Pattern Quality %,Adjusted Probability,Confidence Adjustment
+Long Unwinding,76,0,2,74,23,53,-0.10815985183994106,10.0,0.0,2.631578947368421,30.263157894736842,9.5,12.5,12.5,REDUCE
+Neutral,1,0,0,1,0,1,-0.1645100302011018,30.0,0.0,0.0,0.0,0.0,0.0,0.0,REDUCE
+Short Buildup,102,0,6,96,28,74,-0.1548776664646863,15.0,0.0,5.88235294117647,27.450980392156865,8.0,7.84,7.84,REDUCE

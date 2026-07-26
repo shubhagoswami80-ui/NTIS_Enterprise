@@ -1,7 +1,0 @@
-eod_data_resolution_core_v17.py
-eod_final_integration_core_v17.py
-eod_governance_audit_core_v17.py
-eod_production_control_core_v17.py
-eod_replay_dashboard_core_v17.py
-eod_runtime_control_core_v17.py
-eod_service_management_core_v17.py

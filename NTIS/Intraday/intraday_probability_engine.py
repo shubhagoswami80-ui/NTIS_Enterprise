@@ -1,7 +1,7 @@
 """
 =========================================================
 NTIS Intraday Probability Engine
-Version : 1.1
+Version : 1.4
 
 Purpose:
     Convert Intraday score + pattern into probability.
@@ -9,11 +9,16 @@ Purpose:
 Input:
     intraday_pattern_analysis.csv
 
+Learning Input:
+    intraday_probability_calibration.csv
+
 Output:
     intraday_probability_analysis.csv
 
 Update:
-    Uses central dynamic Intraday output path.
+    - Added sample-size weighted learning
+    - Small samples have limited influence
+    - Preserves existing scoring logic
 =========================================================
 """
 
@@ -27,17 +32,22 @@ OUTPUT_FOLDER = get_today_output()
 
 
 INPUT_FILE = (
-    OUTPUT_FOLDER
-    /
+    OUTPUT_FOLDER /
     "intraday_pattern_analysis.csv"
 )
 
 
 OUTPUT_FILE = (
-    OUTPUT_FOLDER
-    /
+    OUTPUT_FOLDER /
     "intraday_probability_analysis.csv"
 )
+
+
+CALIBRATION_FILE = (
+    OUTPUT_FOLDER /
+    "intraday_probability_calibration.csv"
+)
+
 
 
 class IntradayProbabilityEngine:
@@ -55,6 +65,7 @@ class IntradayProbabilityEngine:
             "Long Unwinding": 30,
             "Futures Short Setup": 30,
             "Neutral": 50
+
         }
 
         return mapping.get(
@@ -63,23 +74,158 @@ class IntradayProbabilityEngine:
         )
 
 
-    def calculate_probability(self, row):
+
+    def load_pattern_learning(self):
+
+        if not CALIBRATION_FILE.exists():
+
+            return {}
+
+
+        calibration = pd.read_csv(
+            CALIBRATION_FILE
+        )
+
+
+        learning = {}
+
+
+        for _, row in calibration.iterrows():
+
+            pattern = row.get(
+                "Pattern"
+            )
+
+            quality = row.get(
+                "Pattern Quality %",
+                0
+            )
+
+            samples = row.get(
+                "Signals",
+                0
+            )
+
+
+            if pd.notna(pattern):
+
+                learning[pattern] = {
+
+                    "quality": float(quality),
+
+                    "samples": int(samples)
+
+                }
+
+
+        return learning
+
+
+
+    def learning_weight(
+        self,
+        samples
+    ):
+
+        if samples < 20:
+
+            return 0.25
+
+
+        elif samples <= 100:
+
+            return 0.50
+
+
+        return 1.0
+
+
+
+    def learning_adjustment(
+        self,
+        pattern,
+        learning
+    ):
+
+
+        data = learning.get(
+            pattern
+        )
+
+
+        if data is None:
+
+            return 0
+
+
+
+        base = self.pattern_probability(
+            pattern
+        )
+
+
+        quality = data["quality"]
+
+        samples = data["samples"]
+
+
+        weight = self.learning_weight(
+            samples
+        )
+
+
+        difference = (
+            quality - base
+        )
+
+
+        adjustment = (
+            difference
+            *
+            weight
+        )
+
+
+        if adjustment > 10:
+
+            adjustment = 10
+
+
+        if adjustment < -10:
+
+            adjustment = -10
+
+
+        return adjustment
+
+
+
+    def calculate_probability(
+        self,
+        row,
+        learning
+    ):
+
 
         score = row.get(
             "NTIS Intraday Score",
             0
         )
 
+
         pattern = row.get(
             "Pattern",
             "Neutral"
         )
 
+
         base = self.pattern_probability(
             pattern
         )
 
+
         adjustment = 0
+
 
 
         if score >= 70:
@@ -97,7 +243,18 @@ class IntradayProbabilityEngine:
             adjustment -= 15
 
 
-        probability = base + adjustment
+
+        adjustment += self.learning_adjustment(
+            pattern,
+            learning
+        )
+
+
+        probability = (
+            base
+            +
+            adjustment
+        )
 
 
         probability = max(
@@ -109,11 +266,17 @@ class IntradayProbabilityEngine:
         )
 
 
-        return probability
+        return round(
+            probability,
+            2
+        )
 
 
 
-    def confidence(self, probability):
+    def confidence(
+        self,
+        probability
+    ):
 
         if probability >= 75:
 
@@ -131,51 +294,86 @@ class IntradayProbabilityEngine:
 
     def run(self):
 
+
         df = pd.read_csv(
             INPUT_FILE
         )
 
 
-        df["Intraday Probability %"] = (
-            df.apply(
-                self.calculate_probability,
-                axis=1
-            )
+        learning = (
+            self.load_pattern_learning()
         )
 
 
+        df["Intraday Probability %"] = (
+
+            df.apply(
+
+                lambda row:
+
+                self.calculate_probability(
+                    row,
+                    learning
+                ),
+
+                axis=1
+
+            )
+
+        )
+
+
+
         df["Confidence"] = (
+
             df["Intraday Probability %"]
             .apply(
                 self.confidence
             )
+
         )
+
 
 
         df["Final Bias"] = "NEUTRAL"
 
 
         df.loc[
+
             df["Intraday Probability %"] >= 70,
+
             "Final Bias"
+
         ] = "BUY"
 
 
+
         df.loc[
+
             df["Intraday Probability %"] <= 35,
+
             "Final Bias"
+
         ] = "SELL"
 
 
+
         df = df.sort_values(
+
             "Intraday Probability %",
+
             ascending=False
+
         )
 
 
+
         df.to_csv(
+
             OUTPUT_FILE,
+
             index=False
+
         )
 
 
@@ -187,12 +385,20 @@ if __name__ == "__main__":
 
 
     result = (
+
         IntradayProbabilityEngine()
+
         .run()
+
     )
 
 
     print("=" * 60)
-    print("INTRADAY PROBABILITY COMPLETE")
+
+    print(
+        "INTRADAY PROBABILITY COMPLETE"
+    )
+
     print(result)
+
     print("=" * 60)

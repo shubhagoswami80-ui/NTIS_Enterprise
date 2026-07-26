@@ -1,0 +1,14 @@
+Module,Status,Purpose,Layer,Notes
+config_loader.py,ACTIVE,Central configuration loading,Foundation,Do not duplicate
+intraday_path_config.py,ACTIVE,Dynamic output path handling,Foundation,Frozen
+intraday_market_master_builder.py,ACTIVE,Market master creation,Data Layer,Active
+intraday_scoring_engine.py,ACTIVE,NTIS scoring,Analysis Layer,Active
+intraday_pattern_engine.py,ACTIVE,Pattern detection,Analysis Layer,Active
+pattern_statistics_engine.py,ACTIVE,Pattern statistics,Learning Layer,Review active version
+intraday_probability_engine.py,ACTIVE,Probability calculation,Decision Layer,Current active engine
+intraday_probability_calibration.py,ACTIVE,Probability calibration,Learning Layer,Current active calibration
+intraday_trade_validation_engine.py,ACTIVE,Trade validation,Decision Layer,Current active validation
+intraday_historical_replay_engine.py,ACTIVE,Historical replay,Backtest Layer,Active
+intraday_accuracy_tracker.py,ACTIVE,Accuracy reporting,Learning Layer,Active
+intraday_learning_memory_builder.py,ACTIVE,Learning memory creation,Learning Layer,Active
+intraday_learning_outcome_updater.py,ACTIVE,Learning memory update,Learning Layer,Active
