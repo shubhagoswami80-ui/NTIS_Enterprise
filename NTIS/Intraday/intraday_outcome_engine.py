@@ -1,53 +1,97 @@
 """
-NTIS Intraday Outcome Engine v1.0
+NTIS Intraday Outcome Engine v2.0
 
-Purpose:
-    Update learning memory outcomes.
-
-Rules:
-    - Uses central configuration
-    - CSV based
-    - Keeps pending events ready for outcome tracking
+Calculates historical signal outcomes using EOD OHLC.
 """
 
 import pandas as pd
 
-from config_loader import LEARNING_ROOT
 
+def calculate_outcomes(intraday_df, eod_df):
 
-MEMORY_FILE = LEARNING_ROOT / "intraday_learning_memory.csv"
-
-
-def update_outcome():
-
-    if not MEMORY_FILE.exists():
-        raise FileNotFoundError(
-            "intraday_learning_memory.csv not found"
-        )
-
-    df = pd.read_csv(MEMORY_FILE)
-
-    pending = df[
-        df["Outcome"] == "PENDING"
+    eod_required = [
+        "Symbol",
+        "High",
+        "Low",
+        "Close"
     ]
 
-    print("Pending Events:", len(pending))
+    for col in eod_required:
+        if col not in eod_df.columns:
+            raise KeyError(
+                f"EOD column missing: {col}"
+            )
 
-    if pending.empty:
-        print("No pending records")
-        return
-
-    # Outcome calculation hook.
-    # Future version will connect replay/future price data.
-
-    df.to_csv(
-        MEMORY_FILE,
-        index=False
+    merged = intraday_df.merge(
+        eod_df[eod_required],
+        on="Symbol",
+        how="left"
     )
 
-    print("Outcome Engine Updated:")
-    print(MEMORY_FILE)
+    results = []
+
+    for _, row in merged.iterrows():
+
+        outcome = "NO_DATA"
+        exit_price = None
+
+        if pd.notna(row.get("High")):
+
+            bias = str(
+                row.get("Final Bias", "")
+            ).upper()
+
+            if bias == "BUY":
+
+                if row["High"] >= row["Target"]:
+                    outcome = "TARGET HIT"
+                    exit_price = row["Target"]
+
+                elif row["Low"] <= row["Stop Loss"]:
+                    outcome = "STOP LOSS HIT"
+                    exit_price = row["Stop Loss"]
+
+                else:
+                    outcome = "EOD EXIT"
+                    exit_price = row["Close"]
 
 
-if __name__ == "__main__":
-    update_outcome()
+            elif bias == "SELL":
+
+                if row["Low"] <= row["Target"]:
+                    outcome = "TARGET HIT"
+                    exit_price = row["Target"]
+
+                elif row["High"] >= row["Stop Loss"]:
+                    outcome = "STOP LOSS HIT"
+                    exit_price = row["Stop Loss"]
+
+                else:
+                    outcome = "EOD EXIT"
+                    exit_price = row["Close"]
+
+
+        record = row.to_dict()
+
+        record["Outcome"] = outcome
+        record["Exit Price"] = exit_price
+
+        if exit_price and row["Entry Price"]:
+            record["Points"] = (
+                exit_price - row["Entry Price"]
+                if str(row["Final Bias"]).upper() == "BUY"
+                else row["Entry Price"] - exit_price
+            )
+
+            record["Return %"] = (
+                record["Points"] /
+                row["Entry Price"]
+            ) * 100
+
+        else:
+            record["Points"] = 0
+            record["Return %"] = 0
+
+        results.append(record)
+
+    return pd.DataFrame(results)

@@ -1,102 +1,217 @@
 """
 =========================================================
 NTIS Intraday Accuracy Tracker
-Version : 1.0
+Version : 2.0
 
 Purpose:
-    Track intraday prediction outcomes.
+    Analyse replay results and create accuracy report.
 
 Input:
-    intraday_trade_candidates.csv
+    intraday_backtest_results.csv
 
 Output:
     intraday_accuracy_report.csv
 
-Notes:
-    - Initial framework
-    - Outcome calculation placeholder
-    - Designed for future historical validation
+Rules:
+    - Ignore FILTERED records
+    - Calculate replay accuracy
+    - Prepare learning dataset
 =========================================================
 """
 
 from pathlib import Path
-from datetime import datetime
 import pandas as pd
 
-from intraday_config import OUTPUT_FOLDER
+
+def create_accuracy_report(
+    replay_file
+):
+
+    replay_file = Path(
+        replay_file
+    )
 
 
-INPUT_FILE = Path(
-    OUTPUT_FOLDER / "intraday_trade_candidates.csv"
-)
+    if not replay_file.exists():
 
-OUTPUT_FILE = Path(
-    OUTPUT_FOLDER / "intraday_accuracy_report.csv"
-)
-
-
-class IntradayAccuracyTracker:
-
-
-    def run(self):
-
-        df = pd.read_csv(
-            INPUT_FILE
+        raise FileNotFoundError(
+            f"Replay file not found: {replay_file}"
         )
 
 
-        result = df.copy()
+    df = pd.read_csv(
+        replay_file
+    )
 
 
-        result["Analysis Date"] = (
-            datetime.now()
-            .strftime("%Y-%m-%d")
+    required = [
+        "Outcome",
+        "Pattern",
+        "Return %"
+    ]
+
+
+    for col in required:
+
+        if col not in df.columns:
+
+            raise KeyError(
+                f"Missing column: {col}"
+            )
+
+
+    # Keep only actual replayed trades
+
+    accuracy_df = df[
+        df["Outcome"].isin(
+            [
+                "TARGET HIT",
+                "STOP LOSS HIT",
+                "EOD EXIT"
+            ]
+        )
+    ].copy()
+
+
+    if accuracy_df.empty:
+
+        raise ValueError(
+            "No completed replay trades found"
         )
 
 
-        # Future actual market data fields
-        result["Actual Close"] = None
-        result["Outcome"] = "PENDING"
-        result["Points"] = None
-        result["Accuracy"] = 0
+    accuracy_df["Win"] = (
+        accuracy_df["Outcome"]
+        ==
+        "TARGET HIT"
+    )
 
 
-        columns = [
-            "Analysis Date",
-            "Symbol",
-            "Pattern",
-            "Intraday Probability %",
-            "Final Bias",
-            "Entry Price",
-            "Stop Loss",
-            "Target",
-            "Actual Close",
-            "Outcome",
-            "Points",
-            "Accuracy"
-        ]
+    total_trades = len(
+        accuracy_df
+    )
+
+    target_hits = sum(
+        accuracy_df["Outcome"]
+        ==
+        "TARGET HIT"
+    )
+
+    stop_losses = sum(
+        accuracy_df["Outcome"]
+        ==
+        "STOP LOSS HIT"
+    )
+
+    eod_exit = sum(
+        accuracy_df["Outcome"]
+        ==
+        "EOD EXIT"
+    )
 
 
-        result = result[
-            [c for c in columns if c in result.columns]
-        ]
+    win_percentage = (
+        target_hits /
+        total_trades
+    ) * 100
 
 
-        result.to_csv(
-            OUTPUT_FILE,
+    average_return = (
+        accuracy_df["Return %"]
+        .mean()
+    )
+
+
+    summary = pd.DataFrame(
+        {
+            "Metric": [
+                "Total Trades",
+                "Target Hits",
+                "Stop Loss Hits",
+                "EOD Exits",
+                "Win %",
+                "Average Return %"
+            ],
+
+            "Value": [
+                total_trades,
+                target_hits,
+                stop_losses,
+                eod_exit,
+                round(win_percentage,2),
+                round(average_return,2)
+            ]
+        }
+    )
+
+
+    pattern_accuracy = (
+        accuracy_df
+        .groupby("Pattern")
+        .agg(
+            Signals=("Pattern","count"),
+            Target_Hits=(
+                "Outcome",
+                lambda x:
+                sum(x=="TARGET HIT")
+            ),
+            Average_Return=(
+                "Return %",
+                "mean"
+            )
+        )
+        .reset_index()
+    )
+
+
+    output = (
+        replay_file.parent /
+        "intraday_accuracy_report.csv"
+    )
+
+
+    accuracy_df.to_csv(
+        output,
+        index=False
+    )
+
+
+    excel_output = (
+        replay_file.parent /
+        "intraday_accuracy_report.xlsx"
+    )
+
+
+    with pd.ExcelWriter(
+        excel_output,
+        engine="openpyxl"
+    ) as writer:
+
+        summary.to_excel(
+            writer,
+            sheet_name="Summary",
+            index=False
+        )
+
+        accuracy_df.to_excel(
+            writer,
+            sheet_name="Trades",
+            index=False
+        )
+
+        pattern_accuracy.to_excel(
+            writer,
+            sheet_name="Pattern Analysis",
             index=False
         )
 
 
-        return OUTPUT_FILE
+    return output
 
 
 
 if __name__ == "__main__":
 
-    output = IntradayAccuracyTracker().run()
-
-    print("=" * 60)
-    print("INTRADAY ACCURACY REPORT CREATED")
-    print(output)
-    print("=" * 60)
+    print(
+        "Use create_accuracy_report(replay_file)"
+    )
