@@ -9,6 +9,7 @@ config = configparser.ConfigParser()
 config.read(CONFIG_FILE)
 
 SCREENSHOT_ROOT = Path(config["PATHS"]["SCREENSHOT_ROOT"])
+HISTORICAL_ROOT = Path(config["PATHS"]["HISTORICAL_ROOT"])
 OUTPUT_ROOT = Path(config["PATHS"]["OUTPUT_ROOT"])
 REGISTRY_ROOT = Path(config["PATHS"]["REGISTRY_ROOT"])
 

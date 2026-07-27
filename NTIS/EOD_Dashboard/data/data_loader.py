@@ -10,7 +10,6 @@ Rules:
     - No pipeline changes
 """
 
-from pathlib import Path
 from datetime import datetime
 import pandas as pd
 
@@ -21,10 +20,6 @@ from EOD_Dashboard.config.dashboard_config import (
 
 
 def get_file_path(dataset_name):
-    """
-    Return dataset file path from configuration.
-    """
-
     filename = REQUIRED_EOD_FILES.get(dataset_name)
 
     if not filename:
@@ -34,13 +29,6 @@ def get_file_path(dataset_name):
 
 
 def load_dataset(dataset_name):
-    """
-    Load a configured CSV dataset.
-
-    Returns:
-        pandas DataFrame or None
-    """
-
     path = get_file_path(dataset_name)
 
     if path is None:
@@ -53,9 +41,6 @@ def load_dataset(dataset_name):
 
 
 def get_dataset_info(dataset_name):
-    """
-    Return dataset availability metadata.
-    """
 
     path = get_file_path(dataset_name)
 
@@ -89,9 +74,7 @@ def test_loader():
     print("=" * 60)
 
     for name in REQUIRED_EOD_FILES:
-
         info = get_dataset_info(name)
-
         print(
             name,
             "READY" if info["available"] else "MISSING"

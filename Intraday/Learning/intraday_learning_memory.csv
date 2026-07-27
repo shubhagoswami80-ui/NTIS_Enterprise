@@ -1,58 +1,58 @@
 Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,Entry_Price,Previous_Close,Previous_High,Previous_Low,Price_Condition,OI_Condition,Volume_Condition,IV_Condition,Trade_Reason,Outcome,Future_Move_%,Target_Hit,Stop_Loss_Hit
 2026-07-24,18:15,TEST,BUY,Fresh Long Buildup,78,82,HIGH,1000.0,980.0,990.0,970.0,Above Previous High,Positive,Expansion,Stable,Price breakout with OI confirmation,PENDING,,,
-2026-07-24,18:22,EICHERMOT,VALID BUY,Fresh Long Buildup,40,75,HIGH,7705.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,PENDING,,,
+2026-07-24,18:22,EICHERMOT,VALID BUY,Fresh Long Buildup,40,75,HIGH,7705.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
 2026-07-24,18:22,GODREJCP,VALID BUY,Fresh Long Buildup,40,75,HIGH,1079.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
-2026-07-24,18:22,M&M,VALID BUY,Fresh Long Buildup,40,75,HIGH,3245.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,PENDING,,,
-2026-07-24,18:22,TVSMOTOR,VALID BUY,Fresh Long Buildup,40,75,HIGH,3941.3,,,,,,,,Positive Price Momentum; Fresh OI Buildup,PENDING,,,
-2026-07-24,18:22,KEI,VALID BUY,Fresh Long Buildup,40,75,HIGH,4995.5,,,,,,,,Positive Price Momentum; Fresh OI Buildup,PENDING,,,
+2026-07-24,18:22,M&M,VALID BUY,Fresh Long Buildup,40,75,HIGH,3245.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
+2026-07-24,18:22,TVSMOTOR,VALID BUY,Fresh Long Buildup,40,75,HIGH,3941.3,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
+2026-07-24,18:22,KEI,VALID BUY,Fresh Long Buildup,40,75,HIGH,4995.5,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
 2026-07-24,18:22,SHREECEM,VALID BUY,Fresh Long Buildup,35,75,HIGH,26890.0,,,,,,,,Positive Price Momentum; Volume Expansion,PENDING,,,
 2026-07-24,18:22,APLAPOLLO,WATCH,Short Covering,35,70,MEDIUM,1841.0,,,,,,,,Positive Price Momentum; Volume Expansion,PENDING,,,
 2026-07-24,18:22,KAYNES,WATCH,Short Covering,35,70,MEDIUM,3314.0,,,,,,,,Positive Price Momentum; Volume Expansion,PENDING,,,
-2026-07-24,18:22,HYUNDAI,WATCH,Fresh Long Buildup,20,60,MEDIUM,1976.8,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:22,HYUNDAI,WATCH,Fresh Long Buildup,20,60,MEDIUM,1976.8,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:22,HCLTECH,WATCH,Fresh Long Buildup,20,60,MEDIUM,1240.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
-2026-07-24,18:22,360ONE,WATCH,Fresh Long Buildup,20,60,MEDIUM,1093.8,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,BOSCHLTD,WATCH,Fresh Long Buildup,20,60,MEDIUM,42560.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,BHARATFORG,WATCH,Fresh Long Buildup,20,60,MEDIUM,2204.9,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,BAJAJHLDNG,WATCH,Fresh Long Buildup,20,60,MEDIUM,10570.0,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:22,360ONE,WATCH,Fresh Long Buildup,20,60,MEDIUM,1093.8,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,BOSCHLTD,WATCH,Fresh Long Buildup,20,60,MEDIUM,42560.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,BHARATFORG,WATCH,Fresh Long Buildup,20,60,MEDIUM,2204.9,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,BAJAJHLDNG,WATCH,Fresh Long Buildup,20,60,MEDIUM,10570.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:22,ICICIGI,WATCH,Fresh Long Buildup,20,60,MEDIUM,1592.7,,,,,,,,Positive Price Momentum,STOP LOSS HIT,-2.0000000000000058,NO,YES
-2026-07-24,18:22,UPL,WATCH,Fresh Long Buildup,20,60,MEDIUM,611.65,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,BPCL,WATCH,Fresh Long Buildup,20,60,MEDIUM,316.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,HDFCAMC,WATCH,Fresh Long Buildup,20,60,MEDIUM,2554.9,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,MARUTI,WATCH,Fresh Long Buildup,20,60,MEDIUM,13550.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,ASHOKLEY,WATCH,Fresh Long Buildup,20,60,MEDIUM,153.39,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,ETERNAL,WATCH,Fresh Long Buildup,20,60,MEDIUM,294.8,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,DELHIVERY,WATCH,Fresh Long Buildup,20,60,MEDIUM,471.7,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,BAJAJFINSV,WATCH,Fresh Long Buildup,20,60,MEDIUM,1888.0,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:22,UPL,WATCH,Fresh Long Buildup,20,60,MEDIUM,611.65,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,BPCL,WATCH,Fresh Long Buildup,20,60,MEDIUM,316.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,HDFCAMC,WATCH,Fresh Long Buildup,20,60,MEDIUM,2554.9,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,MARUTI,WATCH,Fresh Long Buildup,20,60,MEDIUM,13550.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,ASHOKLEY,WATCH,Fresh Long Buildup,20,60,MEDIUM,153.39,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,ETERNAL,WATCH,Fresh Long Buildup,20,60,MEDIUM,294.8,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,DELHIVERY,WATCH,Fresh Long Buildup,20,60,MEDIUM,471.7,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,BAJAJFINSV,WATCH,Fresh Long Buildup,20,60,MEDIUM,1888.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:22,HAVELLS,WATCH,Fresh Long Buildup,20,60,MEDIUM,1215.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
-2026-07-24,18:22,TATACONSUM,WATCH,Fresh Long Buildup,20,60,MEDIUM,1102.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
-2026-07-24,18:22,PHOENIXLTD,WATCH,Fresh Long Buildup,20,60,MEDIUM,2060.5,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,HAL,WATCH,Fresh Long Buildup,20,60,MEDIUM,4586.4,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,CUMMINSIND,WATCH,Fresh Long Buildup,20,60,MEDIUM,5629.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,GLENMARK,WATCH,Fresh Long Buildup,20,60,MEDIUM,2214.2,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:22,TATACONSUM,WATCH,Fresh Long Buildup,20,60,MEDIUM,1102.4,,,,,,,,Positive Price Momentum,EOD EXIT,-0.8728179551122154,NO,NO
+2026-07-24,18:22,PHOENIXLTD,WATCH,Fresh Long Buildup,20,60,MEDIUM,2060.5,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,HAL,WATCH,Fresh Long Buildup,20,60,MEDIUM,4586.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,CUMMINSIND,WATCH,Fresh Long Buildup,20,60,MEDIUM,5629.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,GLENMARK,WATCH,Fresh Long Buildup,20,60,MEDIUM,2214.2,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:22,BAJAJ-AUTO,WATCH,Fresh Long Buildup,20,60,MEDIUM,11254.5,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,FORTIS,WATCH,Fresh Long Buildup,20,60,MEDIUM,949.4,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,LT,WATCH,Fresh Long Buildup,20,60,MEDIUM,3822.9,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:22,FORTIS,WATCH,Fresh Long Buildup,20,60,MEDIUM,949.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,LT,WATCH,Fresh Long Buildup,20,60,MEDIUM,3822.9,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:22,PIIND,WATCH,Fresh Long Buildup,20,60,MEDIUM,2723.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
-2026-07-24,18:22,SWIGGY,WATCH,Fresh Long Buildup,20,60,MEDIUM,265.3,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,MANAPPURAM,WATCH,Fresh Long Buildup,20,60,MEDIUM,353.75,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,MUTHOOTFIN,WATCH,Fresh Long Buildup,20,60,MEDIUM,3067.5,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,KOTAKBANK,WATCH,Fresh Long Buildup,20,60,MEDIUM,385.25,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,INDIANB,WATCH,Fresh Long Buildup,20,60,MEDIUM,832.1,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,UNOMINDA,WATCH,Fresh Long Buildup,20,60,MEDIUM,1148.6,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,HINDZINC,WATCH,Fresh Long Buildup,20,60,MEDIUM,537.3,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:22,SWIGGY,WATCH,Fresh Long Buildup,20,60,MEDIUM,265.3,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,MANAPPURAM,WATCH,Fresh Long Buildup,20,60,MEDIUM,353.75,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,MUTHOOTFIN,WATCH,Fresh Long Buildup,20,60,MEDIUM,3067.5,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,KOTAKBANK,WATCH,Fresh Long Buildup,20,60,MEDIUM,385.25,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,INDIANB,WATCH,Fresh Long Buildup,20,60,MEDIUM,832.1,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,UNOMINDA,WATCH,Fresh Long Buildup,20,60,MEDIUM,1148.6,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:22,HINDZINC,WATCH,Fresh Long Buildup,20,60,MEDIUM,537.3,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:22,ULTRACEMCO,WATCH,Fresh Long Buildup,20,60,MEDIUM,11899.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:22,HINDALCO,WATCH,Fresh Long Buildup,20,60,MEDIUM,960.85,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:22,HINDALCO,WATCH,Fresh Long Buildup,20,60,MEDIUM,960.85,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:22,ONGC,WATCH,Fresh Long Buildup,0,60,MEDIUM,252.49,,,,,,,,,PENDING,,,
-2026-07-24,18:22,POWERGRID,WATCH,Fresh Long Buildup,0,60,MEDIUM,289.3,,,,,,,,,PENDING,,,
-2026-07-24,18:22,FEDERALBNK,WATCH,Fresh Long Buildup,0,60,MEDIUM,354.0,,,,,,,,,PENDING,,,
-2026-07-24,18:22,CANBK,WATCH,Fresh Long Buildup,0,60,MEDIUM,127.0,,,,,,,,,PENDING,,,
-2026-07-24,18:22,JUBLFOOD,WATCH,Short Covering,10,55,MEDIUM,419.2,,,,,,,,Positive Price Momentum; OI Reduction,PENDING,,,
+2026-07-24,18:22,POWERGRID,WATCH,Fresh Long Buildup,0,60,MEDIUM,289.3,,,,,,,,,FILTERED,0.0,NO,NO
+2026-07-24,18:22,FEDERALBNK,WATCH,Fresh Long Buildup,0,60,MEDIUM,354.0,,,,,,,,,FILTERED,0.0,NO,NO
+2026-07-24,18:22,CANBK,WATCH,Fresh Long Buildup,0,60,MEDIUM,127.0,,,,,,,,,FILTERED,0.0,NO,NO
+2026-07-24,18:22,JUBLFOOD,WATCH,Short Covering,10,55,MEDIUM,419.2,,,,,,,,Positive Price Momentum; OI Reduction,FILTERED,0.0,NO,NO
 2026-07-24,18:22,UNITDSPR,WATCH,Short Covering,20,55,MEDIUM,1427.6,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:22,NATIONALUM,WATCH,Short Covering,20,55,MEDIUM,346.5,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:22,HEROMOTOCO,WATCH,Short Covering,20,55,MEDIUM,5097.3,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:22,SBILIFE,WATCH,Short Covering,20,55,MEDIUM,1816.8,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:22,TRENT,WATCH,Short Covering,25,55,MEDIUM,2901.7,,,,,,,,Positive Price Momentum; OI Reduction; Volume Expansion,PENDING,,,
-2026-07-24,18:22,OFSS,WATCH,Short Covering,25,55,MEDIUM,10880.0,,,,,,,,Positive Price Momentum; OI Reduction; Volume Expansion,PENDING,,,
+2026-07-24,18:22,OFSS,WATCH,Short Covering,25,55,MEDIUM,10880.0,,,,,,,,Positive Price Momentum; OI Reduction; Volume Expansion,FILTERED,0.0,NO,NO
 2026-07-24,18:22,CONCOR,WATCH,Short Covering,20,55,MEDIUM,484.5,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:22,MOTHERSON,WATCH,Short Covering,20,55,MEDIUM,146.16,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:22,ABB,WATCH,Short Covering,20,55,MEDIUM,7634.5,,,,,,,,Positive Price Momentum,PENDING,,,
@@ -95,7 +95,7 @@ Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,En
 2026-07-24,18:22,BANKEX,VALID SELL,Neutral,0,35,LOW,64512.5,,,,,,,,Negative Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:22,NAM-INDIA,VALID SELL,Short Buildup,0,20,LOW,1112.7,,,,,,,,Negative Price Momentum; Fresh OI Buildup,PENDING,,,
 2026-07-24,18:22,INDHOTEL,VALID SELL,Short Buildup,20,20,LOW,723.15,,,,,,,,Fresh OI Buildup,EOD EXIT,-0.076713857312219,NO,NO
-2026-07-24,18:22,ICICIBANK,VALID SELL,Short Buildup,20,20,LOW,1441.6,,,,,,,,Fresh OI Buildup,EOD EXIT,0.014041985536758,NO,NO
+2026-07-24,18:22,ICICIBANK,VALID SELL,Short Buildup,20,20,LOW,1441.6,,,,,,,,Fresh OI Buildup,EOD EXIT,-0.8476951099901856,NO,NO
 2026-07-24,18:22,GMRAIRPORT,VALID SELL,Short Buildup,15,20,LOW,108.57,,,,,,,,Negative Price Momentum; Fresh OI Buildup; Volume Expansion,EOD EXIT,0.0940910801655949,NO,NO
 2026-07-24,18:22,MPHASIS,VALID SELL,Short Buildup,20,20,LOW,2270.8,,,,,,,,Fresh OI Buildup,PENDING,,,
 2026-07-24,18:22,PETRONET,VALID SELL,Short Buildup,0,20,LOW,270.15,,,,,,,,Negative Price Momentum; Fresh OI Buildup,PENDING,,,
@@ -103,7 +103,7 @@ Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,En
 2026-07-24,18:22,LTM,VALID SELL,Short Buildup,0,20,LOW,3957.0,,,,,,,,Negative Price Momentum; Fresh OI Buildup,EOD EXIT,-0.2828711420922316,NO,NO
 2026-07-24,18:22,NTPC,VALID SELL,Short Buildup,0,20,LOW,347.45,,,,,,,,Negative Price Momentum; Fresh OI Buildup,EOD EXIT,-0.014432096983695,NO,NO
 2026-07-24,18:22,NYKAA,VALID SELL,Short Buildup,0,20,LOW,325.75,,,,,,,,Negative Price Momentum,STOP LOSS HIT,-1.9999999999999991,NO,YES
-2026-07-24,18:22,SHRIRAMFIN,VALID SELL,Short Buildup,0,20,LOW,1056.0,,,,,,,,Negative Price Momentum,PENDING,,,
+2026-07-24,18:22,SHRIRAMFIN,VALID SELL,Short Buildup,0,20,LOW,1056.0,,,,,,,,Negative Price Momentum,STOP LOSS HIT,-2.000000000000012,NO,YES
 2026-07-24,18:22,INFY,VALID SELL,Short Buildup,0,20,LOW,1045.7,,,,,,,,Negative Price Momentum,PENDING,,,
 2026-07-24,18:22,PNB,VALID SELL,Short Buildup,0,20,LOW,110.67,,,,,,,,,EOD EXIT,-0.0365463682046523,NO,NO
 2026-07-24,18:22,BRITANNIA,VALID SELL,Short Buildup,0,20,LOW,5463.5,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0093580385551188,NO,NO
@@ -117,7 +117,7 @@ Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,En
 2026-07-24,18:22,DIVISLAB,VALID SELL,Short Buildup,0,20,LOW,7328.0,,,,,,,,Negative Price Momentum; Fresh OI Buildup,EOD EXIT,-0.0825082508250825,NO,NO
 2026-07-24,18:22,AMBUJACEM,VALID SELL,Short Buildup,0,20,LOW,427.25,,,,,,,,Negative Price Momentum; Volume Expansion,PENDING,,,
 2026-07-24,18:22,INDUSINDBK,VALID SELL,Short Buildup,0,20,LOW,1015.0,,,,,,,,Negative Price Momentum; Fresh OI Buildup,PENDING,,,
-2026-07-24,18:22,DRREDDY,VALID SELL,Short Buildup,0,20,LOW,1154.0,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0435767822903956,NO,NO
+2026-07-24,18:22,DRREDDY,VALID SELL,Short Buildup,0,20,LOW,1154.0,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0087085256466199,NO,NO
 2026-07-24,18:22,PNBHOUSING,VALID SELL,Short Buildup,0,20,LOW,1071.8,,,,,,,,Negative Price Momentum,PENDING,,,
 2026-07-24,18:22,INDUSTOWER,VALID SELL,Short Buildup,0,20,LOW,393.5,,,,,,,,Negative Price Momentum,EOD EXIT,-0.1547588341501219,NO,NO
 2026-07-24,18:22,ADANIGREEN,VALID SELL,Short Buildup,0,20,LOW,1390.6,,,,,,,,Negative Price Momentum; Fresh OI Buildup,PENDING,,,
@@ -127,11 +127,11 @@ Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,En
 2026-07-24,18:22,AXISBANK,VALID SELL,Short Buildup,0,20,LOW,1236.9,,,,,,,,Negative Price Momentum,PENDING,,,
 2026-07-24,18:22,BANKBARODA,VALID SELL,Short Buildup,0,20,LOW,244.35,,,,,,,,Negative Price Momentum,EOD EXIT,0.0414164423276017,NO,NO
 2026-07-24,18:22,ALKEM,VALID SELL,Short Buildup,0,20,LOW,5537.0,,,,,,,,Negative Price Momentum,PENDING,,,
-2026-07-24,18:22,CROMPTON,VALID SELL,Short Buildup,0,20,LOW,249.5,,,,,,,,Negative Price Momentum,EOD EXIT,-0.1230516817063096,NO,NO
+2026-07-24,18:22,CROMPTON,VALID SELL,Short Buildup,0,20,LOW,249.5,,,,,,,,Negative Price Momentum,EOD EXIT,0.1790332206087084,NO,NO
 2026-07-24,18:22,ICICIPRULI,VALID SELL,Short Buildup,0,20,LOW,496.65,,,,,,,,Negative Price Momentum,PENDING,,,
 2026-07-24,18:22,HDFCBANK,VALID SELL,Short Buildup,0,20,LOW,748.85,,,,,,,,Negative Price Momentum,EOD EXIT,0.0,NO,NO
 2026-07-24,18:22,YESBANK,VALID SELL,Short Buildup,0,20,LOW,23.05,,,,,,,,,EOD EXIT,-0.0878348704435642,NO,NO
-2026-07-24,18:22,JSWSTEEL,VALID SELL,Short Buildup,0,20,LOW,1264.4,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0645942672587771,NO,NO
+2026-07-24,18:22,JSWSTEEL,VALID SELL,Short Buildup,0,20,LOW,1264.4,,,,,,,,Negative Price Momentum,EOD EXIT,-0.1762538054798946,NO,NO
 2026-07-24,18:22,MIDCPNIFTY,VALID SELL,Short Buildup,0,20,LOW,14586.15,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0311068081968238,NO,NO
 2026-07-24,18:22,BANDHANBNK,VALID SELL,Short Buildup,0,20,LOW,170.94,,,,,,,,Negative Price Momentum; Fresh OI Buildup,EOD EXIT,-0.2930581842603444,NO,NO
 2026-07-24,18:22,BHEL,VALID SELL,Short Buildup,0,20,LOW,413.5,,,,,,,,Negative Price Momentum,EOD EXIT,-0.1601182411627131,NO,NO
@@ -218,59 +218,59 @@ Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,En
 2026-07-24,18:22,FINNIFTY,VALID SELL,Long Unwinding,0,15,LOW,26187.2,,,,,,,,Negative Price Momentum,PENDING,,,
 2026-07-24,18:22,COALINDIA,VALID SELL,Long Unwinding,0,15,LOW,428.95,,,,,,,,,EOD EXIT,-0.0351205806602615,NO,NO
 2026-07-24,18:22,FOCIT,VALID SELL,Long Unwinding,0,15,LOW,34355.0,,,,,,,,Negative Price Momentum,PENDING,,,
-2026-07-24,18:59,EICHERMOT,VALID BUY,Fresh Long Buildup,40,75,HIGH,7705.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,PENDING,,,
+2026-07-24,18:59,EICHERMOT,VALID BUY,Fresh Long Buildup,40,75,HIGH,7705.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
 2026-07-24,18:59,GODREJCP,VALID BUY,Fresh Long Buildup,40,75,HIGH,1079.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
-2026-07-24,18:59,M&M,VALID BUY,Fresh Long Buildup,40,75,HIGH,3245.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,PENDING,,,
-2026-07-24,18:59,TVSMOTOR,VALID BUY,Fresh Long Buildup,40,75,HIGH,3941.3,,,,,,,,Positive Price Momentum; Fresh OI Buildup,PENDING,,,
-2026-07-24,18:59,KEI,VALID BUY,Fresh Long Buildup,40,75,HIGH,4995.5,,,,,,,,Positive Price Momentum; Fresh OI Buildup,PENDING,,,
+2026-07-24,18:59,M&M,VALID BUY,Fresh Long Buildup,40,75,HIGH,3245.0,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
+2026-07-24,18:59,TVSMOTOR,VALID BUY,Fresh Long Buildup,40,75,HIGH,3941.3,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
+2026-07-24,18:59,KEI,VALID BUY,Fresh Long Buildup,40,75,HIGH,4995.5,,,,,,,,Positive Price Momentum; Fresh OI Buildup,FILTERED,0.0,NO,NO
 2026-07-24,18:59,SHREECEM,VALID BUY,Fresh Long Buildup,35,75,HIGH,26890.0,,,,,,,,Positive Price Momentum; Volume Expansion,PENDING,,,
 2026-07-24,18:59,APLAPOLLO,WATCH,Short Covering,35,70,MEDIUM,1841.0,,,,,,,,Positive Price Momentum; Volume Expansion,PENDING,,,
 2026-07-24,18:59,KAYNES,WATCH,Short Covering,35,70,MEDIUM,3314.0,,,,,,,,Positive Price Momentum; Volume Expansion,PENDING,,,
-2026-07-24,18:59,HYUNDAI,WATCH,Fresh Long Buildup,20,60,MEDIUM,1976.8,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:59,HYUNDAI,WATCH,Fresh Long Buildup,20,60,MEDIUM,1976.8,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:59,HCLTECH,WATCH,Fresh Long Buildup,20,60,MEDIUM,1240.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
-2026-07-24,18:59,360ONE,WATCH,Fresh Long Buildup,20,60,MEDIUM,1093.8,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,BOSCHLTD,WATCH,Fresh Long Buildup,20,60,MEDIUM,42560.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,BHARATFORG,WATCH,Fresh Long Buildup,20,60,MEDIUM,2204.9,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,BAJAJHLDNG,WATCH,Fresh Long Buildup,20,60,MEDIUM,10570.0,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:59,360ONE,WATCH,Fresh Long Buildup,20,60,MEDIUM,1093.8,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,BOSCHLTD,WATCH,Fresh Long Buildup,20,60,MEDIUM,42560.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,BHARATFORG,WATCH,Fresh Long Buildup,20,60,MEDIUM,2204.9,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,BAJAJHLDNG,WATCH,Fresh Long Buildup,20,60,MEDIUM,10570.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:59,ICICIGI,WATCH,Fresh Long Buildup,20,60,MEDIUM,1592.7,,,,,,,,Positive Price Momentum,STOP LOSS HIT,-2.0000000000000058,NO,YES
-2026-07-24,18:59,UPL,WATCH,Fresh Long Buildup,20,60,MEDIUM,611.65,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,BPCL,WATCH,Fresh Long Buildup,20,60,MEDIUM,316.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,HDFCAMC,WATCH,Fresh Long Buildup,20,60,MEDIUM,2554.9,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,MARUTI,WATCH,Fresh Long Buildup,20,60,MEDIUM,13550.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,ASHOKLEY,WATCH,Fresh Long Buildup,20,60,MEDIUM,153.39,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,ETERNAL,WATCH,Fresh Long Buildup,20,60,MEDIUM,294.8,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,DELHIVERY,WATCH,Fresh Long Buildup,20,60,MEDIUM,471.7,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,BAJAJFINSV,WATCH,Fresh Long Buildup,20,60,MEDIUM,1888.0,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:59,UPL,WATCH,Fresh Long Buildup,20,60,MEDIUM,611.65,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,BPCL,WATCH,Fresh Long Buildup,20,60,MEDIUM,316.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,HDFCAMC,WATCH,Fresh Long Buildup,20,60,MEDIUM,2554.9,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,MARUTI,WATCH,Fresh Long Buildup,20,60,MEDIUM,13550.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,ASHOKLEY,WATCH,Fresh Long Buildup,20,60,MEDIUM,153.39,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,ETERNAL,WATCH,Fresh Long Buildup,20,60,MEDIUM,294.8,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,DELHIVERY,WATCH,Fresh Long Buildup,20,60,MEDIUM,471.7,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,BAJAJFINSV,WATCH,Fresh Long Buildup,20,60,MEDIUM,1888.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:59,HAVELLS,WATCH,Fresh Long Buildup,20,60,MEDIUM,1215.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
-2026-07-24,18:59,TATACONSUM,WATCH,Fresh Long Buildup,20,60,MEDIUM,1102.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
-2026-07-24,18:59,PHOENIXLTD,WATCH,Fresh Long Buildup,20,60,MEDIUM,2060.5,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,HAL,WATCH,Fresh Long Buildup,20,60,MEDIUM,4586.4,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,CUMMINSIND,WATCH,Fresh Long Buildup,20,60,MEDIUM,5629.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,GLENMARK,WATCH,Fresh Long Buildup,20,60,MEDIUM,2214.2,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:59,TATACONSUM,WATCH,Fresh Long Buildup,20,60,MEDIUM,1102.4,,,,,,,,Positive Price Momentum,EOD EXIT,-0.8728179551122154,NO,NO
+2026-07-24,18:59,PHOENIXLTD,WATCH,Fresh Long Buildup,20,60,MEDIUM,2060.5,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,HAL,WATCH,Fresh Long Buildup,20,60,MEDIUM,4586.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,CUMMINSIND,WATCH,Fresh Long Buildup,20,60,MEDIUM,5629.0,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,GLENMARK,WATCH,Fresh Long Buildup,20,60,MEDIUM,2214.2,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:59,BAJAJ-AUTO,WATCH,Fresh Long Buildup,20,60,MEDIUM,11254.5,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,FORTIS,WATCH,Fresh Long Buildup,20,60,MEDIUM,949.4,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,LT,WATCH,Fresh Long Buildup,20,60,MEDIUM,3822.9,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:59,FORTIS,WATCH,Fresh Long Buildup,20,60,MEDIUM,949.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,LT,WATCH,Fresh Long Buildup,20,60,MEDIUM,3822.9,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:59,PIIND,WATCH,Fresh Long Buildup,20,60,MEDIUM,2723.4,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
-2026-07-24,18:59,SWIGGY,WATCH,Fresh Long Buildup,20,60,MEDIUM,265.3,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,MANAPPURAM,WATCH,Fresh Long Buildup,20,60,MEDIUM,353.75,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,MUTHOOTFIN,WATCH,Fresh Long Buildup,20,60,MEDIUM,3067.5,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,KOTAKBANK,WATCH,Fresh Long Buildup,20,60,MEDIUM,385.25,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,INDIANB,WATCH,Fresh Long Buildup,20,60,MEDIUM,832.1,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,UNOMINDA,WATCH,Fresh Long Buildup,20,60,MEDIUM,1148.6,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,HINDZINC,WATCH,Fresh Long Buildup,20,60,MEDIUM,537.3,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:59,SWIGGY,WATCH,Fresh Long Buildup,20,60,MEDIUM,265.3,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,MANAPPURAM,WATCH,Fresh Long Buildup,20,60,MEDIUM,353.75,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,MUTHOOTFIN,WATCH,Fresh Long Buildup,20,60,MEDIUM,3067.5,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,KOTAKBANK,WATCH,Fresh Long Buildup,20,60,MEDIUM,385.25,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,INDIANB,WATCH,Fresh Long Buildup,20,60,MEDIUM,832.1,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,UNOMINDA,WATCH,Fresh Long Buildup,20,60,MEDIUM,1148.6,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
+2026-07-24,18:59,HINDZINC,WATCH,Fresh Long Buildup,20,60,MEDIUM,537.3,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:59,ULTRACEMCO,WATCH,Fresh Long Buildup,20,60,MEDIUM,11899.0,,,,,,,,Positive Price Momentum,PENDING,,,
-2026-07-24,18:59,HINDALCO,WATCH,Fresh Long Buildup,20,60,MEDIUM,960.85,,,,,,,,Positive Price Momentum,PENDING,,,
+2026-07-24,18:59,HINDALCO,WATCH,Fresh Long Buildup,20,60,MEDIUM,960.85,,,,,,,,Positive Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:59,ONGC,WATCH,Fresh Long Buildup,0,60,MEDIUM,252.49,,,,,,,,,PENDING,,,
-2026-07-24,18:59,POWERGRID,WATCH,Fresh Long Buildup,0,60,MEDIUM,289.3,,,,,,,,,PENDING,,,
-2026-07-24,18:59,FEDERALBNK,WATCH,Fresh Long Buildup,0,60,MEDIUM,354.0,,,,,,,,,PENDING,,,
-2026-07-24,18:59,CANBK,WATCH,Fresh Long Buildup,0,60,MEDIUM,127.0,,,,,,,,,PENDING,,,
-2026-07-24,18:59,JUBLFOOD,WATCH,Short Covering,10,55,MEDIUM,419.2,,,,,,,,Positive Price Momentum; OI Reduction,PENDING,,,
+2026-07-24,18:59,POWERGRID,WATCH,Fresh Long Buildup,0,60,MEDIUM,289.3,,,,,,,,,FILTERED,0.0,NO,NO
+2026-07-24,18:59,FEDERALBNK,WATCH,Fresh Long Buildup,0,60,MEDIUM,354.0,,,,,,,,,FILTERED,0.0,NO,NO
+2026-07-24,18:59,CANBK,WATCH,Fresh Long Buildup,0,60,MEDIUM,127.0,,,,,,,,,FILTERED,0.0,NO,NO
+2026-07-24,18:59,JUBLFOOD,WATCH,Short Covering,10,55,MEDIUM,419.2,,,,,,,,Positive Price Momentum; OI Reduction,FILTERED,0.0,NO,NO
 2026-07-24,18:59,UNITDSPR,WATCH,Short Covering,20,55,MEDIUM,1427.6,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:59,NATIONALUM,WATCH,Short Covering,20,55,MEDIUM,346.5,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:59,HEROMOTOCO,WATCH,Short Covering,20,55,MEDIUM,5097.3,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:59,SBILIFE,WATCH,Short Covering,20,55,MEDIUM,1816.8,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:59,TRENT,WATCH,Short Covering,25,55,MEDIUM,2901.7,,,,,,,,Positive Price Momentum; OI Reduction; Volume Expansion,PENDING,,,
-2026-07-24,18:59,OFSS,WATCH,Short Covering,25,55,MEDIUM,10880.0,,,,,,,,Positive Price Momentum; OI Reduction; Volume Expansion,PENDING,,,
+2026-07-24,18:59,OFSS,WATCH,Short Covering,25,55,MEDIUM,10880.0,,,,,,,,Positive Price Momentum; OI Reduction; Volume Expansion,FILTERED,0.0,NO,NO
 2026-07-24,18:59,CONCOR,WATCH,Short Covering,20,55,MEDIUM,484.5,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:59,MOTHERSON,WATCH,Short Covering,20,55,MEDIUM,146.16,,,,,,,,Positive Price Momentum,PENDING,,,
 2026-07-24,18:59,ABB,WATCH,Short Covering,20,55,MEDIUM,7634.5,,,,,,,,Positive Price Momentum,PENDING,,,
@@ -313,7 +313,7 @@ Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,En
 2026-07-24,18:59,BANKEX,VALID SELL,Neutral,0,35,LOW,64512.5,,,,,,,,Negative Price Momentum,FILTERED,0.0,NO,NO
 2026-07-24,18:59,NAM-INDIA,VALID SELL,Short Buildup,0,20,LOW,1112.7,,,,,,,,Negative Price Momentum; Fresh OI Buildup,PENDING,,,
 2026-07-24,18:59,INDHOTEL,VALID SELL,Short Buildup,20,20,LOW,723.15,,,,,,,,Fresh OI Buildup,EOD EXIT,-0.076713857312219,NO,NO
-2026-07-24,18:59,ICICIBANK,VALID SELL,Short Buildup,20,20,LOW,1441.6,,,,,,,,Fresh OI Buildup,EOD EXIT,0.014041985536758,NO,NO
+2026-07-24,18:59,ICICIBANK,VALID SELL,Short Buildup,20,20,LOW,1441.6,,,,,,,,Fresh OI Buildup,EOD EXIT,-0.8476951099901856,NO,NO
 2026-07-24,18:59,GMRAIRPORT,VALID SELL,Short Buildup,15,20,LOW,108.57,,,,,,,,Negative Price Momentum; Fresh OI Buildup; Volume Expansion,EOD EXIT,0.0940910801655949,NO,NO
 2026-07-24,18:59,MPHASIS,VALID SELL,Short Buildup,20,20,LOW,2270.8,,,,,,,,Fresh OI Buildup,PENDING,,,
 2026-07-24,18:59,PETRONET,VALID SELL,Short Buildup,0,20,LOW,270.15,,,,,,,,Negative Price Momentum; Fresh OI Buildup,PENDING,,,
@@ -321,7 +321,7 @@ Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,En
 2026-07-24,18:59,LTM,VALID SELL,Short Buildup,0,20,LOW,3957.0,,,,,,,,Negative Price Momentum; Fresh OI Buildup,EOD EXIT,-0.2828711420922316,NO,NO
 2026-07-24,18:59,NTPC,VALID SELL,Short Buildup,0,20,LOW,347.45,,,,,,,,Negative Price Momentum; Fresh OI Buildup,EOD EXIT,-0.014432096983695,NO,NO
 2026-07-24,18:59,NYKAA,VALID SELL,Short Buildup,0,20,LOW,325.75,,,,,,,,Negative Price Momentum,STOP LOSS HIT,-1.9999999999999991,NO,YES
-2026-07-24,18:59,SHRIRAMFIN,VALID SELL,Short Buildup,0,20,LOW,1056.0,,,,,,,,Negative Price Momentum,PENDING,,,
+2026-07-24,18:59,SHRIRAMFIN,VALID SELL,Short Buildup,0,20,LOW,1056.0,,,,,,,,Negative Price Momentum,STOP LOSS HIT,-2.000000000000012,NO,YES
 2026-07-24,18:59,INFY,VALID SELL,Short Buildup,0,20,LOW,1045.7,,,,,,,,Negative Price Momentum,PENDING,,,
 2026-07-24,18:59,PNB,VALID SELL,Short Buildup,0,20,LOW,110.67,,,,,,,,,EOD EXIT,-0.0365463682046523,NO,NO
 2026-07-24,18:59,BRITANNIA,VALID SELL,Short Buildup,0,20,LOW,5463.5,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0093580385551188,NO,NO
@@ -335,7 +335,7 @@ Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,En
 2026-07-24,18:59,DIVISLAB,VALID SELL,Short Buildup,0,20,LOW,7328.0,,,,,,,,Negative Price Momentum; Fresh OI Buildup,EOD EXIT,-0.0825082508250825,NO,NO
 2026-07-24,18:59,AMBUJACEM,VALID SELL,Short Buildup,0,20,LOW,427.25,,,,,,,,Negative Price Momentum; Volume Expansion,PENDING,,,
 2026-07-24,18:59,INDUSINDBK,VALID SELL,Short Buildup,0,20,LOW,1015.0,,,,,,,,Negative Price Momentum; Fresh OI Buildup,PENDING,,,
-2026-07-24,18:59,DRREDDY,VALID SELL,Short Buildup,0,20,LOW,1154.0,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0435767822903956,NO,NO
+2026-07-24,18:59,DRREDDY,VALID SELL,Short Buildup,0,20,LOW,1154.0,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0087085256466199,NO,NO
 2026-07-24,18:59,PNBHOUSING,VALID SELL,Short Buildup,0,20,LOW,1071.8,,,,,,,,Negative Price Momentum,PENDING,,,
 2026-07-24,18:59,INDUSTOWER,VALID SELL,Short Buildup,0,20,LOW,393.5,,,,,,,,Negative Price Momentum,EOD EXIT,-0.1547588341501219,NO,NO
 2026-07-24,18:59,ADANIGREEN,VALID SELL,Short Buildup,0,20,LOW,1390.6,,,,,,,,Negative Price Momentum; Fresh OI Buildup,PENDING,,,
@@ -345,11 +345,11 @@ Date,Snapshot_Time,Symbol,Direction,Pattern,NTIS_Score,Probability,Confidence,En
 2026-07-24,18:59,AXISBANK,VALID SELL,Short Buildup,0,20,LOW,1236.9,,,,,,,,Negative Price Momentum,PENDING,,,
 2026-07-24,18:59,BANKBARODA,VALID SELL,Short Buildup,0,20,LOW,244.35,,,,,,,,Negative Price Momentum,EOD EXIT,0.0414164423276017,NO,NO
 2026-07-24,18:59,ALKEM,VALID SELL,Short Buildup,0,20,LOW,5537.0,,,,,,,,Negative Price Momentum,PENDING,,,
-2026-07-24,18:59,CROMPTON,VALID SELL,Short Buildup,0,20,LOW,249.5,,,,,,,,Negative Price Momentum,EOD EXIT,-0.1230516817063096,NO,NO
+2026-07-24,18:59,CROMPTON,VALID SELL,Short Buildup,0,20,LOW,249.5,,,,,,,,Negative Price Momentum,EOD EXIT,0.1790332206087084,NO,NO
 2026-07-24,18:59,ICICIPRULI,VALID SELL,Short Buildup,0,20,LOW,496.65,,,,,,,,Negative Price Momentum,PENDING,,,
 2026-07-24,18:59,HDFCBANK,VALID SELL,Short Buildup,0,20,LOW,748.85,,,,,,,,Negative Price Momentum,EOD EXIT,0.0,NO,NO
 2026-07-24,18:59,YESBANK,VALID SELL,Short Buildup,0,20,LOW,23.05,,,,,,,,,EOD EXIT,-0.0878348704435642,NO,NO
-2026-07-24,18:59,JSWSTEEL,VALID SELL,Short Buildup,0,20,LOW,1264.4,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0645942672587771,NO,NO
+2026-07-24,18:59,JSWSTEEL,VALID SELL,Short Buildup,0,20,LOW,1264.4,,,,,,,,Negative Price Momentum,EOD EXIT,-0.1762538054798946,NO,NO
 2026-07-24,18:59,MIDCPNIFTY,VALID SELL,Short Buildup,0,20,LOW,14586.15,,,,,,,,Negative Price Momentum,EOD EXIT,-0.0311068081968238,NO,NO
 2026-07-24,18:59,BANDHANBNK,VALID SELL,Short Buildup,0,20,LOW,170.94,,,,,,,,Negative Price Momentum; Fresh OI Buildup,EOD EXIT,-0.2930581842603444,NO,NO
 2026-07-24,18:59,BHEL,VALID SELL,Short Buildup,0,20,LOW,413.5,,,,,,,,Negative Price Momentum,EOD EXIT,-0.1601182411627131,NO,NO

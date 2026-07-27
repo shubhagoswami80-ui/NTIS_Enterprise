@@ -1,42 +1,16 @@
 """
 NTIS EOD Dashboard Configuration
 
-Purpose:
-    Central configuration for EOD Dashboard.
-
-Rules:
-    - No dashboard logic here
-    - No data processing here
-    - Single source for paths/settings
+Read only configuration layer.
 """
 
 from pathlib import Path
-from datetime import datetime
 
 
-# NTIS Root
-NTIS_ROOT = Path("E:/NSE_Daily_Analysis/NTIS")
+NTIS_ROOT = Path(__file__).resolve().parents[2]
 
-# EOD Dashboard Root
-DASHBOARD_ROOT = NTIS_ROOT / "EOD_Dashboard"
+EOD_OUTPUT_DIR = NTIS_ROOT.parent / "Output"
 
-# EOD Output Data
-EOD_OUTPUT_DIR = Path("E:/NSE_Daily_Analysis/Output")
-
-# Replay Data Source
-REPLAY_OUTPUT_DIR = EOD_OUTPUT_DIR
-
-
-# Dashboard folders
-APP_DIR = DASHBOARD_ROOT / "app"
-DATA_DIR = DASHBOARD_ROOT / "data"
-PAGES_DIR = DASHBOARD_ROOT / "pages"
-REPLAY_DIR = DASHBOARD_ROOT / "replay"
-COMPONENTS_DIR = DASHBOARD_ROOT / "components"
-LOG_DIR = DASHBOARD_ROOT / "logs"
-
-
-# Required EOD files
 REQUIRED_EOD_FILES = {
     "market_master": "market_master.csv",
     "ranking": "ntis_ranked_stocks.csv",
@@ -49,24 +23,9 @@ REQUIRED_EOD_FILES = {
 }
 
 
-# Dashboard metadata
-DASHBOARD_NAME = "NTIS EOD Intelligence Dashboard"
-VERSION = "v1.0"
-
-
 def show_config():
 
     print("=" * 60)
-    print(DASHBOARD_NAME)
+    print("NTIS EOD DASHBOARD CONFIG")
     print("=" * 60)
-
-    print("Version:", VERSION)
     print("Output:", EOD_OUTPUT_DIR)
-
-    print("\nRequired Files:")
-    for key, value in REQUIRED_EOD_FILES.items():
-        print(f"{key}: {value}")
-
-
-if __name__ == "__main__":
-    show_config()
