@@ -1,2 +1,0 @@
-class ModelFeedbackConnector:
-    pass

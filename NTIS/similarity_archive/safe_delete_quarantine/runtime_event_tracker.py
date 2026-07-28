@@ -1,2 +1,0 @@
-class RuntimeEventTracker:
-    pass

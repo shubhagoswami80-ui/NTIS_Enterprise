@@ -1,2 +1,0 @@
-class MultiMonthBatchRunner:
-    pass

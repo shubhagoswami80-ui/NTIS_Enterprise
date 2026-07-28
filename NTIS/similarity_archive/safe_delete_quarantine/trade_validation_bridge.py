@@ -1,2 +1,0 @@
-class TradeValidationBridge:
-    pass

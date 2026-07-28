@@ -1,2 +1,0 @@
-class FailureScenarioTest:
-    pass

@@ -1,2 +1,0 @@
-class TradeSummaryGenerator:
-    pass

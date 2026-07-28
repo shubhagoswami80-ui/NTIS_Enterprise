@@ -1,0 +1,36 @@
+ Volume in drive E is New Volume
+ Volume Serial Number is 6A7C-09C1
+
+ Directory of E:\NSE_Daily_Analysis\NTIS
+
+19-07-2026  17:39                 0 app.py
+19-07-2026  23:50               464 check_support.py
+20-07-2026  15:22             4,552 config.py
+19-07-2026  17:39                 0 database.py
+20-07-2026  18:56             6,312 history_manager.py
+22-07-2026  17:59             5,240 hmme_active_dependency_mapper.py
+22-07-2026  17:45             3,678 hmme_archive_mover_v5.py
+22-07-2026  17:26             4,716 hmme_consolidation_analyzer_v2.py
+22-07-2026  17:31             3,561 hmme_consolidation_analyzer_v3.py
+22-07-2026  17:35             4,656 hmme_dependency_scanner_v4.py
+22-07-2026  18:03             5,109 hmme_production_merge_planner_v2.py
+19-07-2026  23:03             3,957 importer.py
+21-07-2026  16:11                52 market_data.py
+28-07-2026  19:16         1,230,312 NTIS.zip
+28-07-2026  22:06                 0 NTIS_files.txt
+26-07-2026  20:26             4,594 ntis_similarity_core_dependency_map.py
+28-07-2026  21:42           975,308 NTIS_TREE.txt
+20-07-2026  19:03             7,240 outcome_engine.py
+20-07-2026  18:42             6,594 pattern_engine.py
+19-07-2026  17:39                 0 predictor.py
+21-07-2026  00:08            17,262 probability_engine.py
+19-07-2026  17:41                 0 README.md
+19-07-2026  18:04                56 requirements.txt
+19-07-2026  17:39                 0 scorer.py
+20-07-2026  18:41             9,115 scoring_engine.py
+20-07-2026  18:37             4,621 Scoring_rules.py
+21-07-2026  01:47             8,222 trade_validation_engine.py
+19-07-2026  22:37             3,449 utils.py
+19-07-2026  23:03             1,069 validator.py
+              29 File(s)      2,310,139 bytes
+               0 Dir(s)  270,315,163,648 bytes free

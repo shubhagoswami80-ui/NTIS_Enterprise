@@ -1,2 +1,0 @@
-class DecisionHistoryArchive:
-    pass

@@ -1,2 +1,0 @@
-class OutcomeLearningConnector:
-    pass

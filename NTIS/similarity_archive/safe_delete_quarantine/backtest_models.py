@@ -1,1 +1,0 @@
-BACKTEST_MODELS = []

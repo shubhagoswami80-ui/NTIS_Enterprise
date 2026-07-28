@@ -1,2 +1,0 @@
-class JobManager:
-    pass

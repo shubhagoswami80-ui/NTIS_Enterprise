@@ -1,2 +1,0 @@
-class HmmeOptimizationConfig:
-    pass

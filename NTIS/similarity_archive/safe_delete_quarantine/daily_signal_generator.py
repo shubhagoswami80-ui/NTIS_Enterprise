@@ -1,2 +1,0 @@
-class DailySignalGenerator:
-    pass

@@ -1,2 +1,0 @@
-class StockBehaviorMemory:
-    pass

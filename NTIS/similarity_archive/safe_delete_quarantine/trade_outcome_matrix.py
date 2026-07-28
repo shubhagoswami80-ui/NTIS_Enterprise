@@ -1,2 +1,0 @@
-class TradeOutcomeMatrix:
-    pass

@@ -1,2 +1,0 @@
-class AuditTrailManager:
-    pass

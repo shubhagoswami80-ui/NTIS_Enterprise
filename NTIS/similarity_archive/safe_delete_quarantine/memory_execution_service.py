@@ -1,2 +1,0 @@
-class MemoryExecutionService:
-    pass

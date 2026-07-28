@@ -1,1 +1,0 @@
-Foundation bundle for replay, data loading, backtesting and pipeline runner.

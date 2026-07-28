@@ -1,2 +1,0 @@
-class HmmePipelineIntegrationTest:
-    pass

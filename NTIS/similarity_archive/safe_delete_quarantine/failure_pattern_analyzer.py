@@ -1,2 +1,0 @@
-class FailurePatternAnalyzer:
-    pass

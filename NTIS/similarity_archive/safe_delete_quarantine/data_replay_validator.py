@@ -1,2 +1,0 @@
-class DataReplayValidator:
-    pass

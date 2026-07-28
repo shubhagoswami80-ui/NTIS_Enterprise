@@ -1,2 +1,0 @@
-class RealDataLoader:
-    pass

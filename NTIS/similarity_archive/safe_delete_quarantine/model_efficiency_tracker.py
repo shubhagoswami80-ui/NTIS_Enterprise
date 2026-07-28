@@ -1,2 +1,0 @@
-class ModelEfficiencyTracker:
-    pass

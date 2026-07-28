@@ -1,1 +1,0 @@
-REGIME_CONFIG={}

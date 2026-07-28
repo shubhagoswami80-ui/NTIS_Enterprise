@@ -1,2 +1,0 @@
-class ResourceMonitor:
-    pass

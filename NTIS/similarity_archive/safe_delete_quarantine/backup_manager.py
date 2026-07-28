@@ -1,2 +1,0 @@
-class BackupManager:
-    pass

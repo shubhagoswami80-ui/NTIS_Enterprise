@@ -1,2 +1,0 @@
-class ProbabilityEnhancement:
-    pass

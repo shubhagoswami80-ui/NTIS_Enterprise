@@ -1,2 +1,0 @@
-class ModelBackupManager:
-    pass

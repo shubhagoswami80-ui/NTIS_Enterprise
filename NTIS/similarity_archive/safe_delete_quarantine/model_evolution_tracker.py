@@ -1,2 +1,0 @@
-class ModelEvolutionTracker:
-    pass

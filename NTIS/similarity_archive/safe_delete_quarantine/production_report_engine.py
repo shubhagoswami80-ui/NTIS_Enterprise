@@ -1,2 +1,0 @@
-class ProductionReportEngine:
-    pass

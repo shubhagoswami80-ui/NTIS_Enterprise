@@ -1,2 +1,0 @@
-class TradeDecisionHistory:
-    pass

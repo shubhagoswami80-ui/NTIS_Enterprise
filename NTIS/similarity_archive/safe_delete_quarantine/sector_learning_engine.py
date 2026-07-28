@@ -1,2 +1,0 @@
-class SectorLearningEngine:
-    pass

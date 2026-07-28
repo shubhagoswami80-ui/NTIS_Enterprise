@@ -1,2 +1,0 @@
-class ModelPersistenceLayer:
-    pass

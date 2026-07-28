@@ -1,2 +1,0 @@
-class PatternSimilarity:
-    pass

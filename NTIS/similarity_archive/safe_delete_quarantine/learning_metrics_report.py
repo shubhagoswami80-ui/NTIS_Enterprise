@@ -1,2 +1,0 @@
-class LearningMetricsReport:
-    pass

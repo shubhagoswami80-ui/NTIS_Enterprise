@@ -1,2 +1,0 @@
-class LiveReportGenerator:
-    pass

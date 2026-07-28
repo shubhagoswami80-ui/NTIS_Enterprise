@@ -1,2 +1,0 @@
-class StockBehaviourIntelligence:
-    pass

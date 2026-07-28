@@ -1,2 +1,0 @@
-class ReportGenerationTest:
-    pass

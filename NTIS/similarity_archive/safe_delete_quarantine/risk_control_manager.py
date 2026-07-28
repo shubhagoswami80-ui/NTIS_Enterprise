@@ -1,2 +1,0 @@
-class RiskControlManager:
-    pass

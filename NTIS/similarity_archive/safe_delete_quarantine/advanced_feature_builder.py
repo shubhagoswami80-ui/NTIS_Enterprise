@@ -1,2 +1,0 @@
-class AdvancedFeatureBuilder:
-    pass

@@ -1,2 +1,0 @@
-class HmmeSignalSchema:
-    pass

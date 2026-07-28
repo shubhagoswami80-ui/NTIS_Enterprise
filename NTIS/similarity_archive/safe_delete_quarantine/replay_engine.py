@@ -1,2 +1,0 @@
-class ReplayEngine:
-    pass

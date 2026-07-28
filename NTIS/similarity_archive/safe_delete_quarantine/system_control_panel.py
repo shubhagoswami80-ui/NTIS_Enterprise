@@ -1,2 +1,0 @@
-class SystemControlPanel:
-    pass

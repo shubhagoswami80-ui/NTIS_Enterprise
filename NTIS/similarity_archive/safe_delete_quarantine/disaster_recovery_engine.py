@@ -1,2 +1,0 @@
-class DisasterRecoveryEngine:
-    pass

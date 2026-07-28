@@ -1,2 +1,0 @@
-class HistoricalReplayTest:
-    pass
