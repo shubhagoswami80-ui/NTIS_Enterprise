@@ -1,9 +1,5 @@
 """
 NTIS EOD Dashboard Main Application
-
-Bundle 1
----------
-Shared Intelligence Framework + Navigation
 """
 
 import sys
@@ -20,7 +16,15 @@ from EOD_Dashboard.components.dashboard_header import render_header
 from EOD_Dashboard.components.sidebar import render_sidebar
 from EOD_Dashboard.components.status_bar import render_status_bar
 
-from EOD_Dashboard.pages.page_registry import get_page
+from EOD_Dashboard.pages.market_overview import show_market_overview
+from EOD_Dashboard.pages.historical_analysis import show_historical_analysis
+
+
+PAGES = {
+    "Dashboard": show_market_overview,
+    "Market Overview": show_market_overview,
+    "Historical Replay": show_historical_analysis,
+}
 
 
 def run_dashboard():
@@ -41,12 +45,12 @@ def run_dashboard():
 
     page = menu["page"] if isinstance(menu, dict) else menu
 
-    handler = get_page(page)
+    handler = PAGES.get(page)
 
-    if callable(handler):
+    if handler:
         handler()
     else:
-        st.warning(f"Page '{page}' is not registered.")
+        st.info(f"{page} module under development")
 
     render_status_bar()
 

@@ -1,31 +1,94 @@
 """
 NTIS Dashboard - Market Breadth
+Production Version
 """
 from __future__ import annotations
+
 import pandas as pd
 
+
+def _first_available(df: pd.DataFrame, columns):
+
+    for column in columns:
+        if column in df.columns:
+            return df[column].fillna("").astype(str)
+
+    return pd.Series(dtype=str)
+
+
 def calculate_market_breadth(df: pd.DataFrame) -> dict:
+
     total = len(df)
-    trade = df["Trade Bias"] if "Trade Bias" in df.columns else pd.Series(dtype=str)
-    patt = df["Pattern"] if "Pattern" in df.columns else pd.Series(dtype=str)
 
-    buy = int((trade == "BUY").sum())
-    sell = int((trade == "SELL").sum())
-    neutral = max(total - buy - sell, 0)
+    trade = _first_available(
+        df,
+        [
+            "Trade Bias",
+            "Final Signal",
+            "Signal",
+            "Validation Signal",
+            "Trade View",
+        ],
+    ).str.upper()
 
-    bullish = int(patt.astype(str).str.contains("Long|Bull", case=False, na=False).sum())
-    bearish = int(patt.astype(str).str.contains("Short|Bear", case=False, na=False).sum())
+    pattern = _first_available(
+        df,
+        [
+            "Pattern",
+            "Detected Pattern",
+        ],
+    )
 
-    pct = lambda x: round((x / total) * 100, 2) if total else 0
+    confidence = _first_available(
+        df,
+        [
+            "Confidence",
+        ],
+    ).str.upper()
+
+    buy = int(trade.eq("BUY").sum())
+    sell = int(trade.eq("SELL").sum())
+    hold = max(total - buy - sell, 0)
+
+    bullish = int(
+        pattern.str.contains(
+            "LONG|BULL",
+            case=False,
+            na=False,
+        ).sum()
+    )
+
+    bearish = int(
+        pattern.str.contains(
+            "SHORT|BEAR",
+            case=False,
+            na=False,
+        ).sum()
+    )
+
+    high_conf = int(confidence.eq("HIGH").sum())
+
+    def pct(value):
+
+        if total == 0:
+            return 0.0
+
+        return round(value * 100 / total, 2)
 
     return {
+
         "Total Stocks": total,
+
         "BUY": buy,
         "SELL": sell,
-        "Neutral": neutral,
-        "Bullish Patterns": bullish,
-        "Bearish Patterns": bearish,
+        "HOLD": hold,
+
         "BUY %": pct(buy),
         "SELL %": pct(sell),
-        "Neutral %": pct(neutral),
+        "HOLD %": pct(hold),
+
+        "Bullish Patterns": bullish,
+        "Bearish Patterns": bearish,
+
+        "High Confidence": high_conf,
     }

@@ -1,18 +1,69 @@
 import streamlit as st
+import pandas as pd
 
-from EOD_Dashboard.data.data_loader import load_dataset, get_dataset_info
+from EOD_Dashboard.data.data_loader import (
+    load_dataset,
+    get_dataset_info,
+)
 from EOD_Dashboard.components.dashboard_cards import show_cards
 
 
 def map_signal(value):
-    value = str(value).upper()
 
-    if value == "BULLISH":
-        return "BUY"
-    if value == "BEARISH":
-        return "SELL"
+    value = str(value).strip().upper()
 
-    return "HOLD"
+    mapping = {
+        "BULLISH": "BUY",
+        "BUY": "BUY",
+        "LONG": "BUY",
+        "BEARISH": "SELL",
+        "SELL": "SELL",
+        "SHORT": "SELL",
+    }
+
+    return mapping.get(value, "HOLD")
+
+
+def _first_available(df, columns):
+
+    for column in columns:
+        if column in df.columns:
+            return column
+
+    return None
+
+
+def _display_table(df, title):
+
+    st.subheader(title)
+
+    if df.empty:
+        st.info(f"No {title} available")
+        return
+
+    preferred = [
+        "Rank",
+        "Symbol",
+        "CMP",
+        "Entry Close",
+        "NTIS Score",
+        "BUY Probability %",
+        "Probability",
+        "Confidence",
+        "Support Strike",
+        "Resistance Strike",
+    ]
+
+    cols = [c for c in preferred if c in df.columns]
+
+    if not cols:
+        cols = list(df.columns)
+
+    st.dataframe(
+        df[cols].head(25),
+        use_container_width=True,
+        hide_index=True,
+    )
 
 
 def show_market_overview():
@@ -22,64 +73,48 @@ def show_market_overview():
     df = load_dataset("ranking")
 
     if df is None or df.empty:
-        st.warning("Ranking dataset not available")
+        st.warning("Ranking dataset not available.")
         return
 
-    if "Signal" in df.columns:
-        df["Trade View"] = df["Signal"].apply(map_signal)
+    signal_col = _first_available(
+        df,
+        [
+            "Trade View",
+            "Signal",
+            "Final Signal",
+            "Trade Bias",
+            "Validation Signal",
+        ],
+    )
+
+    if signal_col:
+        df["Trade View"] = df[signal_col].apply(map_signal)
+    else:
+        df["Trade View"] = "HOLD"
 
     show_cards(df)
 
     info = get_dataset_info("ranking")
-    if info.get("available"):
-        st.caption(f"Data Updated: {info.get('updated')}")
 
-    st.subheader("BUY Opportunities")
+    if info.get("available"):
+        st.caption(
+            f"Last Updated : {info.get('updated')}"
+        )
 
     buy_df = df[df["Trade View"] == "BUY"]
 
-    buy_cols = [
-        "Rank",
-        "Symbol",
-        "CMP",
-        "NTIS Score",
-        "Support Strike",
-        "Resistance Strike"
-    ]
-
-    buy_cols = [c for c in buy_cols if c in buy_df.columns]
-
-    st.dataframe(
-        buy_df[buy_cols].head(15),
-        use_container_width=True,
-        hide_index=True
-    )
-
-    st.subheader("SELL Opportunities")
-
     sell_df = df[df["Trade View"] == "SELL"]
 
-    sell_cols = [
-        "Rank",
-        "Symbol",
-        "CMP",
-        "NTIS Score",
-        "Support Strike",
-        "Resistance Strike"
-    ]
+    c1, c2 = st.columns(2)
 
-    sell_cols = [c for c in sell_cols if c in sell_df.columns]
-
-    if sell_df.empty:
-        st.info("No SELL opportunities available")
-
-    else:
-        st.dataframe(
-            sell_df[sell_cols].head(15),
-            use_container_width=True,
-            hide_index=True
+    with c1:
+        _display_table(
+            buy_df,
+            "BUY Opportunities",
         )
 
-
-if __name__ == "__main__":
-    show_market_overview()
+    with c2:
+        _display_table(
+            sell_df,
+            "SELL Opportunities",
+        )

@@ -1,0 +1,217 @@
+Symbol,Price,Price Chg %,OI,OI Chg %,PCR,ATM Straddle %,IV Chg,IV Chg %,Fut OI,Fut OI Chg,Fut OI Chg %,Fut Buildup,Volume,Volume Chg %,Report_Type,Source_File,NTIS Intraday Score,Trade Bias,Reason,Pattern
+KPITTECH,611.3,1.42,11907100.0,2.42,,,,,,,,,893575.0,-87.39,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,40,NEUTRAL,Positive Price Momentum; Fresh OI Buildup,Fresh Long Buildup
+SWIGGY,275.65,2.35,55313925.0,2.45,,,,,,,,,4748650.0,-86.76,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,40,NEUTRAL,Positive Price Momentum; Fresh OI Buildup,Fresh Long Buildup
+FOCIT,37190.0,1.11,6930.0,1.99,,,,,,,,,675.0,-46.43,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+LT,3965.0,2.95,12765375.0,0.78,,,,,,,,,1021475.0,-74.75,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+CHOLAFIN,1825.9,3.6,13131250.0,1.6,,,,,,,,,1251250.0,-86.98,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+BAJFINANCE,1067.2,1.04,65808750.0,0.14,,,,,,,,,775500.0,-92.06,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+RADICO,4375.0,1.4,847500.0,1.0,,,,,,,,,180900.0,-88.41,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+TVSMOTOR,4062.2,1.38,11707500.0,0.45,,,,,,,,,155750.0,-88.24,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+COFORGE,1721.3,1.88,15388575.0,0.56,,,,,,,,,934325.0,-93.38,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+TECHM,1653.0,1.31,17665800.0,0.54,,,,,,,,,376800.0,-92.36,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+OFSS,11615.0,1.87,1296600.0,-0.07,,,,,,,,,39400.0,-92.25,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+INFY,1141.0,2.81,96819600.0,0.61,,,,,,,,,3236400.0,-91.31,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+LTM,4415.4,1.81,2935800.0,0.8,,,,,,,,,91350.0,-93.2,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+TCS,2439.0,1.4,34258500.0,0.22,,,,,,,,,682200.0,-92.12,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+SAIL,170.8,2.45,191421600.0,-0.02,,,,,,,,,1706100.0,-96.37,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+HDFCBANK,747.7,1.03,298480000.0,0.01,,,,,,,,,2093650.0,-95.52,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+UNOMINDA,1189.1,1.6,4656850.0,-0.17,,,,,,,,,47300.0,-95.09,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+HINDUNILVR,2070.0,1.85,17493300.0,-0.01,,,,,,,,,870900.0,-95.09,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+BHARATFORG,2197.0,1.01,7433500.0,0.34,,,,,,,,,52000.0,-95.26,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+M&M,3326.3,1.2,15526600.0,0.27,,,,,,,,,158600.0,-95.39,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+MPHASIS,2446.7,1.01,4217125.0,0.42,,,,,,,,,89925.0,-93.94,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+BHARTIARTL,1935.0,1.09,58239275.0,-0.09,,,,,,,,,284525.0,-94.07,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+DIVISLAB,7535.0,1.06,3605900.0,0.36,,,,,,,,,37200.0,-93.51,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+PERSISTENT,5522.6,1.42,3586750.0,0.71,,,,,,,,,61250.0,-93.42,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+MCX,2751.7,1.16,6950250.0,0.07,,,,,,,,,75825.0,-96.26,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+KAYNES,3293.6,1.61,3673050.0,0.04,,,,,,,,,43500.0,-95.76,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+RVNL,225.25,1.22,34157200.0,-0.08,,,,,,,,,413875.0,-96.42,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+INOXWIND,77.69,1.81,105587200.0,0.2,,,,,,,,,1376000.0,-96.81,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+IDEA,13.17,1.07,5926849950.0,0.01,,,,,,,,,8862900.0,-99.25,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+TATACONSUM,1100.0,1.01,15451700.0,0.01,,,,,,,,,30800.0,-99.2,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+UPL,609.5,1.04,30436010.0,-0.02,,,,,,,,,86720.0,-98.96,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+COCHINSHIP,1403.9,1.08,5469600.0,-0.03,,,,,,,,,14800.0,-98.89,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+AMBER,7332.0,1.26,1334300.0,-0.09,,,,,,,,,8100.0,-98.36,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+JINDALSTEL,1072.8,1.17,12794375.0,0.02,,,,,,,,,61250.0,-98.49,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+SONACOMS,726.0,1.23,10800825.0,-0.22,,,,,,,,,72275.0,-98.28,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Short Covering
+POLICYBZR,1611.9,1.24,9390500.0,0.12,,,,,,,,,51100.0,-97.73,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+ABCAPITAL,396.75,1.06,33362200.0,0.17,,,,,,,,,322400.0,-97.4,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+TMPV,329.9,1.13,78694400.0,0.07,,,,,,,,,638400.0,-97.45,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+VBL,439.3,1.62,57774075.0,0.09,,,,,,,,,1514700.0,-97.46,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+SOLARINDS,18524.0,1.02,770000.0,0.02,,,,,,,,,4550.0,-97.34,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,20,SELL,Positive Price Momentum,Fresh Long Buildup
+AMBUJACEM,431.6,0.69,80630400.0,0.75,,,,,,,,,1298400.0,-94.87,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+KFINTECH,955.95,-0.73,3974400.0,1.77,,,,,,,,,180550.0,-94.81,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+INDIGO,5254.0,-0.7,5701950.0,0.18,,,,,,,,,43200.0,-94.76,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+ICICIBANK,1431.8,0.53,107559200.0,0.06,,,,,,,,,1183700.0,-94.6,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BANKNIFTY,57271.0,0.46,2157300.0,-0.28,,,,,,,,,59040.0,-93.27,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+MARICO,880.4,-0.49,14198400.0,1.68,,,,,,,,,410400.0,-93.12,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+LUPIN,2434.0,0.98,5406850.0,0.74,,,,,,,,,103275.0,-89.33,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+KALYANKJIL,613.75,0.78,25532550.0,1.89,,,,,,,,,1998000.0,-86.73,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PHOENIXLTD,1946.1,-4.45,3426500.0,2.21,,,,,,,,,273700.0,-58.2,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,Negative Price Momentum; Fresh OI Buildup,Short Buildup
+SENSEX,77500.0,0.68,24500.0,-6.56,,,,,,,,,4700.0,-50.84,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,OI Reduction,Short Covering
+BPCL,318.8,-0.9,38153050.0,0.37,,,,,,,,,436475.0,-93.08,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+SUZLON,48.73,0.81,444106300.0,0.87,,,,,,,,,17995900.0,-91.46,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ETERNAL,309.95,0.23,155049650.0,1.13,,,,,,,,,5742400.0,-89.17,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+NIFTY,24262.7,0.68,13579345.0,0.06,,,,,,,,,618670.0,-88.25,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+HINDPETRO,394.95,-1.79,41423400.0,0.24,,,,,,,,,562950.0,-94.07,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,Negative Price Momentum,Short Buildup
+CGPOWER,836.5,-1.2,18374450.0,1.02,,,,,,,,,535500.0,-93.76,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,Negative Price Momentum,Short Buildup
+POWERGRID,285.55,-0.21,42185700.0,0.16,,,,,,,,,345800.0,-95.65,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+AXISBANK,1229.9,-0.09,77836250.0,0.19,,,,,,,,,414375.0,-95.62,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+HEROMOTOCO,5232.9,0.95,4752300.0,0.21,,,,,,,,,42150.0,-95.58,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+IOC,139.75,-0.73,144719250.0,0.04,,,,,,,,,770250.0,-95.5,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+MIDCPNIFTY,14699.25,0.59,1860480.0,0.03,,,,,,,,,26880.0,-95.32,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ASIANPAINT,2740.0,-0.53,7520500.0,0.3,,,,,,,,,78500.0,-95.94,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+HCLTECH,1336.9,0.78,27530400.0,0.16,,,,,,,,,247200.0,-95.73,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+MARUTI,13769.0,0.41,2286450.0,0.33,,,,,,,,,26650.0,-95.66,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ADANIPORTS,1792.0,0.37,19405175.0,0.13,,,,,,,,,151525.0,-96.08,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+FORCEMOT,17270.0,0.09,277075.0,0.5,,,,,,,,,3550.0,-96.0,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+LAURUSLABS,1766.8,0.15,17162350.0,0.19,,,,,,,,,259250.0,-95.96,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ASHOKLEY,158.3,-0.16,146680000.0,0.54,,,,,,,,,1885000.0,-96.16,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+HDFCLIFE,562.4,0.36,41268700.0,0.43,,,,,,,,,283800.0,-96.18,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+DIXON,13819.0,0.68,2161850.0,0.21,,,,,,,,,13450.0,-96.16,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+AUBANK,1056.9,0.5,22371000.0,0.08,,,,,,,,,103000.0,-96.31,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+AUROPHARMA,1571.0,0.98,10008350.0,0.02,,,,,,,,,72600.0,-95.76,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ZYDUSLIFE,1114.0,0.78,9801900.0,0.22,,,,,,,,,54000.0,-96.39,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+POWERINDIA,31120.0,-0.42,516700.0,0.49,,,,,,,,,6350.0,-96.53,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+GLENMARK,2214.3,0.78,11630625.0,0.12,,,,,,,,,90750.0,-96.74,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ABB,7241.5,-0.46,2055000.0,0.48,,,,,,,,,22125.0,-96.64,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+MANKIND,2640.0,0.33,2680000.0,0.48,,,,,,,,,40250.0,-94.53,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+TATAELXSI,3629.3,0.69,2720750.0,-0.26,,,,,,,,,49875.0,-95.1,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+NIFTYNXT50,72500.0,0.53,15750.0,-0.47,,,,,,,,,375.0,-94.97,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+FEDERALBNK,359.25,0.45,88017500.0,0.03,,,,,,,,,492500.0,-95.03,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PAYTM,1306.0,-0.61,20887250.0,0.26,,,,,,,,,329875.0,-95.25,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+LODHA,1229.4,0.62,13763750.0,0.39,,,,,,,,,313750.0,-95.11,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BANKBARODA,242.45,0.96,131227200.0,0.14,,,,,,,,,1374750.0,-95.44,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+360ONE,1130.3,-0.25,4349000.0,0.47,,,,,,,,,63000.0,-93.71,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+WIPRO,180.76,0.74,263811000.0,0.16,,,,,,,,,3612000.0,-93.55,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+EICHERMOT,7848.5,0.82,3949400.0,0.13,,,,,,,,,32100.0,-93.66,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+LTF,310.35,0.32,51693750.0,0.46,,,,,,,,,850500.0,-93.44,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ICICIPRULI,514.25,0.3,19414825.0,0.22,,,,,,,,,130425.0,-93.5,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+NAUKRI,1250.85,0.83,14616800.0,0.3,,,,,,,,,133100.0,-97.13,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+DLF,668.15,0.23,47505700.0,0.2,,,,,,,,,351500.0,-97.07,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+CAMS,799.05,-0.46,6558750.0,0.39,,,,,,,,,66000.0,-97.07,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+SHRIRAMFIN,1047.1,0.24,27647400.0,0.16,,,,,,,,,202950.0,-97.04,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PNB,112.37,0.23,295056000.0,0.07,,,,,,,,,1464000.0,-97.04,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+DRREDDY,1140.2,-0.03,13639375.0,0.24,,,,,,,,,109375.0,-96.98,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+WAAREEENER,2711.3,0.32,7007000.0,0.35,,,,,,,,,55475.0,-96.95,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+POLYCAB,9180.0,0.23,2293250.0,0.18,,,,,,,,,19625.0,-96.84,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+CUMMINSIND,5492.0,0.01,3932400.0,0.42,,,,,,,,,32000.0,-96.82,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+CIPLA,1458.8,0.68,9828975.0,0.18,,,,,,,,,59075.0,-96.82,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ALKEM,5712.0,0.68,1361500.0,0.1,,,,,,,,,5750.0,-96.76,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+MAXHEALTH,1116.5,0.58,9750825.0,-0.05,,,,,,,,,31500.0,-96.75,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+TATASTEEL,185.15,0.83,161403000.0,-0.12,,,,,,,,,987250.0,-97.33,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+TORNTPHARM,4960.2,0.78,4288875.0,0.11,,,,,,,,,19500.0,-97.32,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BANDHANBNK,169.2,0.59,125884800.0,0.13,,,,,,,,,615600.0,-97.29,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BRITANNIA,5464.0,0.72,2024000.0,0.25,,,,,,,,,12125.0,-97.29,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+IDFCFIRSTB,85.91,-0.06,355584950.0,0.06,,,,,,,,,2151800.0,-97.48,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+SIEMENS,3619.3,0.81,3640350.0,0.06,,,,,,,,,22225.0,-97.49,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ADANIENT,3035.9,0.67,16548804.0,0.2,,,,,,,,,91773.0,-97.53,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+IREDA,118.2,0.68,63607925.0,-0.03,,,,,,,,,352950.0,-97.52,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+MANAPPURAM,364.3,0.43,54342000.0,0.09,,,,,,,,,375000.0,-97.64,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+UNITDSPR,1521.5,0.22,8163600.0,0.13,,,,,,,,,41200.0,-97.66,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BIOCON,435.8,0.36,46712500.0,0.19,,,,,,,,,305000.0,-97.68,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PGEL,591.75,0.8,10082350.0,0.19,,,,,,,,,76950.0,-97.62,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+GAIL,175.26,-0.58,77517800.0,0.46,,,,,,,,,621250.0,-97.68,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+IRFC,88.28,0.95,81922925.0,-0.08,,,,,,,,,580475.0,-97.69,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+SBILIFE,1903.2,0.51,6992625.0,0.17,,,,,,,,,31500.0,-97.3,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+TITAN,4851.4,-0.31,5810700.0,0.04,,,,,,,,,48650.0,-97.34,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+BAJAJ-AUTO,11486.0,0.6,1934025.0,0.16,,,,,,,,,13875.0,-97.38,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+APOLLOHOSP,8974.0,0.52,1930375.0,0.09,,,,,,,,,6375.0,-97.38,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+MOTILALOFS,865.0,0.38,6968025.0,0.12,,,,,,,,,37200.0,-97.43,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BHEL,410.45,0.72,81997125.0,0.2,,,,,,,,,498750.0,-97.14,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BAJAJFINSV,1943.5,0.54,8833800.0,0.01,,,,,,,,,33900.0,-97.81,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+MUTHOOTFIN,3021.0,-0.41,6771600.0,0.19,,,,,,,,,36300.0,-97.82,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+GRASIM,3144.3,0.79,11928500.0,-0.02,,,,,,,,,21000.0,-97.86,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+GODREJPROP,2155.0,0.22,7667725.0,0.37,,,,,,,,,62075.0,-97.83,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+RELIANCE,1282.8,0.55,105115000.0,0.19,,,,,,,,,555000.0,-97.89,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+INDUSTOWER,386.0,0.47,91307000.0,0.29,,,,,,,,,438600.0,-97.92,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BSE,3499.0,0.61,8379600.0,0.03,,,,,,,,,76400.0,-97.94,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PREMIERENE,1031.0,0.88,6501300.0,0.04,,,,,,,,,22750.0,-97.87,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+SRF,2668.9,0.65,4413400.0,0.09,,,,,,,,,19000.0,-97.97,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+COLPAL,2143.6,-0.34,4257550.0,0.1,,,,,,,,,22275.0,-98.05,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+ADANIPOWER,210.75,0.66,152153000.0,-0.03,,,,,,,,,816500.0,-98.06,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+CDSL,1354.0,0.04,9433500.0,0.19,,,,,,,,,76000.0,-98.09,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+NATIONALUM,335.4,-0.27,43614375.0,0.18,,,,,,,,,255000.0,-98.09,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+SBIN,1023.9,0.61,80762250.0,0.04,,,,,,,,,281250.0,-98.11,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ASTRAL,1456.1,0.55,7039700.0,-0.03,,,,,,,,,25500.0,-98.12,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+BANKINDIA,137.44,0.53,99210800.0,0.23,,,,,,,,,551200.0,-97.96,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+INDHOTEL,740.2,0.35,21433000.0,0.08,,,,,,,,,61000.0,-98.12,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+RECLTD,365.1,0.01,41748525.0,-0.08,,,,,,,,,182700.0,-98.12,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+ULTRACEMCO,12103.0,0.82,1740800.0,0.05,,,,,,,,,7750.0,-98.14,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+GVT&D,4116.4,-0.45,2645250.0,0.22,,,,,,,,,22125.0,-98.14,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+BEL,390.55,0.17,99456450.0,0.41,,,,,,,,,775200.0,-98.18,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+CANBK,125.85,0.7,403582500.0,0.02,,,,,,,,,1485000.0,-98.18,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ITC,287.15,0.49,157437300.0,0.02,,,,,,,,,759000.0,-98.18,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+APLAPOLLO,1871.1,0.82,4396350.0,0.1,,,,,,,,,15400.0,-98.16,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+SUPREMEIND,3435.8,0.59,2266950.0,0.15,,,,,,,,,29225.0,-98.18,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+CONCOR,526.7,0.43,22096250.0,0.08,,,,,,,,,171250.0,-98.24,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+INDIANB,841.55,0.52,12509000.0,0.13,,,,,,,,,68000.0,-97.7,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+JUBLFOOD,436.55,0.37,17235000.0,0.15,,,,,,,,,107500.0,-97.69,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+DELHIVERY,475.75,0.22,23356200.0,0.3,,,,,,,,,205425.0,-97.72,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+HDFCAMC,2561.3,0.65,6127500.0,0.05,,,,,,,,,25200.0,-97.72,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+FINNIFTY,26262.1,0.26,25980.0,0.0,,,,,,,,,420.0,-97.78,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Neutral
+PRESTIGE,1684.4,-0.44,5021550.0,0.29,,,,,,,,,40050.0,-97.19,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+JIOFIN,239.62,0.68,168645400.0,-0.13,,,,,,,,,740250.0,-98.32,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+SBICARD,656.0,-0.24,21728000.0,0.1,,,,,,,,,95200.0,-98.3,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+PNBHOUSING,1072.3,0.67,7515300.0,-0.01,,,,,,,,,52000.0,-98.29,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+ADANIENSOL,1667.2,0.66,19828800.0,0.1,,,,,,,,,108000.0,-98.28,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+VOLTAS,1319.6,0.09,7268250.0,0.07,,,,,,,,,26250.0,-98.24,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+HINDALCO,948.0,0.6,52157700.0,-0.02,,,,,,,,,169400.0,-98.26,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+ONGC,239.98,0.04,53514000.0,0.13,,,,,,,,,317250.0,-98.34,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+FORTIS,956.7,0.57,9039600.0,0.09,,,,,,,,,32550.0,-98.34,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+GODFRYPHLP,1975.4,0.4,2253625.0,0.47,,,,,,,,,34100.0,-98.47,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ANGELONE,304.75,0.23,26390000.0,-0.05,,,,,,,,,147500.0,-98.48,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+DMART,3820.2,-0.47,5151000.0,0.35,,,,,,,,,53550.0,-98.51,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+BDL,1235.9,0.77,7106000.0,0.25,,,,,,,,,38675.0,-98.55,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+TRENT,2930.3,-0.29,11288925.0,0.06,,,,,,,,,18675.0,-98.39,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+RBLBANK,368.05,0.51,45361225.0,0.15,,,,,,,,,200025.0,-98.4,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+NAM-INDIA,1151.8,0.92,6958750.0,0.03,,,,,,,,,13125.0,-98.46,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PIDILITIND,1636.6,0.34,7634500.0,0.08,,,,,,,,,27500.0,-98.35,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+OBEROIRLTY,1840.1,0.04,5502350.0,0.06,,,,,,,,,15400.0,-98.62,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+DABUR,430.5,0.73,29900000.0,0.01,,,,,,,,,112500.0,-98.67,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BLUESTARCO,1660.0,0.76,3124550.0,0.03,,,,,,,,,9750.0,-98.68,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+NYKAA,331.6,0.23,43715625.0,0.05,,,,,,,,,78125.0,-98.69,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PATANJALI,345.25,0.25,30197825.0,0.03,,,,,,,,,198875.0,-98.69,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+INDUSINDBK,1003.0,0.69,35220500.0,0.05,,,,,,,,,81900.0,-98.7,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BOSCHLTD,41520.0,0.51,197875.0,0.08,,,,,,,,,550.0,-98.71,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+TATAPOWER,374.15,0.36,64422050.0,0.13,,,,,,,,,424850.0,-98.72,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+IEX,132.85,-0.02,70635300.0,0.02,,,,,,,,,382800.0,-98.73,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+SHREECEM,26850.0,0.3,313275.0,0.28,,,,,,,,,1175.0,-98.73,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+LICI,424.5,0.37,18153800.0,0.14,,,,,,,,,56000.0,-98.74,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+NBCC,95.45,0.58,100997000.0,0.12,,,,,,,,,377000.0,-98.74,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+MAZDOCK,2310.0,0.57,4910625.0,0.13,,,,,,,,,20925.0,-98.56,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+HINDZINC,532.0,0.66,28054950.0,-0.07,,,,,,,,,99225.0,-98.58,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+MOTHERSON,149.03,0.21,128473500.0,0.0,,,,,,,,,448950.0,-98.59,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Neutral
+COALINDIA,405.75,-0.38,74035350.0,0.1,,,,,,,,,338850.0,-98.62,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+SUNPHARMA,1992.8,0.4,14204400.0,-0.03,,,,,,,,,30450.0,-98.79,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+VMM,110.56,0.59,41040700.0,0.0,,,,,,,,,77600.0,-98.77,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Neutral
+KEI,4895.0,0.82,2034550.0,-0.02,,,,,,,,,3675.0,-98.76,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+JSWSTEEL,1262.9,0.85,39112875.0,0.05,,,,,,,,,50625.0,-98.75,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+HAVELLS,1237.9,0.28,9506500.0,0.09,,,,,,,,,23500.0,-98.86,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+NTPC,346.25,0.28,99696000.0,0.06,,,,,,,,,303000.0,-98.92,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+UNIONBANK,169.45,0.14,120329025.0,0.08,,,,,,,,,336300.0,-98.82,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+DALBHARAT,1832.0,0.69,3850600.0,0.0,,,,,,,,,12025.0,-98.8,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Neutral
+ADANIGREEN,1388.0,0.33,26125800.0,0.09,,,,,,,,,69600.0,-98.94,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+LICHSGFIN,541.85,0.57,23257000.0,-0.01,,,,,,,,,35000.0,-98.94,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+KOTAKBANK,389.1,0.46,179570000.0,0.01,,,,,,,,,232000.0,-98.95,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+GMRAIRPORT,108.5,-0.09,125898750.0,0.02,,,,,,,,,369675.0,-98.95,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+NESTLEIND,1503.1,0.58,9857500.0,0.15,,,,,,,,,46500.0,-98.96,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+YESBANK,22.99,0.44,1198749500.0,0.06,,,,,,,,,3918600.0,-99.02,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PETRONET,277.7,-0.56,31179000.0,0.05,,,,,,,,,96900.0,-98.93,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+VEDL,262.8,0.94,49678850.0,-0.06,,,,,,,,,157550.0,-98.81,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+BAJAJHLDNG,10866.0,0.13,323175.0,0.05,,,,,,,,,300.0,-99.12,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+OIL,446.0,0.34,15894200.0,0.13,,,,,,,,,53200.0,-99.11,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+HAL,4614.0,0.21,5031150.0,0.07,,,,,,,,,10500.0,-99.13,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+NHPC,78.63,0.55,124995750.0,0.05,,,,,,,,,166800.0,-99.15,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+JSWENERGY,551.9,0.73,24809925.0,0.05,,,,,,,,,38700.0,-99.19,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PAGEIND,40430.0,-0.17,245900.0,0.02,,,,,,,,,580.0,-99.16,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Buildup
+CROMPTON,250.6,0.66,57665150.0,0.03,,,,,,,,,90300.0,-99.25,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PFC,418.7,0.3,46335900.0,0.05,,,,,,,,,83200.0,-99.26,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+NMDC,84.9,0.81,341988750.0,-0.02,,,,,,,,,472500.0,-99.29,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Short Covering
+TIINDIA,2853.7,0.4,1908200.0,0.06,,,,,,,,,3000.0,-99.29,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+PIIND,2724.9,0.51,2752400.0,0.01,,,,,,,,,3500.0,-99.31,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+MFSL,1513.5,0.05,9236400.0,0.04,,,,,,,,,10400.0,-99.41,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+ICICIGI,1690.8,0.06,5074550.0,0.03,,,,,,,,,3250.0,-99.53,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+GODREJCP,1076.5,0.66,10142000.0,0.01,,,,,,,,,6000.0,-99.6,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+HYUNDAI,2005.7,0.26,3945700.0,0.06,,,,,,,,,4125.0,-99.64,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Fresh Long Buildup
+BANKEX,,,,,,,,,,,,,,,VOLUME_OI,VolumeAndOISpikesScans_25AUG26_Report_29_7_2026.xlsx,0,SELL,,Neutral

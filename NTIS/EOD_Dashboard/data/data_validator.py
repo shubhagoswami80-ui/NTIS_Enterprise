@@ -1,13 +1,7 @@
 """
 NTIS EOD Dashboard Data Validator
 
-Purpose:
-    Validate availability of EOD dashboard input data.
-
-Rules:
-    - Read only
-    - No data modification
-    - No pipeline changes
+Production Version
 """
 
 from pathlib import Path
@@ -22,7 +16,8 @@ SOURCE_ROOT = Path("E:/NSE_Daily_Analysis")
 
 
 def current_source_dir():
-    return SOURCE_ROOT / str(datetime.today().year) / datetime.today().strftime("%B")
+    today = datetime.today()
+    return SOURCE_ROOT / str(today.year) / today.strftime("%B")
 
 
 SOURCE_FOLDERS = [
@@ -38,52 +33,102 @@ OPTIONAL_SOURCE_FOLDERS = [
 ]
 
 
-def check_path(path):
+def check_path(path: Path):
+
     return {
         "exists": path.exists(),
-        "path": str(path)
+        "path": str(path),
+        "is_file": path.is_file(),
+        "is_dir": path.is_dir(),
     }
 
 
 def validate_output_files():
-    return {
-        name: check_path(EOD_OUTPUT_DIR / file)
-        for name, file in REQUIRED_EOD_FILES.items()
-    }
+
+    result = {}
+
+    for dataset, filename in REQUIRED_EOD_FILES.items():
+
+        full_path = EOD_OUTPUT_DIR / filename
+
+        item = check_path(full_path)
+
+        if item["exists"] and item["is_file"]:
+            item["size_mb"] = round(
+                full_path.stat().st_size / (1024 * 1024),
+                2,
+            )
+            item["modified"] = datetime.fromtimestamp(
+                full_path.stat().st_mtime
+            ).strftime("%Y-%m-%d %H:%M:%S")
+
+        result[dataset] = item
+
+    return result
 
 
 def validate_source_files():
-    root = current_source_dir()
+
+    base = current_source_dir()
+
     return {
-        folder: check_path(root / folder)
+        folder: check_path(base / folder)
         for folder in SOURCE_FOLDERS
     }
 
 
 def validate_optional_sources():
-    root = current_source_dir()
+
+    base = current_source_dir()
+
     return {
-        folder: check_path(root / folder)
+        folder: check_path(base / folder)
         for folder in OPTIONAL_SOURCE_FOLDERS
     }
 
 
+def dashboard_health():
+
+    outputs = validate_output_files()
+
+    total = len(outputs)
+
+    available = sum(
+        1
+        for x in outputs.values()
+        if x["exists"]
+    )
+
+    return {
+        "available": available,
+        "missing": total - available,
+        "health_percent": round(
+            available * 100 / total,
+            2,
+        ),
+    }
+
+
 def run_validation():
+
     print("=" * 60)
     print("NTIS EOD DATA VALIDATION")
     print("=" * 60)
 
-    print("\nCORE OUTPUT DATA")
-    for name, item in validate_output_files().items():
-        print(name, "PASS" if item["exists"] else "MISSING")
+    health = dashboard_health()
 
-    print("\nSOURCE REPORTS")
-    for name, item in validate_source_files().items():
-        print(name, "PASS" if item["exists"] else "MISSING")
+    print(
+        f"Dashboard Health : "
+        f"{health['health_percent']}%"
+    )
 
-    print("\nOPTIONAL INTELLIGENCE DATA")
-    for name, item in validate_optional_sources().items():
-        print(name, "AVAILABLE" if item["exists"] else "NOT AVAILABLE")
+    print()
+
+    for dataset, item in validate_output_files().items():
+
+        status = "READY" if item["exists"] else "MISSING"
+
+        print(f"{dataset:<25} {status}")
 
 
 if __name__ == "__main__":

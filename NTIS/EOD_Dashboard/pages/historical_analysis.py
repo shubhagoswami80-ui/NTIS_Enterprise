@@ -1,10 +1,32 @@
-
 import streamlit as st
 
 from EOD_Dashboard.data.historical_loader import (
     get_available_dates,
-    load_snapshot
+    load_snapshot,
 )
+
+from EOD_Dashboard.components.date_selector import (
+    select_date,
+)
+
+
+def _show_dataframe(title, df):
+
+    st.subheader(title)
+
+    if df is None:
+        st.info("Dataset not available")
+        return
+
+    if df.empty:
+        st.info("No records found")
+        return
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+    )
 
 
 def show_historical_analysis():
@@ -14,27 +36,28 @@ def show_historical_analysis():
     dates = get_available_dates()
 
     if not dates:
-        st.warning("No historical data available")
+        st.warning("No historical snapshots available.")
         return
 
-    selected = st.selectbox(
-        "Select EOD Date",
-        dates
-    )
+    selected_date = select_date(dates)
 
-    snapshot = load_snapshot(selected)
+    if selected_date is None:
+        return
 
-    st.success(f"Historical Snapshot: {selected}")
+    snapshot = load_snapshot(selected_date)
 
-    for name, df in snapshot.items():
+    if not snapshot:
+        st.warning("Snapshot could not be loaded.")
+        return
 
-        st.subheader(name.replace("_", " ").title())
+    st.success(f"Historical Snapshot : {selected_date}")
 
-        if df is not None:
-            st.dataframe(
-                df.head(10),
-                use_container_width=True
-            )
+    for dataset_name, dataframe in snapshot.items():
+
+        _show_dataframe(
+            dataset_name.replace("_", " ").title(),
+            dataframe,
+        )
 
 
 if __name__ == "__main__":

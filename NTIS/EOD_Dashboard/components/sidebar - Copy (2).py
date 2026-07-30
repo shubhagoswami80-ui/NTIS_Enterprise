@@ -4,37 +4,18 @@ import streamlit as st
 MENU_ITEMS = [
     "Dashboard",
     "Market Overview",
-
     "BUY Opportunities",
     "SELL Opportunities",
     "Probability Ranking",
-
     "OI Intelligence",
-
-    "Support Intelligence",
-    "Resistance Intelligence",
-
+    "Support Resistance",
     "Pattern Intelligence",
-
     "Historical Replay",
-
     "Settings",
 ]
 
 
 def render_sidebar():
-    """
-    Render the NTIS Dashboard sidebar.
-
-    Returns
-    -------
-    dict
-        {
-            "page": str,
-            "auto_refresh": bool,
-            "refresh_interval": str
-        }
-    """
 
     with st.sidebar:
 

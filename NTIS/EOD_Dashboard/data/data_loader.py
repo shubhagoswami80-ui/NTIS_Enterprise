@@ -11,6 +11,8 @@ Rules:
 """
 
 from datetime import datetime
+from pathlib import Path
+
 import pandas as pd
 
 from EOD_Dashboard.config.dashboard_config import (
@@ -18,26 +20,60 @@ from EOD_Dashboard.config.dashboard_config import (
     REQUIRED_EOD_FILES,
 )
 
+_DATA_CACHE = {}
+
 
 def get_file_path(dataset_name):
     filename = REQUIRED_EOD_FILES.get(dataset_name)
-
     if not filename:
         return None
+    return Path(EOD_OUTPUT_DIR) / filename
 
-    return EOD_OUTPUT_DIR / filename
+
+def dataset_exists(dataset_name):
+    path = get_file_path(dataset_name)
+    return bool(path and path.exists())
 
 
-def load_dataset(dataset_name):
+def load_dataset(dataset_name, force_reload=False):
+
+    if (
+        not force_reload
+        and dataset_name in _DATA_CACHE
+    ):
+        return _DATA_CACHE[dataset_name]
+
     path = get_file_path(dataset_name)
 
-    if path is None:
+    if path is None or not path.exists():
         return None
 
-    if not path.exists():
-        return None
+    df = pd.read_csv(path)
 
-    return pd.read_csv(path)
+    _DATA_CACHE[dataset_name] = df
+
+    return df
+
+
+def load_multiple(datasets, force_reload=False):
+
+    loaded = {}
+
+    for dataset in datasets:
+
+        df = load_dataset(
+            dataset,
+            force_reload=force_reload,
+        )
+
+        if df is not None:
+            loaded[dataset] = df
+
+    return loaded
+
+
+def clear_cache():
+    _DATA_CACHE.clear()
 
 
 def get_dataset_info(dataset_name):
@@ -47,23 +83,22 @@ def get_dataset_info(dataset_name):
     if path is None:
         return {
             "available": False,
-            "reason": "Dataset not configured"
+            "reason": "Dataset not configured",
         }
 
     if not path.exists():
         return {
             "available": False,
-            "path": str(path)
+            "path": str(path),
         }
 
-    timestamp = datetime.fromtimestamp(
-        path.stat().st_mtime
-    )
+    ts = datetime.fromtimestamp(path.stat().st_mtime)
 
     return {
         "available": True,
         "path": str(path),
-        "updated": timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        "updated": ts.strftime("%Y-%m-%d %H:%M:%S"),
+        "cached": dataset_name in _DATA_CACHE,
     }
 
 
@@ -73,12 +108,13 @@ def test_loader():
     print("NTIS EOD DATA LOADER CHECK")
     print("=" * 60)
 
-    for name in REQUIRED_EOD_FILES:
-        info = get_dataset_info(name)
-        print(
-            name,
-            "READY" if info["available"] else "MISSING"
-        )
+    for dataset in REQUIRED_EOD_FILES:
+
+        info = get_dataset_info(dataset)
+
+        status = "READY" if info["available"] else "MISSING"
+
+        print(f"{dataset:<30} {status}")
 
 
 if __name__ == "__main__":
