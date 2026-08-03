@@ -1,2 +1,0 @@
-class HmmeMemory:
-    pass

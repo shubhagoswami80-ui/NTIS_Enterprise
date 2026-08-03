@@ -19,6 +19,7 @@ Update:
 """
 
 from pathlib import Path
+import hashlib
 import pandas as pd
 
 from intraday_path_config import get_today_output
@@ -83,6 +84,31 @@ class IntradayPatternEngine:
 
 
 
+
+
+    def build_pattern_dna(self, row):
+        """
+        Bundle 01 foundation:
+        Generates a deterministic Pattern DNA string for downstream
+        Pattern Library and Historical Evidence modules.
+        """
+        fields=[
+            ("PAT", row.get("Pattern","")),
+            ("SCR", row.get("NTIS Score","")),
+            ("P", row.get("Price Chg %","")),
+            ("OI", row.get("OI Chg %","")),
+            ("VOL", row.get("Volume Chg %","")),
+            ("FUT", row.get("Fut Buildup","")),
+        ]
+        return "|".join(f"{k}:{v}" for k,v in fields)
+
+
+    def build_pattern_id(self, row):
+        """Create a stable Pattern_ID from Pattern_DNA."""
+        dna = str(row.get("Pattern_DNA",""))
+        digest = hashlib.sha1(dna.encode("utf-8")).hexdigest()[:8].upper()
+        return f"PDNA_{digest}"
+
     def run(self):
 
         df = pd.read_csv(
@@ -92,6 +118,14 @@ class IntradayPatternEngine:
 
         df["Pattern"] = df.apply(
             self.identify_pattern,
+            axis=1
+        )
+        df["Pattern_DNA"] = df.apply(
+            self.build_pattern_dna,
+            axis=1
+        )
+        df["Pattern_ID"] = df.apply(
+            self.build_pattern_id,
             axis=1
         )
 

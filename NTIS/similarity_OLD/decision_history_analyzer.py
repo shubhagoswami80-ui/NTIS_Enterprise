@@ -1,2 +1,0 @@
-class DecisionHistoryAnalyzer:
-    pass

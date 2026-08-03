@@ -1,2 +1,0 @@
-class ConfigurationGovernance:
-    pass

@@ -1,2 +1,0 @@
-class ConfidenceHistoryManager:
-    pass

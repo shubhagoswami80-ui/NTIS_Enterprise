@@ -1,40 +1,66 @@
-import streamlit as st
+"""
+NTIS EOD Dashboard Status Bar
+
+Presentation Layer Only
+"""
+
+from __future__ import annotations
+
 from datetime import datetime
 from pathlib import Path
 
+import streamlit as st
 
-def render_status_bar(output_path=None):
+
+def render_status_bar(output_path: str | Path | None = None) -> None:
+    """
+    Render dashboard status bar.
+
+    Parameters
+    ----------
+    output_path : str | Path | None
+        Optional output file used to display the latest data status.
+
+    Notes
+    -----
+    UI component only.
+    No business logic should be implemented here.
+    """
 
     st.divider()
 
-    c1, c2, c3 = st.columns([2, 3, 2])
+    col_status, col_source, col_time = st.columns((2, 3, 2))
 
-    if output_path:
+    if output_path is None:
+        current = datetime.now()
 
-        path = Path(output_path)
+        col_status.success("Dashboard Ready")
+        col_source.caption(
+            f"Session : {current.strftime('%d-%m-%Y')}"
+        )
+        col_time.caption(
+            current.strftime("%H:%M:%S")
+        )
+        return
 
-        if path.exists():
+    path = Path(output_path)
 
-            modified = datetime.fromtimestamp(
-                path.stat().st_mtime
-            ).strftime("%d-%m-%Y %H:%M:%S")
+    if path.exists():
 
-            c1.success("Data : READY")
-            c2.caption(f"Source : {path.name}")
-            c3.caption(f"Updated : {modified}")
+        last_updated = datetime.fromtimestamp(
+            path.stat().st_mtime
+        ).strftime("%d-%m-%Y %H:%M:%S")
 
-        else:
-
-            c1.error("Data : Missing")
-            c2.caption(str(path))
-            c3.caption("Waiting")
+        col_status.success("Data : READY")
+        col_source.caption(
+            f"Source : {path.name}"
+        )
+        col_time.caption(
+            f"Updated : {last_updated}"
+        )
 
     else:
 
-        c1.success("Dashboard Ready")
-        c2.caption(
-            f"Session : {datetime.now().strftime('%d-%m-%Y')}"
-        )
-        c3.caption(
-            datetime.now().strftime("%H:%M:%S")
-        )
+        col_status.error("Data : Missing")
+        col_source.caption(str(path))
+        col_time.caption("Waiting")

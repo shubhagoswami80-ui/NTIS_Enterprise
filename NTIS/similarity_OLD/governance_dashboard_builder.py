@@ -1,2 +1,0 @@
-class GovernanceDashboardBuilder:
-    pass

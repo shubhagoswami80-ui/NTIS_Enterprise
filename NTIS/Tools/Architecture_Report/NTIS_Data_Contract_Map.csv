@@ -1,0 +1,7 @@
+Data Object,File,Contract Fields,Consumer
+Market Master,market_master.csv,"Symbol, CMP, Price Chg %, OI Chg %, Volume Chg (%)",Scoring Engine input
+Ranked Stocks,ntis_ranked_stocks.csv,"Symbol, NTIS Score, Signal, Rank",Pattern Engine input
+Pattern Analysis,ntis_pattern_analysis.csv,"Symbol, Pattern, Pattern Reason",Probability Engine input
+Probability Analysis,ntis_probability_analysis.csv,"Probability, Confidence, Trade Bias",Similarity / Trade Validation input
+Trade Candidates,ntis_trade_candidates.csv,"Symbol, Final Signal, Entry, Stop Loss, Target",Trading intelligence output
+Outcome Report,ntis_outcome_report.csv,"Actual Return %, Outcome, Accuracy",Learning and validation

@@ -1,0 +1,274 @@
+source,reference,type
+config.py,"MASTER_FILE = OUTPUT / ""market_master.csv""",.csv
+config.py,"RANKED_FILE = OUTPUT / ""ntis_ranked_stocks.csv""",.csv
+config.py,"BULLISH_FILE = OUTPUT / ""bullish_stocks.csv""",.csv
+config.py,"BEARISH_FILE = OUTPUT / ""bearish_stocks.csv""",.csv
+config.py,"SIGNAL_HISTORY = HISTORY / ""signal_history.csv""",.csv
+config.py,"BACKTEST_HISTORY = HISTORY / ""backtest_history.csv""",.csv
+history_manager.py,ntis_probability_analysis.csv,.csv
+history_manager.py,ntis_outcome_report.csv,.csv
+history_manager.py,"""ntis_probability_analysis.csv""",.csv
+history_manager.py,"""ntis_outcome_report.csv""",.csv
+history_manager.py,"f""NTIS_Prediction_{self.date}.csv""",.csv
+history_manager.py,"f""NTIS_Outcome_{self.date}.csv""",.csv
+history_manager.py,"""NTIS_Accuracy_Summary.csv""",.csv
+hmme_active_dependency_mapper.py,hmme_active_dependency_map.csv,.csv
+hmme_active_dependency_mapper.py,hmme_module_groups.csv,.csv
+hmme_active_dependency_mapper.py,"""hmme_active_dependency_map.csv"",",.csv
+hmme_active_dependency_mapper.py,"""hmme_module_groups.csv"",",.csv
+hmme_archive_mover_v5.py,"""archive_log.csv""",.csv
+hmme_archive_mover_v5.py,"""hmme_archive_list.csv""",.csv
+hmme_archive_mover_v5.py,"""hmme_dependency_safe_delete.csv""",.csv
+hmme_consolidation_analyzer_v2.py,"f""hmme_{category.lower()}_list.csv""",.csv
+hmme_consolidation_analyzer_v3.py,Output/hmme_review_list.csv,.csv
+hmme_consolidation_analyzer_v3.py,"INPUT_FILE = OUTPUT_DIR / ""hmme_review_list.csv""",.csv
+hmme_consolidation_analyzer_v3.py,"""hmme_review_keep_core.csv"",",.csv
+hmme_consolidation_analyzer_v3.py,"""hmme_review_keep_support.csv"",",.csv
+hmme_consolidation_analyzer_v3.py,"""hmme_review_merge.csv"",",.csv
+hmme_consolidation_analyzer_v3.py,"""hmme_review_archive.csv"",",.csv
+hmme_consolidation_analyzer_v3.py,"""hmme_review_delete_candidate.csv"",",.csv
+hmme_consolidation_analyzer_v3.py,"""hmme_review_required.csv"",",.csv
+hmme_dependency_scanner_v4.py,"""hmme_review_delete_candidate.csv""",.csv
+hmme_dependency_scanner_v4.py,"""hmme_review_required.csv""",.csv
+hmme_dependency_scanner_v4.py,"""hmme_dependency_analysis.csv"",",.csv
+hmme_dependency_scanner_v4.py,"f""hmme_dependency_{name.lower()}.csv"",",.csv
+hmme_production_merge_planner_v2.py,"""hmme_merge_plan.csv"",",.csv
+hmme_production_merge_planner_v2.py,"""hmme_production_candidates.csv"",",.csv
+hmme_production_merge_planner_v2.py,"""hmme_unclassified_analysis.csv"",",.csv
+importer.py,"folder.glob(""*.xlsx"")",.xls
+importer.py,"folder.glob(""*.xlsx"")",.xlsx
+ntis_similarity_core_dependency_map.py,KEEP_REQUIRED_FILES.csv,.csv
+ntis_similarity_core_dependency_map.py,ARCHIVE_FILES.csv,.csv
+ntis_similarity_core_dependency_map.py,UNKNOWN_FILES.csv,.csv
+ntis_similarity_core_dependency_map.py,"OUTPUT_KEEP = BASE_DIR / ""KEEP_REQUIRED_FILES.csv""",.csv
+ntis_similarity_core_dependency_map.py,"OUTPUT_ARCHIVE = BASE_DIR / ""ARCHIVE_FILES.csv""",.csv
+ntis_similarity_core_dependency_map.py,"OUTPUT_UNKNOWN = BASE_DIR / ""UNKNOWN_FILES.csv""",.csv
+outcome_engine.py,ntis_probability_analysis.csv,.csv
+outcome_engine.py,market_master.csv,.csv
+outcome_engine.py,ntis_outcome_report.csv,.csv
+outcome_engine.py,"""E:/NSE_Daily_Analysis/Output/ntis_probability_analysis.csv""",.csv
+outcome_engine.py,"""E:/NSE_Daily_Analysis/Output/market_master.csv""",.csv
+outcome_engine.py,"""E:/NSE_Daily_Analysis/Output/ntis_outcome_report.csv""",.csv
+pattern_engine.py,ntis_ranked_stocks.csv,.csv
+pattern_engine.py,ntis_pattern_analysis.csv,.csv
+pattern_engine.py,"""E:/NSE_Daily_Analysis/Output/ntis_ranked_stocks.csv""",.csv
+pattern_engine.py,"""E:/NSE_Daily_Analysis/Output/ntis_pattern_analysis.csv""",.csv
+probability_engine.py,"""E:/NSE_Daily_Analysis/Output/ntis_pattern_analysis.csv""",.csv
+probability_engine.py,"""E:/NSE_Daily_Analysis/Output/ntis_probability_analysis.csv""",.csv
+probability_engine.py,"OUTPUT_FILE.parent / ""ntis_long_probability.csv"",",.csv
+probability_engine.py,"OUTPUT_FILE.parent / ""ntis_short_probability.csv"",",.csv
+probability_engine.py,"OUTPUT_FILE.parent / ""ntis_long_probability.csv""",.csv
+probability_engine.py,"OUTPUT_FILE.parent / ""ntis_short_probability.csv""",.csv
+scoring_engine.py,"""E:/NSE_Daily_Analysis/Output/market_master.csv""",.csv
+scoring_engine.py,"""E:/NSE_Daily_Analysis/Output/ntis_ranked_stocks.csv""",.csv
+trade_validation_engine.py,1. tis_short_probability.csv,.csv
+trade_validation_engine.py,tis_trade_candidates.csv,.csv
+trade_validation_engine.py,"/ ""ntis_short_probability.csv""",.csv
+trade_validation_engine.py,"/ ""ntis_trade_candidates.csv""",.csv
+trade_validation_engine.py,"str(folder / ""*.xlsx"")",.xls
+trade_validation_engine.py,"str(folder / ""*.xlsx"")",.xlsx
+utils.py,Daywise_Price_and_OI_Summary_28JUL26_Report_2026-07-17.xlsx,.xls
+utils.py,VolumeAndOISpikesScans_28JUL26_Report_17_7_2026.xlsx,.xls
+utils.py,Support_Resistance_28JUL26_Scan_17_7_2026.xlsx,.xls
+utils.py,Resistance_28JUL26_Scan_17_7_2026.xlsx,.xls
+utils.py,"files = list(folder.glob(""*.xlsx""))",.xls
+utils.py,"""Daywise_Price_and_OI_Summary_28JUL26_Report_2026-07-17.xlsx"",",.xls
+utils.py,"""VolumeAndOISpikesScans_28JUL26_Report_17_7_2026.xlsx"",",.xls
+utils.py,"""Support_Resistance_28JUL26_Scan_17_7_2026.xlsx"",",.xls
+utils.py,"""Resistance_28JUL26_Scan_17_7_2026.xlsx"",",.xls
+utils.py,"""IVR-IVP_28JUL26_Report_2026-07-17.xlsx""",.xls
+utils.py,Daywise_Price_and_OI_Summary_28JUL26_Report_2026-07-17.xlsx,.xlsx
+utils.py,VolumeAndOISpikesScans_28JUL26_Report_17_7_2026.xlsx,.xlsx
+utils.py,Support_Resistance_28JUL26_Scan_17_7_2026.xlsx,.xlsx
+utils.py,Resistance_28JUL26_Scan_17_7_2026.xlsx,.xlsx
+utils.py,"files = list(folder.glob(""*.xlsx""))",.xlsx
+utils.py,"""Daywise_Price_and_OI_Summary_28JUL26_Report_2026-07-17.xlsx"",",.xlsx
+utils.py,"""VolumeAndOISpikesScans_28JUL26_Report_17_7_2026.xlsx"",",.xlsx
+utils.py,"""Support_Resistance_28JUL26_Scan_17_7_2026.xlsx"",",.xlsx
+utils.py,"""Resistance_28JUL26_Scan_17_7_2026.xlsx"",",.xlsx
+utils.py,"""IVR-IVP_28JUL26_Report_2026-07-17.xlsx""",.xlsx
+Intraday\current_report_importer.py,"return list(INPUT_FOLDER.glob(""*.xlsx""))",.xls
+Intraday\current_report_importer.py,"return list(INPUT_FOLDER.glob(""*.xlsx""))",.xlsx
+Intraday\image_loader.py,Loads images from report_registry.csv in processing order.,.csv
+Intraday\image_loader.py,1. Reads report_registry.csv,.csv
+Intraday\image_loader.py,"self.registry_file = output_path() / ""report_registry.csv""",.csv
+Intraday\intraday_accuracy_tracker.py,intraday_backtest_results.csv,.csv
+Intraday\intraday_accuracy_tracker.py,intraday_accuracy_report.csv,.csv
+Intraday\intraday_accuracy_tracker.py,"""intraday_accuracy_report.csv""",.csv
+Intraday\intraday_accuracy_tracker.py,"""intraday_accuracy_report.xlsx""",.xls
+Intraday\intraday_accuracy_tracker.py,"""intraday_accuracy_report.xlsx""",.xlsx
+Intraday\intraday_config.py,"REGISTRY_FILE = REGISTRY_ROOT / ""intraday_file_registry.csv""",.csv
+Intraday\intraday_daily_report_generator.py,intraday_trade_candidates.csv,.csv
+Intraday\intraday_daily_report_generator.py,"OUTPUT_FOLDER / ""intraday_trade_candidates.csv""",.csv
+Intraday\intraday_daily_report_generator.py,intraday_daily_trade_report.xlsx,.xls
+Intraday\intraday_daily_report_generator.py,"OUTPUT_FOLDER / ""intraday_daily_trade_report.xlsx""",.xls
+Intraday\intraday_daily_report_generator.py,intraday_daily_trade_report.xlsx,.xlsx
+Intraday\intraday_daily_report_generator.py,"OUTPUT_FOLDER / ""intraday_daily_trade_report.xlsx""",.xlsx
+Intraday\intraday_dashboard_backup_before_status_update.py,"TRADE_FILE = BASE / ""intraday_trade_candidates.csv""",.csv
+Intraday\intraday_dashboard_backup_before_status_update.py,"PROB_FILE = BASE / ""intraday_probability_analysis.csv""",.csv
+Intraday\intraday_dashboard_backup_before_status_update.py,"EVOLUTION_FILE = BASE / ""intraday_signal_evolution.csv""",.csv
+Intraday\intraday_dashboard_health_panel.py,"""intraday_trade_candidates.csv"",",.csv
+Intraday\intraday_dashboard_health_panel.py,"""intraday_probability_analysis.csv"",",.csv
+Intraday\intraday_dashboard_health_panel.py,"""intraday_signal_evolution.csv"",",.csv
+Intraday\intraday_file_registry.py,"r""E:\NSE_Daily_Analysis\Intraday\Database\intraday_file_registry.csv""",.csv
+Intraday\intraday_historical_replay_engine.py,intraday_trade_candidates.csv,.csv
+Intraday\intraday_historical_replay_engine.py,intraday_backtest_results.csv,.csv
+Intraday\intraday_historical_replay_engine.py,"""intraday_trade_candidates.csv""",.csv
+Intraday\intraday_historical_replay_engine.py,"""intraday_backtest_results.csv""",.csv
+Intraday\intraday_import_core.py,"'.xls',",.xls
+Intraday\intraday_import_core.py,'.xlsx',.xls
+Intraday\intraday_import_core.py,'.xlsx',.xlsx
+Intraday\intraday_latest_snapshot_resolver.py,"""intraday_trade_candidates.csv"",",.csv
+Intraday\intraday_latest_snapshot_resolver.py,"""intraday_probability_analysis.csv"",",.csv
+Intraday\intraday_latest_snapshot_resolver.py,"""intraday_signal_evolution.csv""",.csv
+Intraday\intraday_learning_memory_builder.py,"""intraday_learning_memory.csv""",.csv
+Intraday\intraday_learning_outcome_updater.py,intraday_backtest_results.csv,.csv
+Intraday\intraday_learning_outcome_updater.py,intraday_learning_memory.csv,.csv
+Intraday\intraday_learning_outcome_updater.py,Updated intraday_learning_memory.csv,.csv
+Intraday\intraday_learning_outcome_updater.py,"""intraday_learning_memory.csv""",.csv
+Intraday\intraday_market_master_builder.py,"""intraday_market_master_latest.csv""",.csv
+Intraday\intraday_market_master_builder.py,"if file.suffix.lower() not in ["".xls"", "".xlsx""]:",.xls
+Intraday\intraday_market_master_builder.py,"if file.suffix.lower() not in ["".xls"", "".xlsx""]:",.xlsx
+Intraday\intraday_market_master_cleaner.py,Clean intraday_market_master_latest.csv,.csv
+Intraday\intraday_market_master_cleaner.py,intraday_market_master_clean.csv,.csv
+Intraday\intraday_market_master_cleaner.py,"""intraday_market_master_latest.csv""",.csv
+Intraday\intraday_market_master_cleaner.py,"""intraday_market_master_clean.csv""",.csv
+Intraday\intraday_market_master_normalizer.py,intraday_market_master_clean.csv,.csv
+Intraday\intraday_market_master_normalizer.py,intraday_market_master_ntis.csv,.csv
+Intraday\intraday_market_master_normalizer.py,"""intraday_market_master_clean.csv""",.csv
+Intraday\intraday_market_master_normalizer.py,"""intraday_market_master_ntis.csv""",.csv
+Intraday\intraday_market_master_schema.py,Convert intraday_market_master_ntis.csv,.csv
+Intraday\intraday_market_master_schema.py,intraday_market_master_ntis.csv,.csv
+Intraday\intraday_market_master_schema.py,intraday_market_master_schema.csv,.csv
+Intraday\intraday_market_master_schema.py,"OUTPUT_FOLDER / ""intraday_market_master_ntis.csv""",.csv
+Intraday\intraday_market_master_schema.py,"OUTPUT_FOLDER / ""intraday_market_master_schema.csv""",.csv
+Intraday\intraday_ntis_scoring_bridge.py,"OUTPUT_FOLDER / ""intraday_market_master_ntis.csv""",.csv
+Intraday\intraday_ntis_scoring_bridge.py,"OUTPUT_FOLDER / ""intraday_scoring_input.csv""",.csv
+Intraday\intraday_output_writer.py,"pd.DataFrame(records).to_csv(output/'intraday_import_summary.csv',index=False)",.csv
+Intraday\intraday_pattern_engine.py,intraday_scored_stocks.csv,.csv
+Intraday\intraday_pattern_engine.py,intraday_pattern_analysis.csv,.csv
+Intraday\intraday_pattern_engine.py,"""intraday_scored_stocks.csv""",.csv
+Intraday\intraday_pattern_engine.py,"""intraday_pattern_analysis.csv""",.csv
+Intraday\intraday_probability_calibration.py,intraday_backtest_results.csv,.csv
+Intraday\intraday_probability_calibration.py,intraday_probability_calibration.csv,.csv
+Intraday\intraday_probability_calibration.py,"""intraday_probability_calibration.csv""",.csv
+Intraday\intraday_probability_engine.py,intraday_pattern_analysis.csv,.csv
+Intraday\intraday_probability_engine.py,intraday_probability_calibration.csv,.csv
+Intraday\intraday_probability_engine.py,intraday_probability_analysis.csv,.csv
+Intraday\intraday_probability_engine.py,"""intraday_pattern_analysis.csv""",.csv
+Intraday\intraday_probability_engine.py,"""intraday_probability_analysis.csv""",.csv
+Intraday\intraday_probability_engine.py,"""intraday_probability_calibration.csv""",.csv
+Intraday\intraday_scoring_engine.py,intraday_market_master_schema.csv,.csv
+Intraday\intraday_scoring_engine.py,intraday_scored_stocks.csv,.csv
+Intraday\intraday_scoring_engine.py,"OUTPUT_FOLDER / ""intraday_market_master_schema.csv""",.csv
+Intraday\intraday_scoring_engine.py,"OUTPUT_FOLDER / ""intraday_scored_stocks.csv""",.csv
+Intraday\intraday_snapshot_evolution_engine.py,intraday_signal_evolution.csv,.csv
+Intraday\intraday_snapshot_evolution_engine.py,"OUTPUT_FOLDER / ""intraday_probability_analysis.csv""",.csv
+Intraday\intraday_snapshot_evolution_engine.py,"OUTPUT_FOLDER / ""intraday_signal_evolution.csv""",.csv
+Intraday\intraday_snapshot_manager.py,"pd.DataFrame(records).to_csv(output/'intraday_snapshot_history.csv',index=False)",.csv
+Intraday\intraday_trade_memory_connector.py,"""intraday_trade_candidates.csv""",.csv
+Intraday\intraday_trade_validation_engine.py,intraday_probability_analysis.csv,.csv
+Intraday\intraday_trade_validation_engine.py,intraday_trade_candidates.csv,.csv
+Intraday\intraday_trade_validation_engine.py,"""intraday_probability_analysis.csv""",.csv
+Intraday\intraday_trade_validation_engine.py,"""intraday_trade_candidates.csv""",.csv
+Intraday\pattern_statistics_engine.py,intraday_learning_memory.csv,.csv
+Intraday\pattern_statistics_engine.py,pattern_statistics.csv,.csv
+Intraday\pattern_statistics_engine.py,"""intraday_learning_memory.csv""",.csv
+Intraday\pattern_statistics_engine.py,"""pattern_statistics.csv""",.csv
+Intraday\report_registry.py,"outfile = output_path() / ""report_registry.csv""",.csv
+replay\historical_replay.py,"output_file=output_folder / ""replay_results.csv"",",.csv
+replay\historical_replay.py,"output_folder / ""replay_summary.csv"",",.csv
+replay\historical_replay.py,"output_folder / ""replay_statistics.csv"",",.csv
+replay\replay_constants.py,"REPLAY_RESULTS_FILE = ""replay_results.csv""",.csv
+replay\replay_constants.py,"REPLAY_SUMMARY_FILE = ""replay_summary.csv""",.csv
+replay\replay_constants.py,"REPLAY_STATISTICS_FILE = ""replay_statistics.csv""",.csv
+replay\replay_loader.py,"files = sorted(folder_path.glob(""*.csv""))",.csv
+replay\replay_paths.py,"RESULTS = OUTPUT / ""replay_results.csv""",.csv
+replay\replay_paths.py,"SUMMARY = OUTPUT / ""replay_summary.csv""",.csv
+replay\replay_paths.py,"STATISTICS = OUTPUT / ""replay_statistics.csv""",.csv
+Tools\ntis_architecture_scanner.py,file_inventory.csv,.csv
+Tools\ntis_architecture_scanner.py,python_import_graph.csv,.csv
+Tools\ntis_architecture_scanner.py,data_flow_mapping.csv,.csv
+Tools\ntis_architecture_scanner.py,output_file_mapping.csv,.csv
+Tools\ntis_architecture_scanner.py,duplicate_file_report.csv,.csv
+Tools\ntis_architecture_scanner.py,""".csv"",",.csv
+Tools\ntis_architecture_scanner.py,"""file_inventory.csv"",",.csv
+Tools\ntis_architecture_scanner.py,"""python_import_graph.csv"",",.csv
+Tools\ntis_architecture_scanner.py,"""data_flow_mapping.csv"",",.csv
+Tools\ntis_architecture_scanner.py,"""output_file_mapping.csv"",",.csv
+Tools\ntis_architecture_scanner.py,"""duplicate_file_report.csv"",",.csv
+Tools\ntis_architecture_scanner.py,""".xlsx"",",.xls
+Tools\ntis_architecture_scanner.py,""".xls""",.xls
+Tools\ntis_architecture_scanner.py,""".xlsx"",",.xlsx
+similarity_core_Old1\integration\eod_date_resolver_v17.py,"self.base_folder.rglob(""*.xlsx"")",.xls
+similarity_core_Old1\integration\eod_date_resolver_v17.py,"self.base_folder.rglob(""*.xlsx"")",.xlsx
+similarity_core_Old1\integration\hmme_calibration_engine_v16.py,"""E:/NSE_Daily_Analysis/Historical_Data/HMME/hmme_learning_summary.csv""",.csv
+similarity_core_Old1\integration\hmme_calibration_engine_v16.py,"""E:/NSE_Daily_Analysis/Historical_Data/HMME/hmme_calibration_summary.csv""",.csv
+similarity_core_Old1\integration\hmme_dataset_importer.py,"if file_path.suffix.lower() in ["".xlsx"", "".xls""]:",.xls
+similarity_core_Old1\integration\hmme_dataset_importer.py,"if file_path.suffix.lower() in ["".xlsx"", "".xls""]:",.xlsx
+similarity_core_Old1\integration\hmme_dataset_importer_1.py,"if file_path.suffix.lower() in ["".xlsx"", "".xls""]:",.xls
+similarity_core_Old1\integration\hmme_dataset_importer_1.py,"if file_path.suffix.lower() in ["".xlsx"", "".xls""]:",.xlsx
+similarity_core_Old1\integration\hmme_eod_history_builder_v17.py,"""Daywise_Price_and_OI_Summary*.xlsx""",.xls
+similarity_core_Old1\integration\hmme_eod_history_builder_v17.py,"""Daywise_Price_and_OI_Summary*.xlsx""",.xlsx
+similarity_core_Old1\integration\hmme_historical_data_loader_v16.py,"files = list((self.base_dir / folder).rglob(""*.csv""))",.csv
+similarity_core_Old1\integration\hmme_learning_engine_v16.py,"""E:/NSE_Daily_Analysis/Historical_Data/HMME/hmme_memory.csv""",.csv
+similarity_core_Old1\integration\hmme_learning_engine_v16.py,"""E:/NSE_Daily_Analysis/Historical_Data/HMME/hmme_learning_summary.csv""",.csv
+similarity_core_Old1\integration\hmme_master_dataset_builder_v17.py,"files = list(Path(folder).glob(""*.xlsx""))",.xls
+similarity_core_Old1\integration\hmme_master_dataset_builder_v17.py,"files = list(Path(folder).glob(""*.xlsx""))",.xlsx
+similarity_core_Old1\integration\hmme_memory_manager_v16.py,"""E:/NSE_Daily_Analysis/Historical_Data/HMME/hmme_replay_dataset.csv""",.csv
+similarity_core_Old1\integration\hmme_memory_manager_v16.py,"self.memory_dir / ""hmme_memory.csv""",.csv
+similarity_core_Old1\integration\hmme_ohlc_importer_v17.py,"files = list(self.ohlc_dir.glob(""*.csv""))",.csv
+similarity_core_Old1\integration\hmme_probability_adapter_v16.py,"""E:/NSE_Daily_Analysis/Historical_Data/HMME/hmme_calibration_summary.csv""",.csv
+similarity_core_Old1\integration\hmme_replay_dataset_builder_v16.py,"self.output_dir / ""hmme_replay_dataset.csv""",.csv
+similarity_core_Old1\integration\ntis_architecture_inventory.py,"report = BASE / ""NTIS_ARCHITECTURE_REPORT.csv""",.csv
+similarity_core_Old1\integration\ntis_consolidation_candidate_report.py,"report = BASE / ""NTIS_CONSOLIDATION_CANDIDATES.csv""",.csv
+similarity_core_Old1\integration\ntis_data_bridge.py,"""market"": ""market_master.csv"",",.csv
+similarity_core_Old1\integration\ntis_data_bridge.py,"""probability"": ""ntis_probability_analysis.csv"",",.csv
+similarity_core_Old1\integration\ntis_data_bridge.py,"""pattern"": ""ntis_pattern_analysis.csv"",",.csv
+similarity_core_Old1\integration\ntis_data_bridge.py,"""outcome"": ""ntis_outcome_report.csv""",.csv
+similarity_core_Old1\integration\ntis_data_resolution_consolidation_map.py,"report = BASE / ""DATA_RESOLUTION_CONSOLIDATION_PLAN.csv""",.csv
+similarity_core_Old1\integration\ntis_module_family_mapping.py,"report = BASE / ""NTIS_MODULE_FAMILY_REPORT.csv""",.csv
+similarity_core_Old1\integration\ntis_module_ownership_mapping.py,"report = BASE / ""NTIS_MODULE_OWNERSHIP_REPORT.csv""",.csv
+similarity_core_Old1\integration\ntis_runtime_consolidation_map.py,"report = BASE / ""RUNTIME_CONSOLIDATION_MAP.csv""",.csv
+similarity_core_Old1\reporting\hmme_production_report.py,"""E:/NSE_Daily_Analysis/Output/hmme_production_report.csv""",.csv
+similarity_core_clean\integration\ntis_data_bridge.py,"""market"": ""market_master.csv"",",.csv
+similarity_core_clean\integration\ntis_data_bridge.py,"""probability"": ""ntis_probability_analysis.csv"",",.csv
+similarity_core_clean\integration\ntis_data_bridge.py,"""pattern"": ""ntis_pattern_analysis.csv"",",.csv
+similarity_core_clean\integration\ntis_data_bridge.py,"""outcome"": ""ntis_outcome_report.csv""",.csv
+similarity_core_clean\reporting\hmme_production_report.py,"""E:/NSE_Daily_Analysis/Output/hmme_production_report.csv""",.csv
+Intraday\dashboard\dashboard_loader.py,"base / ""intraday_trade_candidates.csv""",.csv
+Intraday\dashboard\dashboard_loader.py,"base / ""intraday_probability_analysis.csv""",.csv
+Intraday\dashboard\dashboard_loader.py,"base / ""intraday_signal_evolution.csv""",.csv
+Intraday\NTIS_Intraday_Scanner\scanners\dataflow_scanner.py,"if any(x in t for x in ["".csv"","".xlsx"","".json""]):",.csv
+Intraday\NTIS_Intraday_Scanner\scanners\dataflow_scanner.py,"if any(x in t for x in ["".csv"","".xlsx"","".json""]):",.xls
+Intraday\NTIS_Intraday_Scanner\scanners\dataflow_scanner.py,"if any(x in t for x in ["".csv"","".xlsx"","".json""]):",.xlsx
+EOD_Dashboard\components\intelligence_table.py,"filename: str = ""ntis_export.csv"",",.csv
+EOD_Dashboard\config\dashboard_config - Copy.py,"""market_master"": ""market_master.csv"",",.csv
+EOD_Dashboard\config\dashboard_config - Copy.py,"""ranking"": ""ntis_ranked_stocks.csv"",",.csv
+EOD_Dashboard\config\dashboard_config - Copy.py,"""probability"": ""ntis_probability_analysis.csv"",",.csv
+EOD_Dashboard\config\dashboard_config - Copy.py,"""long_probability"": ""ntis_long_probability.csv"",",.csv
+EOD_Dashboard\config\dashboard_config - Copy.py,"""short_probability"": ""ntis_short_probability.csv"",",.csv
+EOD_Dashboard\config\dashboard_config - Copy.py,"""patterns"": ""ntis_pattern_analysis.csv"",",.csv
+EOD_Dashboard\config\dashboard_config - Copy.py,"""trade_candidates"": ""ntis_trade_candidates.csv"",",.csv
+EOD_Dashboard\config\dashboard_config - Copy.py,"""outcome"": ""ntis_outcome_report.csv"",",.csv
+EOD_Dashboard\config\dashboard_config.py,"""market_master"": ""market_master.csv"",",.csv
+EOD_Dashboard\config\dashboard_config.py,"""ranking"": ""ntis_ranked_stocks.csv"",",.csv
+EOD_Dashboard\config\dashboard_config.py,"""probability"": ""ntis_probability_analysis.csv"",",.csv
+EOD_Dashboard\config\dashboard_config.py,"""long_probability"": ""ntis_long_probability.csv"",",.csv
+EOD_Dashboard\config\dashboard_config.py,"""short_probability"": ""ntis_short_probability.csv"",",.csv
+EOD_Dashboard\config\dashboard_config.py,"""patterns"": ""ntis_pattern_analysis.csv"",",.csv
+EOD_Dashboard\config\dashboard_config.py,"""trade_candidates"": ""ntis_trade_candidates.csv"",",.csv
+EOD_Dashboard\config\dashboard_config.py,"""outcome"": ""ntis_outcome_report.csv"",",.csv
+EOD_Dashboard\data\historical_loader - Copy.py,"if file.suffix.lower() in ["".xlsx"", "".xls""]:",.xls
+EOD_Dashboard\data\historical_loader - Copy.py,"if file.suffix.lower() in ["".xlsx"", "".xls""]:",.xlsx
+EOD_Dashboard\data\historical_loader.py,"if path.suffix.lower() in ("".xlsx"", "".xls""):",.xls
+EOD_Dashboard\data\historical_loader.py,"if path.suffix.lower() in ("".xlsx"", "".xls""):",.xlsx
+EOD_Dashboard\pages\buy_intelligence.py,"filename=""buy_intelligence.csv"",",.csv
+EOD_Dashboard\pages\historical_replay.py,"filename=f""{dataset_name}_replay.csv"",",.csv
+EOD_Dashboard\pages\oi_intelligence.py,"filename=""oi_intelligence.csv"",",.csv
+EOD_Dashboard\pages\pattern_intelligence.py,"filename=""pattern_intelligence.csv"",",.csv
+EOD_Dashboard\pages\probability_ranking.py,"filename=""probability_ranking.csv"",",.csv
+EOD_Dashboard\pages\resistance_intelligence.py,"filename=""resistance_intelligence.csv"",",.csv
+EOD_Dashboard\pages\sell_intelligence.py,"filename=""sell_intelligence.csv"",",.csv
+EOD_Dashboard\pages\sell_opportunities.py,"filename=""sell_opportunities.csv"",",.csv
+EOD_Dashboard\pages\support_intelligence.py,"filename=""support_intelligence.csv"",",.csv

@@ -1,2 +1,0 @@
-class ProductionReportGenerator:
-    pass

@@ -1,237 +1,102 @@
-"""
-NTIS Intraday Learning Memory Builder v1.0
-
-Purpose:
-    Store important trade situations and outcomes.
-
-Principle:
-    NTIS remembers trade situations and results,
-    not every market data point.
-
-Rules:
-    - No hardcoded paths
-    - Uses config_loader.py
-    - CSV based memory
-    - No database
-"""
+# ----------------------------------------------------------------------
+# Bundle 01 - Step 3
+# File:
+#     intraday_learning_memory_builder.py
+#
+# Purpose:
+#     Build learning memory preserving Pattern Intelligence.
+# ----------------------------------------------------------------------
 
 from pathlib import Path
 from datetime import datetime
+
 import pandas as pd
 
-from config_loader import LEARNING_ROOT
 
+LEARNING_COLUMNS = [
 
-# ============================================================
-# OUTPUT FILE
-# ============================================================
-
-MEMORY_FILE = (
-    LEARNING_ROOT /
-    "intraday_learning_memory.csv"
-)
-
-
-# ============================================================
-# MEMORY SCHEMA
-# ============================================================
-
-COLUMNS = [
-
-    "Date",
+    "Trade_Date",
     "Snapshot_Time",
+
     "Symbol",
 
-    "Direction",
     "Pattern",
+    "Pattern_DNA",
+    "Pattern_ID",
+
+    "Direction",
 
     "NTIS_Score",
+
     "Probability",
+
     "Confidence",
 
     "Entry_Price",
 
-    "Previous_Close",
-    "Previous_High",
-    "Previous_Low",
-
-    "Price_Condition",
-    "OI_Condition",
-    "Volume_Condition",
-    "IV_Condition",
-
-    "Trade_Reason",
+    "Exit_Price",
 
     "Outcome",
-    "Future_Move_%",
 
-    "Target_Hit",
-    "Stop_Loss_Hit"
+    "PnL",
+
+    "Trade_Reason"
 
 ]
 
 
-# ============================================================
-# DUPLICATE CHECK
-# ============================================================
+def build_learning_memory(df):
 
-def is_duplicate(record):
+    for column in LEARNING_COLUMNS:
 
-    if not MEMORY_FILE.exists():
+        if column not in df.columns:
 
-        return False
+            df[column] = ""
 
+    learning_df = df[
+        LEARNING_COLUMNS
+    ].copy()
 
-    df = pd.read_csv(
-        MEMORY_FILE
+    learning_df["Learning_Timestamp"] = (
+        datetime.now()
+        .strftime("%Y-%m-%d %H:%M:%S")
     )
 
-
-    if df.empty:
-
-        return False
+    return learning_df
 
 
-    match = df[
-        (df["Date"] == record["Date"]) &
-        (df["Symbol"] == record["Symbol"]) &
-        (df["Snapshot_Time"] == record["Snapshot_Time"]) &
-        (df["Pattern"] == record["Pattern"])
-    ]
+def append_learning_memory(
 
+        learning_df,
+        memory_file
 
-    return not match.empty
+):
 
+    memory_file = Path(memory_file)
 
+    if memory_file.exists():
 
-# ============================================================
-# SAVE MEMORY EVENT
-# ============================================================
-
-def save_memory_event(record):
-
-
-    for col in COLUMNS:
-
-        if col not in record:
-
-            record[col] = None
-
-
-    if is_duplicate(record):
-
-        print(
-            "Duplicate event skipped:",
-            record["Symbol"]
+        existing = pd.read_csv(
+            memory_file
         )
 
-        return
+        learning_df = pd.concat(
 
-
-    new_row = pd.DataFrame(
-        [record],
-        columns=COLUMNS
-    )
-
-
-    if MEMORY_FILE.exists():
-
-        old = pd.read_csv(
-            MEMORY_FILE
-        )
-
-        final = pd.concat(
             [
-                old,
-                new_row
+                existing,
+                learning_df
             ],
+
             ignore_index=True
+
         )
 
-    else:
+    learning_df.to_csv(
 
-        final = new_row
+        memory_file,
 
-
-    final.to_csv(
-        MEMORY_FILE,
         index=False
+
     )
 
-
-    print(
-        "Learning Memory Updated:",
-        MEMORY_FILE
-    )
-
-
-
-# ============================================================
-# TEST EVENT
-# ============================================================
-
-if __name__ == "__main__":
-
-
-    test_event = {
-
-        "Date":
-            datetime.today().strftime("%Y-%m-%d"),
-
-        "Snapshot_Time":
-            datetime.today().strftime("%H:%M"),
-
-        "Symbol":
-            "TEST",
-
-        "Direction":
-            "BUY",
-
-        "Pattern":
-            "Fresh Long Buildup",
-
-        "NTIS_Score":
-            78,
-
-        "Probability":
-            82,
-
-        "Confidence":
-            "HIGH",
-
-        "Entry_Price":
-            1000,
-
-        "Previous_Close":
-            980,
-
-        "Previous_High":
-            990,
-
-        "Previous_Low":
-            970,
-
-        "Price_Condition":
-            "Above Previous High",
-
-        "OI_Condition":
-            "Positive",
-
-        "Volume_Condition":
-            "Expansion",
-
-        "IV_Condition":
-            "Stable",
-
-        "Trade_Reason":
-            "Price breakout with OI confirmation",
-
-        "Outcome":
-            "PENDING"
-
-    }
-
-
-    save_memory_event(
-        test_event
-    )
+    return memory_file

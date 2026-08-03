@@ -1,2 +1,0 @@
-class SignalExplanationEngine:
-    pass

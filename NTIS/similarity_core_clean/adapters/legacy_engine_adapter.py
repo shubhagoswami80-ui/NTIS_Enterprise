@@ -1,17 +1,17 @@
 class LegacyEngineAdapter:
 
     def __init__(self):
-        self.name = "hmme_engine_adapter"
-
+        self.name = "hmme_runtime_adapter"
 
     def connect(self):
 
         try:
-            from similarity.hmme_engine import HMMEEngine
+            from similarity_core_clean.integration.hmme_runtime_executor import HMMERuntimeExecutor
 
             return {
                 "status": "CONNECTED",
-                "engine": HMMEEngine
+                "engine": HMMERuntimeExecutor,
+                "interface": "HMME Runtime Executor"
             }
 
         except Exception as e:

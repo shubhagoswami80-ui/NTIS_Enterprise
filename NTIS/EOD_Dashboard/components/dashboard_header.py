@@ -8,29 +8,39 @@ import streamlit as st
 
 
 def render_header(
-    title="NTIS Enterprise Dashboard",
-    subtitle="End of Day Intelligence Platform",
-):
+    title: str = "NTIS Enterprise Dashboard",
+    subtitle: str = "End of Day Intelligence Platform",
+) -> None:
+    """
+    Render the application header.
+
+    Presentation only.
+    No business logic should be added here.
+    """
+
+    refresh_time = datetime.now().strftime("%H:%M:%S")
 
     st.title(title)
-
     st.caption(subtitle)
 
-    c1, c2, c3 = st.columns([2, 2, 2])
+    col_mode, col_env, col_refresh = st.columns(3)
 
-    c1.metric(
-        "Mode",
-        "EOD",
-    )
+    with col_mode:
+        st.metric(
+            label="Mode",
+            value="EOD",
+        )
 
-    c2.metric(
-        "Environment",
-        "Production",
-    )
+    with col_env:
+        st.metric(
+            label="Environment",
+            value="Production",
+        )
 
-    c3.metric(
-        "Last Refresh",
-        datetime.now().strftime("%H:%M:%S"),
-    )
+    with col_refresh:
+        st.metric(
+            label="Last Refresh",
+            value=refresh_time,
+        )
 
     st.divider()

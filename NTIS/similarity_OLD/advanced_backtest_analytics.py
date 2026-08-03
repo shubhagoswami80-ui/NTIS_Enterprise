@@ -1,2 +1,0 @@
-class AdvancedBacktestAnalytics:
-    pass

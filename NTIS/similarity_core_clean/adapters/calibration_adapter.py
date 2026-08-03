@@ -3,11 +3,12 @@ class CalibrationAdapter:
     def connect(self):
 
         try:
-            from similarity.calibration_engine import CalibrationEngine
+            from similarity_core_clean.integration.hmme_outcome_calibration import HMMEOutcomeCalibration
 
             return {
                 "status": "CONNECTED",
-                "engine": CalibrationEngine
+                "engine": HMMEOutcomeCalibration,
+                "interface": "HMME Outcome Calibration"
             }
 
         except Exception as e:

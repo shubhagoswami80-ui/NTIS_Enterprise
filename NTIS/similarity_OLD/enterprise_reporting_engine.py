@@ -1,2 +1,0 @@
-class EnterpriseReportingEngine:
-    pass

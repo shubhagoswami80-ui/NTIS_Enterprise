@@ -3,13 +3,12 @@ class SimilarityEngineAdapter:
     def connect(self):
 
         try:
-            from similarity.historical_similarity_engine import (
-                HistoricalSimilarityEngine
-            )
+            from similarity_core_clean.integration.hmme_replay_engine import HMMEReplayEngine
 
             return {
                 "status": "CONNECTED",
-                "engine": HistoricalSimilarityEngine
+                "engine": HMMEReplayEngine,
+                "interface": "HMME Replay Engine"
             }
 
         except Exception as e:

@@ -1,2 +1,0 @@
-class ProductionAutomationController:
-    pass

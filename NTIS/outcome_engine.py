@@ -1,549 +1,124 @@
 """
-=========================================================
 NTIS Outcome Engine
-Version : 1.1
-
-Purpose:
-    Validate NTIS Predictions against
-    actual market outcome
-
-Input:
-
-    ntis_probability_analysis.csv
-    market_master.csv
-
-
-Output:
-
-    ntis_outcome_report.csv
-
-
-Generated:
-
-    Actual Return %
-    Prediction Result
-    Accuracy
-    Outcome
-
-
-=========================================================
+Version : 1.3
+Production Replacement
 """
-
 
 import pandas as pd
 from pathlib import Path
 
-
-
-# =====================================================
-# PATHS
-# =====================================================
-
-
-PREDICTION_FILE = Path(
-    "E:/NSE_Daily_Analysis/Output/ntis_probability_analysis.csv"
-)
-
-
-PRICE_FILE = Path(
-    "E:/NSE_Daily_Analysis/Output/market_master.csv"
-)
-
-
-OUTPUT_FILE = Path(
-    "E:/NSE_Daily_Analysis/Output/ntis_outcome_report.csv"
-)
-
-
-
-# =====================================================
-# OUTCOME ENGINE CLASS
-# =====================================================
+PREDICTION_FILE = Path("E:/NSE_Daily_Analysis/Output/ntis_probability_analysis.csv")
+PRICE_FILE = Path("E:/NSE_Daily_Analysis/Output/market_master.csv")
+OUTPUT_FILE = Path("E:/NSE_Daily_Analysis/Output/ntis_outcome_report.csv")
 
 
 class OutcomeEngine:
-
-
     def __init__(self, predictions, prices):
-
         self.df = predictions.copy()
-
         self.price = prices.copy()
 
-
-
-    # =================================================
-    # Merge Current Market Price
-    # =================================================
-
     def merge_price(self):
-
-
         if "Symbol" not in self.price.columns:
-
-            print(
-                "Symbol column missing in price file"
-            )
-
+            print("Symbol column missing in price file")
             return self.df
 
+        price_column = next((c for c in ("Close", "CMP", "Price", "Current Price")
+                             if c in self.price.columns), None)
 
-
-        if "Close" not in self.price.columns:
-
-            print(
-                "Close column missing in price file"
-            )
-
+        if price_column is None:
+            print("No supported market price column found.")
             return self.df
-
-
 
         self.df = self.df.merge(
-
-            self.price[
-
-                [
-                    "Symbol",
-                    "Close"
-                ]
-
-            ],
-
+            self.price[["Symbol", price_column]].rename(columns={price_column: "Close"}),
             on="Symbol",
-
-            how="left"
-
+            how="left",
         )
-
-
         return self.df
-
-
-
-
-    # =================================================
-    # Calculate Outcome
-    # =================================================
 
     def calculate_outcome(self):
+        outcomes = []
+        returns = []
 
+        for _, row in self.df.iterrows():
+            bias = row.get("Trade Bias", "WAIT")
+            entry = row.get("Entry Close")
+            current = row.get("Close")
 
-        outcomes=[]
-
-        returns=[]
-
-
-
-        for _,row in self.df.iterrows():
-
-
-            bias=row.get(
-
-                "Trade Bias",
-                "WAIT"
-
-            )
-
-
-            entry=row.get(
-
-                "Entry Close",
-                None
-
-            )
-
-
-            current=row.get(
-
-                "Close",
-                None
-
-            )
-
-
-
-            # -----------------------------------------
-            # If Entry Price unavailable
-            # -----------------------------------------
-
-            if pd.isna(entry) or pd.isna(current):
-
-
-                outcomes.append(
-                    "PENDING"
-                )
-
-
-                returns.append(
-                    0
-                )
-
-
+            if pd.isna(entry) or pd.isna(current) or entry in (0, "0", ""):
+                outcomes.append("PENDING")
+                returns.append(0)
                 continue
 
+            try:
+                entry = float(entry)
+                current = float(current)
+                if entry == 0:
+                    raise ZeroDivisionError
+                change = ((current - entry) / entry) * 100
+            except (ValueError, TypeError, ZeroDivisionError):
+                outcomes.append("PENDING")
+                returns.append(0)
+                continue
 
+            returns.append(round(change, 2))
 
-
-            change=(
-
-                current-entry
-
-            )/entry*100
-
-
-
-            returns.append(
-
-                round(change,2)
-
-            )
-
-
-
-
-            # -----------------------------------------
-            # BUY Logic
-            # -----------------------------------------
-
-
-            if bias in [
-
-                "BUY",
-                "STRONG BUY"
-
-            ]:
-
-
-                if change > 0:
-
-
-                    outcomes.append(
-                        "SUCCESS"
-                    )
-
-
-                else:
-
-
-                    outcomes.append(
-                        "FAILED"
-                    )
-
-
-
-
-
-            # -----------------------------------------
-            # SELL Logic
-            # -----------------------------------------
-
-
-            elif bias=="SELL":
-
-
-                if change < 0:
-
-
-                    outcomes.append(
-                        "SUCCESS"
-                    )
-
-
-                else:
-
-
-                    outcomes.append(
-                        "FAILED"
-                    )
-
-
-
-
-
+            if bias in ("BUY", "STRONG BUY"):
+                outcomes.append("SUCCESS" if change > 0 else "FAILED")
+            elif bias in ("SELL", "STRONG SELL"):
+                outcomes.append("SUCCESS" if change < 0 else "FAILED")
             else:
+                outcomes.append("NO TRADE")
 
-
-                outcomes.append(
-                    "NO TRADE"
-                )
-
-
-
-        self.df["Actual Return %"]=returns
-
-        self.df["Outcome"]=outcomes
-
-
-
+        self.df["Actual Return %"] = returns
+        self.df["Outcome"] = outcomes
         return self.df
-
-
-
-
-    # =================================================
-    # Accuracy Calculation
-    # =================================================
-
 
     def calculate_accuracy(self):
-
-
-        valid=self.df[
-
-            self.df["Outcome"].isin(
-
-                [
-                    "SUCCESS",
-                    "FAILED"
-                ]
-
-            )
-
-        ]
-
-
-
-        total=len(valid)
-
-
-
-        success=len(
-
-            valid[
-
-                valid["Outcome"]
-
-                =="SUCCESS"
-
-            ]
-
-        )
-
-
-
-        if total>0:
-
-
-            accuracy=round(
-
-                success/total*100,
-
-                2
-
-            )
-
-
-        else:
-
-
-            accuracy=0
-
-
-
-        self.df["Model Accuracy %"]=accuracy
-
-
-
+        valid = self.df[self.df["Outcome"].isin(["SUCCESS", "FAILED"])]
+        total = len(valid)
+        success = len(valid[valid["Outcome"] == "SUCCESS"])
+        accuracy = round((success / total) * 100, 2) if total else 0
+        self.df["Model Accuracy %"] = accuracy
         return self.df
 
-
-
-
-    # =================================================
-    # Save Report
-    # =================================================
-
-
     def save(self):
-
-
-        OUTPUT_FILE.parent.mkdir(
-
-            exist_ok=True
-
-        )
-
-
-
-        self.df.to_csv(
-
-            OUTPUT_FILE,
-
-            index=False
-
-        )
-
-
-
-        print()
-
-        print(
-            "Outcome Report Created:"
-        )
-
-        print(
-            OUTPUT_FILE
-        )
-
-
-
-
-# =====================================================
-# MAIN
-# =====================================================
+        OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.df.to_csv(OUTPUT_FILE, index=False)
+        print("\nOutcome Report Created:")
+        print(OUTPUT_FILE)
 
 
 def main():
-
-
-
-    print("="*60)
-
-    print(
-        "NTIS OUTCOME ENGINE"
-    )
-
-    print("="*60)
-
-
-
+    print("=" * 60)
+    print("NTIS OUTCOME ENGINE")
+    print("=" * 60)
 
     if not PREDICTION_FILE.exists():
-
-
-        print(
-
-            "Prediction file missing"
-
-        )
-
+        print("Prediction file missing")
         return
 
+    predictions = pd.read_csv(PREDICTION_FILE)
+    prices = pd.read_csv(PRICE_FILE) if PRICE_FILE.exists() else pd.DataFrame()
 
+    print("\nPredictions Loaded:", len(predictions))
 
-
-    predictions=pd.read_csv(
-
-        PREDICTION_FILE
-
-    )
-
-
-
-
-    if PRICE_FILE.exists():
-
-
-        prices=pd.read_csv(
-
-            PRICE_FILE
-
-        )
-
-
-    else:
-
-
-        prices=pd.DataFrame()
-
-
-
-
-    print()
-
-    print(
-
-        "Predictions Loaded:",
-
-        len(predictions)
-
-    )
-
-
-
-
-    engine=OutcomeEngine(
-
-        predictions,
-
-        prices
-
-    )
-
-
-
-
+    engine = OutcomeEngine(predictions, prices)
     engine.merge_price()
-
-
     engine.calculate_outcome()
-
-
     engine.calculate_accuracy()
-
-
     engine.save()
 
+    cols = [c for c in [
+        "Symbol", "Trade Bias", "BUY Probability %",
+        "Actual Return %", "Outcome", "Model Accuracy %"
+    ] if c in engine.df.columns]
+
+    print("\nOUTCOME SUMMARY")
+    print("-" * 60)
+    print(engine.df[cols].head(20))
+    print("\nOutcome Engine Completed")
 
 
-
-    print()
-
-    print(
-        "OUTCOME SUMMARY"
-    )
-
-    print("-"*60)
-
-
-
-
-    display_columns=[
-
-        "Symbol",
-        "Trade Bias",
-        "BUY Probability %",
-        "Actual Return %",
-        "Outcome",
-        "Model Accuracy %"
-
-    ]
-
-
-
-    available=[
-
-        c for c in display_columns
-
-        if c in engine.df.columns
-
-    ]
-
-
-
-    print(
-
-        engine.df[available]
-
-        .head(20)
-
-    )
-
-
-
-
-    print()
-
-    print(
-        "Outcome Engine Completed"
-    )
-
-
-
-
-
-if __name__=="__main__":
-
-
+if __name__ == "__main__":
     main()

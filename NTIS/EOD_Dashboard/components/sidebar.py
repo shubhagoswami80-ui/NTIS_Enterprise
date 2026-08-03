@@ -1,30 +1,39 @@
+"""
+NTIS EOD Dashboard Sidebar Component
+
+Presentation Layer Only
+"""
+
+from __future__ import annotations
+
 import streamlit as st
 
 
-MENU_ITEMS = [
+MENU_ITEMS = (
     "Dashboard",
     "Market Overview",
-
     "BUY Opportunities",
     "SELL Opportunities",
     "Probability Ranking",
-
     "OI Intelligence",
-
     "Support Intelligence",
     "Resistance Intelligence",
-
     "Pattern Intelligence",
-
     "Historical Replay",
-
     "Settings",
-]
+)
+
+REFRESH_INTERVALS = (
+    "30 sec",
+    "1 min",
+    "5 min",
+    "15 min",
+)
 
 
-def render_sidebar():
+def render_sidebar() -> dict:
     """
-    Render the NTIS Dashboard sidebar.
+    Render dashboard sidebar.
 
     Returns
     -------
@@ -34,6 +43,11 @@ def render_sidebar():
             "auto_refresh": bool,
             "refresh_interval": str
         }
+
+    Notes
+    -----
+    UI only.
+    No business logic should be implemented here.
     """
 
     with st.sidebar:
@@ -42,27 +56,22 @@ def render_sidebar():
 
         st.divider()
 
-        page = st.radio(
-            "Navigation",
-            MENU_ITEMS,
+        selected_page = st.radio(
+            label="Navigation",
+            options=MENU_ITEMS,
             index=0,
         )
 
         st.divider()
 
         auto_refresh = st.checkbox(
-            "Auto Refresh",
+            label="Auto Refresh",
             value=False,
         )
 
         refresh_interval = st.selectbox(
-            "Refresh Interval",
-            [
-                "30 sec",
-                "1 min",
-                "5 min",
-                "15 min",
-            ],
+            label="Refresh Interval",
+            options=REFRESH_INTERVALS,
             index=2,
             disabled=not auto_refresh,
         )
@@ -72,8 +81,8 @@ def render_sidebar():
         st.caption("Dashboard Status")
         st.success("Connected")
 
-        return {
-            "page": page,
-            "auto_refresh": auto_refresh,
-            "refresh_interval": refresh_interval,
-        }
+    return {
+        "page": selected_page,
+        "auto_refresh": auto_refresh,
+        "refresh_interval": refresh_interval,
+    }

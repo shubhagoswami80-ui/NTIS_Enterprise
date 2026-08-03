@@ -1,2 +1,0 @@
-class RuntimeValidationController:
-    pass

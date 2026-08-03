@@ -1,2 +1,0 @@
-class BacktestReportGenerator:
-    pass

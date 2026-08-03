@@ -1,2 +1,0 @@
-class HistoricalMemoryBuildRunner:
-    pass

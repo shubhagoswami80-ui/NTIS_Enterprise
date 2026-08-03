@@ -1,2 +1,0 @@
-class RepositoryBackupManager:
-    pass

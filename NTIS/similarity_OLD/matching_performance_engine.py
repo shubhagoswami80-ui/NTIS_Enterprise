@@ -1,2 +1,0 @@
-class MatchingPerformanceEngine:
-    pass

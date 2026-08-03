@@ -1,2 +1,0 @@
-class AccuracyMonitoringGovernance:
-    pass

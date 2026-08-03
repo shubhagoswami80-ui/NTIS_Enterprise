@@ -1,0 +1,5 @@
+Engine,Input Available,Output Available,Missing Columns
+Scoring Engine,True,True,
+Pattern Engine,True,True,
+Probability Engine,True,True,
+Trade Validation,True,True,

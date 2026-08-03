@@ -550,3 +550,18 @@ print(
         output_columns
     ].head(20)
 )
+
+# ==========================================================
+# MAIN ENTRY POINT
+# ==========================================================
+
+def main():
+    """
+    Enterprise entry point.
+    """
+    # No-op because this module currently executes at import time.
+    return True
+
+
+if __name__ == "__main__":
+    main()

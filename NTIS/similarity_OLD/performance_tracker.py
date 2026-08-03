@@ -1,2 +1,0 @@
-class PerformanceTracker:
-    pass

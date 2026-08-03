@@ -1,0 +1,5 @@
+Engine,Input,Input Available,Output,Output Available
+Scoring Engine,E:\NSE_Daily_Analysis\Output\market_master.csv,True,E:\NSE_Daily_Analysis\Output\ntis_ranked_stocks.csv,True
+Pattern Engine,E:\NSE_Daily_Analysis\Output\ntis_ranked_stocks.csv,True,E:\NSE_Daily_Analysis\Output\ntis_pattern_analysis.csv,True
+Probability Engine,E:\NSE_Daily_Analysis\Output\ntis_pattern_analysis.csv,True,E:\NSE_Daily_Analysis\Output\ntis_probability_analysis.csv,True
+Trade Validation,E:\NSE_Daily_Analysis\Output\ntis_probability_analysis.csv,True,E:\NSE_Daily_Analysis\Output\ntis_trade_candidates.csv,True

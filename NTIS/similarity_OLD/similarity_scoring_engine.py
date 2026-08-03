@@ -1,2 +1,0 @@
-class SimilarityScoringEngine:
-    pass

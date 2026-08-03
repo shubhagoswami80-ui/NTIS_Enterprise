@@ -1,0 +1,827 @@
+File,Function,Description
+history_manager.py,main,
+history_manager.py,__init__,
+history_manager.py,create_folders,
+history_manager.py,archive_prediction,
+history_manager.py,archive_outcome,
+history_manager.py,create_accuracy_report,
+hmme_active_dependency_mapper.py,load_files,
+hmme_active_dependency_mapper.py,scan_dependencies,
+hmme_active_dependency_mapper.py,assign_group,
+hmme_active_dependency_mapper.py,main,
+hmme_archive_mover_v5.py,create_folders,
+hmme_archive_mover_v5.py,move_file,
+hmme_archive_mover_v5.py,process_list,
+hmme_archive_mover_v5.py,main,
+hmme_consolidation_analyzer_v2.py,classify,
+hmme_consolidation_analyzer_v2.py,main,
+hmme_consolidation_analyzer_v3.py,classify,
+hmme_consolidation_analyzer_v3.py,main,
+hmme_dependency_scanner_v4.py,load_source_files,
+hmme_dependency_scanner_v4.py,check_dependency,
+hmme_dependency_scanner_v4.py,classify,
+hmme_dependency_scanner_v4.py,process_file_list,
+hmme_dependency_scanner_v4.py,main,
+hmme_production_merge_planner_v2.py,detect_function,
+hmme_production_merge_planner_v2.py,detect_role,
+hmme_production_merge_planner_v2.py,find_similar,
+hmme_production_merge_planner_v2.py,main,
+importer.py,read_latest_report,
+importer.py,load_market_reports,
+importer.py,main,
+NTIS_EOD_File_Function_Mapper_v2.py,ignored,
+NTIS_EOD_File_Function_Mapper_v2.py,write_csv,
+NTIS_EOD_File_Function_Mapper_v2.py,main,
+ntis_similarity_core_dependency_map.py,get_python_files,
+ntis_similarity_core_dependency_map.py,extract_imports,
+ntis_similarity_core_dependency_map.py,build_dependency_graph,
+ntis_similarity_core_dependency_map.py,resolve_dependencies,
+ntis_similarity_core_dependency_map.py,write_csv,
+ntis_similarity_core_dependency_map.py,main,
+ntis_similarity_core_dependency_map.py,walk,
+outcome_engine.py,main,
+outcome_engine.py,__init__,
+outcome_engine.py,merge_price,
+outcome_engine.py,calculate_outcome,
+outcome_engine.py,calculate_accuracy,
+outcome_engine.py,save,
+pattern_engine.py,clean_numeric,
+pattern_engine.py,main,
+pattern_engine.py,__init__,
+pattern_engine.py,detect_pattern,
+pattern_engine.py,apply_patterns,
+pattern_engine.py,save,
+probability_engine.py,main,
+probability_engine.py,__init__,
+probability_engine.py,clean_numeric,
+probability_engine.py,score_probability,
+probability_engine.py,pattern_probability,
+probability_engine.py,confirmation_probability,
+probability_engine.py,calculate,
+probability_engine.py,add_confidence,
+probability_engine.py,add_bias,
+probability_engine.py,ranking,
+probability_engine.py,save,
+probability_engine.py,summary,
+probability_engine.py,confidence,
+probability_engine.py,bias,
+scoring_engine.py,clean_numeric_columns,
+scoring_engine.py,main,
+scoring_engine.py,__init__,
+scoring_engine.py,price_score,
+scoring_engine.py,oi_score,
+scoring_engine.py,volume_score,
+scoring_engine.py,sr_score,
+scoring_engine.py,iv_score,
+scoring_engine.py,calculate_score,
+scoring_engine.py,add_signal,
+scoring_engine.py,rank,
+scoring_engine.py,save,
+scoring_engine.py,signal,
+Scoring_rules.py,price_oi_score,"Analyze Price Change and OI Change relationship
+
+Returns:
+    Score
+    Reason"
+Scoring_rules.py,support_resistance_score,"Analyze Support and Resistance OI strength
+
+Expected fields:
+    Support Strength
+    Resistance Strength"
+Scoring_rules.py,volume_oi_score,"Detect volume and OI breakout
+
+Expected fields:
+
+    Volume Spike
+    OI Spike"
+Scoring_rules.py,option_metrics_score,"Future Enhancement
+
+Will include:
+
+- PCR Change
+- ATM Straddle
+- IV Change
+- IV/HV Ratio"
+Scoring_rules.py,calculate_total_score,
+Scoring_rules.py,get_signal,
+trade_validation_engine.py,find_latest_file,
+trade_validation_engine.py,calculate_risk,
+trade_validation_engine.py,calculate_stop_loss,
+trade_validation_engine.py,calculate_target,
+utils.py,extract_report_date,"Extract trading date from report filename.
+
+Supported formats:
+
+1.
+Daywise_Price_and_OI_Summary_28JUL26_Report_2026-07-17.xlsx
+
+2.
+VolumeAndOISpikesScans_28JUL26_Report_17_7_2026.xlsx
+
+3.
+Support_Resistance_28JUL26_Scan_17_7_2026.xlsx
+
+4.
+Resistance_28JUL26_Scan_17_7_2026.xlsx
+
+Returns
+-------
+datetime object"
+utils.py,format_date,
+utils.py,sort_files_by_date,
+utils.py,get_latest_file,
+utils.py,line,
+validator.py,validate_trading_dates,
+Intraday\config_loader.py,show_config,
+Intraday\current_report_importer.py,discover_files,
+Intraday\current_report_importer.py,filter_files,
+Intraday\eod_context_reader.py,extract_report_date,
+Intraday\eod_context_reader.py,find_previous_eod_report,
+Intraday\eod_context_reader.py,load_eod_context,
+Intraday\file_manager.py,__init__,
+Intraday\file_manager.py,validate,
+Intraday\file_manager.py,get_images,
+Intraday\file_manager.py,summary,
+Intraday\image_loader.py,__init__,
+Intraday\image_loader.py,load_images,
+Intraday\intraday_accuracy_tracker.py,create_accuracy_report,
+Intraday\intraday_archive_manager.py,archive,
+Intraday\intraday_config.py,processing_datetime,
+Intraday\intraday_daily_report_generator.py,run,
+Intraday\intraday_dashboard_backup_before_status_update.py,safe_read,
+Intraday\intraday_dashboard_compare_engine.py,compare_snapshots,
+Intraday\intraday_dashboard_health_panel - Copy.py,health_status,
+Intraday\intraday_dashboard_health_panel.py,_check_file,
+Intraday\intraday_dashboard_health_panel.py,_check_csv,
+Intraday\intraday_dashboard_health_panel.py,health_status,
+Intraday\intraday_dashboard_snapshot_viewer.py,snapshot_summary,
+Intraday\intraday_data_health_monitor.py,check_health,
+Intraday\intraday_data_quality_monitor.py,check,
+Intraday\intraday_duplicate_detector.py,scan,
+Intraday\intraday_execution_context.py,set_processing_date,
+Intraday\intraday_execution_context.py,get_processing_date,
+Intraday\intraday_file_registry.py,__init__,
+Intraday\intraday_file_registry.py,check_file,
+Intraday\intraday_file_registry.py,update,
+Intraday\intraday_health_report_generator.py,generate_report,
+Intraday\intraday_historical_replay_engine.py,__init__,
+Intraday\intraday_historical_replay_engine.py,load_intraday_data,
+Intraday\intraday_historical_replay_engine.py,load_eod_data,
+Intraday\intraday_historical_replay_engine.py,validate_replay_candidate,
+Intraday\intraday_historical_replay_engine.py,prepare_candidates,
+Intraday\intraday_historical_replay_engine.py,run,
+Intraday\intraday_import_core.py,__init__,
+Intraday\intraday_import_core.py,discover_excel_files,
+Intraday\intraday_import_core.py,get_today_output,
+Intraday\intraday_intelligence_export.py,export,
+Intraday\intraday_intelligence_loader.py,load,
+Intraday\intraday_intelligence_query.py,filter_symbol,
+Intraday\intraday_intelligence_schema.py,all_columns,
+Intraday\intraday_intelligence_snapshot.py,run,
+Intraday\intraday_junk_data_analyzer.py,analyze,
+Intraday\intraday_latest_snapshot_resolver.py,__init__,
+Intraday\intraday_latest_snapshot_resolver.py,is_valid_snapshot,
+Intraday\intraday_latest_snapshot_resolver.py,get_available_snapshots,
+Intraday\intraday_latest_snapshot_resolver.py,get_snapshot_path,
+Intraday\intraday_latest_snapshot_resolver.py,resolve,
+Intraday\intraday_learning_memory_builder.py,is_duplicate,
+Intraday\intraday_learning_memory_builder.py,save_memory_event,
+Intraday\intraday_learning_outcome_updater.py,__init__,
+Intraday\intraday_learning_outcome_updater.py,run,
+Intraday\intraday_market_master_builder.py,__init__,
+Intraday\intraday_market_master_builder.py,report_type,
+Intraday\intraday_market_master_builder.py,build,
+Intraday\intraday_market_master_cleaner.py,remove_noise_columns,
+Intraday\intraday_market_master_cleaner.py,normalize_columns,
+Intraday\intraday_market_master_cleaner.py,clean_symbol,
+Intraday\intraday_market_master_cleaner.py,run,
+Intraday\intraday_market_master_normalizer.py,rename_columns,
+Intraday\intraday_market_master_normalizer.py,consolidate_columns,
+Intraday\intraday_market_master_normalizer.py,run,
+Intraday\intraday_market_master_schema.py,consolidate_metric,
+Intraday\intraday_market_master_schema.py,clean_numeric,
+Intraday\intraday_market_master_schema.py,run,
+Intraday\intraday_ntis_scoring_bridge.py,build_scoring_input,
+Intraday\intraday_outcome_engine.py,calculate_outcomes,
+Intraday\intraday_output_writer.py,write,
+Intraday\intraday_path_config.py,get_processing_output,
+Intraday\intraday_path_config.py,get_today_output,"Backward compatibility wrapper.
+Existing modules continue using this."
+Intraday\intraday_path_config.py,get_latest_output,
+Intraday\intraday_pattern_engine.py,identify_pattern,
+Intraday\intraday_pattern_engine.py,build_pattern_dna,"Bundle 01 foundation:
+Generates a deterministic Pattern DNA string for downstream
+Pattern Library and Historical Evidence modules."
+Intraday\intraday_pattern_engine.py,build_pattern_id,Create a stable Pattern_ID from Pattern_DNA.
+Intraday\intraday_pattern_engine.py,run,
+Intraday\intraday_probability_calibration.py,__init__,
+Intraday\intraday_probability_calibration.py,run,
+Intraday\intraday_probability_calibration.py,get_confidence,
+Intraday\intraday_probability_engine.py,pattern_probability,
+Intraday\intraday_probability_engine.py,load_pattern_learning,
+Intraday\intraday_probability_engine.py,learning_weight,
+Intraday\intraday_probability_engine.py,learning_adjustment,
+Intraday\intraday_probability_engine.py,calculate_probability,
+Intraday\intraday_probability_engine.py,confidence,
+Intraday\intraday_probability_engine.py,run,
+Intraday\intraday_report_parser.py,detect_report_type,
+Intraday\intraday_report_parser.py,load_excel,
+Intraday\intraday_scoring_engine.py,score_row,
+Intraday\intraday_scoring_engine.py,run,
+Intraday\intraday_snapshot_evolution_engine.py,run,
+Intraday\intraday_snapshot_manager.py,save,
+Intraday\intraday_snapshot_registry.py,__init__,
+Intraday\intraday_snapshot_registry.py,register,
+Intraday\intraday_snapshot_validator.py,validate_snapshot,
+Intraday\intraday_storage_monitor.py,folder_size,
+Intraday\intraday_trade_memory_connector.py,get_latest_trade_file,
+Intraday\intraday_trade_memory_connector.py,get_value,
+Intraday\intraday_trade_memory_connector.py,process_trade_memory,
+Intraday\intraday_trade_validation_engine.py,validate_signal,
+Intraday\intraday_trade_validation_engine.py,risk_level,
+Intraday\intraday_trade_validation_engine.py,calculate_trade_levels,
+Intraday\intraday_trade_validation_engine.py,run,
+Intraday\ocr_engine.py,__init__,
+Intraday\ocr_engine.py,extract_text,
+Intraday\pattern_statistics_engine.py,normalize_outcome,
+Intraday\pattern_statistics_engine.py,build_pattern_statistics,
+Intraday\report_registry.py,__init__,
+Intraday\report_registry.py,build,
+Intraday\report_registry.py,dataframe,
+Intraday\report_registry.py,save,
+Intraday\report_registry.py,summary,
+Intraday\run_intraday_dashboard_validation.py,validate_group,
+Intraday\run_intraday_date_pipeline.py,run_step,
+Intraday\run_intraday_date_pipeline.py,main,
+Intraday\run_intraday_intelligence_validation.py,check_files,
+Intraday\run_intraday_intelligence_validation.py,main,
+Intraday\run_intraday_pipeline.py,run_step,
+Intraday\run_intraday_pipeline.py,main,
+Intraday\run_intraday_replay.py,get_eod_file,
+Intraday\run_intraday_replay.py,get_intraday_folder,
+Intraday\run_intraday_replay.py,main,
+Intraday\run_ntis_intraday_health_check.py,check_file,
+Intraday\run_ntis_intraday_health_check.py,main,
+replay\historical_replay.py,__init__,
+replay\historical_replay.py,run,
+replay\replay_analyzer.py,by_symbol,
+replay\replay_analyzer.py,by_probability,
+replay\replay_analyzer.py,by_pattern,
+replay\replay_archiver.py,__init__,
+replay\replay_archiver.py,create,
+replay\replay_archiver.py,report,
+replay\replay_audit.py,__init__,
+replay\replay_audit.py,add,
+replay\replay_banner.py,show,
+replay\replay_batch_runner.py,run,
+replay\replay_bookmarks.py,__init__,
+replay\replay_bookmarks.py,add,
+replay\replay_bookmarks.py,get,
+replay\replay_bootstrap.py,initialize,
+replay\replay_cache.py,__init__,
+replay\replay_cache.py,get,
+replay\replay_cache.py,set,
+replay\replay_cache.py,exists,
+replay\replay_cache.py,clear,
+replay\replay_cache.py,save,
+replay\replay_cache.py,load,
+replay\replay_checkpoint.py,save,
+replay\replay_checkpoint.py,load,
+replay\replay_cleaner.py,__init__,
+replay\replay_cleaner.py,clean,
+replay\replay_cleaner.py,report,
+replay\replay_cleanup_report.py,build,
+replay\replay_cli.py,build_parser,
+replay\replay_cli.py,main,
+replay\replay_comparator.py,compare,
+replay\replay_config_validator.py,validate,
+replay\replay_console.py,write,
+replay\replay_context.py,__init__,
+replay\replay_context.py,set,
+replay\replay_context.py,get,
+replay\replay_context.py,remove,
+replay\replay_context.py,clear,
+replay\replay_context.py,keys,
+replay\replay_context.py,values,
+replay\replay_context.py,items,
+replay\replay_context.py,exists,
+replay\replay_context.py,__contains__,
+replay\replay_context.py,__len__,
+replay\replay_context_manager.py,__init__,
+replay\replay_counter.py,__init__,
+replay\replay_counter.py,inc,
+replay\replay_csv_reader.py,read,
+replay\replay_csv_writer.py,write,
+replay\replay_dataset.py,__init__,
+replay\replay_dataset.py,rows,
+replay\replay_data_validator.py,validate,
+replay\replay_dependency_graph.py,print,
+replay\replay_dependency_graph.py,modules,
+replay\replay_diagnostics.py,python_version,
+replay\replay_diagnostics.py,operating_system,
+replay\replay_diagnostics.py,working_directory,
+replay\replay_diagnostics.py,package_status,
+replay\replay_diagnostics.py,print_status,
+replay\replay_dispatcher.py,dispatch,
+replay\replay_engine.py,__init__,
+replay\replay_engine.py,run,
+replay\replay_environment.py,check_package,
+replay\replay_environment.py,validate,
+replay\replay_event_bus.py,__init__,
+replay\replay_event_bus.py,subscribe,
+replay\replay_event_bus.py,publish,
+replay\replay_exporter.py,to_csv,
+replay\replay_exporter.py,to_excel,
+replay\replay_exporter.py,summary_to_excel,
+replay\replay_factory.py,register,
+replay\replay_factory.py,create,
+replay\replay_factory.py,available,
+replay\replay_file_manager.py,ensure,
+replay\replay_filters.py,winners,
+replay\replay_filters.py,losers,
+replay\replay_filters.py,probability,
+replay\replay_filters.py,pattern,
+replay\replay_filters.py,symbol,
+replay\replay_filters.py,trade_bias,
+replay\replay_formatter.py,header,
+replay\replay_formatter.py,line,
+replay\replay_healthcheck.py,check_modules,
+replay\replay_healthcheck.py,check_folder,
+replay\replay_healthcheck.py,run,
+replay\replay_health_report.py,build,
+replay\replay_history.py,__init__,
+replay\replay_history.py,add,
+replay\replay_history.py,all,
+replay\replay_hooks.py,before_session,
+replay\replay_hooks.py,after_session,
+replay\replay_hooks.py,before_trade,
+replay\replay_hooks.py,after_trade,
+replay\replay_hooks.py,before_validation,
+replay\replay_hooks.py,after_validation,
+replay\replay_hooks.py,before_export,
+replay\replay_hooks.py,after_export,
+replay\replay_hooks.py,on_error,
+replay\replay_index_builder.py,build,
+replay\replay_info.py,show,
+replay\replay_info.py,version,
+replay\replay_info.py,release,
+replay\replay_info.py,modules,
+replay\replay_installer.py,__init__,
+replay\replay_installer.py,install,
+replay\replay_installer.py,verify,
+replay\replay_installer.py,run,
+replay\replay_integrity.py,check,
+replay\replay_json_reader.py,read,
+replay\replay_json_writer.py,write,
+replay\replay_labels.py,apply,
+replay\replay_loader.py,__init__,
+replay\replay_loader.py,load_csv,
+replay\replay_loader.py,load_excel,
+replay\replay_loader.py,load_folder,
+replay\replay_loader.py,validate_columns,
+replay\replay_lock.py,__init__,
+replay\replay_lock.py,__enter__,
+replay\replay_lock.py,__exit__,
+replay\replay_logger.py,get_logger,
+replay\replay_manifest.py,module_count,
+replay\replay_manifest.py,module_exists,
+replay\replay_manifest.py,verify,
+replay\replay_manifest_builder.py,build,
+replay\replay_metadata.py,as_dict,
+replay\replay_metadata.py,print,
+replay\replay_metadata_builder.py,build,
+replay\replay_metrics.py,total_trades,
+replay\replay_metrics.py,winning_trades,
+replay\replay_metrics.py,losing_trades,
+replay\replay_metrics.py,accuracy,
+replay\replay_metrics.py,average_pnl,
+replay\replay_metrics.py,gross_profit,
+replay\replay_metrics.py,gross_loss,
+replay\replay_metrics.py,max_profit,
+replay\replay_metrics.py,max_loss,
+replay\replay_metrics_collector.py,__init__,
+replay\replay_metrics_collector.py,add,
+replay\replay_notifier.py,notify,
+replay\replay_observer.py,update,Override in derived classes.
+replay\replay_observer.py,__init__,
+replay\replay_observer.py,register,
+replay\replay_observer.py,unregister,
+replay\replay_observer.py,notify,
+replay\replay_observer.py,clear,
+replay\replay_observer.py,observers,
+replay\replay_package_statistics.py,__init__,
+replay\replay_package_statistics.py,python_files,
+replay\replay_package_statistics.py,total_modules,
+replay\replay_package_statistics.py,total_lines,
+replay\replay_package_statistics.py,largest_module,
+replay\replay_package_statistics.py,report,
+replay\replay_package_validator.py,validate,
+replay\replay_package_validator.py,report,
+replay\replay_paths.py,create,
+replay\replay_paths.py,as_dict,
+replay\replay_pipeline.py,__init__,
+replay\replay_pipeline.py,add_step,
+replay\replay_pipeline.py,run,
+replay\replay_plugin.py,name,Plugin name.
+replay\replay_plugin.py,version,Plugin version.
+replay\replay_plugin.py,initialize,Initialize the plugin.
+replay\replay_plugin.py,execute,Execute plugin logic.
+replay\replay_plugin.py,shutdown,Cleanup resources.
+replay\replay_plugin_manager.py,__init__,
+replay\replay_plugin_manager.py,register,
+replay\replay_plugin_manager.py,unregister,
+replay\replay_plugin_manager.py,get,
+replay\replay_plugin_manager.py,initialize_all,
+replay\replay_plugin_manager.py,execute_all,
+replay\replay_plugin_manager.py,shutdown_all,
+replay\replay_plugin_manager.py,list_plugins,
+replay\replay_plugin_manager.py,count,
+replay\replay_progress.py,__init__,
+replay\replay_progress.py,update,
+replay\replay_progress.py,percent,
+replay\replay_queue.py,__init__,
+replay\replay_queue.py,push,
+replay\replay_queue.py,pop,
+replay\replay_readme.py,print_readme,
+replay\replay_recovery.py,recover,
+replay\replay_registry.py,register,
+replay\replay_registry.py,get,
+replay\replay_registry.py,list,
+replay\replay_registry_manager.py,__init__,
+replay\replay_registry_manager.py,register,
+replay\replay_registry_manager.py,get,
+replay\replay_report.py,__init__,
+replay\replay_report.py,save_results,
+replay\replay_report.py,save_summary,
+replay\replay_report.py,print_summary,
+replay\replay_report_formatter.py,format,
+replay\replay_resource_manager.py,__init__,
+replay\replay_resource_manager.py,add,
+replay\replay_resource_manager.py,get,
+replay\replay_result_writer.py,write,
+replay\replay_run_info.py,create,
+replay\replay_scheduler.py,__init__,
+replay\replay_scheduler.py,add_job,
+replay\replay_scheduler.py,run_all,
+replay\replay_scheduler.py,clear,
+replay\replay_session.py,__init__,
+replay\replay_session.py,start,
+replay\replay_session.py,finish,
+replay\replay_session.py,duration,
+replay\replay_session.py,summary,
+replay\replay_session_manager.py,start,
+replay\replay_snapshot.py,create,
+replay\replay_state.py,__init__,
+replay\replay_state.py,current,
+replay\replay_state.py,set,
+replay\replay_state.py,is_idle,
+replay\replay_state.py,is_running,
+replay\replay_state.py,is_completed,
+replay\replay_state.py,is_failed,
+replay\replay_state.py,reset,
+replay\replay_statistics.py,calculate,
+replay\replay_stopwatch.py,start,
+replay\replay_stopwatch.py,elapsed,
+replay\replay_strategy.py,evaluate,"Evaluate one historical record.
+
+Parameters
+----------
+row : pandas.Series
+
+Returns
+-------
+dict
+    Replay result."
+replay\replay_summary.py,build,
+replay\replay_tagger.py,tag,
+replay\replay_text_reader.py,read,
+replay\replay_text_writer.py,write,
+replay\replay_timeline.py,__init__,
+replay\replay_timeline.py,add,
+replay\replay_timer.py,__init__,
+replay\replay_timer.py,start,
+replay\replay_timer.py,stop,
+replay\replay_timer.py,elapsed,
+replay\replay_timer.py,reset,
+replay\replay_timer_manager.py,start,
+replay\replay_timer_manager.py,stop,
+replay\replay_trace.py,__init__,
+replay\replay_trace.py,log,
+replay\replay_utils.py,ensure_directory,
+replay\replay_utils.py,file_exists,
+replay\replay_utils.py,timestamp,
+replay\replay_utils.py,trading_day,
+replay\replay_utils.py,percentage,
+replay\replay_utils.py,safe_float,
+replay\replay_utils.py,safe_int,
+replay\replay_uuid.py,new,
+replay\replay_validator.py,__init__,
+replay\replay_validator.py,validate,
+replay\replay_validator.py,calculate_statistics,
+replay\replay_visualizer.py,summary,
+replay\replay_yaml_reader.py,read,
+replay\replay_yaml_writer.py,write,
+replay\test_replay.py,test_cache,
+replay\test_replay.py,test_context,
+replay\test_replay.py,test_state,
+replay\test_replay.py,test_timer,
+Tools\ntis_architecture_scanner.py,ensure_report_dir,
+Tools\ntis_architecture_scanner.py,is_ignored,
+Tools\ntis_architecture_scanner.py,write_csv,
+Tools\ntis_architecture_scanner.py,file_hash,
+Tools\ntis_architecture_scanner.py,scan_files,
+Tools\ntis_architecture_scanner.py,scan_imports,
+Tools\ntis_architecture_scanner.py,scan_data_references,
+Tools\ntis_architecture_scanner.py,scan_outputs,
+Tools\ntis_architecture_scanner.py,scan_duplicates,
+Tools\ntis_architecture_scanner.py,create_markdown,
+Tools\ntis_architecture_scanner.py,main,
+similarity_core_clean\adapters\calibration_adapter.py,connect,
+similarity_core_clean\adapters\legacy_engine_adapter.py,__init__,
+similarity_core_clean\adapters\legacy_engine_adapter.py,connect,
+similarity_core_clean\adapters\probability_engine_adapter.py,connect,
+similarity_core_clean\adapters\similarity_engine_adapter.py,connect,
+similarity_core_clean\integration\eod_data_resolution_activation_check_v17.py,run_activation_check,
+similarity_core_clean\integration\eod_data_resolution_core_v17.py,__init__,
+similarity_core_clean\integration\eod_data_resolution_core_v17.py,check_current_data,
+similarity_core_clean\integration\eod_data_resolution_core_v17.py,resolve_latest_available_data,
+similarity_core_clean\integration\eod_data_resolution_core_v17.py,_latest_snapshot,
+similarity_core_clean\integration\eod_data_resolution_core_v17.py,trading_date_status,
+similarity_core_clean\integration\eod_data_resolution_core_v17.py,source_status,
+similarity_core_clean\integration\eod_data_resolution_switch_controller_v17.py,__init__,
+similarity_core_clean\integration\eod_data_resolution_switch_controller_v17.py,active_mode,
+similarity_core_clean\integration\eod_data_resolution_switch_controller_v17.py,switch_to_consolidated,
+similarity_core_clean\integration\eod_data_resolution_switch_controller_v17.py,rollback,
+similarity_core_clean\integration\eod_data_resolution_switch_controller_v17.py,validate_switch_control,
+similarity_core_clean\integration\execution_context.py,__init__,
+similarity_core_clean\integration\functional_gateway.py,connect_all,
+similarity_core_clean\integration\hmme_historical_data_loader.py,__init__,
+similarity_core_clean\integration\hmme_historical_data_loader.py,load,
+similarity_core_clean\integration\hmme_historical_replay_adapter.py,__init__,
+similarity_core_clean\integration\hmme_historical_replay_adapter.py,prepare_replay,
+similarity_core_clean\integration\hmme_historical_replay_adapter.py,send_to_replay,
+similarity_core_clean\integration\hmme_learning_bridge.py,__init__,
+similarity_core_clean\integration\hmme_learning_bridge.py,collect_feedback,
+similarity_core_clean\integration\hmme_learning_bridge.py,update_learning,
+similarity_core_clean\integration\hmme_outcome_calibration.py,__init__,
+similarity_core_clean\integration\hmme_outcome_calibration.py,validate_outcome,
+similarity_core_clean\integration\hmme_outcome_calibration.py,calibrate,
+similarity_core_clean\integration\hmme_real_replay_controller.py,__init__,
+similarity_core_clean\integration\hmme_real_replay_controller.py,run_replay,
+similarity_core_clean\integration\hmme_replay_engine.py,__init__,
+similarity_core_clean\integration\hmme_replay_engine.py,replay,
+similarity_core_clean\integration\hmme_replay_engine.py,evaluate,
+similarity_core_clean\integration\hmme_runtime_executor.py,__init__,
+similarity_core_clean\integration\hmme_runtime_executor.py,execute,
+similarity_core_clean\integration\ntis_data_bridge.py,__init__,
+similarity_core_clean\integration\ntis_data_bridge.py,load_data,
+similarity_core_clean\integration\production_runtime.py,__init__,
+similarity_core_clean\integration\production_runtime.py,run,
+similarity_core_clean\integration\result_collector.py,collect,
+similarity_core_clean\reporting\hmme_production_report.py,__init__,
+similarity_core_clean\reporting\hmme_production_report.py,generate,
+Intraday\dashboard\dashboard_loader.py,safe_read,"Read CSV if present, otherwise return an empty DataFrame."
+Intraday\dashboard\dashboard_loader.py,build_snapshot_path,
+Intraday\dashboard\dashboard_loader.py,resolve_snapshot,
+Intraday\dashboard\dashboard_loader.py,load_dashboard_data,"Load all datasets required by the dashboard.
+
+Returns a dictionary containing:
+  - status
+  - snapshot_date
+  - trade_df
+  - prob_df
+  - evolution_df"
+Intraday\dashboard\dashboard_sidebar.py,build_sidebar_filters,Render sidebar filters and return the filtered dataframe.
+Intraday\NTIS_Intraday_Scanner\ntis_intraday_scanner.py,run,
+Intraday\NTIS_Intraday_Scanner\scanners\dashboard_scanner.py,scan_dashboard,
+Intraday\NTIS_Intraday_Scanner\scanners\dataflow_scanner.py,scan_dataflow,
+Intraday\NTIS_Intraday_Scanner\scanners\dependency_scanner.py,scan_dependencies,
+Intraday\NTIS_Intraday_Scanner\scanners\intelligence_scanner.py,scan_intelligence,
+Intraday\NTIS_Intraday_Scanner\scanners\module_scanner.py,scan_modules,
+EOD_Dashboard\app\dashboard_app - Copy (2).py,run_dashboard,
+EOD_Dashboard\app\dashboard_app - Copy (3).py,run_dashboard,
+EOD_Dashboard\app\dashboard_app - Copy.py,run_dashboard,
+EOD_Dashboard\app\dashboard_app.py,run_dashboard,
+EOD_Dashboard\app\dashboard_app_original.py,run_dashboard,
+EOD_Dashboard\components\dashboard_cards - Copy.py,show_cards,
+EOD_Dashboard\components\dashboard_cards.py,_count_signal,Safely count BUY/SELL signals.
+EOD_Dashboard\components\dashboard_cards.py,_average_score,Return average score from the first available score column.
+EOD_Dashboard\components\dashboard_cards.py,_high_confidence,Count HIGH confidence records.
+EOD_Dashboard\components\dashboard_cards.py,show_cards,
+EOD_Dashboard\components\dashboard_header - Copy (2).py,render_header,
+EOD_Dashboard\components\dashboard_header - Copy.py,render_header,
+EOD_Dashboard\components\dashboard_header.py,render_header,"Render the application header.
+
+Presentation only.
+No business logic should be added here."
+EOD_Dashboard\components\date_selector - Copy.py,select_date,
+EOD_Dashboard\components\date_selector.py,_sort_dates,"Sort newest first where possible.
+Falls back to string sorting."
+EOD_Dashboard\components\date_selector.py,select_date,
+EOD_Dashboard\components\intelligence_charts.py,render_signal_distribution,Display signal distribution chart.
+EOD_Dashboard\components\intelligence_charts.py,render_confidence_distribution,Display confidence distribution chart.
+EOD_Dashboard\components\intelligence_charts.py,render_ntis_score_distribution,Display NTIS score distribution.
+EOD_Dashboard\components\intelligence_charts.py,render_probability_distribution,Display probability distribution.
+EOD_Dashboard\components\intelligence_filters.py,_unique_values,Return sorted unique values safely.
+EOD_Dashboard\components\intelligence_filters.py,render_intelligence_filters,"Render common dashboard filters.
+
+Returns filtered copy.
+
+No source dataframe mutation."
+EOD_Dashboard\components\intelligence_table.py,_select_columns,Return available display columns only.
+EOD_Dashboard\components\intelligence_table.py,_format_dataframe,"Presentation formatting only.
+
+Does not alter source dataframe."
+EOD_Dashboard\components\intelligence_table.py,_render_download,CSV export.
+EOD_Dashboard\components\intelligence_table.py,render_intelligence_table,Render reusable intelligence table.
+EOD_Dashboard\components\sidebar - Copy (2).py,render_sidebar,
+EOD_Dashboard\components\sidebar - Copy (3).py,render_sidebar,"Render the NTIS Dashboard sidebar.
+
+Returns
+-------
+dict
+    {
+        ""page"": str,
+        ""auto_refresh"": bool,
+        ""refresh_interval"": str
+    }"
+EOD_Dashboard\components\sidebar - Copy.py,render_sidebar,
+EOD_Dashboard\components\sidebar.py,render_sidebar,"Render dashboard sidebar.
+
+Returns
+-------
+dict
+    {
+        ""page"": str,
+        ""auto_refresh"": bool,
+        ""refresh_interval"": str
+    }
+
+Notes
+-----
+UI only.
+No business logic should be implemented here."
+EOD_Dashboard\components\status_bar - Copy (2).py,render_status_bar,
+EOD_Dashboard\components\status_bar - Copy.py,render_status_bar,
+EOD_Dashboard\components\status_bar.py,render_status_bar,"Render dashboard status bar.
+
+Parameters
+----------
+output_path : str | Path | None
+    Optional output file used to display the latest data status.
+
+Notes
+-----
+UI component only.
+No business logic should be implemented here."
+EOD_Dashboard\components\summary_cards - Copy (2).py,_count,Count Trade View values safely.
+EOD_Dashboard\components\summary_cards - Copy (2).py,_high_confidence,
+EOD_Dashboard\components\summary_cards - Copy (2).py,show_summary_cards,
+EOD_Dashboard\components\summary_cards - Copy.py,show_summary_cards,
+EOD_Dashboard\components\summary_cards.py,_count,Safely count values in the Trade View column.
+EOD_Dashboard\components\summary_cards.py,_high_confidence,Count HIGH confidence records safely.
+EOD_Dashboard\components\summary_cards.py,show_summary_cards,"Render dashboard summary KPI cards.
+
+Notes
+-----
+UI only.
+No business logic should be implemented here."
+EOD_Dashboard\config\dashboard_config - Copy.py,show_config,
+EOD_Dashboard\config\dashboard_config.py,get_output_file,Return absolute path of a configured NTIS output file.
+EOD_Dashboard\config\dashboard_config.py,output_exists,Check whether a configured output exists.
+EOD_Dashboard\config\dashboard_config.py,list_available_outputs,Return existence status of all configured outputs.
+EOD_Dashboard\config\dashboard_config.py,show_config,
+EOD_Dashboard\data\data_loader - Copy.py,get_file_path,
+EOD_Dashboard\data\data_loader - Copy.py,load_dataset,
+EOD_Dashboard\data\data_loader - Copy.py,get_dataset_info,
+EOD_Dashboard\data\data_loader - Copy.py,test_loader,
+EOD_Dashboard\data\data_loader.py,get_file_path,
+EOD_Dashboard\data\data_loader.py,dataset_exists,
+EOD_Dashboard\data\data_loader.py,load_dataset,
+EOD_Dashboard\data\data_loader.py,load_multiple,
+EOD_Dashboard\data\data_loader.py,clear_cache,
+EOD_Dashboard\data\data_loader.py,get_dataset_info,
+EOD_Dashboard\data\data_loader.py,test_loader,
+EOD_Dashboard\data\data_validator - Copy.py,current_source_dir,
+EOD_Dashboard\data\data_validator - Copy.py,check_path,
+EOD_Dashboard\data\data_validator - Copy.py,validate_output_files,
+EOD_Dashboard\data\data_validator - Copy.py,validate_source_files,
+EOD_Dashboard\data\data_validator - Copy.py,validate_optional_sources,
+EOD_Dashboard\data\data_validator - Copy.py,run_validation,
+EOD_Dashboard\data\data_validator.py,current_source_dir,
+EOD_Dashboard\data\data_validator.py,check_path,
+EOD_Dashboard\data\data_validator.py,validate_output_files,
+EOD_Dashboard\data\data_validator.py,validate_source_files,
+EOD_Dashboard\data\data_validator.py,validate_optional_sources,
+EOD_Dashboard\data\data_validator.py,dashboard_health,
+EOD_Dashboard\data\data_validator.py,run_validation,
+EOD_Dashboard\data\historical_loader - Copy.py,get_available_dates,
+EOD_Dashboard\data\historical_loader - Copy.py,find_file,
+EOD_Dashboard\data\historical_loader - Copy.py,load_snapshot,
+EOD_Dashboard\data\historical_loader.py,get_available_dates,
+EOD_Dashboard\data\historical_loader.py,find_file,
+EOD_Dashboard\data\historical_loader.py,_load_file,
+EOD_Dashboard\data\historical_loader.py,load_snapshot,
+EOD_Dashboard\data\historical_loader.py,clear_cache,
+EOD_Dashboard\data\historical_loader.py,snapshot_available,
+EOD_Dashboard\data\intelligence_builder.py,_safe_merge,Merge two intelligence datasets safely.
+EOD_Dashboard\data\intelligence_builder.py,build_intelligence_view,"Build unified NTIS intelligence dataframe.
+
+Sources:
+
+    ranking
+    probability
+    patterns
+    outcome
+
+Returns:
+
+    Combined intelligence dataframe"
+EOD_Dashboard\data\intelligence_builder.py,filter_buy_candidates,Return BUY intelligence candidates.
+EOD_Dashboard\data\intelligence_builder.py,filter_sell_candidates,Return SELL intelligence candidates.
+EOD_Dashboard\modules\dashboard_metrics - Copy.py,calculate_dashboard_metrics,
+EOD_Dashboard\modules\dashboard_metrics.py,_numeric,
+EOD_Dashboard\modules\dashboard_metrics.py,calculate_dashboard_metrics,
+EOD_Dashboard\modules\historical_intelligence - Copy.py,_to_numeric,
+EOD_Dashboard\modules\historical_intelligence - Copy.py,build_historical_intelligence,
+EOD_Dashboard\modules\historical_intelligence.py,_to_numeric,
+EOD_Dashboard\modules\historical_intelligence.py,_first,
+EOD_Dashboard\modules\historical_intelligence.py,build_historical_intelligence,
+EOD_Dashboard\modules\market_breadth - Copy.py,calculate_market_breadth,
+EOD_Dashboard\modules\market_breadth.py,_first_available,
+EOD_Dashboard\modules\market_breadth.py,calculate_market_breadth,
+EOD_Dashboard\modules\market_breadth.py,pct,
+EOD_Dashboard\modules\table_styles - Copy.py,_num,
+EOD_Dashboard\modules\table_styles - Copy.py,probability_style,
+EOD_Dashboard\modules\table_styles - Copy.py,score_style,
+EOD_Dashboard\modules\table_styles - Copy.py,bias_style,
+EOD_Dashboard\modules\table_styles - Copy.py,pattern_style,
+EOD_Dashboard\modules\table_styles - Copy.py,style_buy,
+EOD_Dashboard\modules\table_styles - Copy.py,style_sell,
+EOD_Dashboard\modules\table_styles - Copy.py,style_rank,
+EOD_Dashboard\modules\table_styles - Copy.py,style_support,
+EOD_Dashboard\modules\table_styles - Copy.py,style_pattern,
+EOD_Dashboard\modules\table_styles.py,_num,
+EOD_Dashboard\modules\table_styles.py,probability_style,
+EOD_Dashboard\modules\table_styles.py,score_style,
+EOD_Dashboard\modules\table_styles.py,bias_style,
+EOD_Dashboard\modules\table_styles.py,confidence_style,
+EOD_Dashboard\modules\table_styles.py,pattern_style,
+EOD_Dashboard\modules\table_styles.py,style_buy,
+EOD_Dashboard\modules\table_styles.py,style_sell,
+EOD_Dashboard\modules\table_styles.py,style_rank,
+EOD_Dashboard\modules\table_styles.py,style_support,
+EOD_Dashboard\modules\table_styles.py,style_pattern,
+EOD_Dashboard\pages\buy_intelligence.py,show_buy_intelligence,Render integrated BUY intelligence view.
+EOD_Dashboard\pages\buy_opportunities.py,_map_signal,Normalize backend signal values.
+EOD_Dashboard\pages\buy_opportunities.py,_find_signal_column,Locate the first available signal column.
+EOD_Dashboard\pages\buy_opportunities.py,_prepare_dataframe,"Prepare presentation dataframe.
+
+Backend logic is intentionally unchanged."
+EOD_Dashboard\pages\buy_opportunities.py,_display_buy_table,Display BUY opportunities.
+EOD_Dashboard\pages\buy_opportunities.py,show_buy_opportunities,BUY Opportunities dashboard page.
+EOD_Dashboard\pages\historical_analysis - Copy.py,show_historical_analysis,
+EOD_Dashboard\pages\historical_analysis.py,_show_dataframe,
+EOD_Dashboard\pages\historical_analysis.py,show_historical_analysis,
+EOD_Dashboard\pages\historical_replay.py,_render_snapshot_dataset,Render historical snapshot dataset.
+EOD_Dashboard\pages\historical_replay.py,show_historical_replay,Render historical replay intelligence.
+EOD_Dashboard\pages\market_overview - Copy.py,map_signal,
+EOD_Dashboard\pages\market_overview - Copy.py,show_market_overview,
+EOD_Dashboard\pages\market_overview.py,map_signal,
+EOD_Dashboard\pages\market_overview.py,_first_available,
+EOD_Dashboard\pages\market_overview.py,_display_table,
+EOD_Dashboard\pages\market_overview.py,show_market_overview,
+EOD_Dashboard\pages\oi_intelligence.py,show_oi_intelligence,Render OI intelligence page.
+EOD_Dashboard\pages\page_registry - Copy (2).py,available_pages,Returns the navigation menu.
+EOD_Dashboard\pages\page_registry - Copy (2).py,get_page,Returns the page callable.
+EOD_Dashboard\pages\page_registry - Copy (2).py,page_exists,Check whether a page is registered.
+EOD_Dashboard\pages\page_registry - Copy (2).py,register_page,"Register future dashboard pages without
+modifying dashboard_app.py."
+EOD_Dashboard\pages\page_registry - Copy (2).py,unregister_page,Remove a page safely.
+EOD_Dashboard\pages\page_registry - Copy (3).py,_coming_soon,
+EOD_Dashboard\pages\page_registry - Copy (3).py,available_pages,Returns all registered dashboard pages.
+EOD_Dashboard\pages\page_registry - Copy (3).py,get_page,Returns the page callable.
+EOD_Dashboard\pages\page_registry - Copy (3).py,page_exists,Check whether a page is registered.
+EOD_Dashboard\pages\page_registry - Copy (3).py,register_page,Register a dashboard page dynamically.
+EOD_Dashboard\pages\page_registry - Copy (3).py,unregister_page,Remove a page safely.
+EOD_Dashboard\pages\page_registry - Copy.py,available_pages,
+EOD_Dashboard\pages\page_registry.py,available_pages,Return all registered dashboard pages.
+EOD_Dashboard\pages\page_registry.py,get_page,Return page handler.
+EOD_Dashboard\pages\page_registry.py,page_exists,Check whether page exists.
+EOD_Dashboard\pages\page_registry.py,register_page,Register additional page dynamically.
+EOD_Dashboard\pages\page_registry.py,unregister_page,Remove page safely.
+EOD_Dashboard\pages\pattern_intelligence.py,show_pattern_intelligence,Render pattern intelligence page.
+EOD_Dashboard\pages\probability_ranking.py,show_probability_ranking,Render probability ranking intelligence page.
+EOD_Dashboard\pages\resistance_intelligence.py,show_resistance_intelligence,Render resistance intelligence page.
+EOD_Dashboard\pages\sell_intelligence.py,show_sell_intelligence,Render integrated SELL intelligence view.
+EOD_Dashboard\pages\sell_opportunities.py,_normalize_signal,
+EOD_Dashboard\pages\sell_opportunities.py,_find_signal_column,
+EOD_Dashboard\pages\sell_opportunities.py,_prepare,
+EOD_Dashboard\pages\sell_opportunities.py,show_sell_opportunities,
+EOD_Dashboard\pages\settings.py,show_settings,"Render dashboard settings page.
+
+Configuration display only.
+No runtime configuration changes."
+EOD_Dashboard\pages\support_intelligence.py,show_support_intelligence,Render support intelligence page.
+EOD_Dashboard\styles\dashboard_style - Copy.py,apply_dashboard_style,
+EOD_Dashboard\styles\dashboard_style.py,apply_dashboard_style,
