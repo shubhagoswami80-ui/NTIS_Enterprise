@@ -7,3 +7,7 @@ scope:
   exclude:
     - NTIS/Intraday
     - ../Intraday
+execution_mode:
+  mode: audit_only
+  allow_mutation: false
+  preserve_cross_references: true

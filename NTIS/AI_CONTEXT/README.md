@@ -7,3 +7,8 @@ Read order:
 2. docs/01_PROJECT_PLAYBOOK.md
 3. docs/02_PROJECT_STATUS.md
 4. workspace/CURRENT_TASK.md
+
+Execution mode:
+- audit_only
+- preserve existing project information
+- append or merge execution-mode guidance without removing prior content

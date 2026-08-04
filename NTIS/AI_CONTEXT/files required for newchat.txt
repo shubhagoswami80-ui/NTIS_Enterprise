@@ -1,0 +1,33 @@
+AI_CONTEXT/
+├── README.md
+├── PROJECT_MANIFEST.yaml
+├── docs/
+│   └── 03_MASTER_CHECKPOINT.md
+└── workspace/
+    ├── CURRENT_TASK.md
+    └── IMPLEMENTATION_STATE.md
+
+
+
+
+
+
+
+
+
+
+
+For copilot to egnrate 
+
+Read the repository.
+
+Determine:
+
+1. Current implementation point.
+2. Remaining production work.
+3. Current dependency graph.
+4. Files that require modification.
+
+Create IMPLEMENTATION_STATE.md.
+
+Do not modify any production code.
