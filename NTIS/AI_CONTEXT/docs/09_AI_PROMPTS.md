@@ -1,0 +1,1 @@
+Use STARTUP_PROMPT.md before every implementation session.

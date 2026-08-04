@@ -1,0 +1,5 @@
+-   Preserve architecture
+-   No duplicate modules
+-   Modify existing files only
+-   Update docs with code
+-   Intraday is out of scope.

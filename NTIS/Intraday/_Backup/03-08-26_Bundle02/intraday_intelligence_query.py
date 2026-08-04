@@ -1,12 +1,11 @@
-"""
-===========================================================
-NTIS Intraday Intelligence Query
-
-Purpose:
-    Query historical intelligence loaded from learning memory
-    or pattern_statistics.csv.
-===========================================================
-"""
+# ----------------------------------------------------------------------
+# Bundle 01 - Step 3
+# File:
+#     intraday_intelligence_query.py
+#
+# Purpose:
+#     Historical intelligence lookup using Pattern_ID.
+# ----------------------------------------------------------------------
 
 import pandas as pd
 
@@ -36,7 +35,7 @@ class IntradayIntelligenceQuery:
 
     def by_pattern_dna(self, pattern_dna):
 
-        if self.df.empty or "Pattern_DNA" not in self.df.columns:
+        if self.df.empty:
             return pd.DataFrame()
 
         return self.df[
@@ -56,56 +55,6 @@ class IntradayIntelligenceQuery:
 
     # --------------------------------------------------------------
 
-    @staticmethod
-    def _numeric_total(df, column, default=0):
-
-        if column not in df.columns:
-            return default
-
-        return pd.to_numeric(
-            df[column],
-            errors="coerce"
-        ).fillna(0).sum()
-
-    # --------------------------------------------------------------
-
-    def _statistics_summary(self, history):
-
-        occurrences = self._numeric_total(
-            history,
-            "Occurrences",
-            len(history),
-        )
-
-        wins = self._numeric_total(
-            history,
-            "Successful_Trades",
-        )
-
-        losses = self._numeric_total(
-            history,
-            "Failed_Trades",
-        )
-
-        return {
-
-            "Occurrences": int(occurrences),
-
-            "Wins": int(wins),
-
-            "Losses": int(losses),
-
-            "WinRate": round(
-                wins * 100 / occurrences,
-                2,
-            ) if occurrences else 0,
-
-            "AveragePnL": 0,
-
-        }
-
-    # --------------------------------------------------------------
-
     def historical_summary(self, pattern_id):
 
         history = self.by_pattern_id(pattern_id)
@@ -122,16 +71,9 @@ class IntradayIntelligenceQuery:
 
                 "WinRate": 0,
 
-                "AveragePnL": 0,
+                "AveragePnL": 0
 
             }
-
-        if {
-            "Occurrences",
-            "Successful_Trades",
-            "Failed_Trades",
-        }.issubset(history.columns):
-            return self._statistics_summary(history)
 
         wins = history[
             history["Outcome"] == "WIN"

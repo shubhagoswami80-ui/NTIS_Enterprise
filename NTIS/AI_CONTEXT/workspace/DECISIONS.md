@@ -1,0 +1,1 @@
+Intraday out of scope. Architecture frozen.

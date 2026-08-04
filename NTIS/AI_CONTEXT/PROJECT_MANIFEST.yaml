@@ -1,0 +1,9 @@
+project:
+  name: NTIS EOD Enterprise
+  phase: Production Integration
+  architecture: Frozen
+scope:
+  include: [NTIS]
+  exclude:
+    - NTIS/Intraday
+    - ../Intraday

@@ -1,0 +1,5 @@
+project:
+  name: NTIS EOD Enterprise
+  version: 2.0
+  phase: Production Integration
+  architecture: Frozen

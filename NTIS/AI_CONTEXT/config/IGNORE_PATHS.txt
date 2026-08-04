@@ -1,0 +1,6 @@
+NTIS/Intraday
+Intraday
+.venv
+__pycache__
+Archive
+*.zip

@@ -1,124 +1,259 @@
-# ---------------------------------------------------------------------
-# Bundle 01 – Step 3
-# Replacement: Intraday/intraday_trade_validation_engine.py
-#
-# ONLY functional change:
-#   Preserve Pattern intelligence for downstream learning pipeline.
-#
-# Existing validation / risk / target logic remains unchanged.
-# ---------------------------------------------------------------------
+"""
+=========================================================
+NTIS Intraday Trade Validation Engine
+Version : 1.3
 
-# Inside IntradayTradeValidationEngine.run()
+Purpose:
+    Convert probability output into trade candidates.
 
-def run(self):
+Input:
+    intraday_probability_analysis.csv
 
-    if not INPUT_FILE.exists():
+Output:
+    intraday_trade_candidates.csv
 
-        raise FileNotFoundError(
-            f"Missing input file: {INPUT_FILE}"
+Updates:
+    - Dynamic date support
+    - Historical replay support
+    - BUY/SELL aware risk-reward
+=========================================================
+"""
+
+from pathlib import Path
+import sys
+import pandas as pd
+
+from intraday_execution_context import (
+    set_processing_date
+)
+
+from intraday_path_config import (
+    get_today_output
+)
+
+
+
+# =========================================================
+# Set processing date if provided
+# =========================================================
+
+if len(sys.argv) > 1:
+
+    set_processing_date(
+        sys.argv[1]
+    )
+
+
+
+OUTPUT_FOLDER = get_today_output()
+
+
+INPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_probability_analysis.csv"
+)
+
+
+OUTPUT_FILE = (
+    OUTPUT_FOLDER
+    /
+    "intraday_trade_candidates.csv"
+)
+
+
+
+class IntradayTradeValidationEngine:
+
+
+    def validate_signal(self, row):
+
+        probability = row.get(
+            "Intraday Probability %",
+            0
         )
 
-    df = pd.read_csv(
-        INPUT_FILE
-    )
+        pattern = str(
+            row.get("Pattern", "")
+        )
 
-    # -------------------------------------------------------------
-    # Ensure historical intelligence columns always exist.
-    # These are propagated only.
-    # No business logic is changed.
-    # -------------------------------------------------------------
+        score = row.get(
+            "NTIS Intraday Score",
+            0
+        )
 
-    intelligence_columns = {
-        "Pattern": "",
-        "Pattern_DNA": "",
-        "Pattern_ID": ""
-    }
 
-    for column, default in intelligence_columns.items():
+        if (
+            probability >= 75
+            and score >= 35
+            and "Short" not in pattern
+            and "Unwinding" not in pattern
+        ):
+            return "VALID BUY"
 
-        if column not in df.columns:
 
-            df[column] = default
+        if (
+            probability <= 35
+            and score <= 30
+        ):
+            return "VALID SELL"
 
-    # -------------------------------------------------------------
-    # Existing validation logic
-    # -------------------------------------------------------------
 
-    df["Validation Signal"] = df.apply(
-        self.validate_signal,
-        axis=1
-    )
+        return "WATCH"
 
-    df["Risk Level"] = df.apply(
-        self.risk_level,
-        axis=1
-    )
 
-    (
-        df[
+
+    def risk_level(self, row):
+
+        probability = row.get(
+            "Intraday Probability %",
+            0
+        )
+
+        if probability >= 80:
+
+            return "LOW"
+
+        elif probability >= 60:
+
+            return "MEDIUM"
+
+        return "HIGH"
+
+
+
+    def calculate_trade_levels(
+        self,
+        row
+    ):
+
+        entry = row.get(
+            "Price"
+        )
+
+        signal = row.get(
+            "Validation Signal"
+        )
+
+
+        if pd.isna(entry):
+
+            return pd.Series(
+                [
+                    None,
+                    None,
+                    None
+                ]
+            )
+
+
+        if signal == "VALID BUY":
+
+            stop_loss = (
+                entry * 0.98
+            )
+
+            target = (
+                entry * 1.04
+            )
+
+
+        elif signal == "VALID SELL":
+
+            stop_loss = (
+                entry * 1.02
+            )
+
+            target = (
+                entry * 0.96
+            )
+
+
+        else:
+
+            stop_loss = None
+            target = None
+
+
+        return pd.Series(
             [
-                "Entry Price",
-                "Stop Loss",
-                "Target"
+                entry,
+                stop_loss,
+                target
             ]
-        ]
-    ) = df.apply(
-        self.calculate_trade_levels,
-        axis=1
+        )
+
+
+
+    def run(self):
+
+        if not INPUT_FILE.exists():
+
+            raise FileNotFoundError(
+                f"Missing input file: {INPUT_FILE}"
+            )
+
+
+        df = pd.read_csv(
+            INPUT_FILE
+        )
+
+
+        df["Validation Signal"] = df.apply(
+            self.validate_signal,
+            axis=1
+        )
+
+
+        df["Risk Level"] = df.apply(
+            self.risk_level,
+            axis=1
+        )
+
+
+        (
+            df[
+                [
+                    "Entry Price",
+                    "Stop Loss",
+                    "Target"
+                ]
+            ]
+        ) = df.apply(
+            self.calculate_trade_levels,
+            axis=1
+        )
+
+
+        df = df.sort_values(
+            "Intraday Probability %",
+            ascending=False
+        )
+
+
+        df.to_csv(
+            OUTPUT_FILE,
+            index=False
+        )
+
+
+        return OUTPUT_FILE
+
+
+
+if __name__ == "__main__":
+
+    result = (
+        IntradayTradeValidationEngine()
+        .run()
     )
 
-    # -------------------------------------------------------------
-    # Preserve Pattern intelligence with trade candidates.
-    # These columns are intentionally retained for:
-    #
-    # intraday_trade_memory_connector.py
-    # intraday_learning_memory_builder.py
-    # intraday_intelligence_loader.py
-    # intraday_intelligence_query.py
-    # Historical Evidence Layer
-    # -------------------------------------------------------------
 
-    preferred_order = [
-
-        "Symbol",
-
-        "Pattern",
-        "Pattern_DNA",
-        "Pattern_ID",
-
-        "Intraday Probability %",
-        "Validation Signal",
-        "Risk Level",
-
-        "Entry Price",
-        "Stop Loss",
-        "Target"
-    ]
-
-    ordered = [
-        c
-        for c in preferred_order
-        if c in df.columns
-    ]
-
-    remaining = [
-        c
-        for c in df.columns
-        if c not in ordered
-    ]
-
-    df = df[
-        ordered + remaining
-    ]
-
-    df = df.sort_values(
-        "Intraday Probability %",
-        ascending=False
+    print("=" * 60)
+    print(
+        "INTRADAY TRADE VALIDATION COMPLETE"
     )
-
-    df.to_csv(
-        OUTPUT_FILE,
-        index=False
-    )
-
-    return OUTPUT_FILE
+    print("Processing Folder:")
+    print(OUTPUT_FOLDER)
+    print(result)
+    print("=" * 60)

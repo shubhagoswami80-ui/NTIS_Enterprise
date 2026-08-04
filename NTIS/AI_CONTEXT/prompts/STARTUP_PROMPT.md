@@ -1,0 +1,1 @@
+Read manifest, playbook, status and current task before coding.
