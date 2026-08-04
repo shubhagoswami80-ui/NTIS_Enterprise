@@ -1,6 +1,6 @@
 """
 NTIS-Intraday Dashboard
-Professional Operational Cockpit UI.
+Professional Operational Cockpit & Intelligence Workbench UI.
 """
 
 from datetime import datetime
@@ -12,10 +12,12 @@ from dashboard.dashboard_loader import load_dashboard_data
 from dashboard.dashboard_sidebar import build_sidebar_filters
 from config_loader import OUTPUT_ROOT, LEARNING_ROOT
 from intraday_dashboard_health_panel import health_status
+from intraday_intelligence_loader import IntradayIntelligenceLoader
+from intraday_intelligence_query import IntradayIntelligenceQuery
 
 st.set_page_config(
-    page_title="NTIS Intraday Operational Cockpit",
-    page_icon="📈",
+    page_title="NTIS Intraday Intelligence Workbench",
+    page_icon="🧠",
     layout="wide",
 )
 
@@ -53,15 +55,20 @@ trade_df = ctx["trade_df"]
 prob_df = ctx["prob_df"]
 evolution_df = ctx["evolution_df"]
 
+# Load repository intelligence via loader & query layer
+intel_loader = IntradayIntelligenceLoader()
+intel_loader.load()
+intel_query = IntradayIntelligenceQuery(intel_loader)
+
 # Top Header / Navigation
-st.title("🛡️ NTIS Intraday Operational Cockpit")
-st.caption(f"Active Session Date: {snapshot_date} | Pipeline Status: {status.get('status', 'UNKNOWN')}")
+st.title("🛡️ NTIS Intraday Intelligence Workbench")
+st.caption(f"Active Session Date: {snapshot_date} | Pipeline Status: {status.get('status', 'UNKNOWN')} | Intelligence Store: Repository Connected")
 
 # Navigation Tabs matching required categories
 tabs = st.tabs([
     "📊 Executive & Opportunities",
+    "🧠 Pattern Intelligence Workbench",
     "🔄 Replay & Backtest",
-    "🧠 Historical Intelligence",
     "📈 Learning & Calibration",
     "⚙️ Governance & Data Health"
 ])
@@ -92,7 +99,7 @@ with tabs[0]:
         avg_prob = round(trade_df["Intraday Probability %"].mean(), 1) if not trade_df.empty and "Intraday Probability %" in trade_df.columns else 0.0
         st.markdown(f'<div class="metric-card"><div class="metric-value">{avg_prob}%</div><div class="metric-label">Avg Probability</div></div>', unsafe_allow_html=True)
 
-    st.markdown("### 📋 Trade Opportunities Table")
+    st.markdown("### 📋 Trade Opportunities & Repository Intelligence")
     display_cols = [
         c for c in [
             "Symbol",
@@ -128,9 +135,68 @@ with tabs[0]:
             st.info("No signal evolution data available.")
 
 # ----------------------------------------------------------------------
-# TAB 2: REPLAY & BACKTEST
+# TAB 2: PATTERN INTELLIGENCE WORKBENCH (NEW)
 # ----------------------------------------------------------------------
 with tabs[1]:
+    st.subheader("🧠 Repository Pattern Intelligence Workbench")
+    
+    intel_df = intel_loader.get_dataframe()
+    if not intel_df.empty:
+        col_search1, col_search2 = st.columns(2)
+        with col_search1:
+            search_sym = st.text_input("Filter by Symbol", "").strip().upper()
+        with col_search2:
+            search_pid = st.text_input("Filter by Business Pattern ID / Fingerprint", "").strip()
+
+        view_df = intel_df.copy()
+        if search_sym:
+            view_df = view_df[view_df["Symbol"].str.upper() == search_sym]
+        if search_pid:
+            view_df = view_df[
+                view_df["Business_Pattern_ID"].astype(str).str.contains(search_pid, case=False, na=False) |
+                view_df["Pattern_Fingerprint"].astype(str).str.contains(search_pid, case=False, na=False)
+            ]
+
+        st.markdown("### 🔍 Pattern Explorer & Historical Timeline")
+        display_intel_cols = [
+            c for c in [
+                "Business_Pattern_ID", "Symbol", "Pattern_Name", "Lifecycle_State",
+                "Occurrences", "Success_%", "Average_PnL", "First_Seen", "Last_Seen"
+            ] if c in view_df.columns
+        ]
+        st.dataframe(view_df[display_intel_cols], use_container_width=True, height=400)
+
+        if not view_df.empty:
+            st.markdown("### 📊 Detailed Pattern Intelligence & Similar View")
+            selected_pid = st.selectbox("Select Business Pattern ID for Deep Dive", view_df["Business_Pattern_ID"].unique())
+            
+            p_record = intel_query.by_pattern_id(selected_pid)
+            if not p_record.empty:
+                r_item = p_record.iloc[0]
+                
+                ic1, ic2, ic3, ic4 = st.columns(4)
+                ic1.metric("Lifecycle State", str(r_item.get("Lifecycle_State", "UNKNOWN")))
+                ic2.metric("Success Rate", f"{r_item.get('Success_%', 0)}%")
+                ic3.metric("Total Occurrences", str(r_item.get("Occurrences", 0)))
+                ic4.metric("Average PnL", str(r_item.get("Average_PnL", 0)))
+
+                with st.expander("🧬 View Pattern DNA & Fingerprint"):
+                    st.write(f"**Business Pattern ID:** {r_item.get('Business_Pattern_ID')}")
+                    st.write(f"**Pattern Fingerprint:** {r_item.get('Pattern_Fingerprint')}")
+                    st.write(f"**Pattern Name:** {r_item.get('Pattern_Name')}")
+                    st.write(f"**Symbol:** {r_item.get('Symbol')}")
+                    st.write(f"**First Seen / Last Seen:** {r_item.get('First_Seen')} -> {r_item.get('Last_Seen')}")
+
+                st.markdown("#### Similar Pattern Matches (Same Fingerprint / ID)")
+                sim_matches = view_df[view_df["Pattern_Fingerprint"] == r_item.get("Pattern_Fingerprint")]
+                st.dataframe(sim_matches, use_container_width=True, height=200)
+    else:
+        st.info("No pattern intelligence records available in the repository.")
+
+# ----------------------------------------------------------------------
+# TAB 3: REPLAY & BACKTEST
+# ----------------------------------------------------------------------
+with tabs[2]:
     st.subheader("🔄 Historical Replay & Backtest Results")
     backtest_file = base_path / "intraday_backtest_results.csv" if base_path else None
     if backtest_file and backtest_file.exists():
@@ -141,19 +207,6 @@ with tabs[1]:
         st.dataframe(bt_df[bt_cols], use_container_width=True, height=400)
     else:
         st.info("No backtest results found for the selected snapshot date. Run replay engine to generate outcomes.")
-
-# ----------------------------------------------------------------------
-# TAB 3: HISTORICAL INTELLIGENCE
-# ----------------------------------------------------------------------
-with tabs[2]:
-    st.subheader("🧠 Historical Intelligence & Pattern Statistics")
-    stat_file = LEARNING_ROOT.parent / "Intelligence" / "pattern_statistics.csv"
-    if stat_file.exists():
-        stat_df = pd.read_csv(stat_file)
-        st.success("Loaded Pattern Statistics Repository")
-        st.dataframe(stat_df, use_container_width=True, height=450)
-    else:
-        st.info("Pattern statistics repository not found. Run pattern statistics engine.")
 
 # ----------------------------------------------------------------------
 # TAB 4: LEARNING & CALIBRATION
@@ -198,4 +251,16 @@ with tabs[4]:
             st.dataframe(reg_df.tail(10), use_container_width=True, height=250)
         else:
             st.info("Report registry not found.")
+
+    st.markdown("---")
+    st.markdown("### 🔍 Advanced Snapshot & Comparison Viewer")
+    from intraday_dashboard_snapshot_viewer import snapshot_summary
+    from intraday_dashboard_compare_engine import compare_snapshots
+    
+    if not trade_df.empty:
+        summary_dict = snapshot_summary(trade_df)
+        st.json(summary_dict)
+    else:
+        st.info("No active snapshot data for summary viewer.")
+
 

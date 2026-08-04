@@ -23,6 +23,8 @@ from pathlib import Path
 import pandas as pd
 
 from config_loader import LEARNING_ROOT
+from intraday_pattern_repository import IntradayPatternRepository
+from intraday_pattern_lifecycle_engine import IntradayPatternLifecycleEngine
 
 
 MEMORY_FILE = (
@@ -170,6 +172,14 @@ class IntradayLearningOutcomeUpdater:
             index=False
         )
 
+        # Synchronize updated learning outcomes with Pattern Intelligence Repository
+        try:
+            repo = IntradayPatternRepository()
+            lifecycle = IntradayPatternLifecycleEngine(repo)
+            lifecycle.integrate_outcomes(memory)
+            lifecycle.evaluate_lifecycle()
+        except Exception:
+            pass
 
         return MEMORY_FILE
 

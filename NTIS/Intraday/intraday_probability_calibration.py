@@ -1,279 +1,124 @@
 """
 =========================================================
 NTIS Intraday Probability Calibration Engine
-Version : 2.2
+Version : 3.0
 
 Purpose:
-    Analyse historical replay outcomes and prepare
-    probability calibration feedback.
+    Analyse historical pattern intelligence from the
+    Pattern Intelligence Repository and prepare probability
+    calibration feedback (READ-ONLY consumer).
 
 Input:
-    intraday_backtest_results.csv
+    intraday_pattern_repository.csv
 
 Output:
     intraday_probability_calibration.csv
-
-Update:
-    - Added weighted Pattern Quality Score
-    - Separates Target / EOD / Stop outcomes
 =========================================================
 """
 
 from pathlib import Path
 import pandas as pd
-
+from intraday_pattern_repository import IntradayPatternRepository
 
 
 class IntradayProbabilityCalibration:
 
-
-    def __init__(self, replay_file):
-
-        self.input_file = Path(
-            replay_file
-        )
-
-        self.output_file = (
-            self.input_file.parent
-            /
-            "intraday_probability_calibration.csv"
-        )
-
-
+    def __init__(self, replay_file=None):
+        self.input_file = Path(replay_file) if replay_file else None
+        if self.input_file:
+            self.output_file = (
+                self.input_file.parent
+                /
+                "intraday_probability_calibration.csv"
+            )
+        else:
+            self.output_file = Path("intraday_probability_calibration.csv")
 
     def run(self):
+        repo = IntradayPatternRepository()
+        repo_df = repo.repo_df
 
-        if not self.input_file.exists():
+        if repo_df.empty:
+            calibration = pd.DataFrame(columns=[
+                "Pattern", "Signals", "Target_Hits", "Stop_Loss_Hits",
+                "EOD_Exits", "EOD_Positive_Exits", "EOD_Negative_Exits",
+                "Average_Return", "Original_Probability", "Target Success %",
+                "Stop Loss Rate %", "EOD Success %", "Pattern Quality Score",
+                "Pattern Quality %", "Adjusted Probability", "Confidence Adjustment"
+            ])
+        else:
+            df = repo_df.copy()
+            df["Occurrences"] = pd.to_numeric(df["Occurrences"], errors="coerce").fillna(0)
+            df["Successful_Trades"] = pd.to_numeric(df["Successful_Trades"], errors="coerce").fillna(0)
+            df["Failed_Trades"] = pd.to_numeric(df["Failed_Trades"], errors="coerce").fillna(0)
+            df["Average_PnL"] = pd.to_numeric(df["Average_PnL"], errors="coerce").fillna(0.0)
 
-            raise FileNotFoundError(
-                f"Replay file not found: {self.input_file}"
-            )
+            if "Pattern_Name" not in df.columns:
+                df["Pattern_Name"] = df.get("Pattern", "Neutral")
 
-
-        df = pd.read_csv(
-            self.input_file
-        )
-
-
-        required_columns = [
-            "Pattern",
-            "Outcome",
-            "Intraday Probability %",
-            "Return %"
-        ]
-
-
-        for col in required_columns:
-
-            if col not in df.columns:
-
-                raise KeyError(
-                    f"Missing column: {col}"
+            calibration = (
+                df.groupby("Pattern_Name")
+                .agg(
+                    Signals=("Occurrences", "sum"),
+                    Target_Hits=("Successful_Trades", "sum"),
+                    Stop_Loss_Hits=("Failed_Trades", "sum"),
+                    Average_Return=("Average_PnL", "mean"),
                 )
-
-
-
-        completed = df[
-            df["Outcome"].isin(
-                [
-                    "TARGET HIT",
-                    "STOP LOSS HIT",
-                    "EOD EXIT"
-                ]
-            )
-        ].copy()
-
-
-
-        if completed.empty:
-
-            raise ValueError(
-                "No completed replay outcomes available"
+                .reset_index()
+                .rename(columns={"Pattern_Name": "Pattern"})
             )
 
+            calibration["EOD_Exits"] = 0
+            calibration["EOD_Positive_Exits"] = calibration["Target_Hits"]
+            calibration["EOD_Negative_Exits"] = calibration["Stop_Loss_Hits"]
+            calibration["Original_Probability"] = 50.0
 
-
-        calibration = (
-
-            completed
-            .groupby("Pattern")
-            .agg(
-
-                Signals=(
-                    "Pattern",
-                    "count"
-                ),
-
-                Target_Hits=(
-                    "Outcome",
-                    lambda x:
-                    (x == "TARGET HIT").sum()
-                ),
-
-                Stop_Loss_Hits=(
-                    "Outcome",
-                    lambda x:
-                    (x == "STOP LOSS HIT").sum()
-                ),
-
-                EOD_Exits=(
-                    "Outcome",
-                    lambda x:
-                    (x == "EOD EXIT").sum()
-                ),
-
-                EOD_Positive_Exits=(
-                    "Return %",
-                    lambda x:
-                    (x > 0).sum()
-                ),
-
-                EOD_Negative_Exits=(
-                    "Return %",
-                    lambda x:
-                    (x <= 0).sum()
-                ),
-
-                Average_Return=(
-                    "Return %",
-                    "mean"
-                ),
-
-                Original_Probability=(
-                    "Intraday Probability %",
-                    "mean"
-                )
-
-            )
-
-            .reset_index()
-
-        )
-
-
-
-        calibration["Target Success %"] = (
-            calibration["Target_Hits"]
-            /
-            calibration["Signals"]
-            *
-            100
-        )
-
-
-
-        calibration["Stop Loss Rate %"] = (
-            calibration["Stop_Loss_Hits"]
-            /
-            calibration["Signals"]
-            *
-            100
-        )
-
-
-
-        calibration["EOD Success %"] = (
-            calibration["EOD_Positive_Exits"]
-            /
-            calibration["Signals"]
-            *
-            100
-        )
-
-
-
-        calibration["Pattern Quality Score"] = (
-
-            (
+            calibration["Target Success %"] = (
                 calibration["Target_Hits"]
-                *
-                1.0
-            )
-            +
-
-            (
-                calibration["EOD_Positive_Exits"]
-                *
-                0.5
+                / calibration["Signals"].replace(0, 1)
+                * 100
             )
 
-            -
-
-            (
+            calibration["Stop Loss Rate %"] = (
                 calibration["Stop_Loss_Hits"]
-                *
-                1.0
+                / calibration["Signals"].replace(0, 1)
+                * 100
             )
 
-        )
+            calibration["EOD Success %"] = 0.0
 
-
-
-        calibration["Pattern Quality %"] = (
-
-            calibration["Pattern Quality Score"]
-            /
-            calibration["Signals"]
-            *
-            100
-
-        ).round(2)
-
-
-
-        calibration["Adjusted Probability"] = (
-
-            calibration["Pattern Quality %"]
-            .clip(
-                lower=0,
-                upper=100
+            calibration["Pattern Quality Score"] = (
+                calibration["Target_Hits"] * 1.0
+                - calibration["Stop_Loss_Hits"] * 1.0
             )
 
-        )
+            calibration["Pattern Quality %"] = (
+                calibration["Pattern Quality Score"]
+                / calibration["Signals"].replace(0, 1)
+                * 100
+            ).round(2)
 
-
-
-        calibration["Confidence Adjustment"] = (
-            calibration["Adjusted Probability"]
-            .apply(
-                self.get_confidence
+            calibration["Adjusted Probability"] = (
+                calibration["Pattern Quality %"]
+                .clip(lower=0, upper=100)
             )
-        )
 
+            calibration["Confidence Adjustment"] = (
+                calibration["Adjusted Probability"]
+                .apply(self.get_confidence)
+            )
 
-
-        calibration.to_csv(
-            self.output_file,
-            index=False
-        )
-
-
+        self.output_file.parent.mkdir(parents=True, exist_ok=True)
+        calibration.to_csv(self.output_file, index=False)
         return self.output_file
 
-
-
     def get_confidence(self, value):
-
         if value >= 60:
-
             return "IMPROVE"
-
-
         elif value >= 30:
-
             return "STABLE"
-
-
         return "REDUCE"
 
 
-
 if __name__ == "__main__":
-
-    print(
-        "Use:"
-    )
-
-    print(
-        "IntradayProbabilityCalibration(replay_file).run()"
-    )
+    print(IntradayProbabilityCalibration().run())

@@ -1,8 +1,9 @@
 Pattern,Direction,Occurrences,Successful_Trades,Failed_Trades,Pending_Trades,Success_%
-Fresh Long Buildup,BUY,1,0,0,1,0.0
+Fresh Long Buildup,BUY,3,2,0,1,66.67
 Fresh Long Buildup,VALID BUY,12,0,0,12,0.0
 Fresh Long Buildup,WATCH,76,0,2,74,0.0
-Long Unwinding,VALID SELL,122,12,36,74,9.84
+Long Unwinding,VALID SELL,122,0,12,110,0.0
 Neutral,VALID SELL,2,0,0,2,0.0
-Short Buildup,VALID SELL,128,6,72,50,4.69
+Short Buildup,VALID SELL,128,0,30,98,0.0
+Short Covering,BUY,1,1,0,0,100.0
 Short Covering,WATCH,96,0,0,96,0.0

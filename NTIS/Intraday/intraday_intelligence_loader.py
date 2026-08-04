@@ -1,23 +1,18 @@
 """
 ===========================================================
 NTIS Intraday Intelligence Loader
+Version : 2.0
 
 Purpose:
-    Load historical pattern statistics into the in-memory
-    intelligence cache used by the query layer.
-
-Input:
-    pattern_statistics.csv
-
-Compatibility:
-    Supports the existing learning-memory input contract when
-    an explicit source file is supplied.
+    Load historical pattern intelligence directly from the
+    Pattern Intelligence Repository into in-memory caches
+    for the query layer (READ-ONLY consumer).
 ===========================================================
 """
 
 from pathlib import Path
-
 import pandas as pd
+from intraday_pattern_repository import IntradayPatternRepository
 
 COMPATIBILITY_COLUMNS = (
     "Symbol",
@@ -28,48 +23,40 @@ COMPATIBILITY_COLUMNS = (
 
 
 class IntradayIntelligenceLoader:
-    """Load historical intelligence and build lookup indexes."""
+    """Load historical intelligence from Pattern Repository and build lookup indexes."""
 
-    def __init__(self, learning_memory_file):
-        self.learning_memory_file = Path(learning_memory_file)
-
+    def __init__(self, learning_memory_file=None):
+        self.learning_memory_file = Path(learning_memory_file) if learning_memory_file else None
         self.learning_df = pd.DataFrame()
-
         self.pattern_index = {}
-
         self.symbol_index = {}
 
-    # ----------------------------------------------------------
-
     def load(self):
-        """Load intelligence data and refresh the pattern and symbol indexes."""
+        """Load intelligence data from Pattern Repository and build indexes."""
+        repo = IntradayPatternRepository()
+        df = repo.repo_df.copy()
 
-        if not self.learning_memory_file.exists():
+        if df.empty:
             self._clear_cache()
             return self.learning_df
 
-        try:
-            self.learning_df = pd.read_csv(self.learning_memory_file)
-        except pd.errors.EmptyDataError:
-            self._clear_cache()
-            return self.learning_df
+        # Map repository columns to expected compatibility columns
+        if "Business_Pattern_ID" in df.columns:
+            df["Pattern_ID"] = df["Business_Pattern_ID"]
+        if "Pattern_Name" in df.columns:
+            df["Pattern"] = df["Pattern_Name"]
+        if "Pattern_Fingerprint" in df.columns:
+            df["Pattern_DNA"] = df["Pattern_Fingerprint"]
 
+        self.learning_df = df
         self._ensure_compatibility_columns()
-
         self._build_indexes()
-
         return self.learning_df
-
-    # ----------------------------------------------------------
 
     def _clear_cache(self):
         self.learning_df = pd.DataFrame()
-
         self.pattern_index = {}
-
         self.symbol_index = {}
-
-    # ----------------------------------------------------------
 
     def _ensure_compatibility_columns(self):
         if "Pattern" not in self.learning_df.columns:
@@ -87,25 +74,18 @@ class IntradayIntelligenceLoader:
             if column not in self.learning_df.columns:
                 self.learning_df[column] = ""
 
-    # ----------------------------------------------------------
-
     @staticmethod
     def _clean_value(value):
         if pd.isna(value):
             return ""
-
         return str(value).strip()
-
-    # ----------------------------------------------------------
 
     def _build_indexes(self):
         self.pattern_index = {}
-
         self.symbol_index = {}
 
         for idx, row in self.learning_df.iterrows():
             pattern_id = self._clean_value(row["Pattern_ID"])
-
             symbol = self._clean_value(row["Symbol"])
 
             if pattern_id:
@@ -114,17 +94,11 @@ class IntradayIntelligenceLoader:
             if symbol:
                 self.symbol_index.setdefault(symbol, []).append(idx)
 
-    # ----------------------------------------------------------
-
     def get_dataframe(self):
         return self.learning_df
 
-    # ----------------------------------------------------------
-
     def get_pattern_index(self):
         return self.pattern_index
-
-    # ----------------------------------------------------------
 
     def get_symbol_index(self):
         return self.symbol_index

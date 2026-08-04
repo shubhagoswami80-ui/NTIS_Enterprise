@@ -1,12 +1,13 @@
 """
 ===========================================================
 NTIS Intraday Pattern Lifecycle Engine
-Version : 1.0
+Version : 1.1
 
 Purpose:
     Manage pattern lifecycle states (NEW, LEARNING, STABLE,
     HIGH_CONFIDENCE, DECLINING, ARCHIVED), confidence evolution,
-    and outcome integration linked to the Business Pattern ID.
+    outcome integration, merge rules, and reactivation rules
+    linked to the Business Pattern ID.
 ===========================================================
 """
 
@@ -21,7 +22,11 @@ class IntradayPatternLifecycleEngine:
     def __init__(self, repository: IntradayPatternRepository = None):
         self.repository = repository if repository else IntradayPatternRepository()
 
-    def determine_lifecycle_state(self, occurrences: int, success_rate: float) -> str:
+    def determine_lifecycle_state(self, occurrences: int, success_rate: float, current_state: str = "NEW") -> str:
+        # Reactivation rules: if ARCHIVED and new occurrences/positive evidence arrive, transition to LEARNING
+        if current_state == "ARCHIVED" and occurrences > 0:
+            return "LEARNING"
+
         if occurrences < 5:
             return "NEW"
         elif 5 <= occurrences < 15:
@@ -36,7 +41,47 @@ class IntradayPatternLifecycleEngine:
             return "ARCHIVED"
         return "STABLE"
 
+    def apply_merge_rules(self):
+        """
+        Detect duplicate Business Pattern IDs representing the same normalized fingerprint
+        and merge statistics into the canonical repository record.
+        """
+        df = self.repository.repo_df
+        if df.empty or "Pattern_Fingerprint" not in df.columns:
+            return
+
+        # Group by Symbol + Pattern_Fingerprint to detect duplicates
+        grouped = []
+        for (sym, fp), group in df.groupby(["Symbol", "Pattern_Fingerprint"]):
+            if len(group) > 1:
+                # Keep the first/canonical record and merge counts
+                canonical = group.iloc[0].copy()
+                total_occ = sum(int(float(x)) for x in group["Occurrences"].fillna(0))
+                total_succ = sum(int(float(x)) for x in group["Successful_Trades"].fillna(0))
+                total_fail = sum(int(float(x)) for x in group["Failed_Trades"].fillna(0))
+                
+                canonical["Occurrences"] = str(total_occ)
+                canonical["Successful_Trades"] = str(total_succ)
+                canonical["Failed_Trades"] = str(total_fail)
+                
+                rate = round((total_succ / total_occ) * 100, 2) if total_occ > 0 else 0.0
+                canonical["Success_%"] = str(rate)
+                
+                first_seen = group["First_Seen"].min()
+                last_seen = group["Last_Seen"].max()
+                canonical["First_Seen"] = str(first_seen)
+                canonical["Last_Seen"] = str(last_seen)
+                
+                grouped.append(canonical)
+            else:
+                grouped.append(group.iloc[0])
+
+        if grouped:
+            self.repository.repo_df = pd.DataFrame(grouped)
+            self.repository.save_repository()
+
     def evaluate_lifecycle(self):
+        self.apply_merge_rules()
         df = self.repository.repo_df
         if df.empty:
             return self.repository.repo_file
@@ -45,7 +90,8 @@ class IntradayPatternLifecycleEngine:
         for _, row in df.iterrows():
             occ = int(float(row.get("Occurrences", 0)))
             succ = float(row.get("Success_%", 0.0))
-            state = self.determine_lifecycle_state(occ, succ)
+            curr = str(row.get("Lifecycle_State", "NEW"))
+            state = self.determine_lifecycle_state(occ, succ, curr)
             states.append(state)
 
         df["Lifecycle_State"] = states
@@ -70,6 +116,7 @@ class IntradayPatternLifecycleEngine:
 
             if not match_idx.empty:
                 i = match_idx[0]
+                curr_state = str(self.repository.repo_df.loc[i].get("Lifecycle_State", "NEW"))
                 occ = int(float(self.repository.repo_df.loc[i, "Occurrences"])) + 1
                 self.repository.repo_df.loc[i, "Occurrences"] = str(occ)
 
@@ -85,7 +132,7 @@ class IntradayPatternLifecycleEngine:
                 rate = round((succ_trades / occ) * 100, 2) if occ > 0 else 0.0
                 self.repository.repo_df.loc[i, "Success_%"] = str(rate)
                 
-                state = self.determine_lifecycle_state(occ, rate)
+                state = self.determine_lifecycle_state(occ, rate, curr_state)
                 self.repository.repo_df.loc[i, "Lifecycle_State"] = state
 
         self.repository.save_repository()

@@ -27,6 +27,8 @@ from pathlib import Path
 import pandas as pd
 
 from intraday_outcome_engine import calculate_outcomes
+from intraday_pattern_repository import IntradayPatternRepository
+from intraday_pattern_lifecycle_engine import IntradayPatternLifecycleEngine
 
 
 class IntradayHistoricalReplayEngine:
@@ -239,5 +241,14 @@ class IntradayHistoricalReplayEngine:
             output,
             index=False
         )
+
+        # Integrate replay results into Pattern Intelligence Repository
+        try:
+            repo = IntradayPatternRepository()
+            lifecycle = IntradayPatternLifecycleEngine(repo)
+            lifecycle.integrate_outcomes(result)
+            lifecycle.evaluate_lifecycle()
+        except Exception:
+            pass
 
         return output
