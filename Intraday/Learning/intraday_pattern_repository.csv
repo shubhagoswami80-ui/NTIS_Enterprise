@@ -1,0 +1,3 @@
+Business_Pattern_ID,Symbol,Pattern_Fingerprint,Pattern_Name,Direction,NTIS_Score,Price_Chg_%,OI_Chg_%,Volume_Chg_%,Fut_Buildup,Validation_Signal,Occurrences,Successful_Trades,Failed_Trades,Pending_Trades,Success_%,Average_PnL,First_Seen,Last_Seen,Lifecycle_State
+PAT-RELIANCE-000001,RELIANCE,8E97A00E64CC,Fresh Long Buildup,BUY,85.5,2.5,5.1,0,Long Buildup,VALID BUY,0,0,0,0,0.0,0.0,2026-08-04,2026-08-04,NEW
+PAT-TCS-000001,TCS,5C8222978468,Fresh Long Buildup,BUY,90.0,3.1,4.2,0,Long Buildup,VALID BUY,1,1,0,0,100.0,0.0,2026-08-04,2026-08-04,NEW
