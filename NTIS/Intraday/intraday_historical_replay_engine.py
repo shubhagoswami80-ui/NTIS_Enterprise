@@ -246,7 +246,8 @@ class IntradayHistoricalReplayEngine:
         try:
             repo = IntradayPatternRepository()
             lifecycle = IntradayPatternLifecycleEngine(repo)
-            lifecycle.integrate_outcomes(result)
+            replay_date = self.intraday_folder.name
+            lifecycle.integrate_outcomes(result, trade_date=replay_date)
             lifecycle.evaluate_lifecycle()
         except Exception:
             pass

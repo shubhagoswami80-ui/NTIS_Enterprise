@@ -67,6 +67,8 @@ class PatternRepositoryEngine:
         if isinstance(evidence_vector, dict):
             evidence_vector = evidence_vector.copy()
 
+        historical_outcome = fingerprint_payload.get("historical_outcome")
+
         repository_record = PatternRepositoryRecord(
             symbol=str(symbol),
             business_pattern_id=str(business_pattern_id),
@@ -85,6 +87,7 @@ class PatternRepositoryEngine:
             lifecycle_status="NEW",
             normalized_features=normalized_features.copy(),
             evidence_vector=evidence_vector,
+            historical_outcome=historical_outcome,
         )
 
         return repository_record, None

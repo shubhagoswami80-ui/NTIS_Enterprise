@@ -41,7 +41,7 @@ class IntradayIntelligenceLoader:
             return self.learning_df
 
         # Map repository columns to expected compatibility columns
-        if "Business_Pattern_ID" in df.columns:
+        if "Business_Pattern_ID" in df.columns and "Pattern_ID" not in df.columns:
             df["Pattern_ID"] = df["Business_Pattern_ID"]
         if "Pattern_Name" in df.columns:
             df["Pattern"] = df["Pattern_Name"]

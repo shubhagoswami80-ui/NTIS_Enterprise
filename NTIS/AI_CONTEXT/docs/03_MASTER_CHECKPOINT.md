@@ -1,5 +1,11 @@
-Completed: Import, Scoring, Pattern, Probability, Validation, History,
-Outcome. Pending: production_runtime integration, replay activation,
-dashboard integration.
+Completed:
+- EOD Similarity Bridge
+- Historical Intelligence Runtime Integration
+- Dashboard Runtime Integration
+- PDNA Repository Memory Alignment
 
-Execution mode: audit_only documentation update. Preserve existing project information and append execution-mode guidance without removing current content or cross references.
+Current:
+Bundle 30B – PDNA Replay Matching
+
+Next:
+Bundle 30C – PDNA Candidate Ranking

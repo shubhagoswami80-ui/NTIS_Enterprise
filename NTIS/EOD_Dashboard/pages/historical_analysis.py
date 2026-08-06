@@ -112,6 +112,9 @@ def _render_runtime_historical_panel():
     st.markdown("**Historical Service Summary**")
     st.write(payload.get("historical_service_summary"))
 
+    st.markdown("**Candidate Ranking**")
+    st.write(payload.get("candidate_ranking"))
+
 
 
 

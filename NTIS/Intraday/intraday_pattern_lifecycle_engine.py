@@ -99,7 +99,7 @@ class IntradayPatternLifecycleEngine:
         self.repository.save_repository()
         return self.repository.repo_file
 
-    def integrate_outcomes(self, memory_df: pd.DataFrame):
+    def integrate_outcomes(self, memory_df: pd.DataFrame, trade_date: str = None):
         if memory_df.empty:
             return self.repository.repo_file
 
@@ -108,7 +108,7 @@ class IntradayPatternLifecycleEngine:
             if not sym:
                 continue
             fp = self.repository.generate_fingerprint(row.to_dict())
-            pid = self.repository.get_or_create_pattern_id(sym, fp, row.to_dict())
+            pid = self.repository.get_or_create_pattern_id(sym, fp, row.to_dict(), trade_date=trade_date)
 
             match_idx = self.repository.repo_df[
                 self.repository.repo_df["Business_Pattern_ID"] == pid
@@ -119,6 +119,13 @@ class IntradayPatternLifecycleEngine:
                 curr_state = str(self.repository.repo_df.loc[i].get("Lifecycle_State", "NEW"))
                 occ = int(float(self.repository.repo_df.loc[i, "Occurrences"])) + 1
                 self.repository.repo_df.loc[i, "Occurrences"] = str(occ)
+                if trade_date:
+                    existing_first = str(self.repository.repo_df.loc[i].get("First_Seen", trade_date))
+                    existing_last = str(self.repository.repo_df.loc[i].get("Last_Seen", trade_date))
+                    self.repository.repo_df.loc[i, "First_Seen"] = min(existing_first, trade_date) if existing_first else trade_date
+                    self.repository.repo_df.loc[i, "Last_Seen"] = max(existing_last, trade_date) if existing_last else trade_date
+                else:
+                    self.repository.repo_df.loc[i, "Last_Seen"] = pd.Timestamp.now().strftime("%Y-%m-%d")
 
                 outcome = str(row.get("Outcome", "")).strip().upper()
                 if outcome == "TARGET HIT" or outcome == "SUCCESS":

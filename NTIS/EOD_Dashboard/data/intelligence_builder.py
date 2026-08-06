@@ -168,6 +168,7 @@ def build_historical_from_runtime() -> dict:
             "replay_status": payload.get("replay_status"),
             "calibration_status": payload.get("calibration_status"),
             "learning_status": payload.get("learning_status"),
+            "candidate_ranking": payload.get("candidate_ranking"),
         }
 
     except Exception:

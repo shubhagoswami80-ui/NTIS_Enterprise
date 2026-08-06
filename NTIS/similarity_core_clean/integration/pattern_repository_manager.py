@@ -181,6 +181,11 @@ class PatternRepositoryManager:
         else:
             updated_record["evidence_vector"] = existing_dict.get("evidence_vector")
 
+        if incoming_dict.get("historical_outcome") is not None:
+            updated_record["historical_outcome"] = incoming_dict.get("historical_outcome")
+        else:
+            updated_record["historical_outcome"] = existing_dict.get("historical_outcome")
+
         repository_validation = PatternRepositoryContract.validate(updated_record)
         if not repository_validation.get("valid"):
             self.status = "REJECTED"

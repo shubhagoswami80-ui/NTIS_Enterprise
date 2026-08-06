@@ -19,6 +19,7 @@ class PatternRepositoryRecord:
         lifecycle_status=None,
         normalized_features=None,
         evidence_vector=None,
+        historical_outcome=None,
     ):
         self.symbol = symbol
         self.business_pattern_id = business_pattern_id
@@ -37,6 +38,7 @@ class PatternRepositoryRecord:
         self.lifecycle_status = lifecycle_status
         self.normalized_features = normalized_features
         self.evidence_vector = evidence_vector
+        self.historical_outcome = historical_outcome
 
     def to_dict(self):
         return {
@@ -57,6 +59,7 @@ class PatternRepositoryRecord:
             "lifecycle_status": self.lifecycle_status,
             "normalized_features": self.normalized_features,
             "evidence_vector": self.evidence_vector,
+            "historical_outcome": self.historical_outcome,
         }
 
     @classmethod
@@ -82,6 +85,7 @@ class PatternRepositoryRecord:
             lifecycle_status=payload.get("lifecycle_status"),
             normalized_features=payload.get("normalized_features"),
             evidence_vector=payload.get("evidence_vector"),
+            historical_outcome=payload.get("historical_outcome"),
         )
 
 
@@ -149,5 +153,8 @@ class PatternRepositoryContract:
 
         if record_dict.get("evidence_vector") is not None and not isinstance(record_dict.get("evidence_vector"), dict):
             return {"valid": False, "reason": "evidence_vector must be a dictionary"}
+
+        if record_dict.get("historical_outcome") is not None and not isinstance(record_dict.get("historical_outcome"), str):
+            return {"valid": False, "reason": "historical_outcome must be a string"}
 
         return {"valid": True, "reason": "valid"}

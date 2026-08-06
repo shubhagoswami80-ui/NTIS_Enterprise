@@ -1,126 +1,122 @@
-# NTIS Enterprise (EOD)
+# 19_DAILY_CHECKPOINT.md
 
-## Daily Checkpoint
-Date: 04-Aug-2026
+# NTIS EOD — DAILY CHECKPOINT
 
----
+**Date:** 05-Aug-2026
 
-# SESSION STATUS
-
-Implementation session completed successfully.
-
-Architecture remains frozen.
-
-No redesign required.
+**Status:** Production Development Active
 
 ---
 
-# APPROVED IMPLEMENTATION BUNDLES
+# 1. Architecture Status
 
-Bundle 01
+**Architecture is FROZEN.**
+
+NTIS is a quantitative behaviour intelligence system.
+
+It is **not** a simple technical pattern-label system.
+
+Frozen intelligence flow:
+
+Pattern Engine
+        │
+        ▼
+Quantitative Pattern Evidence
+
+(PRICE | OI | VOL | IV | PCR | FUT Structure | Expansion Behaviour)
+
+        │
+        ▼
+Pattern_DNA
+
+        │
+        ▼
+PDNA Identity
+
+        │
+        ▼
+Historical Outcome
+
+        │
+        ▼
+Stock-wise Behaviour Memory
+
+        │
+        ▼
 Replay Intelligence
 
-Status:
-APPROVED
-
-Files:
-- hmme_replay_engine.py
+        │
+        ▼
+Future Candidate Ranking
 
 ---
 
-Bundle 02
-Outcome Calibration
+## Important Principle
 
-Status:
-APPROVED
+Pattern Name ≠ Intelligence
 
-Files:
-- hmme_outcome_calibration.py
+Example:
 
----
+Fresh Long Buildup
 
-Bundle 03
-Learning Intelligence
+is only a classification.
 
-Status:
-APPROVED
+The intelligence is:
 
-Files:
-- hmme_learning_bridge.py
+Under what quantitative conditions did this stock historically succeed?
 
 ---
 
-Bundle 04A
-Pattern Fingerprint Engine
+# 2. Completed Development
 
-Status:
-APPROVED
+## ✅ Bundle — EOD Similarity Bridge
 
-Files:
-- pattern_fingerprint_engine.py
+Created:
 
----
+similarity_core_clean/integration/eod_similarity_bridge.py
 
-Bundle 04B
-Business Pattern ID
+Purpose:
 
-Status:
-APPROVED
+ntis_pattern_analysis.csv
 
-Integrated into:
-- pattern_fingerprint_engine.py
-
----
-
-Bundle 05
-Pattern Fingerprint Contract
-
-Status:
-APPROVED
-
-Files:
-- pattern_fingerprint_contract.py
-
----
-
-Bundle 06
-Pattern Repository Contract
-
-Status:
-APPROVED
-
-Files:
-- pattern_repository_contract.py
-
----
-
-# IMPORTANT DECISION
-
-Bundle 04C
-
-Learning → Pattern Fingerprint integration
-
-Status:
-INTENTIONALLY REJECTED / UNDONE
-
-Reason:
-
-Learning must NOT synthesize market state.
-
-Pattern Fingerprint must consume real upstream business classification from PatternEngine.
-
-Ownership boundaries must remain intact.
-
-This bundle must be revisited only after the Pattern Repository Engine is implemented.
-
----
-
-# FINAL ARCHITECTURE
-
-PatternEngine
 ↓
 
-Business Classification
+PatternFingerprintEngine
+
+↓
+
+Fingerprint Payload
+
+↓
+
+Repository
+
+Validated:
+
+- EOD fingerprints generated
+- 219 records processed
+- No Intraday dependency
+
+---
+
+## ✅ Historical Intelligence Runtime Integration
+
+Modified:
+
+- production_runtime.py
+- result_collector.py
+
+Validated Runtime:
+
+Repository
+
+↓
+
+Historical Intelligence
+
+↓
+
+Historical Evidence
 
 ↓
 
@@ -128,116 +124,219 @@ Replay
 
 ↓
 
-Outcome Calibration
+Calibration
 
 ↓
 
 Learning
 
-↓
+Working:
 
-Pattern Fingerprint
-
-↓
-
-Business Pattern ID
-
-↓
-
-Pattern Repository (next)
-
-↓
-
-Dashboard
+- Repository summary
+- Historical intelligence
+- Historical evidence
+- Replay completed
+- Calibration completed
+- Learning updated
 
 ---
 
-# ENGINEERING DECISIONS
+## ✅ Dashboard Runtime Integration
 
-Replay owns replay metrics.
+Modified:
 
-Calibration owns calibration metrics.
+EOD_Dashboard/data/intelligence_builder.py
 
-Learning owns learning metrics.
+EOD_Dashboard/pages/historical_analysis.py
 
-PatternEngine owns business classification.
+Validated Dashboard:
 
-Pattern Fingerprint consumes business classification.
+Displays:
 
-Pattern Fingerprint owns Pattern DNA.
+- Repository Summary
+- Historical Intelligence
+- Historical Evidence
+- Replay Status
+- Calibration Status
+- Learning Status
 
-Pattern Fingerprint owns Business Pattern ID.
+Launcher:
 
-Repository owns persistence and historical statistics.
-
-Dashboard consumes repository output.
-
-Contract-first development remains mandatory.
+.\EOD_Dashboard\launcher\start_eod_dashboard.ps1
 
 ---
 
-# FILES CREATED TODAY
+## ✅ PDNA Repository Memory Alignment
 
-pattern_fingerprint_engine.py
+Modified:
 
-pattern_fingerprint_contract.py
+- pattern_repository_contract.py
+- pattern_repository_engine.py
+- pattern_repository_manager.py
+
+Repository now preserves:
+
+- symbol
+- business_pattern_id
+- pattern_dna
+- normalized_features
+- evidence_vector
+
+Repository now retains quantitative behaviour identity.
+
+---
+
+# 3. Current Development Position
+
+## Bundle 30A
+
+Status:
+
+✅ COMPLETE
+
+Name:
+
+PDNA Repository Memory Alignment
+
+---
+
+## Bundle 30B
+
+Status:
+
+⏸ IN PROGRESS
+
+Name:
+
+PDNA Replay Matching
+
+Objective:
+
+Current Stock PDNA
+
+↓
+
+Historical PDNA Memory
+
+↓
+
+Outcome Evidence
+
+↓
+
+Replay Strength
+
+No implementation completed yet.
+
+---
+
+## Bundle 30C
+
+Pending
+
+Name:
+
+PDNA Candidate Ranking
+
+Goal:
+
+Current Strength
+
++
+
+PDNA Similarity
+
++
+
+Historical Success Ratio
+
++
+
+Replay Confidence
+
+=
+
+Candidate Ranking
+
+---
+
+# 4. Files Changed
+
+## Created
+
+similarity_core_clean/integration/eod_similarity_bridge.py
+
+---
+
+## Modified
+
+production_runtime.py
+
+result_collector.py
 
 pattern_repository_contract.py
 
----
+pattern_repository_engine.py
 
-# FILES MODIFIED TODAY
+pattern_repository_manager.py
 
-hmme_replay_engine.py
+EOD_Dashboard/data/intelligence_builder.py
 
-hmme_outcome_calibration.py
-
-hmme_learning_bridge.py
+EOD_Dashboard/pages/historical_analysis.py
 
 ---
 
-# DOCUMENTATION
+# 5. Frozen Rules
 
-Continuity Pack v1 created.
+NTIS EOD only.
 
-Continuity Pack v2 created.
+Do NOT access or analyse:
 
-AI_CONTEXT documentation update deferred until next session.
+NTIS/Intraday
 
----
+Do NOT redesign:
 
-# NEXT IMPLEMENTATION
+- Pattern Engine
+- Fingerprint Architecture
+- Repository Architecture
+- Dashboard Architecture
+- Database Layer
 
-Pattern Repository Engine
+Do NOT create:
 
-This is the immediate next bundle.
-
-No architecture review.
-
-No rediscovery.
-
-Continue from current frozen implementation.
-
----
-
-# DO NOT DO
-
-Do not redesign architecture.
-
-Do not recreate contracts.
-
-Do not duplicate repository layers.
-
-Do not reimplement Pattern Fingerprint.
-
-Do not reconnect Bundle 04C until Repository Engine exists.
+- New PDNA Engine
+- New Replay Engine
+- Duplicate Repository
+- Full Historical Warehouse
 
 ---
 
-# FIRST ACTION TOMORROW
+# 6. Resume Point
 
-1. Read AI_CONTEXT documentation.
-2. Review today's checkpoint.
-3. Confirm architecture.
-4. Implement Pattern Repository Engine.
-5. Continue one bundle at a time.
+Continue from:
+
+**Bundle 30B — PDNA Replay Matching**
+
+Objective:
+
+Current PDNA
+
+↓
+
+Historical PDNA Memory
+
+↓
+
+Outcome Evidence
+
+↓
+
+Replay Strength
+
+Rules:
+
+- Reuse existing replay architecture.
+- No duplicate engines.
+- Minimum controlled code changes.
+- Preserve all frozen architecture.
+- Do not rediscover completed implementation.
