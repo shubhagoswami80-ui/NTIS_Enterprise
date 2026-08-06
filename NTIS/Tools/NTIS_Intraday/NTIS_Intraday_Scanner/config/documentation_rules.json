@@ -1,0 +1,92 @@
+{
+    "project": {
+        "name": "NTIS_Intraday",
+        "version": "2.2",
+        "metadata_file": "Intraday_engineering_metadata.json"
+    },
+
+    "exclude": {
+        "folders": [
+            "__pycache__",
+            ".git",
+            ".venv",
+            "Documentation",
+            "output"
+        ],
+        "files": [
+            "__init__.py"
+        ]
+    },
+
+    "business_areas": {
+        "Repository": [
+            "repository"
+        ],
+        "Replay": [
+            "replay"
+        ],
+        "Learning": [
+            "learning"
+        ],
+        "Probability": [
+            "probability",
+            "calibration"
+        ],
+        "Lifecycle": [
+            "lifecycle"
+        ],
+        "Dashboard": [
+            "dashboard"
+        ],
+        "OCR": [
+            "ocr"
+        ],
+        "Scanner": [
+            "scanner"
+        ]
+    },
+
+    "runtime_categories": {
+        "Input": [
+            "input"
+        ],
+        "Output": [
+            "output"
+        ],
+        "Repository": [
+            "repository"
+        ],
+        "Replay": [
+            "replay"
+        ],
+        "Learning": [
+            "learning"
+        ],
+        "Dashboard": [
+            "dashboard"
+        ],
+        "Intelligence": [
+            "intelligence"
+        ]
+    },
+
+    "documentation": {
+        "generate": [
+            "04_MODULE_DEPENDENCY_MAP.md",
+            "16_MODULE_IMPLEMENTATION_REGISTRY.md",
+            "17_RUNTIME_OUTPUT_REGISTRY.md",
+            "18_INTELLIGENCE_DEPENDENCY_GRAPH.md",
+            "21_MODULE_CALL_GRAPH.md"
+        ]
+    },
+
+    "ai_context": {
+        "generate": [
+            "project_summary.json",
+            "module_registry.json",
+            "dependency_graph.json",
+            "runtime_registry.json",
+            "intelligence_index.json"
+        ]
+    }
+}

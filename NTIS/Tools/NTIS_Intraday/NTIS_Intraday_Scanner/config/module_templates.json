@@ -1,0 +1,62 @@
+{
+    "default": {
+        "purpose": "",
+        "runtime_stage": "",
+        "repository_access": "None",
+        "business_area": "General",
+        "owner": "NTIS_Intraday",
+        "criticality": "Normal"
+    },
+
+    "patterns": [
+        {
+            "match": "repository",
+            "business_area": "Pattern Repository",
+            "runtime_stage": "Persistence",
+            "repository_access": "Read/Write",
+            "criticality": "Critical"
+        },
+        {
+            "match": "replay",
+            "business_area": "Historical Replay",
+            "runtime_stage": "Replay",
+            "repository_access": "Read",
+            "criticality": "High"
+        },
+        {
+            "match": "learning",
+            "business_area": "Learning Engine",
+            "runtime_stage": "Learning",
+            "repository_access": "Read/Write",
+            "criticality": "High"
+        },
+        {
+            "match": "probability",
+            "business_area": "Probability Engine",
+            "runtime_stage": "Probability",
+            "repository_access": "Read",
+            "criticality": "High"
+        },
+        {
+            "match": "dashboard",
+            "business_area": "Dashboard",
+            "runtime_stage": "Presentation",
+            "repository_access": "Read",
+            "criticality": "Medium"
+        },
+        {
+            "match": "scanner",
+            "business_area": "Engineering Tool",
+            "runtime_stage": "Engineering",
+            "repository_access": "None",
+            "criticality": "Low"
+        },
+        {
+            "match": "ocr",
+            "business_area": "OCR",
+            "runtime_stage": "Capture",
+            "repository_access": "None",
+            "criticality": "Medium"
+        }
+    ]
+}

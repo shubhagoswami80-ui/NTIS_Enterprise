@@ -1,0 +1,41 @@
+{
+    "project_name": "NTIS_Intraday",
+
+    "code_root": "E:/NSE_Daily_Analysis/NTIS/Intraday",
+
+    "runtime_root": "E:/NSE_Daily_Analysis/Intraday",
+
+    "engineering_metadata": "E:/NSE_Daily_Analysis/NTIS/Tools/NTIS_Intraday/NTIS_Intraday_Scanner/output/Intraday_engineering_metadata.json",
+
+    "output_root": "output",
+
+    "exclude_folders": [
+        "__pycache__",
+        ".git",
+        ".venv",
+        "Documentation",
+        "Tools",
+        "output"
+    ],
+
+    "signal_keywords": [
+        "BUY",
+        "SELL",
+        "HOLD",
+        "ENTRY",
+        "EXIT",
+        "TARGET",
+        "STOPLOSS"
+    ],
+
+    "repository_keywords": [
+        "Business Pattern ID",
+        "Pattern Fingerprint",
+        "Repository",
+        "Historical Evidence",
+        "Replay",
+        "Learning",
+        "Lifecycle",
+        "Probability"
+    ]
+}

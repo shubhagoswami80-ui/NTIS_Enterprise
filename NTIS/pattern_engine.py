@@ -30,6 +30,8 @@ Patterns:
 import pandas as pd
 from pathlib import Path
 
+from config import DAILY_REPORTS, REPORT_FOLDERS
+from utils import extract_report_date, format_date, get_latest_file
 
 
 # =====================================================
@@ -45,6 +47,54 @@ OUTPUT_FILE = Path(
     "E:/NSE_Daily_Analysis/Output/ntis_pattern_analysis.csv"
 )
 
+
+def resolve_trading_date():
+
+    dates = []
+
+    for folder_name in REPORT_FOLDERS.values():
+
+        source_folder = DAILY_REPORTS / folder_name
+
+        if not source_folder.exists():
+
+            continue
+
+
+        latest_file = get_latest_file(source_folder)
+
+        if latest_file is None:
+
+            continue
+
+
+        report_date = extract_report_date(latest_file.name)
+
+        if report_date is not None:
+
+            dates.append(report_date)
+
+
+    if not dates:
+
+        return None
+
+
+    unique_dates = sorted({date.date() for date in dates})
+
+    if len(unique_dates) == 1:
+
+        return unique_dates[0]
+
+
+    latest_date = max(unique_dates)
+
+    print(
+        "Warning: multiple report dates found in EOD folders. Using latest date :",
+        format_date(latest_date)
+    )
+
+    return latest_date
 
 
 # =====================================================
@@ -101,6 +151,12 @@ class PatternEngine:
         self.df = clean_numeric(
             df.copy()
         )
+
+        self.pattern_date = resolve_trading_date()
+
+        if self.pattern_date is not None:
+
+            self.df["Date"] = format_date(self.pattern_date)
 
 
 

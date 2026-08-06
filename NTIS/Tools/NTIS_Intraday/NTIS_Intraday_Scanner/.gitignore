@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+
+output/Documentation/
+output/AI_Context/
+output/*.json
+
+.vscode/
+.idea/
+
+*.log

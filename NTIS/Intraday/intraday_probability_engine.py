@@ -53,6 +53,36 @@ CALIBRATION_FILE = (
 class IntradayProbabilityEngine:
 
 
+    def __init__(self):
+
+        self.historical_intelligence = (
+            self.load_historical_intelligence()
+        )
+
+
+    def load_historical_intelligence(self):
+
+        try:
+
+            from intraday_intelligence_loader import (
+                IntradayIntelligenceLoader
+            )
+            from intraday_intelligence_query import (
+                IntradayIntelligenceQuery
+            )
+
+            loader = IntradayIntelligenceLoader()
+            loader.load()
+
+            return IntradayIntelligenceQuery(
+                loader
+            )
+
+        except Exception:
+
+            return None
+
+
     def pattern_probability(self, pattern):
 
         mapping = {
@@ -200,6 +230,68 @@ class IntradayProbabilityEngine:
 
 
 
+    def historical_probability_adjustment(
+        self,
+        row,
+        intelligence_query
+    ):
+
+        if intelligence_query is None:
+
+            return 0
+
+
+        pattern_id = row.get(
+            "Pattern_ID"
+        )
+
+        if not pattern_id:
+
+            return 0
+
+
+        try:
+
+            summary = (
+                intelligence_query
+                .historical_summary(
+                    pattern_id
+                )
+            )
+
+            occ = summary.get(
+                "Occurrences",
+                0
+            )
+
+            win_rate = summary.get(
+                "WinRate",
+                0
+            )
+
+
+            if occ < 10:
+
+                return 0
+
+
+            if win_rate >= 65:
+
+                return 5
+
+            elif win_rate <= 35:
+
+                return -5
+
+        except Exception:
+
+            pass
+
+
+        return 0
+
+
+
     def calculate_probability(
         self,
         row,
@@ -247,6 +339,12 @@ class IntradayProbabilityEngine:
         adjustment += self.learning_adjustment(
             pattern,
             learning
+        )
+
+
+        adjustment += self.historical_probability_adjustment(
+            row,
+            self.historical_intelligence
         )
 
 

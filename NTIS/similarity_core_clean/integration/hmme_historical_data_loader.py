@@ -34,7 +34,58 @@ class HMMEHistoricalDataLoader:
 
         return pd.read_csv(file_path)
 
-    def load_evidence(self, filename=None):
+    def _validate_service_output(self, service_output):
+
+        if service_output is None:
+            return False
+
+        if not isinstance(service_output, dict):
+            return False
+
+        if service_output.get("status") != "SERVICE_READY":
+            return False
+
+        if service_output.get("service_status") != "EVIDENCE_AVAILABLE":
+            return False
+
+        if not isinstance(service_output.get("historical_evidence"), dict):
+            return False
+
+        service_summary = service_output.get("service_summary")
+        if not isinstance(service_summary, dict):
+            return False
+
+        if not service_summary.get("symbol") or not service_summary.get("date"):
+            return False
+
+        return True
+
+    def _records_from_service_output(self, service_output):
+
+        evidence = service_output["historical_evidence"]
+        summary = service_output["service_summary"]
+
+        market_pattern = summary.get("market_pattern")
+
+        return [
+            HistoricalEvidenceRecord(
+                symbol=summary.get("symbol"),
+                date=str(summary.get("date")),
+                market_pattern=market_pattern,
+                ntis_score=None,
+                probability=None,
+                entry=None,
+                outcome=None,
+                return_pct=evidence.get("historical_average_return"),
+                accuracy=None,
+                confidence=evidence.get("historical_confidence"),
+            )
+        ]
+
+    def load_evidence(self, filename=None, service_output=None):
+
+        if self._validate_service_output(service_output):
+            return self._records_from_service_output(service_output)
 
         data = self.load(filename)
 

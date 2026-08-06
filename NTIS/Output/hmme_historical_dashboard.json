@@ -1,0 +1,13 @@
+{
+  "historical_service_summary": {
+    "valid": false,
+    "reason": "status must be EVIDENCE_READY",
+    "symbol": "ABC",
+    "date": "2026-08-05",
+    "market_pattern": "trend_up"
+  },
+  "historical_aggregated_evidence": null,
+  "replay_status": "REPLAY_COMPLETED",
+  "calibration_status": "CALIBRATED",
+  "learning_status": "REJECTED_CALIBRATION"
+}
