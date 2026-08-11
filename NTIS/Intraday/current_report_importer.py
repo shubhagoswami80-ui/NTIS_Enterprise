@@ -24,6 +24,12 @@ def filter_files():
 
     files = discover_files()
 
+    if not files:
+        print("Pipeline Status: NO_INTRADAY_DATA")
+        print("Reason:")
+        print("No reports found for processing date.")
+        return []
+
     process_files = []
 
     print("=" * 70)

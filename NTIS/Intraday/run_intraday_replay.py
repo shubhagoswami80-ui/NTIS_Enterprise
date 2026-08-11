@@ -140,6 +140,7 @@ def main():
     print("Replay Date :", replay_date)
     print("Intraday    :", intraday_folder)
     print("EOD File    :", eod_file)
+    print("Replay Intelligence: ENRICHED (v2.3)")
 
 
     engine = IntradayHistoricalReplayEngine(

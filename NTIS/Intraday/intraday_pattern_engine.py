@@ -23,6 +23,17 @@ import hashlib
 import pandas as pd
 
 from intraday_path_config import get_today_output
+from intraday_config import (
+    PRICE_BEHAVIOUR_BANDS,
+    OI_BEHAVIOUR_BANDS,
+    VOLUME_BEHAVIOUR_BANDS,
+    PCR_BEHAVIOUR_BANDS,
+    IV_BEHAVIOUR_BANDS,
+    SCORE_BEHAVIOUR_BANDS,
+    NORMALIZATION_VERSION,
+    PDNA_VERSION,
+    PDNA_FIELD_ORDER,
+)
 
 
 OUTPUT_FOLDER = get_today_output()
@@ -43,6 +54,103 @@ OUTPUT_FILE = (
 
 
 class IntradayPatternEngine:
+
+
+    # =========================================================
+    # BEHAVIOUR LEARNING ENGINE v2: CENTRALIZED BEHAVIOUR NORMALIZATION
+    # =========================================================
+
+    @staticmethod
+    def normalize_price(price_chg):
+        try:
+            val = float(price_chg)
+        except Exception:
+            return "PRICE_NEUTRAL"
+        if val >= PRICE_BEHAVIOUR_BANDS["STRONG_UP"]:
+            return "PRICE_STRONG_UP"
+        elif val > PRICE_BEHAVIOUR_BANDS["UP"]:
+            return "PRICE_UP"
+        elif val <= PRICE_BEHAVIOUR_BANDS["STRONG_DOWN"]:
+            return "PRICE_STRONG_DOWN"
+        elif val < PRICE_BEHAVIOUR_BANDS["DOWN"]:
+            return "PRICE_DOWN"
+        return "PRICE_NEUTRAL"
+
+    @staticmethod
+    def normalize_oi(oi_chg):
+        try:
+            val = float(oi_chg)
+        except Exception:
+            return "OI_NEUTRAL"
+        if val >= OI_BEHAVIOUR_BANDS["STRONG_ACCUMULATION"]:
+            return "OI_ACCUMULATION"
+        elif val <= OI_BEHAVIOUR_BANDS["STRONG_LIQUIDATION"]:
+            return "OI_LIQUIDATION"
+        return "OI_NEUTRAL"
+
+    @staticmethod
+    def normalize_volume(vol_chg):
+        try:
+            val = float(vol_chg)
+        except Exception:
+            return "VOLUME_NORMAL"
+        if val >= VOLUME_BEHAVIOUR_BANDS["SURGE"]:
+            return "VOLUME_SURGE"
+        elif val >= VOLUME_BEHAVIOUR_BANDS["EXPANSION"]:
+            return "VOLUME_EXPANSION"
+        elif val <= VOLUME_BEHAVIOUR_BANDS["CONTRACTION"]:
+            return "VOLUME_CONTRACTION"
+        return "VOLUME_NORMAL"
+
+    @staticmethod
+    def normalize_pcr(pcr):
+        try:
+            val = float(pcr)
+        except Exception:
+            return "PCR_NEUTRAL"
+        if val >= PCR_BEHAVIOUR_BANDS["BULLISH_SUPPORT"]:
+            return "PCR_BULLISH_SUPPORT"
+        elif val <= PCR_BEHAVIOUR_BANDS["BEARISH_RESISTANCE"]:
+            return "PCR_BEARISH_RESISTANCE"
+        return "PCR_NEUTRAL"
+
+    @staticmethod
+    def normalize_iv(iv_val):
+        try:
+            val = float(iv_val)
+        except Exception:
+            return "IV_NORMAL"
+        if val >= IV_BEHAVIOUR_BANDS["HIGH_REGIME"]:
+            return "IV_HIGH_REGIME"
+        elif val <= IV_BEHAVIOUR_BANDS["LOW_REGIME"]:
+            return "IV_LOW_REGIME"
+        return "IV_NORMAL"
+
+    @staticmethod
+    def normalize_score(score):
+        try:
+            val = float(score)
+        except Exception:
+            return "SCORE_NEUTRAL"
+        if val >= SCORE_BEHAVIOUR_BANDS["STRONG_BULLISH"]:
+            return "SCORE_STRONG_BULLISH"
+        elif val >= SCORE_BEHAVIOUR_BANDS["MODERATE_BULLISH"]:
+            return "SCORE_MODERATE_BULLISH"
+        elif val <= SCORE_BEHAVIOUR_BANDS["STRONG_BEARISH"]:
+            return "SCORE_STRONG_BEARISH"
+        elif val <= SCORE_BEHAVIOUR_BANDS["MODERATE_BEARISH"]:
+            return "SCORE_MODERATE_BEARISH"
+        return "SCORE_NEUTRAL"
+
+    def normalize_row(self, row):
+        return {
+            "Price_Behavior": self.normalize_price(row.get("Price Chg %", row.get("Price_Chg_%"))),
+            "OI_Behavior": self.normalize_oi(row.get("OI Chg %", row.get("OI_Chg_%"))),
+            "Volume_Behavior": self.normalize_volume(row.get("Volume Chg %", row.get("Volume_Chg_%"))),
+            "PCR_Behavior": self.normalize_pcr(row.get("PCR", row.get("Put_Call_Ratio"))),
+            "IV_Behavior": self.normalize_iv(row.get("IVR", row.get("IV_Rank", row.get("IV")))),
+            "Score_Behavior": self.normalize_score(row.get("NTIS Score", row.get("NTIS_Score")))
+        }
 
 
     def identify_pattern(self, row):
@@ -86,21 +194,42 @@ class IntradayPatternEngine:
 
 
 
+    @staticmethod
+    def normalize_pattern(pattern):
+        if pd.isna(pattern):
+            return "UNKNOWN"
+        val = str(pattern).strip().upper()
+        return val if val else "UNKNOWN"
+
+    @staticmethod
+    def normalize_direction(direction):
+        if pd.isna(direction):
+            return "UNKNOWN"
+        val = str(direction).strip().upper()
+        return val if val else "UNKNOWN"
+
     def build_pattern_dna(self, row):
         """
-        Bundle 01 foundation:
-        Generates a deterministic Pattern DNA string for downstream
-        Pattern Library and Historical Evidence modules.
+        Bundle 31B.1: Canonical PDNA Hardening Generator
+        Generates deterministic canonical PDNA string using normalize_row, normalize_pattern,
+        normalize_direction, and PDNA_FIELD_ORDER configured centrally.
         """
-        fields=[
-            ("PAT", row.get("Pattern","")),
-            ("SCR", row.get("NTIS Score","")),
-            ("P", row.get("Price Chg %","")),
-            ("OI", row.get("OI Chg %","")),
-            ("VOL", row.get("Volume Chg %","")),
-            ("FUT", row.get("Fut Buildup","")),
-        ]
-        return "|".join(f"{k}:{v}" for k,v in fields)
+        behaviors = self.normalize_row(row) if hasattr(self, "normalize_row") else {}
+        
+        field_map = {
+            "NORMALIZATION": str(NORMALIZATION_VERSION),
+            "PDNA": str(PDNA_VERSION),
+            "PRICE": str(behaviors.get("Price_Behavior", "")).strip() or "UNKNOWN",
+            "OI": str(behaviors.get("OI_Behavior", "")).strip() or "UNKNOWN",
+            "VOLUME": str(behaviors.get("Volume_Behavior", "")).strip() or "UNKNOWN",
+            "PCR": str(behaviors.get("PCR_Behavior", "")).strip() or "UNKNOWN",
+            "IV": str(behaviors.get("IV_Behavior", "")).strip() or "UNKNOWN",
+            "SCORE": str(behaviors.get("Score_Behavior", "")).strip() or "UNKNOWN",
+            "PATTERN": self.normalize_pattern(row.get("Pattern")),
+            "DIRECTION": self.normalize_direction(row.get("Direction")),
+        }
+
+        return "|".join(f"{key}:{field_map[key]}" for key in PDNA_FIELD_ORDER)
 
 
     def build_pattern_id(self, row):

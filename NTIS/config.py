@@ -16,6 +16,7 @@ Version : 2.0
 """
 
 from pathlib import Path
+from datetime import datetime
 
 # =========================================================
 # ROOT FOLDERS
@@ -39,9 +40,9 @@ LOG_FOLDER = ROOT / "Logs"
 # CURRENT REPORT LOCATION
 # =========================================================
 
-CURRENT_YEAR = "2026"
+CURRENT_YEAR = datetime.now().strftime("%Y")
 
-CURRENT_MONTH = "July"
+CURRENT_MONTH = datetime.now().strftime("%B")
 
 DAILY_REPORTS = REPORT_ROOT / CURRENT_YEAR / CURRENT_MONTH
 

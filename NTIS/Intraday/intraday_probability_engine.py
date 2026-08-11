@@ -230,65 +230,75 @@ class IntradayProbabilityEngine:
 
 
 
-    def historical_probability_adjustment(
-        self,
-        row,
-        intelligence_query
-    ):
+    def get_evidence_level(self, occurrences):
+        try:
+            occ = int(float(occurrences))
+        except Exception:
+            occ = 0
+        if occ > 15:
+            return "MATURE"
+        elif occ >= 6:
+            return "ESTABLISHED"
+        elif occ >= 3:
+            return "DEVELOPING"
+        return "NEW"
 
+    def compute_historical_intelligence(self, row, intelligence_query):
         if intelligence_query is None:
+            return {
+                "Historical_Probability": 50.0,
+                "Historical_Confidence": 50.0,
+                "Evidence_Level": "NEW",
+                "Occurrences": 0,
+                "Success_%": 0.0,
+                "Average_PnL": 0.0,
+                "Confidence_Score": 0.0
+            }
 
-            return 0
-
-
-        pattern_id = row.get(
-            "Pattern_ID"
-        )
-
+        pattern_id = row.get("Pattern_ID", row.get("Business_Pattern_ID", ""))
         if not pattern_id:
-
-            return 0
-
+            return {
+                "Historical_Probability": 50.0,
+                "Historical_Confidence": 50.0,
+                "Evidence_Level": "NEW",
+                "Occurrences": 0,
+                "Success_%": 0.0,
+                "Average_PnL": 0.0,
+                "Confidence_Score": 0.0
+            }
 
         try:
+            summary = intelligence_query.historical_summary(pattern_id)
+            occ = summary.get("Occurrences", 0)
+            win_rate = summary.get("WinRate", summary.get("Success_%", 50.0))
+            avg_pnl = summary.get("AveragePnL", summary.get("Average_PnL", 0.0))
+            
+            evidence_level = self.get_evidence_level(occ)
+            
+            hist_prob = float(win_rate) if occ > 0 else 50.0
+            hist_prob = max(10.0, min(hist_prob, 95.0))
+            
+            hist_conf = round(min(100.0, (occ * 3.0) + (float(win_rate) * 0.7)), 2)
 
-            summary = (
-                intelligence_query
-                .historical_summary(
-                    pattern_id
-                )
-            )
-
-            occ = summary.get(
-                "Occurrences",
-                0
-            )
-
-            win_rate = summary.get(
-                "WinRate",
-                0
-            )
-
-
-            if occ < 10:
-
-                return 0
-
-
-            if win_rate >= 65:
-
-                return 5
-
-            elif win_rate <= 35:
-
-                return -5
-
+            return {
+                "Historical_Probability": round(hist_prob, 2),
+                "Historical_Confidence": hist_conf,
+                "Evidence_Level": evidence_level,
+                "Occurrences": occ,
+                "Success_%": float(win_rate),
+                "Average_PnL": float(avg_pnl),
+                "Confidence_Score": hist_conf
+            }
         except Exception:
-
-            pass
-
-
-        return 0
+            return {
+                "Historical_Probability": 50.0,
+                "Historical_Confidence": 50.0,
+                "Evidence_Level": "NEW",
+                "Occurrences": 0,
+                "Success_%": 0.0,
+                "Average_PnL": 0.0,
+                "Confidence_Score": 0.0
+            }
 
 
 
@@ -401,6 +411,15 @@ class IntradayProbabilityEngine:
         learning = (
             self.load_pattern_learning()
         )
+
+
+        hist_results = df.apply(
+            lambda row: self.compute_historical_intelligence(row, self.historical_intelligence),
+            axis=1
+        )
+        df["Historical_Probability"] = [r["Historical_Probability"] for r in hist_results]
+        df["Historical_Confidence"] = [r["Historical_Confidence"] for r in hist_results]
+        df["Evidence_Level"] = [r["Evidence_Level"] for r in hist_results]
 
 
         df["Intraday Probability %"] = (

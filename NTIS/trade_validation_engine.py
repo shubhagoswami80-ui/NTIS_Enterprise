@@ -23,6 +23,9 @@ from pathlib import Path
 from datetime import datetime
 import glob
 
+from config import DAILY_REPORTS, OUTPUT
+from utils import extract_report_date
+
 
 # =====================================================
 # Paths
@@ -34,11 +37,8 @@ OUTPUT_DIR = BASE_DIR / "Output"
 
 NTIS_DIR = BASE_DIR / "NTIS"
 
-MONTH_DATA = (
-    BASE_DIR
-    / "2026"
-    / "July"
-)
+MONTH_DATA = DAILY_REPORTS
+TRADING_DATE_FILE = OUTPUT / "current_trading_date.txt"
 
 
 PROBABILITY_FILE = (
@@ -57,21 +57,21 @@ FINAL_OUTPUT = (
 # Utility Functions
 # =====================================================
 
-def find_latest_file(folder):
+def find_latest_file(folder, trading_date=None):
 
-    files = glob.glob(
-        str(folder / "*.xlsx")
-    )
+    files = glob.glob(str(folder / "*.xlsx"))
+
+    if trading_date is not None:
+        files = [
+            file for file in files
+            if extract_report_date(file) is not None
+            and extract_report_date(file).date() == trading_date
+        ]
 
     if not files:
-        raise FileNotFoundError(
-            f"No Excel file found in {folder}"
-        )
+        raise FileNotFoundError(f"No Excel file found for trading date in {folder}")
 
-    return max(
-        files,
-        key=lambda x: Path(x).stat().st_mtime
-    )
+    return max(files, key=lambda x: Path(x).stat().st_mtime)
 
 
 def calculate_risk(
@@ -119,6 +119,71 @@ def calculate_target(
     return None
 
 
+def synthesize_potential_return(
+        entry,
+        resistance
+):
+
+    if entry > 0 and resistance > 0:
+
+        return round(
+            ((resistance - entry) / entry) * 100,
+            2
+        )
+
+    return None
+
+
+def synthesize_decision_summary(
+        signal,
+        reason_text,
+        target,
+        entry
+):
+
+    summary = []
+
+    if reason_text:
+        summary.append(
+            f"{signal} because {reason_text}"
+        )
+    else:
+        summary.append(
+            f"{signal} with current probability and validation evidence"
+        )
+
+    if target is not None and entry > 0:
+        potential = synthesize_potential_return(
+            entry,
+            target
+        )
+        if potential is not None:
+            sign = (
+                f"+{potential}"
+                if potential > 0
+                else f"{potential}"
+            )
+            summary.append(
+                f"Potential return based on resistance target is {sign}%"
+            )
+        else:
+            summary.append(
+                "Potential return unavailable with current resistance data"
+            )
+    else:
+        summary.append(
+            "Potential return unavailable with current resistance data"
+        )
+
+    summary.append(
+        "Historical evidence unavailable in current production"
+    )
+    summary.append(
+        "Trust is derived from probability, pattern, confirmation, and support/resistance signals"
+    )
+
+    return ". ".join(summary) + "."
+
 
 # =====================================================
 # Load Probability Data
@@ -131,6 +196,15 @@ print("=" * 70)
 
 print("\nLoading Probability Data...")
 
+trading_date = None
+if TRADING_DATE_FILE.exists():
+    try:
+        trading_date = datetime.strptime(
+            TRADING_DATE_FILE.read_text(encoding="utf-8").strip(),
+            "%Y-%m-%d"
+        ).date()
+    except ValueError:
+        trading_date = None
 
 prob_df = pd.read_csv(
     PROBABILITY_FILE
@@ -155,7 +229,8 @@ support_folder = (
 
 
 support_file = find_latest_file(
-    support_folder
+    support_folder,
+    trading_date
 )
 
 
@@ -202,7 +277,8 @@ resistance_folder = (
 
 
 resistance_file = find_latest_file(
-    resistance_folder
+    resistance_folder,
+    trading_date
 )
 
 
@@ -462,6 +538,38 @@ df["Final Signal"] = signals
 
 df["Reason"] = reasons
 
+# Decision Synthesis Layer
+syntheses = []
+potential_returns = []
+
+for _, row in df.iterrows():
+
+    entry = row["Entry Close"]
+    target = row["Target"]
+    signal = row["Final Signal"]
+    reason_text = row["Reason"]
+
+    potential_returns.append(
+        synthesize_potential_return(
+            entry,
+            target
+        )
+    )
+
+    syntheses.append(
+        synthesize_decision_summary(
+            signal,
+            reason_text,
+            target,
+            entry
+        )
+    )
+
+
+df["Potential Return %"] = potential_returns
+
+df["Decision Summary"] = syntheses
+
 
 df = df.sort_values(
     by="Validation Score",
@@ -503,6 +611,8 @@ output_columns = [
     "Risk",
     "Stop Loss",
     "Target",
+    "Potential Return %",
+    "Decision Summary",
 
     "Validation Score",
     "Final Signal",

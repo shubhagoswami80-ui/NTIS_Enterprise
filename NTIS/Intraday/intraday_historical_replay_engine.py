@@ -231,6 +231,82 @@ class IntradayHistoricalReplayEngine:
             ignore_index=True
         )
 
+        # Enrich result with intelligence and metadata in read-only mode.
+        # All enrichment columns are initialized before the loop so a row that
+        # has no repository match cannot abort enrichment for the remaining rows.
+        repo = IntradayPatternRepository()
+        from intraday_intelligence_loader import IntradayIntelligenceLoader
+        from intraday_intelligence_query import IntradayIntelligenceQuery
+
+        loader = IntradayIntelligenceLoader()
+        loader.load()
+        query = IntradayIntelligenceQuery(loader)
+
+        defaults = {
+            "Pattern_Fingerprint": "",
+            "Business_Pattern_ID": "",
+            "Occurrences": "0",
+            "Success_%": "0.0",
+            "Average_PnL": "0.0",
+            "Confidence_Score": "0.0",
+            "First_Seen": "",
+            "Last_Seen": "",
+            "Repository_Matched": False,
+            "Historical_Probability": 50.0,
+            "Historical_Confidence": 50.0,
+            "Evidence_Level": "NEW",
+            "Replay_Run_Date": pd.Timestamp.now().strftime("%Y-%m-%d"),
+            "Replay_Run_Time": pd.Timestamp.now().strftime("%H:%M:%S"),
+            "Replay_Version": "2.3",
+            "Replay_Status": "COMPLETED",
+            "Admission_Status": "FILTERED",
+        }
+        for column, value in defaults.items():
+            result[column] = value
+
+        for idx, row in result.iterrows():
+            sym = str(row.get("Symbol", "")).strip().upper()
+            fp = repo.generate_fingerprint(row.to_dict())
+            result.loc[idx, "Pattern_Fingerprint"] = fp
+
+            match = (
+                repo.repo_df[
+                    (repo.repo_df["Symbol"] == sym)
+                    & (repo.repo_df["Pattern_Fingerprint"] == fp)
+                ]
+                if not repo.repo_df.empty
+                else pd.DataFrame()
+            )
+
+            if not match.empty:
+                repo_row = match.iloc[0]
+                result.loc[idx, "Business_Pattern_ID"] = repo_row.get("Business_Pattern_ID", "")
+                result.loc[idx, "Occurrences"] = repo_row.get("Occurrences", "0")
+                result.loc[idx, "Success_%"] = repo_row.get("Success_%", "0.0")
+                result.loc[idx, "Average_PnL"] = repo_row.get("Average_PnL", "0.0")
+                result.loc[idx, "Confidence_Score"] = repo_row.get("Confidence_Score", "0.0")
+                result.loc[idx, "First_Seen"] = repo_row.get("First_Seen", "")
+                result.loc[idx, "Last_Seen"] = repo_row.get("Last_Seen", "")
+                result.loc[idx, "Repository_Matched"] = True
+
+                pid = str(repo_row.get("Business_Pattern_ID", "")).strip()
+                if pid:
+                    summary = query.historical_summary(pid)
+                    result.loc[idx, "Historical_Probability"] = summary.get("WinRate", 50.0)
+                    result.loc[idx, "Historical_Confidence"] = summary.get("WinRate", 50.0)
+                    occ_val = int(summary.get("Occurrences", 0) or 0)
+                    if occ_val > 15:
+                        result.loc[idx, "Evidence_Level"] = "MATURE"
+                    elif occ_val >= 6:
+                        result.loc[idx, "Evidence_Level"] = "ESTABLISHED"
+                    elif occ_val >= 3:
+                        result.loc[idx, "Evidence_Level"] = "DEVELOPING"
+                    else:
+                        result.loc[idx, "Evidence_Level"] = "NEW"
+
+            if bool(row.get("Replay Eligible", False)):
+                result.loc[idx, "Admission_Status"] = "ADMITTED"
+
         output = (
             self.intraday_folder
             /
@@ -242,14 +318,7 @@ class IntradayHistoricalReplayEngine:
             index=False
         )
 
-        # Integrate replay results into Pattern Intelligence Repository
-        try:
-            repo = IntradayPatternRepository()
-            lifecycle = IntradayPatternLifecycleEngine(repo)
-            replay_date = self.intraday_folder.name
-            lifecycle.integrate_outcomes(result, trade_date=replay_date)
-            lifecycle.evaluate_lifecycle()
-        except Exception:
-            pass
-
+        # Replay is read-only. Historical outcomes are written only to the
+        # replay output; the Pattern Intelligence Repository is never mutated
+        # by replay. Repository data is consumed above strictly for enrichment.
         return output

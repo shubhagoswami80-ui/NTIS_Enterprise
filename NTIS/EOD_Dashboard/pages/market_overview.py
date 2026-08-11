@@ -1,15 +1,42 @@
 import streamlit as st
 import pandas as pd
 
-from EOD_Dashboard.data.data_loader import (
-    load_dataset,
-    get_dataset_info,
-)
 from EOD_Dashboard.components.dashboard_cards import show_cards
+from EOD_Dashboard.components.intelligence_table import render_intelligence_table
+from EOD_Dashboard.data.data_loader import get_dataset_info
+from EOD_Dashboard.data.intelligence_builder import (
+    build_intelligence_view,
+    filter_buy_candidates,
+    filter_sell_candidates,
+)
+
+SIGNAL_COLUMNS = (
+    "Trade View",
+    "Signal",
+    "Final Signal",
+    "Trade Bias",
+    "Validation Signal",
+)
+
+PREFERRED_COLUMNS = (
+    "Rank",
+    "Symbol",
+    "Signal",
+    "BUY Probability %",
+    "SELL Probability %",
+    "Probability",
+    "Confidence",
+    "Validation Score",
+    "Pattern",
+    "Pattern Reason",
+    "Outcome",
+    "Entry Close",
+    "Support Strike",
+    "Resistance Strike",
+)
 
 
 def map_signal(value):
-
     value = str(value).strip().upper()
 
     mapping = {
@@ -25,7 +52,6 @@ def map_signal(value):
 
 
 def _first_available(df, columns):
-
     for column in columns:
         if column in df.columns:
             return column
@@ -33,88 +59,133 @@ def _first_available(df, columns):
     return None
 
 
-def _display_table(df, title):
+def _average_column(df, column):
+    if column not in df.columns:
+        return None
+
+    values = pd.to_numeric(df[column], errors="coerce").dropna()
+    if values.empty:
+        return None
+
+    return round(values.mean(), 2)
+
+
+def _top_candidates(df, title, signal):
+    if df.empty:
+        st.info(f"No {title.lower()} available.")
+        return
 
     st.subheader(title)
-
-    if df.empty:
-        st.info(f"No {title} available")
-        return
 
     preferred = [
         "Rank",
         "Symbol",
-        "CMP",
-        "Entry Close",
-        "NTIS Score",
         "BUY Probability %",
-        "Probability",
+        "SELL Probability %",
         "Confidence",
-        "Support Strike",
-        "Resistance Strike",
+        "Validation Score",
+        "Pattern",
+        "Pattern Reason",
+        "Outcome",
     ]
 
-    cols = [c for c in preferred if c in df.columns]
+    columns = [c for c in preferred if c in df.columns]
+    if not columns:
+        columns = list(df.columns)
 
-    if not cols:
-        cols = list(df.columns)
+    sort_col = "BUY Probability %" if signal == "BUY" else "SELL Probability %"
+    if sort_col not in df.columns:
+        sort_col = columns[0] if columns else None
+
+    if sort_col is not None:
+        display_df = df.sort_values(by=sort_col, ascending=False)
+    else:
+        display_df = df
 
     st.dataframe(
-        df[cols].head(25),
+        display_df.head(10)[columns],
         use_container_width=True,
         hide_index=True,
     )
 
 
 def show_market_overview():
+    st.header("NTIS EOD EXECUTIVE DASHBOARD")
 
-    st.header("NTIS EOD MARKET OVERVIEW")
+    intelligence = build_intelligence_view()
 
-    df = load_dataset("ranking")
-
-    if df is None or df.empty:
-        st.warning("Ranking dataset not available.")
+    if intelligence is None or intelligence.empty:
+        st.warning("Executive intelligence dataset not available.")
         return
 
-    signal_col = _first_available(
-        df,
-        [
-            "Trade View",
-            "Signal",
-            "Final Signal",
-            "Trade Bias",
-            "Validation Signal",
-        ],
-    )
-
+    signal_col = _first_available(intelligence, SIGNAL_COLUMNS)
     if signal_col:
-        df["Trade View"] = df[signal_col].apply(map_signal)
+        intelligence["Trade View"] = intelligence[signal_col].apply(map_signal)
     else:
-        df["Trade View"] = "HOLD"
+        intelligence["Trade View"] = "HOLD"
 
-    show_cards(df)
+    show_cards(intelligence)
 
-    info = get_dataset_info("ranking")
+    dataset_info = get_dataset_info("ranking") or {}
+    if dataset_info.get("available"):
+        st.caption(f"Last Updated : {dataset_info.get('updated')}")
 
-    if info.get("available"):
-        st.caption(
-            f"Last Updated : {info.get('updated')}"
+    buy_df = filter_buy_candidates(intelligence)
+    sell_df = filter_sell_candidates(intelligence)
+
+    avg_buy_prob = _average_column(buy_df, "BUY Probability %")
+    avg_sell_prob = _average_column(sell_df, "SELL Probability %")
+    avg_validation = _average_column(intelligence, "Validation Score")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("BUY Opportunities", f"{len(buy_df):,}")
+    with col2:
+        st.metric("SELL Opportunities", f"{len(sell_df):,}")
+    with col3:
+        st.metric(
+            "Avg Validation Score",
+            f"{avg_validation if avg_validation is not None else 'N/A'}",
         )
 
-    buy_df = df[df["Trade View"] == "BUY"]
-
-    sell_df = df[df["Trade View"] == "SELL"]
-
-    c1, c2 = st.columns(2)
-
-    with c1:
-        _display_table(
-            buy_df,
-            "BUY Opportunities",
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.metric(
+            "Avg BUY Probability",
+            f"{avg_buy_prob if avg_buy_prob is not None else 'N/A'}%",
+        )
+    with col5:
+        st.metric(
+            "Avg SELL Probability",
+            f"{avg_sell_prob if avg_sell_prob is not None else 'N/A'}%",
+        )
+    with col6:
+        st.metric(
+            "High Confidence",
+            int(
+                intelligence["Confidence"].fillna("")
+                .astype(str)
+                .str.upper()
+                .eq("HIGH")
+                .sum()
+            ) if "Confidence" in intelligence.columns else "N/A",
         )
 
-    with c2:
-        _display_table(
-            sell_df,
-            "SELL Opportunities",
-        )
+    st.divider()
+
+    left_col, right_col = st.columns(2)
+    with left_col:
+        _top_candidates(buy_df, "Top BUY Candidates", "BUY")
+    with right_col:
+        _top_candidates(sell_df, "Top SELL Candidates", "SELL")
+
+    st.divider()
+    st.subheader("Executive Candidate Ranking")
+
+    render_intelligence_table(
+        dataframe=intelligence,
+        title="Executive Candidate Ranking",
+        preferred_columns=PREFERRED_COLUMNS,
+        updated=dataset_info.get("updated"),
+        filename="executive_dashboard.csv",
+    )

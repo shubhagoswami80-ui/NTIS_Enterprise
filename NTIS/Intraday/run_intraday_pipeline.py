@@ -33,6 +33,14 @@ def main():
     print("NTIS INTRADAY PIPELINE START")
     print("=" * 70)
 
+    from current_report_importer import discover_files
+    files = discover_files()
+    if not files:
+        print("Pipeline Status: NO_INTRADAY_DATA")
+        print("Reason:")
+        print("No reports found for processing date.")
+        sys.exit(0)
+
     # Registry / importer check
     run_step("current_report_importer.py")
 

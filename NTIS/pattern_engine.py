@@ -28,9 +28,10 @@ Patterns:
 
 
 import pandas as pd
+from datetime import datetime
 from pathlib import Path
 
-from config import DAILY_REPORTS, REPORT_FOLDERS
+from config import DAILY_REPORTS, OUTPUT, REPORT_FOLDERS
 from utils import extract_report_date, format_date, get_latest_file
 
 
@@ -46,6 +47,26 @@ INPUT_FILE = Path(
 OUTPUT_FILE = Path(
     "E:/NSE_Daily_Analysis/Output/ntis_pattern_analysis.csv"
 )
+
+
+def resolve_importer_trading_date():
+
+    date_file = OUTPUT / "current_trading_date.txt"
+
+    if not date_file.exists():
+
+        return None
+
+    try:
+
+        return datetime.strptime(
+            date_file.read_text(encoding="utf-8").strip(),
+            "%Y-%m-%d"
+        ).date()
+
+    except Exception:
+
+        return None
 
 
 def resolve_trading_date():
@@ -152,7 +173,11 @@ class PatternEngine:
             df.copy()
         )
 
-        self.pattern_date = resolve_trading_date()
+        self.pattern_date = resolve_importer_trading_date()
+
+        if self.pattern_date is None:
+
+            self.pattern_date = resolve_trading_date()
 
         if self.pattern_date is not None:
 

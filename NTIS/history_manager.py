@@ -45,6 +45,8 @@ BASE_DIR = Path(
 
 OUTPUT_DIR = BASE_DIR / "Output"
 
+TRADING_DATE_FILE = OUTPUT_DIR / "current_trading_date.txt"
+
 
 
 HISTORY_DIR = BASE_DIR / "Historical_Data"
@@ -66,6 +68,12 @@ OUTCOME_HISTORY = (
 ACCURACY_HISTORY = (
     HISTORY_DIR /
     "Accuracy"
+)
+
+
+FOOTPRINT_HISTORY = (
+    HISTORY_DIR /
+    "Footprints"
 )
 
 
@@ -96,7 +104,19 @@ class HistoryManager:
 
         self.today = datetime.today()
 
+        trading_date = None
 
+        if TRADING_DATE_FILE.exists():
+            try:
+                trading_date = datetime.strptime(
+                    TRADING_DATE_FILE.read_text(encoding="utf-8").strip(),
+                    "%Y-%m-%d"
+                ).date()
+            except Exception:
+                trading_date = None
+
+        if trading_date is not None:
+            self.today = trading_date
 
         self.date = (
             self.today
@@ -137,8 +157,9 @@ class HistoryManager:
 
             ACCURACY_HISTORY /
             self.year /
-            self.month
+            self.month,
 
+            FOOTPRINT_HISTORY
         ]
 
 
@@ -259,6 +280,122 @@ class HistoryManager:
             file
         )
 
+
+
+    # =================================================
+    # Historical Footprints
+    # =================================================
+
+    def build_historical_footprints(self):
+        """
+        Rebuild the derived date-wise Historical Footprint ledger from
+        the existing archived Prediction and Outcome records.
+        """
+
+        prediction_files = sorted(
+            PREDICTION_HISTORY.rglob("NTIS_Prediction_*.csv")
+        )
+
+        if not prediction_files:
+            print("Historical Footprints: no prediction archives found")
+            return
+
+        footprints = []
+
+        for prediction_file in prediction_files:
+            try:
+                prediction_df = pd.read_csv(prediction_file)
+            except Exception:
+                continue
+
+            if "Symbol" not in prediction_df.columns:
+                continue
+
+            date_token = prediction_file.stem.replace(
+                "NTIS_Prediction_", ""
+            )
+
+            outcome_file = (
+                OUTCOME_HISTORY /
+                prediction_file.parent.parent.name /
+                prediction_file.parent.name /
+                f"NTIS_Outcome_{date_token}.csv"
+            )
+
+            if outcome_file.exists():
+                try:
+                    outcome_df = pd.read_csv(outcome_file)
+                except Exception:
+                    outcome_df = None
+            else:
+                outcome_df = None
+
+            if outcome_df is not None and "Symbol" in outcome_df.columns:
+                outcome_columns = [
+                    column for column in [
+                        "Actual Return %",
+                        "Outcome",
+                        "Model Accuracy %"
+                    ]
+                    if column in outcome_df.columns
+                ]
+
+                outcome_subset = outcome_df[
+                    ["Symbol"] + outcome_columns
+                ].drop_duplicates(
+                    subset=["Symbol"],
+                    keep="last"
+                )
+
+                merged = prediction_df.merge(
+                    outcome_subset,
+                    on="Symbol",
+                    how="left",
+                    suffixes=("", "_OUTCOME")
+                )
+            else:
+                merged = prediction_df.copy()
+                merged["Actual Return %"] = pd.NA
+                merged["Outcome"] = "PENDING"
+                merged["Model Accuracy %"] = pd.NA
+
+            merged.insert(0, "Trading Date", date_token)
+            merged["Prediction Source"] = prediction_file.name
+            merged["Outcome Source"] = (
+                outcome_file.name
+                if outcome_file.exists()
+                else pd.NA
+            )
+
+            footprints.append(merged)
+
+        if not footprints:
+            print("Historical Footprints: no valid records found")
+            return
+
+        footprint_df = pd.concat(
+            footprints,
+            ignore_index=True
+        )
+
+        footprint_file = (
+            FOOTPRINT_HISTORY /
+            "NTIS_Historical_Footprints.csv"
+        )
+
+        footprint_file.parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        footprint_df.to_csv(
+            footprint_file,
+            index=False
+        )
+
+        print("Historical Footprints Updated:")
+        print(footprint_file)
+        print("Historical Footprint Rows:", len(footprint_df))
 
 
     # =================================================
@@ -440,6 +577,8 @@ def main():
     manager.archive_prediction()
 
     manager.archive_outcome()
+
+    manager.build_historical_footprints()
 
     manager.create_accuracy_report()
 

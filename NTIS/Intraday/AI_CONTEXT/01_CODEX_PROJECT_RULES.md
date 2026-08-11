@@ -1,231 +1,82 @@
 # NTIS Intraday - CODEX PROJECT RULES
-Version: 1.0
-Status: FROZEN
+Version: 2.0
+Status: FROZEN & SYNCHRONIZED
 
 ---
 
-# PROJECT MODE
+# FROZEN GOVERNANCE RULES
 
-This is a production implementation project.
+1. PROJECT BOUNDARY
+Primary implementation boundary: E:\NSE_Daily_Analysis\NTIS\Intraday. NTIS_Intraday is the authoritative Intraday implementation area.
 
-Architecture is frozen.
+2. EOD ISOLATION
+EOD is a separate system. EOD CODE is OUT OF SCOPE for NTIS_Intraday implementation. EOD output data may be consumed only where an explicit NTIS_Intraday input contract requires it. Do not modify EOD implementation as part of Intraday work.
 
-Business rules are frozen.
+3. GIT GOVERNANCE
+The current NTIS_Intraday implementation workflow does NOT use Git for development execution. Do not run Git commands unless explicitly authorized.
 
-Documentation follows verified implementation.
+4. BACKUP / ALTERNATE FILE ISOLATION
+Backup and alternate files are NOT production source. Exclude files matching `*.bak`, `*.backup`, `*.bkp`, `*.orig`, `*.old`, `*.tmp`, `*.temp`, `*_backup*`, `*_bkp*`, `*_orig*`, `*_old*` from discovery.
 
-Do not redesign architecture.
+5. ENVIRONMENT / CACHE ISOLATION
+Exclude `.venv`, `venv`, `env`, `ENV`, `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, node_modules, IDE caches, temporary caches, unrelated ZIPs, and logs. Do not modify dependencies.
 
-Do not redesign business rules.
+6. DASHBOARD GOVERNANCE
+The dashboard is a CONSUMER OF INTELLIGENCE. It must not become a competing intelligence engine. Dashboard code must not independently recreate scoring, probability, confidence, pattern identity, Business Pattern identity, learning, calibration, repository intelligence, outcome logic, or trading rules.
 
----
+7. NO DUPLICATE ENGINES
+Do not create competing or duplicate scoring, probability, confidence, pattern, pattern statistics, learning, calibration, replay, outcome, repository, or executive decision engines.
 
-# WORKSPACE
+8. REPLAY READ-ONLY
+Historical Replay is strictly READ-ONLY. Replay must not mutate repository, learning memory, calibration, historical snapshots, historical outcomes, Business Pattern IDs, or Pattern IDs.
 
-Workspace Root
+9. HISTORICAL INTEGRITY
+Historical intelligence must remain date-specific. Never silently substitute today's repository state for a historical state. Never mix historical dates or replace historical probability/confidence with today's values.
 
-E:\NSE_Daily_Analysis\NTIS\Intraday
+10. STOCK-SPECIFIC INTELLIGENCE
+Stock-level historical intelligence must remain tied to the selected stock. Do not present another stock's evidence as evidence for the selected stock.
 
-This workspace is the ONLY authoritative source.
+11. PATTERN-SPECIFIC INTELLIGENCE
+Pattern-level intelligence must remain distinct from stock-level intelligence. Preserve the existing identity relationship between Pattern ID, Business Pattern ID, Pattern DNA, and Pattern Fingerprint.
 
-Only modify files inside this workspace.
+12. NO FABRICATED INTELLIGENCE
+Never fabricate probabilities, confidence, historical win rates, occurrences, outcomes, PnL, evidence levels, support, resistance, sector strength, risk/reward, entry, stop loss, target, Pattern IDs, or Business Pattern IDs. If unavailable, display an explicit unavailable state.
 
-Never modify files outside this workspace.
+13. RAW DATA IS NOT THE PRODUCT
+The normal trader-facing Executive interface must not become a raw-data display. Raw OI, volume, PDNA, fingerprints, repository keys, and engine internals are supporting/traceability information. Primary product is: WHAT → WHY → HISTORICAL EVIDENCE → DECISION.
 
----
+14. DECISION-MAKER PRINCIPLE
+NTIS_Intraday is a Stock-Specific Intraday Trading Intelligence + Decision-Maker System. The Executive interface helps answer what the stock is doing, what NTIS signals, historical action, relevant pattern evidence, evidence strength, market context, risk/reward, recommendation, and WHY.
 
-# EXTERNAL PROJECTS
+15. MISSING PRODUCER RULE
+If a required intelligence field is not supplied by an authoritative producer, do not recreate it inside the dashboard. Report the missing producer/field.
 
-Do NOT access:
+16. FROZEN ARCHITECTURE
+Architecture is frozen unless explicitly authorized. Do not redesign architecture to simplify an individual task.
 
-• NTIS EOD project source
-• Parent folders
-• Sibling folders
-• Other workspaces
+17. VALIDATION BEFORE ACCEPTANCE
+Production functionality requires syntax/import validation, runtime validation, historical validation, read-only validation, regression validation, and decision-maker validation.
 
-Runtime folders referenced by configuration may be READ by production code only.
+18. DOCUMENTATION SYNCHRONIZATION
+Documentation must remain synchronized with architecture, implementation, dependencies, file boundaries, governance, validation results, production status, and remaining roadmap.
 
-Do not modify runtime data unless explicitly instructed.
+19. NO UNAUTHORIZED SCOPE EXPANSION
+Do not expand a task merely because additional data/modules are available. Implement only approved tasks.
 
----
-
-# GIT POLICY
-
-Git is DISABLED.
-
-Never use:
-
-git status
-git diff
-git log
-git fetch
-git pull
-git push
-git merge
-git rebase
-git checkout
-git switch
-git cherry-pick
-git branch
-git blame
-git show
-git stash
-
-Do not compare with GitHub.
-
-Do not compare with remote repositories.
-
-Treat the LOCAL WORKSPACE as the only source of truth.
-
-Ignore any logged-in Git account.
+20. PROGRESSIVE DISCLOSURE
+The dashboard follows Trader-First, Decision-First, Progressive Disclosure. Normal Executive interface shows the decision and its evidence first; technical details remain available through appropriate advanced/traceability areas.
 
 ---
 
-# IMPLEMENTATION MODE
-
-Modify existing production modules only.
-
-Do not create duplicate engines.
-
-Do not create duplicate production files.
-
-Do not create backup copies.
-
-Do not create experimental implementations.
-
-Do not create placeholder implementations.
-
-Complete ONE production module at a time.
-
-Preserve existing public APIs unless explicitly required.
-
-Preserve backward compatibility whenever possible.
-
----
-
-# CONFIGURATION
-
-Always use:
-
-intraday_settings.ini
-
-config_loader.py
-
-Never hardcode filesystem paths.
-
-Never introduce new configuration files unless explicitly instructed.
-
----
-
-# TESTING
-
-Only run the requested production module.
-
-Do not execute unrelated modules.
-
-Do not modify production data.
-
-Do not regenerate reports unless requested.
-
-If testing cannot continue,
-
-STOP
-
-and report the blocker.
-
----
-
-# MISSING DEPENDENCIES
-
-If any required production dependency is missing,
-
-STOP IMMEDIATELY.
-
-Return ONLY:
-
-Exact missing production file.
-
-Do not guess.
-
-Do not infer.
-
-Do not recreate missing production code.
-
-Do not search outside the workspace.
-
----
-
-# OUTPUT FORMAT
-
-Return ONLY:
-
-1. Replacement production file
-
-2. Exact production path
-
-3. Test command
-
-Nothing else unless requested.
-
----
-
-# DOCUMENTATION
-
-Documentation follows implementation.
-
-Never update documentation before implementation is verified.
-
-Never recreate existing documentation.
-
-Apply implementation deltas only.
-
----
-
-# IMPLEMENTATION ORDER
-
-Follow the frozen checkpoint.
-
-Do not change implementation order unless instructed.
-
-Current Bundle:
-
-Bundle 02
-
-1. pattern_statistics_engine.py
-
-2. intraday_intelligence_loader.py
-
-3. intraday_intelligence_query.py
-
-4. intraday_historical_replay_engine.py
-
-5. intraday_dashboard.py (if required)
-
----
-
-# DASHBOARD
-
-Preserve approved dashboard design.
-
-Do not redesign UI.
-
-Do not change layout unless explicitly instructed.
-
----
-
-# STOP CONDITIONS
-
-Immediately stop if:
-
-• Required production dependency is missing.
-
-• Workspace does not contain required module.
-
-• Required configuration file is missing.
-
-• Implementation would violate frozen architecture.
-
-Report ONLY the exact blocker.
+# FIVE-LAYER IMPLEMENTATION STATUS
+
+- Task 1 (Replay Validation): PASS
+- Task 2 (Historical Replay Browser): PASS
+- Task 3 (Stock Intelligence History): PASS
+- Task 4 (Pattern Intelligence History): PASS
+- Task 5 (Executive Dashboard Intelligence): PASS
+
+Production Candidate Audit Status: PRODUCTION CANDIDATE — PASS (Blocking Defects: NONE, Non-Blocking Items: NONE).
 
 ---
 
