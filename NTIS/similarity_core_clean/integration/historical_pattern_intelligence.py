@@ -1,3 +1,4 @@
+from datetime import datetime
 from math import sqrt
 
 from similarity_core_clean.integration.pattern_repository_contract import (
@@ -60,6 +61,109 @@ class HistoricalPatternIntelligence:
         return True, "valid"
 
     @staticmethod
+    def _parse_date(value):
+        if not isinstance(value, str):
+            return None
+        try:
+            return datetime.fromisoformat(value)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _earliest_date(value_a, value_b):
+        if value_a is None:
+            return value_b
+        if value_b is None:
+            return value_a
+        date_a = HistoricalPatternIntelligence._parse_date(value_a)
+        date_b = HistoricalPatternIntelligence._parse_date(value_b)
+        if date_a is not None and date_b is not None:
+            return value_a if date_a <= date_b else value_b
+        return value_a if str(value_a) <= str(value_b) else value_b
+
+    @staticmethod
+    def _latest_date(value_a, value_b):
+        if value_a is None:
+            return value_b
+        if value_b is None:
+            return value_a
+        date_a = HistoricalPatternIntelligence._parse_date(value_a)
+        date_b = HistoricalPatternIntelligence._parse_date(value_b)
+        if date_a is not None and date_b is not None:
+            return value_a if date_a >= date_b else value_b
+        return value_a if str(value_a) >= str(value_b) else value_b
+
+    def _aggregate_records(self, records):
+        grouped = {}
+
+        for record in records:
+            record_dict = self._payload_to_dict(record)
+            symbol = str(record_dict.get("symbol") or "").strip()
+            pattern_classification = str(record_dict.get("pattern_classification") or "").strip()
+            key = (symbol, pattern_classification)
+
+            if key not in grouped:
+                grouped[key] = {
+                    "symbol": symbol,
+                    "business_pattern_id": str(record_dict.get("business_pattern_id") or ""),
+                    "pattern_classification": pattern_classification,
+                    "pattern_dna": str(record_dict.get("pattern_dna") or ""),
+                    "fingerprint_version": str(record_dict.get("fingerprint_version") or ""),
+                    "first_seen": record_dict.get("first_seen"),
+                    "last_seen": record_dict.get("last_seen"),
+                    "occurrences": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "pending": 0,
+                    "success_rate": 0.0,
+                    "average_return": 0.0,
+                    "confidence": 0.0,
+                    "lifecycle_status": "HISTORICAL",
+                    "normalized_features": record_dict.get("normalized_features") or {},
+                    "evidence_vector": record_dict.get("evidence_vector") or {},
+                    "historical_outcome": None,
+                }
+
+            group = grouped[key]
+            occurrences = self._coerce_int(record_dict.get("occurrences"))
+            wins = self._coerce_int(record_dict.get("wins"))
+            losses = self._coerce_int(record_dict.get("losses"))
+            pending = self._coerce_int(record_dict.get("pending"))
+            average_return = self._coerce_float(record_dict.get("average_return"))
+            confidence = self._coerce_float(record_dict.get("confidence"))
+
+            group["occurrences"] += occurrences
+            group["wins"] += wins
+            group["losses"] += losses
+            group["pending"] += pending
+            group["first_seen"] = self._earliest_date(group["first_seen"], record_dict.get("first_seen"))
+            group["last_seen"] = self._latest_date(group["last_seen"], record_dict.get("last_seen"))
+
+            if occurrences > 0:
+                group["average_return"] += average_return * occurrences
+                group["confidence"] += confidence * occurrences
+
+            if not group["pattern_dna"] and record_dict.get("pattern_dna"):
+                group["pattern_dna"] = str(record_dict.get("pattern_dna"))
+
+            if not group["business_pattern_id"] and record_dict.get("business_pattern_id"):
+                group["business_pattern_id"] = str(record_dict.get("business_pattern_id"))
+
+        aggregated = []
+        for group in grouped.values():
+            resolved = group["wins"] + group["losses"]
+            group["success_rate"] = float(group["wins"]) / resolved if resolved > 0 else 0.0
+            if group["occurrences"] > 0:
+                group["average_return"] = group["average_return"] / group["occurrences"]
+                group["confidence"] = group["confidence"] / group["occurrences"]
+            else:
+                group["average_return"] = 0.0
+                group["confidence"] = 0.0
+            aggregated.append(group)
+
+        return aggregated
+
+    @staticmethod
     def _build_pattern_maturity(total_occurrences):
         if total_occurrences <= 0:
             return 0.0
@@ -98,6 +202,8 @@ class HistoricalPatternIntelligence:
                 },
             }
 
+        aggregated_records = self._aggregate_records(records)
+
         total_occurrences = 0
         total_wins = 0
         total_losses = 0
@@ -105,7 +211,7 @@ class HistoricalPatternIntelligence:
         weighted_confidence = 0.0
         success_rates = []
 
-        for record in records:
+        for record in aggregated_records:
             record_dict = self._payload_to_dict(record)
             occurrences = self._coerce_int(record_dict.get("occurrences"))
             wins = self._coerce_int(record_dict.get("wins"))

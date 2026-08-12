@@ -237,18 +237,81 @@ with tabs[0]:
             tp2.metric("Stop Loss", str(s_sl))
             tp3.metric("Target", str(s_target))
 
-            st.markdown("#### 🧠 NTIS Decision Explanation & Synthesis")
+            st.markdown("#### 🧠 NTIS Decision Explanation & Synthesis ('Why?', True 'Why Now?' & Historical Average PnL)")
             
+            stock_hist_rec = intel_query.by_symbol(s_sym)
+            avg_pnl_val = "N/A"
+            total_matches = 0
+            win_rate_sum = 0.0
+            first_seen_min = "N/A"
+            last_seen_max = "N/A"
+
+            if not stock_hist_rec.empty:
+                total_matches = len(stock_hist_rec)
+                if "Average_PnL" in stock_hist_rec.columns:
+                    pnl_vals = pd.to_numeric(stock_hist_rec["Average_PnL"], errors="coerce").dropna()
+                    if not pnl_vals.empty:
+                        avg_pnl_val = round(pnl_vals.mean(), 2)
+                if "Success_%" in stock_hist_rec.columns:
+                    succ_vals = pd.to_numeric(stock_hist_rec["Success_%"], errors="coerce").dropna()
+                    if not succ_vals.empty:
+                        win_rate_sum = round(succ_vals.mean(), 1)
+                if "First_Seen" in stock_hist_rec.columns:
+                    fs = stock_hist_rec["First_Seen"].dropna()
+                    if not fs.empty:
+                        first_seen_min = str(fs.min())
+                if "Last_Seen" in stock_hist_rec.columns:
+                    ls = stock_hist_rec["Last_Seen"].dropna()
+                    if not ls.empty:
+                        last_seen_max = str(ls.max())
+
+            has_complete_plan = (
+                str(s_entry).upper() not in {"N/A", "NONE", "NAN", ""} and
+                str(s_sl).upper() not in {"N/A", "NONE", "NAN", ""} and
+                str(s_target).upper() not in {"N/A", "NONE", "NAN", ""}
+            )
+            trade_status_badge = "🟢 Trade-Ready (Complete Plan)" if has_complete_plan else "🟡 Trade Plan Incomplete (Advisory Only)"
+
+            if not stock_hist_rec.empty and int(s_occ) > 1:
+                evd_upper = str(s_evd).upper()
+                if "NEW" in evd_upper:
+                    why_now_text = f"Current session validation signal (**{s_signal}**) and probability (**{s_prob}%**) occur with New / Insufficient historical evidence (Occurrences: **{s_occ}**). Historical observation spans from **{first_seen_min}** to **{last_seen_max}**; recurrence confirmation is preliminary and ongoing."
+                elif "DEVELOPING" in evd_upper:
+                    why_now_text = f"Current session validation signal (**{s_signal}**) and probability (**{s_prob}%**) align with developing historical intelligence records for **{s_sym}** (Occurrences: **{s_occ}**, Success Rate: **{s_win}%**). Observation window: **{first_seen_min}** to **{last_seen_max}**."
+                else:
+                    why_now_text = f"Current session validation signal (**{s_signal}**) and probability (**{s_prob}%**) align with established/mature historical intelligence records for **{s_sym}** (Evidence Tier: **{s_evd}**, Total Occurrences: **{s_occ}**, Historical Success Rate: **{s_win}%**). Historical observation window spans from **{first_seen_min}** to **{last_seen_max}**, validating recurring behavioural confirmation under current market conditions."
+            else:
+                why_now_text = f"Current session validation signal (**{s_signal}**) is classified under New / Insufficient evidence (Occurrences: **{s_occ}**). Historical confirmation is preliminary; timing alignment cannot be established from mature recurring evidence."
+
             explanation_md = f"""
-> **Executive Recommendation for {s_sym}**: **{s_signal}**
+> **Executive Recommendation for {s_sym}**: **{s_signal}** | **{trade_status_badge}**
 > 
 > - **Current Behaviour & Signal**: Today's action in **{s_sym}** yields a validation signal of **{s_signal}** with a Decision Score of **{s_score}** and Intraday Probability of **{s_prob}%**.
-> - **Stock Historical Evidence**: Historically, this stock under comparable intelligence has demonstrated a win rate of **{s_win}%** across **{s_occ}** recorded occurrences with historical confidence of **{s_conf}%** (Evidence Level: **{s_evd}**).
-> - **Pattern Reliability**: Associated behavioural pattern is **{s_pattern}**, providing structured historical traceability.
-> - **Market Context & Trade Plan**: Operating within sector **{s_sector}** (Support: **{s_sup}**, Resistance: **{s_res}**, Risk/Reward: **{s_rr}**). Proposed Trade Plan: Entry at **{s_entry}**, Stop Loss at **{s_sl}**, Target at **{s_target}**.
-> - **Conclusion (Why?)**: Given the alignment of current validation probability, historical stock win rate of **{s_win}%**, confidence score of **{s_conf}%**, and defined risk/reward structure, NTIS confidently issues the **{s_signal}** recommendation.
+> - **Why? (Historical Evidence)**: Historically, this stock under comparable intelligence has demonstrated a win rate of **{s_win}%** across **{s_occ}** recorded occurrences with historical confidence of **{s_conf}%** (Evidence Level: **{s_evd}**). Associated behavioural pattern is **{s_pattern}**.
+> - **Why Now? (Timing Alignment)**: {why_now_text}
+> - **Market Context & Trade Plan**: Operating within sector **{s_sector}** (Support: **{s_sup}**, Resistance: **{s_res}**, Risk/Reward: **{s_rr}**). Proposed Trade Plan: Entry at **{s_entry}**, Stop Loss at **{s_sl}**, Target at **{s_target}** (**{trade_status_badge}**).
+> - **Historical Average PnL**: Authoritative Average PnL from historical intelligence repository: **{avg_pnl_val if avg_pnl_val != 'N/A' else 'Historical Average PnL not available from current producer outputs'}**.
             """
             st.markdown(explanation_md)
+
+            with st.expander(f"📂 Historical Event Footprint & Evidence Depth for {s_sym}"):
+                if not stock_hist_rec.empty:
+                    st.success(f"Loaded {total_matches} authoritative historical event footprint records for {s_sym}.")
+                    
+                    fn1, fn2, fn3, fn4 = st.columns(4)
+                    fn1.metric("Event Matches", total_matches)
+                    fn2.metric("Avg Success Rate", f"{win_rate_sum}%")
+                    fn3.metric("Historical Avg PnL", avg_pnl_val)
+                    fn4.metric("Observation Range", f"{first_seen_min} → {last_seen_max}")
+
+                    footprint_cols = [c for c in [
+                        "Business_Pattern_ID", "Pattern_Name", "Lifecycle_State",
+                        "Occurrences", "Successful_Trades", "Failed_Trades", "Success_%", 
+                        "Average_PnL", "Confidence_Score", "Evidence_Level", "First_Seen", "Last_Seen"
+                    ] if c in stock_hist_rec.columns]
+                    st.dataframe(stock_hist_rec[footprint_cols], use_container_width=True, height=240)
+                else:
+                    st.info(f"No authoritative historical event footprint records found in repository for {s_sym}.")
         else:
             st.info("Selected stock record not found in filtered opportunities.")
     else:
@@ -451,7 +514,7 @@ with tabs[2]:
             else:
                 st.info(f"Historical timeline metadata recorded for snapshot session {selected_day}.")
         else:
-            st.warning(f"Historical replay artifacts incomplete or unavailable for date {selected_day}. Status: INCOMPLETE / UNAVAILABLE.")
+            st.warning(f"Historical source data unavailable for {selected_day}. Historical replay cannot be generated without the authoritative source data. Status: SOURCE DATA UNAVAILABLE.")
     
     st.markdown("---")
     st.markdown("### 🔄 Global Replay Execution Runner")

@@ -230,6 +230,68 @@ class IntradayProbabilityEngine:
 
 
 
+    def historical_probability_adjustment(
+        self,
+        row,
+        intelligence_query
+    ):
+
+        if intelligence_query is None:
+
+            return 0
+
+
+        pattern_id = row.get(
+            "Pattern_ID"
+        )
+
+        if not pattern_id:
+
+            return 0
+
+
+        try:
+
+            summary = (
+                intelligence_query
+                .historical_summary(
+                    pattern_id
+                )
+            )
+
+            occ = summary.get(
+                "Occurrences",
+                0
+            )
+
+            win_rate = summary.get(
+                "WinRate",
+                0
+            )
+
+
+            if occ < 10:
+
+                return 0
+
+
+            if win_rate >= 65:
+
+                return 5
+
+            elif win_rate <= 35:
+
+                return -5
+
+        except Exception:
+
+            pass
+
+
+        return 0
+
+
+
     def get_evidence_level(self, occurrences):
         try:
             occ = int(float(occurrences))
