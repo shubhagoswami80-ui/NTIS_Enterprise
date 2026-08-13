@@ -19,6 +19,7 @@ st.set_page_config(
     layout="wide",
 )
 
+
 # ---------------------------------------------------------------------------
 # Visual system
 # ---------------------------------------------------------------------------
@@ -26,72 +27,63 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .stApp {
-        background: #f7f8fc;
-    }
+    .stApp { background: #f7f8fc; }
 
     .block-container {
-        max-width: 1600px;
-        padding-top: 1.35rem;
-        padding-bottom: 2rem;
+        max-width: 1240px;
+        padding-top: 1.15rem;
+        padding-bottom: 1rem;
     }
 
     .sdl-header {
         background: linear-gradient(105deg, #0d1830 0%, #17264b 62%, #243a72 100%);
         color: white;
-        padding: 22px 28px;
-        border-radius: 14px;
-        margin-bottom: 18px;
+        padding: 17px 20px 15px 20px;
+        border-radius: 11px;
+        margin-bottom: 11px;
         box-shadow: 0 8px 24px rgba(20, 34, 72, .12);
     }
 
     .sdl-header-title {
-        font-size: 30px;
+        font-size: 23px;
         font-weight: 750;
-        line-height: 1.1;
+        line-height: 1.25;
         margin: 0;
     }
 
     .sdl-header-subtitle {
-        font-size: 15px;
+        font-size: 12px;
         opacity: .88;
-        margin-top: 5px;
+        margin-top: 3px;
     }
 
     .section-card {
         background: white;
         border: 1px solid #e7eaf2;
-        border-radius: 14px;
-        padding: 18px;
-        margin: 14px 0;
+        border-radius: 10px;
+        padding: 12px;
+        margin: 9px 0;
         box-shadow: 0 4px 16px rgba(20, 34, 72, .055);
     }
 
     .section-title {
         color: #17233f;
-        font-size: 27px;
+        font-size: 17px;
         font-weight: 720;
-        margin-bottom: 12px;
-    }
-
-    .section-subtitle {
-        color: #6c7488;
-        font-size: 14px;
-        margin-top: -7px;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
     }
 
     .metric-card {
         background: #fbfcff;
         border: 1px solid #e8ebf3;
-        border-radius: 12px;
-        padding: 18px 18px;
-        min-height: 112px;
+        border-radius: 9px;
+        padding: 11px 12px;
+        min-height: 76px;
     }
 
     .metric-label {
         color: #6d7588;
-        font-size: 12px;
+        font-size: 9px;
         font-weight: 750;
         letter-spacing: .06em;
         text-transform: uppercase;
@@ -99,15 +91,15 @@ st.markdown(
 
     .metric-value {
         color: #17233f;
-        font-size: 27px;
+        font-size: 20px;
         font-weight: 760;
-        margin-top: 7px;
+        margin-top: 4px;
     }
 
     .metric-detail {
         color: #7b8394;
-        font-size: 13px;
-        margin-top: 3px;
+        font-size: 10px;
+        margin-top: 2px;
     }
 
     .up-card {
@@ -124,7 +116,7 @@ st.markdown(
         display: inline-block;
         padding: 4px 9px;
         border-radius: 999px;
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 750;
         background: #edf9f2;
         color: #16824e;
@@ -133,7 +125,7 @@ st.markdown(
 
     .muted {
         color: #747d90;
-        font-size: 12px;
+        font-size: 11px;
     }
 
     div.stButton > button[kind="primary"] {
@@ -141,106 +133,18 @@ st.markdown(
         border: 0;
         border-radius: 10px;
         font-weight: 700;
-        min-height: 48px;
-    }
-
-    div.stButton > button {
-        border-radius: 10px;
-    }
-
-
-    /* Laptop viewport tuning: target ~1366x768 without browser zoom. */
-    .block-container {
-        max-width: 1240px;
-        padding-top: 1.15rem;
-        padding-bottom: 1rem;
-    }
-
-    .sdl-header {
-        padding: 17px 20px 15px 20px;
-        border-radius: 11px;
-        margin-bottom: 11px;
-    }
-
-    .sdl-header-title {
-        font-size: 23px;
-        line-height: 1.25;
-    }
-
-    .sdl-header-subtitle {
-        font-size: 12px;
-        margin-top: 3px;
-    }
-
-    .section-card {
-        border-radius: 10px;
-        padding: 12px;
-        margin: 9px 0;
-    }
-
-    .section-title {
-        font-size: 17px;
-        margin-bottom: 8px;
-    }
-
-    .metric-card {
-        padding: 11px 12px;
-        min-height: 76px;
-        border-radius: 9px;
-    }
-
-    .metric-label {
-        font-size: 9px;
-    }
-
-    .metric-value {
-        font-size: 20px;
-        margin-top: 4px;
-    }
-
-    .metric-detail {
-        font-size: 10px;
-        margin-top: 2px;
-    }
-
-    .muted {
-        font-size: 11px;
-    }
-
-    div.stButton > button[kind="primary"] {
         min-height: 40px;
     }
 
-    div[data-testid="stSelectbox"] label,
-    div[data-testid="stButton"] button,
+    div.stButton > button,
     div[data-testid="stDownloadButton"] button {
-        font-size: 12px;
-    }
-
-    .footer {
-        font-size: 10px;
-        margin-top: 10px;
-        padding-top: 7px;
+        border-radius: 10px;
+        font-size: 14px;
     }
 
     [data-testid="stDataFrame"] {
-        border-radius: 8px;
-    }
-
-    /* Readability tuned for the current desktop Chrome viewport. */
-    div[data-testid="stText"] {
-        font-size: 14px;
-    }
-
-    div[data-testid="stSelectbox"] label,
-    div[data-testid="stButton"] button,
-    div[data-testid="stDownloadButton"] button {
-        font-size: 14px;
-    }
-
-        [data-testid="stDataFrame"] {
         border: 1px solid #e6e9f1;
-        border-radius: 10px;
+        border-radius: 8px;
         overflow: hidden;
     }
 
@@ -249,9 +153,9 @@ st.markdown(
         justify-content: space-between;
         align-items: center;
         color: #747d90;
-        font-size: 13px;
-        margin-top: 18px;
-        padding-top: 10px;
+        font-size: 10px;
+        margin-top: 10px;
+        padding-top: 7px;
         border-top: 1px solid #e6e9f1;
     }
     </style>
@@ -271,12 +175,21 @@ def _events() -> pd.DataFrame:
     return events.copy()
 
 
+def _normalise_trading_date(value) -> str:
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        return ""
+    return parsed.strftime("%Y-%m-%d")
+
+
 def _today_events(events: pd.DataFrame) -> pd.DataFrame:
     if events.empty or "trading_date" not in events.columns:
         return pd.DataFrame()
 
     today = pd.Timestamp.now().date().isoformat()
-    return events[events["trading_date"].astype(str) == today].copy()
+    dates = events["trading_date"].map(_normalise_trading_date)
+
+    return events.loc[dates == today].copy()
 
 
 def _latest_workbook() -> tuple[Path | None, str | None]:
@@ -287,10 +200,19 @@ def _latest_workbook() -> tuple[Path | None, str | None]:
     except Exception:
         return None, None
 
-    if not files:
+    valid_files = []
+    for item in files:
+        path = Path(item)
+        try:
+            if path.is_file():
+                valid_files.append(path)
+        except OSError:
+            continue
+
+    if not valid_files:
         return None, None
 
-    latest = max((Path(p) for p in files), key=lambda p: p.stat().st_mtime)
+    latest = max(valid_files, key=lambda p: p.stat().st_mtime)
     modified = pd.Timestamp.fromtimestamp(latest.stat().st_mtime).strftime(
         "%d %b %Y, %H:%M:%S"
     )
@@ -311,22 +233,41 @@ def _last_processed(events: pd.DataFrame) -> str:
     return values.max().strftime("%d %b %Y, %H:%M:%S")
 
 
-def _visible_columns(df: pd.DataFrame, historical: bool = False) -> dict[str, str]:
-    columns = {
-        "observation_timestamp": "Observation Time",
-        "symbol": "Symbol",
-        "direction": "Direction",
-        "open_price": "Open Price",
-        "current_price": "Current Price",
-        "opening_straddle_premium": "Opening Straddle",
-        "expected_1x_price": "Expected 1× Price",
-        "breakout_distance": "Breakout Distance",
-    }
+def _display_events(
+    df: pd.DataFrame,
+    historical: bool = False,
+) -> pd.DataFrame:
+    """
+    Build the dashboard table explicitly from named source columns.
+
+    This avoids relying on positional/implicit column alignment and ensures
+    every displayed heading corresponds to the exact source field.
+    """
+    mapping = [
+        ("observation_timestamp", "Observation Time"),
+        ("symbol", "Symbol"),
+        ("direction", "Direction"),
+        ("open_price", "Open Price"),
+        ("current_price", "Current Price"),
+        ("opening_straddle_premium", "Opening Straddle"),
+        ("expected_1x_price", "Expected 1× Price"),
+        ("breakout_distance", "Breakout Distance"),
+    ]
 
     if historical:
-        columns["strategy_version"] = "Strategy Version"
+        mapping.append(("strategy_version", "Strategy Version"))
 
-    return {c: label for c, label in columns.items() if c in df.columns}
+    available = [(source, label) for source, label in mapping if source in df.columns]
+
+    if not available:
+        return pd.DataFrame()
+
+    # Explicitly construct each displayed column by source name.
+    display = pd.DataFrame(index=df.index)
+    for source, label in available:
+        display[label] = df[source].to_numpy()
+
+    return display.reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
@@ -391,12 +332,13 @@ today_events = _today_events(events)
 latest, file_modified = _latest_workbook()
 
 up_count = (
-    int((today_events["direction"] == "UP").sum())
+    int((today_events["direction"].astype(str).str.upper() == "UP").sum())
     if not today_events.empty and "direction" in today_events.columns
     else 0
 )
+
 down_count = (
-    int((today_events["direction"] == "DOWN").sum())
+    int((today_events["direction"].astype(str).str.upper() == "DOWN").sum())
     if not today_events.empty and "direction" in today_events.columns
     else 0
 )
@@ -483,7 +425,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-today_col, history_col = st.columns([5, 1])
+_, history_col = st.columns([5, 1])
 
 with history_col:
     view_history = st.button("◷  View History", width="stretch")
@@ -494,12 +436,16 @@ if view_history:
 if today_events.empty:
     st.info("No recorded straddle breakouts for today.")
 else:
-    visible = _visible_columns(today_events)
-    st.dataframe(
-        today_events[list(visible)].rename(columns=visible),
-        width="stretch",
-        hide_index=True,
-    )
+    display_today = _display_events(today_events)
+
+    if display_today.empty:
+        st.info("Today's events exist, but no displayable event columns were found.")
+    else:
+        st.dataframe(
+            display_today,
+            width="stretch",
+            hide_index=True,
+        )
 
 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -519,40 +465,50 @@ if show_history:
     if events.empty or "trading_date" not in events.columns:
         st.info("No historical breakout events recorded yet.")
     else:
+        # Normalize dates only for filtering/display selection.
+        normalized_dates = events["trading_date"].map(_normalise_trading_date)
         dates = sorted(
-            events["trading_date"].astype(str).dropna().unique(),
+            normalized_dates.dropna().unique(),
             reverse=True,
         )
 
-        filter_col, refresh_col, export_col = st.columns([2, 1, 1])
+        if not dates:
+            st.info("No valid trading dates found in the event store.")
+        else:
+            filter_col, refresh_col, export_col = st.columns([2, 1, 1])
 
-        with filter_col:
-            selected = st.selectbox("Trading Date", dates)
+            with filter_col:
+                selected = st.selectbox("Trading Date", dates)
 
-        with refresh_col:
-            if st.button("↻  Refresh", width="stretch"):
-                st.rerun()
+            with refresh_col:
+                if st.button("↻  Refresh", width="stretch"):
+                    st.rerun()
 
-        historical = events[
-            events["trading_date"].astype(str) == selected
-        ].copy()
+            historical = events.loc[normalized_dates == selected].copy()
 
-        with export_col:
-            csv_data = historical.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                "⇩  Export CSV",
-                data=csv_data,
-                file_name=f"sdl_breakouts_{selected}.csv",
-                mime="text/csv",
-                width="stretch",
+            with export_col:
+                csv_data = historical.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "⇩  Export CSV",
+                    data=csv_data,
+                    file_name=f"sdl_breakouts_{selected}.csv",
+                    mime="text/csv",
+                    width="stretch",
+                )
+
+            display_history = _display_events(
+                historical,
+                historical=True,
             )
 
-        visible = _visible_columns(historical, historical=True)
-        st.dataframe(
-            historical[list(visible)].rename(columns=visible),
-            width="stretch",
-            hide_index=True,
-        )
+            if display_history.empty:
+                st.info("No displayable historical event columns were found.")
+            else:
+                st.dataframe(
+                    display_history,
+                    width="stretch",
+                    hide_index=True,
+                )
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -564,7 +520,9 @@ if show_history:
 st.markdown(
     """
     <div class="footer">
-        <span>Phase-1 only: no SL, target outcome, success/failure or P&amp;L is calculated.</span>
+        <span>
+            Phase-1 only: no SL, target outcome, success/failure or P&amp;L is calculated.
+        </span>
         <span>
             <span class="status-pill">● System Healthy</span>
             &nbsp;&nbsp;
