@@ -1,175 +1,252 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
-from typing import Any
-
+import sys
 import pandas as pd
 import streamlit as st
 
-# Existing SDL services are reused; they are not copied or modified.
-from config import INTRADAY_SOURCE_ROOT, STATE_JSON
-from source_loader import discover_daywise_files
-from storage import load_state, save_state
+HERE = Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
 
-from derivative_signal.signal_engine import build_signal
+try:
+    from config import INTRADAY_SOURCE_ROOT
+except Exception:
+    INTRADAY_SOURCE_ROOT = HERE
 
-STATE_KEY = "derivative_signal"
+from multi_source_adapter import discover_sources, load_and_merge
+from signal_engine import build_signal
 
-
-def _discover_sources(trading_date: str) -> list[Path]:
-    files = discover_daywise_files(INTRADAY_SOURCE_ROOT, trading_date)
-    return sorted(
-        [Path(p) for p in files if Path(p).is_file()],
-        key=lambda p: p.stat().st_mtime,
-    )
-
-
-def _load_source(path: Path) -> pd.DataFrame:
-    df = pd.read_excel(path)
-    df.columns = [str(c).strip() for c in df.columns]
-    return df
+BIAS_ORDER = [
+    "STRONG BULLISH", "BULLISH", "MILD BULLISH", "DEVELOPING BULLISH",
+    "CONFLICT", "NEUTRAL / NO SIGNAL",
+    "DEVELOPING BEARISH", "MILD BEARISH", "BEARISH", "STRONG BEARISH",
+]
+EVIDENCE_ORDER = ["CONFIRMED", "PARTIAL", "DEVELOPING", "WAIT LEVEL", "CONFLICT", "INCOMPLETE", "NO SIGNAL"]
 
 
-def _previous(state: dict[str, Any], trading_date: str) -> dict[str, dict]:
-    return state.get(STATE_KEY, {}).get(trading_date, {}).get("previous_snapshot", {})
+def _safe_float(v):
+    try:
+        x = float(v)
+        return x if x == x else None
+    except (TypeError, ValueError):
+        return None
 
 
-def _snapshot_rows(df: pd.DataFrame) -> dict[str, dict]:
-    keep = [
-        "Symbol", "Open", "High", "Low", "Close",
-        "OI Chg %", "Tot CE OI Chg %", "Tot PE OI Chg %",
-        "Tot PE-CE OI Chg",
-    ]
-    rows: dict[str, dict] = {}
-    for record in df.to_dict(orient="records"):
-        symbol = str(record.get("Symbol", "")).strip().upper()
-        if symbol:
-            rows[symbol] = {k: record.get(k) for k in keep}
-    return rows
+def _prepare_rows(bundle):
+    if bundle.rows is None or bundle.rows.empty:
+        return pd.DataFrame()
 
+    rows = bundle.rows.copy()
+    opening = bundle.opening_rows
+    if opening is not None and not opening.empty and "symbol" in opening.columns:
+        opening = opening.set_index("symbol")
 
-def process_selected_source(path: Path, trading_date: str) -> pd.DataFrame:
-    df = _load_source(path)
-    state = load_state(STATE_JSON)
-    previous = _previous(state, trading_date)
+    progress = []
+    for _, r in rows.iterrows():
+        symbol = str(r.get("symbol", "")).strip().upper()
+        cur = _safe_float(r.get("atm_straddle_price"))
+        op = None
+        if opening is not None and symbol in opening.index:
+            op = _safe_float(opening.loc[symbol].get("atm_straddle_price"))
+        if cur is not None and op not in (None, 0):
+            progress.append(abs(cur - op) / abs(op) * 100.0)
+        else:
+            progress.append(None)
+    rows["straddle_progress_pct"] = progress
 
-    results = []
-    for record in df.to_dict(orient="records"):
-        symbol = str(record.get("Symbol", "")).strip().upper()
-        results.append(build_signal(record, previous.get(symbol)))
+    # Never let a generic Price field populate Price Chg %.
+    rows["price_chg_pct"] = pd.to_numeric(rows.get("price_chg_pct"), errors="coerce")
+    rows["close"] = pd.to_numeric(rows.get("close"), errors="coerce")
 
-    day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
-    day["previous_snapshot"] = _snapshot_rows(df)
-    day["source_file"] = str(path)
-    day["processed_at"] = datetime.now().isoformat()
-    save_state(state, STATE_JSON)
-
+    results = [build_signal(r.to_dict()) for _, r in rows.iterrows()]
     return pd.DataFrame(results)
 
 
-def render() -> None:
-    st.title("NTIS SDL — Decision Signals")
-    st.caption(
-        "Separate directional evidence layer. Existing SDL and Straddle Breakout logic are untouched."
-    )
+def _decision_label(bias: str) -> str:
+    return {
+        "STRONG BULLISH": "🟢🟢 STRONG BULLISH",
+        "BULLISH": "🟢 BULLISH",
+        "MILD BULLISH": "🟢 MILD BULLISH",
+        "DEVELOPING BULLISH": "🟠 DEVELOPING BULLISH",
+        "CONFLICT": "🟣 CONFLICT",
+        "NEUTRAL / NO SIGNAL": "⚪ NO SIGNAL",
+        "DEVELOPING BEARISH": "🟠 DEVELOPING BEARISH",
+        "MILD BEARISH": "🔴 MILD BEARISH",
+        "BEARISH": "🔴 BEARISH",
+        "STRONG BEARISH": "🔴🔴 STRONG BEARISH",
+    }.get(str(bias), "⚪ NO SIGNAL")
 
-    selected_date = st.date_input(
-        "Trading date",
-        value=date.today(),
-        key="ds_trading_date",
-    )
-    trading_date = selected_date.isoformat()
 
-    sources = _discover_sources(trading_date)
-    if not sources:
-        st.info("No eligible Daywise source files found for the selected date.")
+def _style_row(row):
+    bias = str(row.get("Bias", ""))
+    for label, category in {
+        "🟢🟢 STRONG BULLISH": "STRONG BULLISH",
+        "🟢 BULLISH": "BULLISH",
+        "🟢 MILD BULLISH": "MILD BULLISH",
+        "🟠 DEVELOPING BULLISH": "DEVELOPING BULLISH",
+        "🟣 CONFLICT": "CONFLICT",
+        "🟠 DEVELOPING BEARISH": "DEVELOPING BEARISH",
+        "🔴 MILD BEARISH": "MILD BEARISH",
+        "🔴 BEARISH": "BEARISH",
+        "🔴🔴 STRONG BEARISH": "STRONG BEARISH",
+        "⚪ NO SIGNAL": "NEUTRAL / NO SIGNAL",
+    }.items():
+        if bias == label:
+            bias = category
+            break
+    if bias == "STRONG BULLISH": bg, fg = "#d9f5df", "#14532d"
+    elif bias == "BULLISH": bg, fg = "#e8f8ea", "#166534"
+    elif bias == "MILD BULLISH": bg, fg = "#f1faef", "#166534"
+    elif bias == "DEVELOPING BULLISH": bg, fg = "#fff4df", "#9a6700"
+    elif bias == "CONFLICT": bg, fg = "#f3e8ff", "#6b21a8"
+    elif bias == "DEVELOPING BEARISH": bg, fg = "#fff4df", "#9a6700"
+    elif bias == "MILD BEARISH": bg, fg = "#fff0f0", "#991b1b"
+    elif bias == "BEARISH": bg, fg = "#ffe7e7", "#991b1b"
+    elif bias == "STRONG BEARISH": bg, fg = "#f9dada", "#991b1b"
+    else: bg, fg = "#f5f5f5", "#555"
+    return [f"background-color:{bg};color:{fg};font-weight:600"] * len(row)
+
+
+def _strength_text(v):
+    n = max(0, min(5, int(v or 0)))
+    return "●" * n + "○" * (5 - n)
+
+
+def render():
+    st.title("NTIS SDL — Decision Dashboard")
+    st.caption("Trading-oriented multi-source decision layer. Existing SDL pipeline remains read-only and unchanged.")
+
+    trading_date = st.date_input("Trading date", value=date.today(), key="ds_date").isoformat()
+    bundle = discover_sources(INTRADAY_SOURCE_ROOT, trading_date)
+
+    st.subheader("Source Readiness")
+    cols = st.columns(6)
+    roles = ["BASE", "FUTURES", "IV", "SUPPORT", "RESISTANCE", "VOLUME"]
+    for col, role in zip(cols, roles):
+        path = bundle.files.get(role)
+        col.metric(role, "FOUND" if path else "MISSING")
+
+    if bundle.files:
+        with st.expander("Source files used", expanded=False):
+            for role, path in bundle.files.items():
+                st.write(f"**{role}:** `{path}`")
+            if bundle.base_history:
+                st.caption(f"BASE snapshots discovered: {len(bundle.base_history)} — earliest used for straddle-progress baseline.")
+    if bundle.missing:
+        st.warning("Missing source families: " + ", ".join(bundle.missing))
+    for error in bundle.errors:
+        st.error(error)
+
+    if "ds_bundle" not in st.session_state:
+        st.session_state.ds_bundle = None
+
+    if st.button("▶ PROCESS TODAY'S DATA", type="primary", width="stretch"):
+        processed = load_and_merge(bundle)
+        st.session_state.ds_bundle = processed
+        st.session_state.ds_result = None
+
+    bundle = st.session_state.ds_bundle
+    if bundle is None:
+        st.info("Review the detected source files and press PROCESS TODAY'S DATA.")
+        return
+    if bundle.rows is None or bundle.rows.empty:
+        st.error("No merged symbol data is available.")
         return
 
-    labels = [p.name for p in sources]
-    selected_label = st.selectbox("Source file", labels, key="ds_source_file")
-    selected_path = sources[labels.index(selected_label)]
-
-    st.caption(
-        f"Source: {selected_path.name} | "
-        f"Modified: {datetime.fromtimestamp(selected_path.stat().st_mtime):%d %b %Y, %H:%M:%S}"
-    )
-
-    if st.button(
-        "▶ Process Selected Data",
-        type="primary",
-        width="stretch",
-        key="ds_process_selected",
-    ):
-        try:
-            st.session_state["ds_result"] = process_selected_source(
-                selected_path, trading_date
-            )
-            st.session_state["ds_source"] = selected_path.name
-            st.success(f"Processed {selected_path.name}")
-        except Exception as exc:
-            st.error(f"Processing failed: {type(exc).__name__}: {exc}")
-
-    result = st.session_state.get("ds_result")
-    if result is None or result.empty:
-        st.info("Select a source and press Process Selected Data.")
+    result = _prepare_rows(bundle)
+    if result.empty:
+        st.error("Decision engine returned no records.")
         return
+    st.session_state.ds_result = result
 
-    st.subheader("Decision Summary")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Candidates", len(result))
-    c2.metric("Bullish", int((result.direction == "BULLISH").sum()))
-    c3.metric("Bearish", int((result.direction == "BEARISH").sum()))
-    c4.metric("Developing", int((result.state == "DEVELOPING").sum()))
-    c5.metric("No Trade", int((result.state == "NO_TRADE").sum()))
+    # Summary by final bias, not raw price direction.
+    counts = result["bias_category"].value_counts()
+    c = st.columns(5)
+    c[0].metric("Symbols", len(result))
+    c[1].metric("Strong Bullish", int(counts.get("STRONG BULLISH", 0)))
+    c[2].metric("Bullish", int(counts.get("BULLISH", 0) + counts.get("MILD BULLISH", 0)))
+    c[3].metric("Bearish", int(counts.get("BEARISH", 0) + counts.get("MILD BEARISH", 0)))
+    c[4].metric("Conflict", int(counts.get("CONFLICT", 0)))
 
-    direction = st.selectbox(
-        "Direction", ["ALL", "BULLISH", "BEARISH", "NEUTRAL"], key="ds_direction"
-    )
-    state_filter = st.selectbox(
-        "Decision State",
-        ["ALL", "WATCH", "DEVELOPING", "CONFIRMED", "NO_TRADE", "INSUFFICIENT_DATA"],
-        key="ds_state",
-    )
+    st.subheader("Decision Signals")
+    f1, f2, f3 = st.columns([1.5, 1.2, 1.2])
+    with f1:
+        bias_filter = st.selectbox("Bias Category", ["ALL"] + BIAS_ORDER, key="ds_bias_filter")
+    with f2:
+        evidence_filter = st.selectbox("Evidence State", ["ALL"] + EVIDENCE_ORDER, key="ds_evidence_filter")
+    with f3:
+        direction_filter = st.selectbox("Direction", ["ALL", "BULLISH", "BEARISH", "NEUTRAL"], key="ds_direction_filter")
+    show_all = st.checkbox("Show full universe", False, key="ds_show_all")
 
     filtered = result.copy()
-    if direction != "ALL":
-        filtered = filtered[filtered.direction == direction]
-    if state_filter != "ALL":
-        filtered = filtered[filtered.state == state_filter]
+    if bias_filter != "ALL":
+        filtered = filtered[filtered.bias_category == bias_filter]
+    if evidence_filter != "ALL":
+        filtered = filtered[filtered.evidence_state == evidence_filter]
+    if direction_filter != "ALL":
+        filtered = filtered[filtered.direction == direction_filter]
+    if not show_all:
+        filtered = filtered[filtered.bias_category != "NEUTRAL / NO SIGNAL"]
 
-    display_cols = [
-        "symbol", "direction", "price_event", "oi_evidence",
-        "options_structure", "location", "state", "reference_price",
-    ]
-    st.dataframe(
-        filtered[display_cols].rename(
-            columns={
-                "symbol": "Symbol",
-                "direction": "Direction",
-                "price_event": "Price Event",
-                "oi_evidence": "OI Evidence",
-                "options_structure": "PE-CE Evidence",
-                "location": "Location",
-                "state": "Decision",
-                "reference_price": "Reference Price",
-            }
-        ),
-        width="stretch",
-        hide_index=True,
-    )
+    bias_rank = {b: i for i, b in enumerate(BIAS_ORDER)}
+    filtered = filtered.assign(_rank=filtered.bias_category.map(bias_rank).fillna(99))
+    filtered = filtered.sort_values(["_rank", "strength", "price_change_pct"], ascending=[True, False, False])
 
-    st.subheader("Why?")
-    if not filtered.empty:
-        symbol = st.selectbox(
-            "Candidate", filtered.symbol.tolist(), key="ds_candidate"
-        )
+    st.caption(f"Showing {len(filtered)} of {len(result)} symbols. Filter operates on FINAL BIAS CATEGORY, not raw price direction.")
+
+    if filtered.empty:
+        st.info("No stocks match the selected filters.")
+    else:
+        table = pd.DataFrame({
+            "Symbol": filtered.symbol,
+            "Bias": filtered.bias_category.map(_decision_label),
+            "Evidence": filtered.evidence_state,
+            "Price %": filtered.price_change_pct.map(lambda x: "—" if pd.isna(x) else f"{x:+.2f}%"),
+            "PE-CE OI": filtered.options_structure,
+            "Futures": filtered.futures_buildup,
+            "Fut OI %": filtered.futures_oi_change_pct.map(lambda x: "—" if pd.isna(x) else f"{x:+.2f}%"),
+            "Straddle Progress %": filtered.straddle_progress_pct.map(lambda x: "—" if pd.isna(x) else f"{x:.1f}%"),
+            "Straddle Stage": filtered.straddle_stage,
+            "S/R": filtered.location,
+            "Strength": filtered.strength.map(_strength_text),
+        })
+        st.dataframe(table.style.apply(_style_row, axis=1), width="stretch", hide_index=True)
+
+    st.subheader("Decision Detail")
+    options = filtered.symbol.tolist()
+    if options:
+        symbol = st.selectbox("Inspect stock", options, key="ds_symbol")
         row = filtered.loc[filtered.symbol == symbol].iloc[0]
-        st.write(f"**{symbol} — {row.state}** | {row.direction} | {row.price_event}")
+        st.markdown(f"### {_decision_label(row.bias_category)}")
+        st.write(f"**Direction:** {row.direction}  |  **Evidence:** {row.evidence_state}  |  **Strength:** {int(row.strength)}/5")
         for reason in row.reasons:
             st.write(f"- {reason}")
+        a,b,c,d = st.columns(4)
+        a.metric("CMP", f"{row.reference_price:.2f}" if pd.notna(row.reference_price) else "—")
+        b.metric("Support", f"{row.support:.2f}" if pd.notna(row.support) else "—")
+        c.metric("Resistance", f"{row.resistance:.2f}" if pd.notna(row.resistance) else "—")
+        d.metric("Straddle Progress", f"{row.straddle_progress_pct:.1f}%" if pd.notna(row.straddle_progress_pct) else "—")
+        with st.expander("Detailed evidence", expanded=False):
+            st.write({
+                "PE-CE value": row.pece_value,
+                "PE-CE direction": row.options_direction,
+                "Futures direction": row.futures_direction,
+                "Futures OI %": row.futures_oi_change_pct,
+                "IV change %": row.iv_change_pct,
+                "IVR": row.ivr,
+                "IVP": row.ivp,
+                "Volume change %": row.volume_change_pct,
+                "OI change %": row.oi_change_pct,
+                "S/R location": row.location,
+                "Level distance %": row.level_distance_pct,
+                "Confirmation count": row.confirmation_count,
+                "Conflict count": row.conflict_count,
+            })
 
-    st.caption(
-        f"Source: {st.session_state.get('ds_source', selected_path.name)} | "
-        "Explicit Futures OI is not inferred from primary OI."
-    )
+    st.caption("Price % comes only from the explicit Price Chg % source field. Final Bias is separate from Direction. WATCH/DEVELOPING/CONFLICT states never masquerade as confirmed trades.")
+
+
+if __name__ == "__main__":
+    render()
