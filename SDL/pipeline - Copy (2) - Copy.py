@@ -11,7 +11,6 @@ from config import (
     EVENT_CSV,
     REQUIRED_EVIDENCE_DIR,
     STATE_JSON,
-    STRADDLE_FORMULA,
     STRATEGY_VERSION,
     EOD_SOURCE_ROOT,
     INTRADAY_SOURCE_ROOT,
@@ -23,7 +22,7 @@ from source_loader import (
     discover_daywise_files,
 )
 
-from event_detector import detect_first_crossings
+from approaching_breakout import save_approaching_breakouts
 
 from storage import (
     load_events,
@@ -43,18 +42,16 @@ def _opening_straddle(row) -> float:
     Determine the opening straddle premium for the FIRST snapshot
     of a trading day.
 
-    Priority:
-        1. Source ATM Straddle Price, when present.
-        2. Open × ATM Straddle % / 100, as fallback.
+    The Daywise source contract provides the opening Open and
+    ATM Straddle %. The opening premium is always derived from those
+    first-snapshot values.
+
+    Any source ATM Straddle Price is optional evidence only and MUST
+    NOT override this calculation.
 
     The returned value becomes the frozen per-stock daily opening
     straddle once the first snapshot is accepted.
     """
-
-    source_price = row.get("source_atm_straddle_price")
-
-    if source_price is not None and not pd.isna(source_price):
-        return float(source_price)
 
     pct = row.get("atm_straddle_pct")
     op = row.get("daily_open_reference")
@@ -149,23 +146,10 @@ def _ensure_first_snapshot_base(
         if open_price is None or pd.isna(open_price):
             continue
 
-        source_straddle = row.get(
-            "source_atm_straddle_price"
-        )
-
-        if (
-            source_straddle is not None
-            and not pd.isna(source_straddle)
-        ):
-            premium = float(source_straddle)
-            straddle_source = (
-                "source_atm_straddle_price"
-            )
-        else:
-            premium = _opening_straddle(row)
-            straddle_source = (
-                "open_x_atm_straddle_pct"
-            )
+        # Opening premium is derived exclusively from the first
+        # snapshot's Open and ATM Straddle %.
+        premium = _opening_straddle(row)
+        straddle_source = "open_x_atm_straddle_pct"
 
         if pd.isna(premium):
             continue
@@ -223,39 +207,58 @@ def _apply_frozen_base(
     base_map: dict,
 ) -> pd.DataFrame:
     """
-    Apply the frozen daily opening base to a later snapshot.
+    Apply the frozen daily opening base to a snapshot.
 
-    The current snapshot's Open / ATM Straddle values are NOT allowed
-    to replace the frozen opening values.
+    The frozen base is authoritative for opening reference and opening
+    straddle values. Current market fields remain snapshot-derived.
 
-    Current market price remains from the current snapshot.
+    The function is defensive about ``daily_open_reference`` because
+    callers may provide a dataframe that has not yet passed through
+    ``derive_straddle_values``.
     """
-
     out = df.copy()
 
+    if "Symbol" not in out.columns:
+        raise ValueError(
+            "Snapshot dataframe does not contain required column: Symbol"
+        )
+
+    out["Symbol"] = (
+        out["Symbol"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    # Ensure a snapshot opening reference exists before using fillna.
+    # derive_straddle_values normally creates this column, but the
+    # frozen-base boundary must not depend on that implementation detail.
+    if "daily_open_reference" not in out.columns:
+        if "Open" in out.columns:
+            out["daily_open_reference"] = pd.to_numeric(
+                out["Open"],
+                errors="coerce",
+            )
+        else:
+            out["daily_open_reference"] = float("nan")
+
     premium_map = {
-        key: value[
-            "opening_straddle_premium"
-        ]
+        key: value.get("opening_straddle_premium")
         for key, value in base_map.items()
     }
 
     open_map = {
-        key: value["open_price"]
+        key: value.get("open_price")
         for key, value in base_map.items()
     }
 
     pct_map = {
-        key: value.get(
-            "opening_atm_straddle_pct"
-        )
+        key: value.get("opening_atm_straddle_pct")
         for key, value in base_map.items()
     }
 
     source_map = {
-        key: value.get(
-            "opening_straddle_source"
-        )
+        key: value.get("opening_straddle_source")
         for key, value in base_map.items()
     }
 
@@ -268,7 +271,10 @@ def _apply_frozen_base(
         out["Symbol"]
         .map(open_map)
         .fillna(
-            out["daily_open_reference"]
+            pd.to_numeric(
+                out["daily_open_reference"],
+                errors="coerce",
+            )
         )
     )
 
@@ -555,6 +561,33 @@ def _new_events(
 # Main snapshot processor
 # ---------------------------------------------------------------------------
 
+def derive_straddle_values(df: pd.DataFrame, breakout_multiplier: float = 1.0, current_price_field: str = 'Close') -> pd.DataFrame:
+    out = df.copy()
+    if 'Symbol' not in out.columns:
+        raise ValueError('Primary snapshot does not contain required column: Symbol')
+    out['Symbol'] = out['Symbol'].astype(str).str.strip().str.upper()
+    if current_price_field not in out.columns:
+        raise ValueError(f'Primary snapshot does not contain current price field: {current_price_field}')
+    out['current_price'] = pd.to_numeric(out[current_price_field], errors='coerce')
+    if 'Open' in out.columns:
+        out['daily_open_reference'] = pd.to_numeric(out['Open'], errors='coerce')
+    else:
+        out['daily_open_reference'] = float('nan')
+    if 'ATM Straddle %' in out.columns:
+        out['atm_straddle_pct'] = pd.to_numeric(out['ATM Straddle %'], errors='coerce')
+    else:
+        out['atm_straddle_pct'] = float('nan')
+    source_candidates = ['ATM Straddle Price','ATM Straddle','ATM Straddle Premium','ATM Straddle Price ()','ATM Straddle Price (Rs.)']
+    source_column = next((c for c in source_candidates if c in out.columns), None)
+    out['source_atm_straddle_price'] = pd.to_numeric(out[source_column], errors='coerce') if source_column else float('nan')
+    mappings = {'Price Chg %':'price_chg_pct','IV Chg %':'iv_chg_pct','OI Chg %':'oi_chg_pct','PCR Chg %':'pcr_chg_pct','Tot CE OI Chg %':'ce_oi_chg_pct','Tot PE OI Chg %':'pe_oi_chg_pct','Tot PE-CE OI Chg':'pe_minus_ce_oi_chg','High':'High','Low':'Low'}
+    for source,target in mappings.items():
+        if source in out.columns:
+            out[target] = pd.to_numeric(out[source], errors='coerce')
+        elif target not in out.columns:
+            out[target] = float('nan')
+    return out
+
 def process_snapshot(
     path: Path,
     timestamp=None,
@@ -632,6 +665,16 @@ def process_snapshot(
         df,
         base_map,
     )
+    # ------------------------------------------------------------------
+    # Approaching-breakout view: 50% of each stock's frozen opening
+    # straddle. This is additive and does not alter breakout events.
+    # ------------------------------------------------------------------
+    save_approaching_breakouts(
+        df,
+        trading_date,
+        observed_at,
+        Path(EVENT_CSV).parent / "approaching_breakouts.csv",
+    )
 
     # ------------------------------------------------------------------
     # Load existing events and detect only new breakouts.
@@ -647,19 +690,9 @@ def process_snapshot(
         observed_at,
     )
 
-    # ------------------------------------------------------------------
-    # Preserve compatibility with the existing event detector path.
-    #
-    # The final event set is generated by the frozen-base calculation
-    # above. Existing event history remains untouched.
-    # ------------------------------------------------------------------
-
-    if events.empty:
-        events = detect_first_crossings(
-            df,
-            prior_events,
-            observed_at,
-        )
+    # The frozen-base event calculation above is authoritative.
+    # Do not fall back to a second event detector with different
+    # opening-base semantics.
 
     append_events(
         events,
@@ -704,11 +737,7 @@ def process_snapshot(
                 ),
 
             "opening_straddle_formula":
-                (
-                    "first_snapshot_source_atm_straddle_price"
-                    " or "
-                    "first_snapshot_open_x_atm_straddle_pct"
-                ),
+                "first_snapshot_open_x_atm_straddle_pct",
 
             "current_price_field":
                 CURRENT_PRICE_FIELD,
@@ -729,10 +758,7 @@ def process_snapshot(
                 False,
 
             "source_atm_straddle_price_role":
-                (
-                    "authoritative_first_snapshot_value_"
-                    "when_available"
-                ),
+                "optional_evidence_only_not_authoritative",
 
             "opening_straddle_fallback":
                 "open_x_atm_straddle_pct",
@@ -795,21 +821,29 @@ def discover_historical_snapshots(
 
 def process_latest_snapshot_for_today():
     """
-    Find the latest Daywise workbook for today's trading date and
-    process it.
+    Process today's Daywise snapshots in chronological filesystem order.
 
-    The filesystem modification time is used ONLY to select the newest
-    workbook. It is not claimed to be the market observation timestamp.
+    IMPORTANT:
+        The first snapshot of the trading day MUST establish the frozen
+        opening base before any later snapshot is evaluated.
 
-    The actual observation timestamp should therefore be supplied by
-    the caller/intake convention when known.
+        Because the current Daywise filenames do not contain the
+        observation time, filesystem modification time is used only as
+        the operational ordering signal for today's intake.
+
+        The latest snapshot is then processed using that already-frozen
+        opening base.
+
+    Source files are read directly from INTRADAY_SOURCE_ROOT.
+    No SDL input copy is used.
     """
 
     today = datetime.now().date()
+    trading_date = today.isoformat()
 
     files = list(
         discover_historical_snapshots(
-            today.isoformat()
+            trading_date
         )
     )
 
@@ -821,27 +855,66 @@ def process_latest_snapshot_for_today():
             "No Daywise snapshot found for today.",
         )
 
-    latest = max(
-        (
-            Path(p)
-            for p in files
-        ),
+    # Deterministic intake order: oldest file first.
+    ordered = sorted(
+        (Path(p) for p in files),
         key=lambda p: p.stat().st_mtime,
     )
 
-    # Current operational fallback:
-    # use filesystem time only for ordering/selection.
-    #
-    # This value is not represented as a claimed market timestamp.
+    state = load_state(STATE_JSON)
+    daily_bases = state.get(
+        "daily_opening_straddles",
+        {},
+    )
+
+    # If today's opening base is not frozen yet, establish it from
+    # the FIRST available snapshot, never from the latest workbook.
+    if not daily_bases.get(trading_date):
+        first = ordered[0]
+        first_observed_at = datetime.fromtimestamp(
+            first.stat().st_mtime
+        )
+
+        process_snapshot(
+            first,
+            first_observed_at,
+        )
+
+    # Re-read state after first-snapshot establishment.
+    state = load_state(STATE_JSON)
+    if not state.get(
+        "daily_opening_straddles",
+        {},
+    ).get(trading_date):
+        return (
+            None,
+            None,
+            None,
+            "Unable to establish today's frozen opening base "
+            "from the first snapshot.",
+        )
+
+    latest = ordered[-1]
     observed_at = datetime.fromtimestamp(
         latest.stat().st_mtime
     )
 
-    events, df, processed_at = (
-        process_snapshot(
+    # If the first snapshot is also the latest snapshot, it has already
+    # been processed and must not be processed a second time.
+    if latest == ordered[0]:
+        return (
             latest,
-            observed_at,
+            pd.DataFrame(),
+            None,
+            (
+                "First snapshot processed and opening base frozen; "
+                "no later snapshot available."
+            ),
         )
+
+    events, df, processed_at = process_snapshot(
+        latest,
+        observed_at,
     )
 
     return (
@@ -849,9 +922,9 @@ def process_latest_snapshot_for_today():
         events,
         df,
         (
-            "Latest workbook selected by "
-            "filesystem modification time; "
-            "observation timestamp is operational "
-            "file-time, not claimed market time."
+            "Opening base established from first snapshot by "
+            "filesystem intake order; latest workbook then processed "
+            "using the frozen daily base."
         ),
     )
+

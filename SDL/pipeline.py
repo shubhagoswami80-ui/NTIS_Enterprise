@@ -22,6 +22,8 @@ from source_loader import (
     discover_daywise_files,
 )
 
+from approaching_breakout import save_approaching_breakouts
+
 from storage import (
     load_events,
     append_events,
@@ -205,39 +207,58 @@ def _apply_frozen_base(
     base_map: dict,
 ) -> pd.DataFrame:
     """
-    Apply the frozen daily opening base to a later snapshot.
+    Apply the frozen daily opening base to a snapshot.
 
-    The current snapshot's Open / ATM Straddle values are NOT allowed
-    to replace the frozen opening values.
+    The frozen base is authoritative for opening reference and opening
+    straddle values. Current market fields remain snapshot-derived.
 
-    Current market price remains from the current snapshot.
+    The function is defensive about ``daily_open_reference`` because
+    callers may provide a dataframe that has not yet passed through
+    ``derive_straddle_values``.
     """
-
     out = df.copy()
 
+    if "Symbol" not in out.columns:
+        raise ValueError(
+            "Snapshot dataframe does not contain required column: Symbol"
+        )
+
+    out["Symbol"] = (
+        out["Symbol"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    # Ensure a snapshot opening reference exists before using fillna.
+    # derive_straddle_values normally creates this column, but the
+    # frozen-base boundary must not depend on that implementation detail.
+    if "daily_open_reference" not in out.columns:
+        if "Open" in out.columns:
+            out["daily_open_reference"] = pd.to_numeric(
+                out["Open"],
+                errors="coerce",
+            )
+        else:
+            out["daily_open_reference"] = float("nan")
+
     premium_map = {
-        key: value[
-            "opening_straddle_premium"
-        ]
+        key: value.get("opening_straddle_premium")
         for key, value in base_map.items()
     }
 
     open_map = {
-        key: value["open_price"]
+        key: value.get("open_price")
         for key, value in base_map.items()
     }
 
     pct_map = {
-        key: value.get(
-            "opening_atm_straddle_pct"
-        )
+        key: value.get("opening_atm_straddle_pct")
         for key, value in base_map.items()
     }
 
     source_map = {
-        key: value.get(
-            "opening_straddle_source"
-        )
+        key: value.get("opening_straddle_source")
         for key, value in base_map.items()
     }
 
@@ -250,7 +271,10 @@ def _apply_frozen_base(
         out["Symbol"]
         .map(open_map)
         .fillna(
-            out["daily_open_reference"]
+            pd.to_numeric(
+                out["daily_open_reference"],
+                errors="coerce",
+            )
         )
     )
 
@@ -641,6 +665,16 @@ def process_snapshot(
         df,
         base_map,
     )
+    # ------------------------------------------------------------------
+    # Approaching-breakout view: 50% of each stock's frozen opening
+    # straddle. This is additive and does not alter breakout events.
+    # ------------------------------------------------------------------
+    save_approaching_breakouts(
+        df,
+        trading_date,
+        observed_at,
+        Path(EVENT_CSV).parent / "approaching_breakouts.csv",
+    )
 
     # ------------------------------------------------------------------
     # Load existing events and detect only new breakouts.
@@ -789,19 +823,18 @@ def process_latest_snapshot_for_today():
     """
     Process today's Daywise snapshots in chronological filesystem order.
 
-    IMPORTANT:
-        The first snapshot of the trading day MUST establish the frozen
-        opening base before any later snapshot is evaluated.
+    The first PHYSICALLY available snapshot is not necessarily the
+    first VALID snapshot.
 
-        Because the current Daywise filenames do not contain the
-        observation time, filesystem modification time is used only as
-        the operational ordering signal for today's intake.
-
-        The latest snapshot is then processed using that already-frozen
-        opening base.
+    Opening-base rule:
+        - inspect snapshots chronologically
+        - skip incomplete snapshots
+        - the first snapshot with a usable opening base establishes
+          and freezes the daily base
+        - later snapshots reuse that frozen base
 
     Source files are read directly from INTRADAY_SOURCE_ROOT.
-    No SDL input copy is used.
+    No source files are copied or modified.
     """
 
     today = datetime.now().date()
@@ -821,66 +854,183 @@ def process_latest_snapshot_for_today():
             "No Daywise snapshot found for today.",
         )
 
-    # Deterministic intake order: oldest file first.
     ordered = sorted(
         (Path(p) for p in files),
         key=lambda p: p.stat().st_mtime,
     )
 
     state = load_state(STATE_JSON)
+
     daily_bases = state.get(
         "daily_opening_straddles",
         {},
     )
 
-    # If today's opening base is not frozen yet, establish it from
-    # the FIRST available snapshot, never from the latest workbook.
+    # ---------------------------------------------------------------
+    # If today's base is not frozen, search chronologically for the
+    # FIRST VALID snapshot.
+    # ---------------------------------------------------------------
+
     if not daily_bases.get(trading_date):
-        first = ordered[0]
-        first_observed_at = datetime.fromtimestamp(
-            first.stat().st_mtime
-        )
+
+        valid_base_snapshot = None
+        skipped = []
+
+        for candidate in ordered:
+
+            candidate_observed_at = datetime.fromtimestamp(
+                candidate.stat().st_mtime
+            )
+
+            try:
+                candidate_df, _ = load_primary_snapshot(
+                    candidate,
+                    candidate_observed_at,
+                )
+
+                candidate_df = derive_straddle_values(
+                    candidate_df,
+                    breakout_multiplier=BREAKOUT_MULTIPLIER,
+                    current_price_field=CURRENT_PRICE_FIELD,
+                )
+
+                # A valid opening-base snapshot must contain:
+                # Symbol + Open + current price + ATM Straddle %
+                required = (
+                    "Symbol",
+                    "daily_open_reference",
+                    "current_price",
+                    "atm_straddle_pct",
+                )
+
+                missing = [
+                    column
+                    for column in required
+                    if column not in candidate_df.columns
+                ]
+
+                if missing:
+                    skipped.append(
+                        f"{candidate.name}: missing {missing}"
+                    )
+                    continue
+
+                valid_mask = (
+                    candidate_df["Symbol"]
+                    .astype(str)
+                    .str.strip()
+                    .ne("")
+                    &
+                    candidate_df["daily_open_reference"]
+                    .notna()
+                    &
+                    candidate_df["current_price"]
+                    .notna()
+                    &
+                    candidate_df["atm_straddle_pct"]
+                    .notna()
+                )
+
+                valid_count = int(valid_mask.sum())
+
+                # Require a meaningful stock universe, not a partially
+                # populated market-open workbook.
+                if valid_count <= 0:
+                    skipped.append(
+                        f"{candidate.name}: no usable opening-base rows"
+                    )
+                    continue
+
+                valid_base_snapshot = (
+                    candidate,
+                    candidate_observed_at,
+                )
+                break
+
+            except Exception as exc:
+                skipped.append(
+                    f"{candidate.name}: {type(exc).__name__}: {exc}"
+                )
+                continue
+
+        if valid_base_snapshot is None:
+            return (
+                None,
+                None,
+                None,
+                (
+                    "No valid opening-base snapshot is available yet. "
+                    "Incomplete market-open snapshots were skipped."
+                ),
+            )
+
+        first, first_observed_at = valid_base_snapshot
 
         process_snapshot(
             first,
             first_observed_at,
         )
 
-    # Re-read state after first-snapshot establishment.
+    # ---------------------------------------------------------------
+    # Reload state after establishing the first VALID base.
+    # ---------------------------------------------------------------
+
     state = load_state(STATE_JSON)
-    if not state.get(
+
+    frozen_base = state.get(
         "daily_opening_straddles",
         {},
-    ).get(trading_date):
+    ).get(trading_date)
+
+    if not frozen_base:
         return (
             None,
             None,
             None,
-            "Unable to establish today's frozen opening base "
-            "from the first snapshot.",
+            "Unable to establish today's frozen opening base.",
         )
 
+    # ---------------------------------------------------------------
+    # Process the latest available snapshot using the frozen base.
+    # ---------------------------------------------------------------
+
     latest = ordered[-1]
-    observed_at = datetime.fromtimestamp(
+    latest_observed_at = datetime.fromtimestamp(
         latest.stat().st_mtime
     )
 
-    # If the first snapshot is also the latest snapshot, it has already
-    # been processed and must not be processed a second time.
-    if latest == ordered[0]:
+    # Find the snapshot that established the base so that we don't
+    # process it twice when it is also the latest file.
+    base_reference_file = None
+
+    if frozen_base:
+        first_entry = next(
+            iter(frozen_base.values()),
+            None,
+        )
+
+        if first_entry:
+            base_reference_file = first_entry.get(
+                "opening_reference_source_file"
+            )
+
+    if (
+        base_reference_file
+        and str(latest) == str(base_reference_file)
+    ):
         return (
             latest,
             pd.DataFrame(),
             None,
             (
-                "First snapshot processed and opening base frozen; "
-                "no later snapshot available."
+                "First valid snapshot processed and opening base "
+                "frozen; no later snapshot available."
             ),
         )
 
     events, df, processed_at = process_snapshot(
         latest,
-        observed_at,
+        latest_observed_at,
     )
 
     return (
@@ -888,9 +1038,9 @@ def process_latest_snapshot_for_today():
         events,
         df,
         (
-            "Opening base established from first snapshot by "
-            "filesystem intake order; latest workbook then processed "
-            "using the frozen daily base."
+            "Opening base established from the first VALID snapshot; "
+            "incomplete earlier snapshots were skipped. "
+            "Latest workbook processed using the frozen daily base."
         ),
     )
 
