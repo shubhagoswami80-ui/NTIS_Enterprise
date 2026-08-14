@@ -9,7 +9,7 @@ class SignalResult:
     symbol: str
     direction: str
     price_event: str
-    futures_position: str
+    oi_evidence: str
     options_structure: str
     location: str
     state: str
@@ -20,107 +20,101 @@ class SignalResult:
         return asdict(self)
 
 
-def _num(row, *names):
+def _num(row: dict[str, Any], *names: str):
     for name in names:
         value = row.get(name)
         try:
             if value is not None and value != "":
                 return float(value)
         except (TypeError, ValueError):
-            pass
+            continue
     return None
 
 
-def _direction(current, previous):
-    if current is None or previous is None:
-        return "UNKNOWN"
-    if current > previous:
-        return "UP"
-    if current < previous:
-        return "DOWN"
-    return "FLAT"
-
-
-def build_signal(current: dict[str, Any], previous: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+def build_signal(
+    current: dict[str, Any],
+    previous: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
     symbol = str(current.get("Symbol", current.get("symbol", ""))).strip().upper()
+
     close = _num(current, "Close", "close", "Current Price", "current_price")
     high = _num(current, "High", "high")
     low = _num(current, "Low", "low")
-
     prev_high = _num(previous or {}, "High", "high")
     prev_low = _num(previous or {}, "Low", "low")
 
     price_event = "NO_CHANGE"
     direction = "NEUTRAL"
-    reasons = []
+    reasons: list[str] = []
 
-    if high is not None and prev_high is not None and close is not None and high > prev_high and close > prev_high:
+    if (
+        high is not None and prev_high is not None and close is not None
+        and high > prev_high and close > prev_high
+    ):
         price_event = "HIGH_BREAK_HOLD"
         direction = "BULLISH"
         reasons.append("Current High and Close are above previous High.")
-    elif low is not None and prev_low is not None and close is not None and low < prev_low and close < prev_low:
+    elif (
+        low is not None and prev_low is not None and close is not None
+        and low < prev_low and close < prev_low
+    ):
         price_event = "LOW_BREAK_HOLD"
         direction = "BEARISH"
         reasons.append("Current Low and Close are below previous Low.")
     elif high is not None and prev_high is not None and high > prev_high:
         price_event = "HIGH_TEST_OR_REJECTION"
         direction = "BULLISH"
-        reasons.append("Current High exceeded previous High, but close did not confirm.")
+        reasons.append("Current High exceeded previous High, but Close did not confirm.")
     elif low is not None and prev_low is not None and low < prev_low:
         price_event = "LOW_TEST_OR_REJECTION"
         direction = "BEARISH"
-        reasons.append("Current Low fell below previous Low, but close did not confirm.")
+        reasons.append("Current Low fell below previous Low, but Close did not confirm.")
 
-    price_dir = _direction(
-        _num(current, "Close", "close", "Current Price", "current_price"),
-        _num(previous or {}, "Close", "close", "Current Price", "current_price"),
-    )
+    oi_change = _num(current, "OI Chg %", "OI_Chg_Pct", "OI Chg")
+    if oi_change is None:
+        oi_evidence = "UNKNOWN"
+    elif oi_change > 0:
+        oi_evidence = "PRIMARY_OI_UP"
+    elif oi_change < 0:
+        oi_evidence = "PRIMARY_OI_DOWN"
+    else:
+        oi_evidence = "PRIMARY_OI_FLAT"
 
-    oi_now = _num(current, "Futures OI Chg %", "Fut OI Chg %", "Futures_OI_Chg_Pct", "OI Chg %")
-    oi_dir = "UP" if oi_now is not None and oi_now > 0 else "DOWN" if oi_now is not None and oi_now < 0 else "FLAT"
+    if oi_evidence != "UNKNOWN":
+        reasons.append(f"Primary OI evidence: {oi_evidence}.")
 
-    futures_position = "UNKNOWN"
-    if price_dir == "UP" and oi_dir == "UP":
-        futures_position = "LONG_BUILDUP"
-    elif price_dir == "DOWN" and oi_dir == "UP":
-        futures_position = "SHORT_BUILDUP"
-    elif price_dir == "UP" and oi_dir == "DOWN":
-        futures_position = "SHORT_COVERING"
-    elif price_dir == "DOWN" and oi_dir == "DOWN":
-        futures_position = "LONG_UNWINDING"
-
-    if futures_position != "UNKNOWN":
-        reasons.append(f"Futures positioning: {futures_position}.")
-
-    ce = _num(current, "Tot CE OI Chg %", "CE OI Chg %", "CE_OI_Chg_Pct")
-    pe = _num(current, "Tot PE OI Chg %", "PE OI Chg %", "PE_OI_Chg_Pct")
     pe_ce = _num(current, "Tot PE-CE OI Chg", "PE-CE OI Chg", "PE_CE_OI_Chg")
+    if pe_ce is None:
+        options_structure = "UNKNOWN"
+    elif pe_ce > 0:
+        options_structure = "PE_CE_POSITIVE"
+    elif pe_ce < 0:
+        options_structure = "PE_CE_NEGATIVE"
+    else:
+        options_structure = "PE_CE_FLAT"
 
-    options_structure = "UNKNOWN"
-    if pe_ce is not None:
-        if pe_ce > 0:
-            options_structure = "PE_CE_POSITIVE"
-        elif pe_ce < 0:
-            options_structure = "PE_CE_NEGATIVE"
-        else:
-            options_structure = "PE_CE_FLAT"
-        reasons.append(f"PE-CE OI change is {options_structure}.")
+    if options_structure != "UNKNOWN":
+        reasons.append(f"PE-CE OI evidence: {options_structure}.")
 
     resistance = _num(current, "Resistance", "resistance", "Resistance Strike")
     support = _num(current, "Support", "support", "Support Strike")
     location = "UNKNOWN"
-    if direction == "BULLISH" and resistance is not None and close is not None and resistance >= close:
-        location = "RESISTANCE_AHEAD"
-        reasons.append("Resistance is at/above current price.")
-    elif direction == "BEARISH" and support is not None and close is not None and support <= close:
-        location = "SUPPORT_AHEAD"
-        reasons.append("Support is at/below current price.")
-    elif close is not None:
-        location = "NO_KNOWN_NEARBY_GATE"
+
+    if direction == "BULLISH" and resistance is not None and close is not None:
+        location = "RESISTANCE_AHEAD" if resistance >= close else "RESISTANCE_CROSSED"
+    elif direction == "BEARISH" and support is not None and close is not None:
+        location = "SUPPORT_AHEAD" if support <= close else "SUPPORT_BROKEN"
+
+    if location != "UNKNOWN":
+        reasons.append(f"Location: {location}.")
 
     state = "WATCH"
-    if price_event in {"HIGH_BREAK_HOLD", "LOW_BREAK_HOLD"} and futures_position != "UNKNOWN":
-        state = "DEVELOPING"
+    if price_event in {"HIGH_BREAK_HOLD", "LOW_BREAK_HOLD"}:
+        state = "DEVELOPING" if (
+            oi_evidence != "UNKNOWN" or options_structure != "UNKNOWN"
+        ) else "WATCH"
+
+    # Location is a trade-decision gate, not a confirmation by itself.
     if location in {"RESISTANCE_AHEAD", "SUPPORT_AHEAD"}:
         state = "NO_TRADE"
 
@@ -131,7 +125,7 @@ def build_signal(current: dict[str, Any], previous: Optional[dict[str, Any]] = N
         symbol=symbol,
         direction=direction,
         price_event=price_event,
-        futures_position=futures_position,
+        oi_evidence=oi_evidence,
         options_structure=options_structure,
         location=location,
         state=state,

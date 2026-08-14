@@ -1,1 +1,1 @@
-from .signal_engine import build_signal
+__version__ = "0.3.0"

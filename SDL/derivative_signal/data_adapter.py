@@ -4,8 +4,7 @@ from typing import Any
 
 
 def canonicalize_row(row: dict[str, Any]) -> dict[str, Any]:
-    # Keep the adapter intentionally shallow. It normalizes only names
-    # needed by the signal layer and never changes upstream data.
+    """Normalize only safe generic aliases; upstream values are not transformed."""
     out = dict(row)
     aliases = {
         "symbol": "Symbol",
