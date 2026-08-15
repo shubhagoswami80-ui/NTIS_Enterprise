@@ -1,4 +1,5 @@
-﻿from __future__ import annotations
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -35,7 +36,6 @@ ALIASES = {
     "symbol": ("Symbol", "symbol", "Ticker", "ticker"),
     "open": ("Open", "open"), "high": ("High", "high"), "low": ("Low", "low"),
     "close": ("Close", "close", "CMP", "Current Price"),
-    # IMPORTANT: exact percentage field only; never alias plain Price Chg into this field.
     "price_chg_pct": ("Price Chg %", "Price Chg (%)", "Price_Chg_Pct"),
     "atm_straddle_pct": ("ATM Straddle %", "ATM_Straddle_Pct"),
     "atm_straddle_price": ("ATM Straddle Price", "ATM_Straddle_Price"),
@@ -55,10 +55,8 @@ ALIASES = {
     "strike": ("Strike", "Relevant Strike"),
 }
 
-
 def _norm(v: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(v).lower())
-
 
 def _find(df: pd.DataFrame, aliases: Iterable[str]) -> str | None:
     cols = {_norm(c): c for c in df.columns}
@@ -67,25 +65,18 @@ def _find(df: pd.DataFrame, aliases: Iterable[str]) -> str | None:
             return cols[_norm(alias)]
     return None
 
-
 def _family_match(path: Path, spec: SourceSpec) -> bool:
     name = _norm(path.stem)
     return any(_norm(token) in name for token in spec.tokens)
 
-
-def _order_key(path: Path) -> tuple[int, float, str]:
-    # Prefer explicit numeric copy/time suffixes when present, then mtime.
-    stem = path.stem.lower()
-    nums = re.findall(r"\((\d+)\)", stem)
-    copy_no = int(nums[-1]) if nums else 0
-    time_match = re.search(r"(?:_|-|\s)(\d{1,2})[.:_-](\d{2})(?:\b|$)", stem)
-    hhmm = int(time_match.group(1))*100 + int(time_match.group(2)) if time_match else -1
+def _order_key(path: Path):
     try:
         mtime = path.stat().st_mtime
     except OSError:
         mtime = 0.0
-    return (max(hhmm, copy_no), mtime, path.name.lower())
-
+    nums = re.findall(r"\((\d+)\)", path.stem)
+    copy_no = int(nums[-1]) if nums else 0
+    return (mtime, copy_no, path.name.lower())
 
 def discover_sources(root: str | Path, trading_date: str) -> SourceBundle:
     root = Path(root)
@@ -93,9 +84,18 @@ def discover_sources(root: str | Path, trading_date: str) -> SourceBundle:
     if not root.exists() or not root.is_dir():
         b.errors.append(f"Source folder does not exist: {root}")
         return b
-    files = [p for p in root.iterdir() if p.is_file() and p.suffix.lower() in {".xlsx", ".xls", ".xlsm"} and not p.name.startswith("~$")]
 
-    base_candidates = sorted([p for p in files if _family_match(p, SPECS[0])], key=_order_key)
+    files = [
+        p for p in root.iterdir()
+        if p.is_file()
+        and p.suffix.lower() in {".xlsx", ".xls", ".xlsm"}
+        and not p.name.startswith("~$")
+    ]
+
+    base_candidates = sorted(
+        [p for p in files if _family_match(p, SPECS[0])],
+        key=_order_key,
+    )
     b.base_history = base_candidates
     if base_candidates:
         b.files["BASE"] = base_candidates[-1]
@@ -108,27 +108,25 @@ def discover_sources(root: str | Path, trading_date: str) -> SourceBundle:
             b.files[spec.role] = max(candidates, key=_order_key)
     return b
 
-
 def _canonicalize(raw: pd.DataFrame, role: str) -> pd.DataFrame:
     out = pd.DataFrame(index=raw.index)
     for target, aliases in ALIASES.items():
         c = _find(raw, aliases)
         if c is not None:
             out[target] = raw[c]
-    # Role-specific level mapping: Strike is the actual level in these reports.
+
     if role == "SUPPORT" and "support" not in out.columns and "strike" in out.columns:
         out["support"] = out["strike"]
     if role == "RESISTANCE" and "resistance" not in out.columns and "strike" in out.columns:
         out["resistance"] = out["strike"]
+
     out["_role"] = role
     return out
-
 
 def _read(path: Path, role: str) -> pd.DataFrame:
     raw = pd.read_excel(path)
     raw.columns = [str(c).strip() for c in raw.columns]
     return _canonicalize(raw, role)
-
 
 def _clean(df: pd.DataFrame) -> pd.DataFrame:
     if "symbol" not in df.columns:
@@ -138,11 +136,11 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     df = df[df["symbol"].ne("") & df["symbol"].ne("NAN")]
     return df.drop_duplicates("symbol", keep="last")
 
-
 def _coalesce(merged: pd.DataFrame, incoming: pd.DataFrame, role: str) -> pd.DataFrame:
     incoming = _clean(incoming)
     if incoming.empty:
         return merged
+
     lookup = incoming.set_index("symbol")
     for col in incoming.columns:
         if col in {"symbol", "_role", "strike"}:
@@ -152,15 +150,16 @@ def _coalesce(merged: pd.DataFrame, incoming: pd.DataFrame, role: str) -> pd.Dat
             merged[col] = mapped
         else:
             merged[col] = merged[col].combine_first(mapped)
+
     merged[f"_source_{role}"] = merged["symbol"].isin(lookup.index)
     return merged
-
 
 def load_and_merge(bundle: SourceBundle) -> SourceBundle:
     if not bundle.files:
         bundle.errors.append("No source files discovered.")
         return bundle
-    frames: list[tuple[str, pd.DataFrame]] = []
+
+    frames = []
     for role, path in bundle.files.items():
         try:
             frame = _clean(_read(path, role))
@@ -170,22 +169,24 @@ def load_and_merge(bundle: SourceBundle) -> SourceBundle:
             frames.append((role, frame))
         except Exception as exc:
             bundle.errors.append(f"{role}: {type(exc).__name__}: {exc}")
+
     if not frames:
         return bundle
+
     base = next((f for r, f in frames if r == "BASE"), frames[0][1])
-    merged = base.drop(columns=["_role"], errors="ignore").copy()
-    merged = _clean(merged)
+    merged = _clean(base.drop(columns=["_role"], errors="ignore").copy())
+    merged["_source_BASE"] = True
+
     for role, frame in frames:
         if role != "BASE":
             merged = _coalesce(merged, frame, role)
+
     bundle.rows = merged
 
-    # Opening snapshot for straddle progress: earliest BASE family file.
     if bundle.base_history:
         try:
-            opening = _clean(_read(bundle.base_history[0], "BASE"))
-            bundle.opening_rows = opening
+            bundle.opening_rows = _clean(_read(bundle.base_history[0], "BASE"))
         except Exception as exc:
             bundle.errors.append(f"BASE opening snapshot: {type(exc).__name__}: {exc}")
-    return bundle
 
+    return bundle

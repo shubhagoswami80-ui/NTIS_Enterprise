@@ -1,17 +1,11 @@
 from __future__ import annotations
 
 from typing import Any
-
 import pandas as pd
 
-
 SOURCE_LABELS = {
-    "BASE": "Price/OI",
-    "FUTURES": "Futures",
-    "IV": "IV",
-    "SUPPORT": "Support",
-    "RESISTANCE": "Resistance",
-    "VOLUME": "Volume",
+    "BASE": "Price/OI", "FUTURES": "Futures", "IV": "IV",
+    "SUPPORT": "Support", "RESISTANCE": "Resistance", "VOLUME": "Volume",
 }
 
 
@@ -24,134 +18,186 @@ def _num(v: Any) -> float | None:
         return None
 
 
-def _source_present(row: dict[str, Any], role: str) -> bool:
-    value = row.get(f"_source_{role}")
-    return bool(value is True or str(value).strip().lower() in {"true", "1", "yes"})
+def _present(row: dict[str, Any], role: str) -> bool:
+    v = row.get(f"_source_{role}")
+    return bool(v is True or str(v).strip().lower() in {"true", "1", "yes"})
 
 
-def _directional_evidence(direction: str, signal: dict[str, Any]) -> tuple[list[str], list[str]]:
-    confirmations: list[str] = []
-    conflicts: list[str] = []
+def _fmt(v, suffix=""):
+    n = _num(v)
+    return "—" if n is None else f"{n:.2f}{suffix}"
 
-    options_dir = str(signal.get("options_direction", "NEUTRAL")).upper()
-    futures_dir = str(signal.get("futures_direction", "NEUTRAL")).upper()
-    volume = _num(signal.get("volume_change_pct"))
-    oi = _num(signal.get("oi_change_pct"))
+
+def _sr_interpretation(direction, price, support, resistance, price_change):
+    if price is None:
+        return "S/R unavailable"
+
+    if support is not None:
+        sd = (price - support) / price * 100
+        if sd <= 0:
+            if direction == "BEARISH":
+                return "SUPPORT BROKEN - breakdown risk"
+            return "AT / BELOW SUPPORT - reversal evidence required"
+        if sd <= 0.75:
+            if direction == "BULLISH":
+                return "SUPPORT TEST - bullish reversal candidate"
+            return "AT SUPPORT - breakdown/reversal decision point"
+
+    if resistance is not None:
+        rd = (resistance - price) / price * 100
+        if rd <= 0:
+            if direction == "BULLISH":
+                return "RESISTANCE BROKEN - breakout confirmation required"
+            return "ABOVE RESISTANCE - reversal risk if rejected"
+        if rd <= 0.75:
+            if direction == "BEARISH":
+                return "RESISTANCE TEST - bearish reversal candidate"
+            return "AT RESISTANCE - breakout/rejection decision point"
+        if rd <= 2.0:
+            return "APPROACHING RESISTANCE"
+    return "S/R not at immediate decision level"
+
+
+def _directional_interpretation(signal):
+    d = str(signal.get("direction", "NEUTRAL")).upper()
+    pece = _num(signal.get("pece_value"))
+    fut = str(signal.get("futures_direction", "NEUTRAL")).upper()
     pcr = _num(signal.get("pcr_change_pct"))
-    progress = _num(signal.get("straddle_progress_pct"))
+    iv = _num(signal.get("iv_change_pct"))
+    vol = _num(signal.get("volume_change_pct"))
+    oi = _num(signal.get("oi_change_pct"))
 
-    if direction == "BULLISH":
-        if options_dir == "BULLISH": confirmations.append("OPTIONS SUPPORT")
-        elif options_dir == "BEARISH": conflicts.append("OPTIONS CONFLICT")
-        if futures_dir == "BULLISH": confirmations.append("FUTURES SUPPORT")
-        elif futures_dir == "BEARISH": conflicts.append("FUTURES CONFLICT")
-        if volume is not None and volume > 0: confirmations.append("VOLUME SUPPORT")
-        if oi is not None and oi > 0: confirmations.append("OI BUILDUP")
-        if pcr is not None and pcr > 0: confirmations.append("PCR SUPPORT")
-        if progress is not None and progress >= 75: confirmations.append("STRADDLE ACTIVE")
-    elif direction == "BEARISH":
-        if options_dir == "BEARISH": confirmations.append("OPTIONS SUPPORT")
-        elif options_dir == "BULLISH": conflicts.append("OPTIONS CONFLICT")
-        if futures_dir == "BEARISH": confirmations.append("FUTURES SUPPORT")
-        elif futures_dir == "BULLISH": conflicts.append("FUTURES CONFLICT")
-        if volume is not None and volume > 0: confirmations.append("VOLUME SUPPORT")
-        if oi is not None and oi > 0: confirmations.append("OI BUILDUP")
-        if pcr is not None and pcr < 0: confirmations.append("PCR SUPPORT")
-        if progress is not None and progress >= 75: confirmations.append("STRADDLE ACTIVE")
-
-    return confirmations, conflicts
+    parts = []
+    if d == "BULLISH":
+        if pece is not None and pece > 0: parts.append("PE-CE supports bullish")
+        if pece is not None and pece < 0: parts.append("PE-CE conflicts")
+        if fut == "BULLISH": parts.append("Futures confirms")
+        if fut == "BEARISH": parts.append("Futures conflicts")
+        if pcr is not None and pcr > 0: parts.append("PCR improving")
+    elif d == "BEARISH":
+        if pece is not None and pece < 0: parts.append("PE-CE supports bearish")
+        if pece is not None and pece > 0: parts.append("PE-CE conflicts")
+        if fut == "BEARISH": parts.append("Futures confirms")
+        if fut == "BULLISH": parts.append("Futures conflicts")
+        if pcr is not None and pcr < 0: parts.append("PCR weakening")
+    if iv is not None and iv > 0: parts.append("IV expanding")
+    if vol is not None and vol > 0: parts.append("Volume active")
+    if oi is not None and oi > 0: parts.append("OI building")
+    return "; ".join(parts) if parts else "Limited directional evidence"
 
 
 def enrich_decision(signal: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
     out = dict(signal)
     direction = str(out.get("direction", "NEUTRAL")).upper()
+
     price = _num(out.get("reference_price"))
     support = _num(out.get("support"))
     resistance = _num(out.get("resistance"))
+    price_change = _num(out.get("price_change_pct"))
 
-    confirmations, conflicts = _directional_evidence(direction, out)
-
-    room_value = None
-    room_pct = None
-    room_label = "LEVEL UNKNOWN"
-    if price is not None and direction == "BULLISH" and resistance is not None:
-        room_value = resistance - price
-    elif price is not None and direction == "BEARISH" and support is not None:
-        room_value = price - support
-
-    if room_value is not None and price:
-        room_pct = room_value / price * 100.0
-        if room_value <= 0: room_label = "NO ROOM"
-        elif room_pct <= 0.75: room_label = "LIMITED ROOM"
-        elif room_pct <= 2.0: room_label = "ADEQUATE ROOM"
-        else: room_label = "GOOD ROOM"
-
-    location = str(out.get("location", "NOT_AVAILABLE"))
-    if direction == "BULLISH":
-        if location == "RESISTANCE_CROSSED": confirmations.append("RESISTANCE CROSSED")
-        elif location == "AT_RESISTANCE": conflicts.append("AT RESISTANCE")
-    elif direction == "BEARISH":
-        if location == "SUPPORT_BROKEN": confirmations.append("SUPPORT BROKEN")
-        elif location == "AT_SUPPORT": conflicts.append("AT SUPPORT")
-
-    base_strength = int(out.get("strength") or 0)
-    confluence = max(0, min(5, base_strength + min(2, len(confirmations)) - min(2, len(conflicts))))
-    if direction == "NEUTRAL": confluence = 0
-
+    # IMPORTANT: row is CURRENT merged evidence, not previous snapshot.
     source_roles = ["BASE"] if out.get("symbol") else []
     for role in SOURCE_LABELS:
-        if role != "BASE" and _source_present(row, role):
+        if role != "BASE" and _present(row, role):
             source_roles.append(role)
 
-    missing_roles = [r for r in ("FUTURES", "IV", "SUPPORT", "RESISTANCE", "VOLUME") if r not in source_roles]
-    usable_non_base = len(source_roles) - 1
+    missing = [r for r in ("FUTURES", "IV", "SUPPORT", "RESISTANCE", "VOLUME") if r not in source_roles]
 
-    if usable_non_base >= 4 and room_label not in {"LEVEL UNKNOWN", "NO ROOM"} and not conflicts:
-        quality = "HIGH"
-    elif usable_non_base >= 2 and room_label != "NO ROOM" and len(conflicts) <= 1:
-        quality = "MEDIUM"
-    else:
-        quality = "LOW"
+    sr_status = _sr_interpretation(direction, price, support, resistance, price_change)
+    sr_distance = None
+    if direction == "BULLISH" and resistance not in (None, 0) and price is not None:
+        sr_distance = (resistance - price) / price * 100
+    elif direction == "BEARISH" and support not in (None, 0) and price is not None:
+        sr_distance = (price - support) / price * 100
 
+    confirmations = list(out.get("confirmations_detail", []))
+    conflicts = list(out.get("conflicts_detail", []))
+
+    if "RESISTANCE BROKEN" in sr_status and direction == "BULLISH":
+        confirmations.append("RESISTANCE BREAK")
+    if "SUPPORT BROKEN" in sr_status and direction == "BEARISH":
+        confirmations.append("SUPPORT BREAK")
+    if "TEST" in sr_status:
+        confirmations.append("S/R TEST")
+
+    confluence = int(round(float(out.get("confluence_score", 0) or 0)))
+    confluence = max(0, min(5, confluence + (1 if confirmations else 0) - (1 if conflicts else 0)))
+
+    quality = "HIGH" if len(source_roles) >= 5 and not conflicts else "MEDIUM" if len(source_roles) >= 3 else "LOW"
+
+    # Explicit setup/action vocabulary: the dashboard is a decision surface.
     if direction == "NEUTRAL":
-        action, opportunity = "WATCH", "NO DIRECTION"
-    elif len(conflicts) >= 2:
-        action, opportunity = "WAIT", "CONFLICT"
-    elif room_label == "NO ROOM":
-        action, opportunity = "AVOID", "NO ROOM"
-    elif room_label == "LEVEL UNKNOWN":
-        action, opportunity = "WAIT", "LEVEL REQUIRED"
-    elif confluence >= 4 and quality == "HIGH":
-        action, opportunity = "ENTER / CONTINUE", "HIGH CONFLUENCE"
-    elif confluence >= 3:
-        action, opportunity = "CONTINUE / CONFIRM", "DEVELOPING"
+        setup, action, confirmation = "NO DIRECTION", "WATCH", "UNCONFIRMED"
+    elif "RESISTANCE BROKEN" in sr_status and direction == "BULLISH":
+        setup = "RESISTANCE BREAKOUT"
+        confirmation = "CONFIRMED" if confluence >= 4 and not conflicts else "DEVELOPING"
+        action = "ENTER / CONTINUE" if confirmation == "CONFIRMED" else "WAIT FOR CONFIRMATION"
+    elif "SUPPORT BROKEN" in sr_status and direction == "BEARISH":
+        setup = "SUPPORT BREAKDOWN"
+        confirmation = "CONFIRMED" if confluence >= 4 and not conflicts else "DEVELOPING"
+        action = "ENTER / CONTINUE" if confirmation == "CONFIRMED" else "WAIT FOR CONFIRMATION"
+    elif "AT RESISTANCE" in sr_status:
+        setup = "RESISTANCE TEST"
+        confirmation = "REVERSAL / BREAKOUT DECISION"
+        action = "WAIT"
+    elif "AT SUPPORT" in sr_status:
+        setup = "SUPPORT TEST"
+        confirmation = "REVERSAL / BREAKDOWN DECISION"
+        action = "WAIT"
+    elif "APPROACHING RESISTANCE" in sr_status:
+        setup = "APPROACHING RESISTANCE"
+        confirmation = "BREAKOUT DEVELOPING"
+        action = "WAIT"
     else:
-        action, opportunity = "WAIT", "PARTIAL EVIDENCE"
+        setup = "BULLISH CONTINUATION" if direction == "BULLISH" else "BEARISH CONTINUATION"
+        confirmation = "CONFIRMED" if confluence >= 4 and not conflicts else "DEVELOPING"
+        action = "ENTER / CONTINUE" if confirmation == "CONFIRMED" else "WAIT FOR CONFIRMATION"
+
+    # Reversal candidate language is allowed before confirmation.
+    if "TEST" in sr_status and not conflicts:
+        if direction == "BULLISH":
+            setup = "SUPPORT REVERSAL CANDIDATE"
+        elif direction == "BEARISH":
+            setup = "RESISTANCE REVERSAL CANDIDATE"
+
+    decision_reason = (
+        f"{setup}. {sr_status}. "
+        f"{_directional_interpretation(out)}. "
+        f"Evidence quality {quality.lower()}."
+    )
 
     out.update({
-        "confirmations_detail": confirmations,
-        "conflicts_detail": conflicts,
-        "room_value": room_value,
-        "room_pct": room_pct,
-        "room_label": room_label,
-        "source_roles": source_roles,
-        "missing_source_roles": missing_roles,
-        "source_family_count": len(source_roles),
-        "evidence_summary": f"{len(source_roles)}/6 source families available" + (
-            f" • missing: {', '.join(missing_roles)}" if missing_roles else " • complete"
-        ),
-        "confluence_score": confluence,
-        "confluence_label": "HIGH" if confluence >= 4 else "MEDIUM" if confluence >= 3 else "LOW",
-        "decision_quality": quality,
+        "sr_status": sr_status,
+        "sr_distance_pct": sr_distance,
+        "setup": setup,
+        "confirmation": confirmation,
         "action": action,
-        "opportunity": opportunity,
-        "decision_color": "red" if direction == "BEARISH" else "green" if direction == "BULLISH" else "amber",
-        "momentum_state": (
-            "ACCELERATING" if len(confirmations) >= 3 and not conflicts
-            else "WEAKENING" if conflicts
-            else "SUSTAINING" if direction != "NEUTRAL"
-            else "NEUTRAL"
+        "decision_quality": quality,
+        "source_roles": source_roles,
+        "missing_source_roles": missing,
+        "source_family_count": len(source_roles),
+        "confluence_score": confluence,
+        "decision_reason": decision_reason,
+        "directional_interpretation": _directional_interpretation(out),
+        "futures_interpretation": f"Futures {out.get('futures_direction','NEUTRAL')}",
+        "options_interpretation": (
+            "PE-CE supports direction" if (
+                (direction == "BULLISH" and (_num(out.get("pece_value")) or 0) > 0) or
+                (direction == "BEARISH" and (_num(out.get("pece_value")) or 0) < 0)
+            ) else "PE-CE neutral/conflicting"
         ),
+        "pcr_interpretation": (
+            f"PCR change {_fmt(out.get('pcr_change_pct'), '%')}"
+        ),
+        "iv_interpretation": f"IV change {_fmt(out.get('iv_change_pct'), '%')}",
+        "volume_interpretation": f"Volume change {_fmt(out.get('volume_change_pct'), '%')}",
+        "sr_interpretation": sr_status,
+        "straddle_interpretation": (
+            f"Straddle {_fmt(out.get('straddle_progress_pct'), '%')} progress; "
+            f"stage {out.get('straddle_stage','UNKNOWN')}"
+        ),
+        "opportunity": setup,
+        "decision_color": "red" if direction == "BEARISH" else "green" if direction == "BULLISH" else "amber",
     })
     return out
 
@@ -159,19 +205,24 @@ def enrich_decision(signal: dict[str, Any], row: dict[str, Any]) -> dict[str, An
 def merge_evidence(base_path, trading_date: str):
     from multi_source_adapter import discover_sources, load_and_merge
 
-    bundle = load_and_merge(discover_sources(base_path.parent, trading_date))
+    # Discover supporting families from the selected folder, but force the
+    # BASE family to the exact snapshot currently being processed.
+    bundle = discover_sources(base_path.parent, trading_date)
+    bundle.files["BASE"] = base_path
+    bundle = load_and_merge(bundle)
+
     if bundle.rows is None or bundle.rows.empty:
-        raise ValueError(f"No merged source data found. Selected folder: {base_path.parent}")
+        raise ValueError(f"No merged source data found for selected snapshot: {base_path}")
 
     merged = bundle.rows.copy()
-    try:
-        from multi_source_adapter import _clean, _read
-        base_df = _clean(_read(base_path, "BASE"))
-        if not base_df.empty and "symbol" in base_df.columns:
-            symbols = set(base_df["symbol"].astype(str).str.upper())
-            merged = merged[merged["symbol"].astype(str).str.upper().isin(symbols)].copy()
-    except Exception:
-        pass
-
     merged["_source_BASE"] = True
+
+    # Ensure only symbols present in the selected BASE snapshot are returned.
+    base_symbols = set(
+        merged["symbol"].astype(str).str.upper()
+    ) if "symbol" in merged.columns else set()
+
+    if base_symbols and "symbol" in merged.columns:
+        merged = merged[merged["symbol"].astype(str).str.upper().isin(base_symbols)].copy()
+
     return merged, {"bundle": bundle, "base_path": base_path}

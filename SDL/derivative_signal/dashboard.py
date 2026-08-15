@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import date, datetime
 from pathlib import Path
@@ -8,11 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from config import INTRADAY_SOURCE_ROOT, STATE_JSON
-from source_loader import (
-    discover_daywise_files,
-    parse_observation_timestamp,
-    read_source,
-)
+from source_loader import discover_daywise_files, parse_observation_timestamp, read_source
 from storage import load_state, save_state
 from derivative_signal.signal_engine import build_signal
 from decision_evidence import merge_evidence, enrich_decision
@@ -20,28 +16,18 @@ from decision_evidence import merge_evidence, enrich_decision
 STATE_KEY = "derivative_signal"
 
 QUALIFIED_STATES = {
-    "STRONG_BULLISH",
-    "STRONG_BEARISH",
-    "STRONG_NEAR_LEVEL",
-    "ACTIVE_BULLISH",
-    "ACTIVE_BEARISH",
-    "WAIT_BREAK_CONFIRMATION",
-    "DEVELOPING",
+    "STRONG_BULLISH", "STRONG_BEARISH", "STRONG_NEAR_LEVEL",
+    "ACTIVE_BULLISH", "ACTIVE_BEARISH", "WAIT_BREAK_CONFIRMATION",
+    "DEVELOPING", "DIRECTIONAL_UNCONFIRMED",
 }
 
 
-def _discover_sources(
-    trading_date: str,
-    source_root: Path | None = None,
-) -> list[Path]:
+def _discover_sources(trading_date: str, source_root: Path | None = None) -> list[Path]:
     root = Path(source_root or INTRADAY_SOURCE_ROOT).expanduser()
     files = discover_daywise_files(root, trading_date)
     return sorted(
         [Path(p) for p in files if Path(p).is_file()],
-        key=lambda p: (
-            p.stat().st_mtime,
-            p.name,
-        ),
+        key=lambda p: (parse_observation_timestamp(p), p.stat().st_mtime, p.name.lower()),
     )
 
 
@@ -51,73 +37,49 @@ def _read(path: Path) -> pd.DataFrame:
     return df
 
 
-def _previous(
-    state: dict[str, Any],
-    trading_date: str,
-) -> dict[str, dict]:
-    return (
-        state.get(STATE_KEY, {})
-        .get(trading_date, {})
-        .get("previous_snapshot", {})
-    )
+def _previous(state: dict[str, Any], trading_date: str) -> dict[str, dict]:
+    return state.get(STATE_KEY, {}).get(trading_date, {}).get("previous_snapshot", {}) or {}
 
 
 def _snapshot_rows(df: pd.DataFrame) -> dict[str, dict]:
-    # Store only engine inputs needed for the next snapshot.
     keep = [
-        "Symbol",
-        "Close",
-        "Price Chg %",
-        "OI Chg %",
-        "Tot PE-CE OI Chg",
-        "PCR Chg %",
-        "IV Chg %",
-        "Volume Chg %",
-        "ATM Straddle %",
-        "Support",
-        "Resistance",
-        "Futures Buildup",
-        "Futures OI Chg %",
+        "Symbol", "symbol", "Close", "close", "Price Chg %", "price_chg_pct",
+        "OI Chg %", "oi_chg_pct", "Tot PE-CE OI Chg", "pe_ce_oi_chg",
+        "PCR Chg %", "pcr_chg_pct", "IV Chg %", "iv_chg_pct",
+        "Volume Chg %", "volume_chg_pct", "ATM Straddle %", "atm_straddle_pct",
+        "Support", "support", "Resistance", "resistance",
+        "Futures Buildup", "fut_buildup", "Futures OI Chg %", "fut_oi_chg_pct",
     ]
     rows: dict[str, dict] = {}
     for record in df.to_dict(orient="records"):
-        symbol = str(record.get("Symbol", "")).strip().upper()
+        symbol = str(record.get("Symbol", record.get("symbol", ""))).strip().upper()
         if symbol:
-            rows[symbol] = {k: record.get(k) for k in keep}
+            rows[symbol] = {k: record.get(k) for k in keep if k in record}
     return rows
 
 
-def _process_snapshot(
-    path: Path,
-    trading_date: str,
-    previous: dict[str, dict],
-) -> pd.DataFrame:
-    # BASE snapshot remains authoritative for the timestamped intraday state.
-    # Auxiliary IV/OI/Futures/Volume/SR files are merged from the SAME
-    # dashboard-selected source folder and are used only as decision evidence.
+def _process_snapshot(path: Path, trading_date: str, previous: dict[str, dict]) -> pd.DataFrame:
+    # The selected path is the authoritative BASE snapshot for this iteration.
     df, source_map = merge_evidence(path, trading_date)
+    rows: list[dict[str, Any]] = []
 
-    rows = []
     for record in df.to_dict(orient="records"):
-        symbol = str(record.get("Symbol", record.get("symbol", ""))).strip().upper()
+        symbol = str(record.get("symbol", record.get("Symbol", ""))).strip().upper()
         if not symbol:
             continue
 
         signal = build_signal(record, previous.get(symbol))
         signal["source_evidence"] = source_map
-        signal = enrich_decision(signal, previous.get(symbol))
+        # Evidence must inspect CURRENT merged data, never the previous snapshot.
+        signal = enrich_decision(signal, record)
         rows.append(signal)
 
     return pd.DataFrame(rows)
 
 
-def process_selected_source(
-    path: Path,
-    trading_date: str,
-) -> pd.DataFrame:
+def process_selected_source(path: Path, trading_date: str) -> pd.DataFrame:
     state = load_state(STATE_JSON)
     previous = _previous(state, trading_date)
-
     result = _process_snapshot(path, trading_date, previous)
 
     day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
@@ -125,38 +87,22 @@ def process_selected_source(
     day["source_file"] = str(path)
     day["processed_at"] = datetime.now().isoformat()
     save_state(state, STATE_JSON)
-
     return result
 
 
-def process_all_sources(
-    paths: list[Path],
-    trading_date: str,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Replay all snapshots in chronological order.
-
-    Returns:
-      latest_result: decision state at the latest available snapshot
-      timeline: qualifying decision changes across the day
-    """
+def process_all_sources(paths: list[Path], trading_date: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     state = load_state(STATE_JSON)
     previous: dict[str, dict] = {}
+    previous_state: dict[str, str] = {}
     timeline_rows: list[dict[str, Any]] = []
     latest_result = pd.DataFrame()
 
     ordered = sorted(
-        paths,
-        key=lambda p: (
-            parse_observation_timestamp(p),
-            p.stat().st_mtime,
-            p.name,
-        ),
+        [Path(p) for p in paths if Path(p).is_file()],
+        key=lambda p: (parse_observation_timestamp(p), p.stat().st_mtime, p.name.lower()),
     )
 
-    previous_state: dict[str, str] = {}
-
-    for path in ordered:
+    for sequence, path in enumerate(ordered, start=1):
         result = _process_snapshot(path, trading_date, previous)
         if result.empty:
             continue
@@ -164,26 +110,23 @@ def process_all_sources(
         timestamp = parse_observation_timestamp(path)
 
         for row in result.to_dict(orient="records"):
+            symbol = str(row.get("symbol", "")).upper()
             state_name = str(row.get("state", "WATCH"))
-            old_state = previous_state.get(row["symbol"])
+            old_state = previous_state.get(symbol)
 
-            if (
-                state_name != old_state
-                and state_name in QUALIFIED_STATES
-            ):
-                timeline_rows.append(
-                    {
-                        "timestamp": timestamp,
-                        "symbol": row["symbol"],
-                        "state": state_name,
-                        "direction": row["direction"],
-                        "strength": row["strength"],
-                        "action": row["action"],
-                        "opportunity": row["opportunity"],
-                    }
-                )
-
-            previous_state[row["symbol"]] = state_name
+            if state_name != old_state and state_name in QUALIFIED_STATES:
+                timeline_rows.append({
+                    "Time": timestamp.strftime("%H:%M:%S"),
+                    "Snapshot": sequence,
+                    "Symbol": symbol,
+                    "Direction": row.get("direction", "NEUTRAL"),
+                    "Setup": row.get("setup", row.get("opportunity", "WATCH")),
+                    "State": state_name,
+                    "S/R": row.get("sr_status", row.get("location", "UNKNOWN")),
+                    "Action": row.get("action", "WATCH"),
+                    "Evidence": row.get("decision_quality", "LOW"),
+                })
+            previous_state[symbol] = state_name
 
         previous = _snapshot_rows(_read(path))
         latest_result = result
@@ -194,636 +137,240 @@ def process_all_sources(
     day["processed_at"] = datetime.now().isoformat()
     save_state(state, STATE_JSON)
 
-    timeline = pd.DataFrame(timeline_rows)
-    return latest_result, timeline
+    return latest_result, pd.DataFrame(timeline_rows)
 
 
-def _decision_text(row: pd.Series) -> str:
-    state = str(row.get("state", ""))
-
-    mapping = {
-        "STRONG_BULLISH": "ðŸŸ¢ STRONG BULLISH",
-        "STRONG_BEARISH": "ðŸ”´ STRONG BEARISH",
-        "STRONG_NEAR_LEVEL": "ðŸŸ  BREAKOUT SETUP",
-        "ACTIVE_BULLISH": "ðŸŸ¢ ACTIVE BULLISH",
-        "ACTIVE_BEARISH": "ðŸ”´ ACTIVE BEARISH",
-        "WAIT_BREAK_CONFIRMATION": "ðŸŸ¡ WAIT FOR BREAK",
-        "DEVELOPING": "ðŸŸ¡ DEVELOPING",
-        "DIRECTIONAL_UNCONFIRMED": "âšª UNCONFIRMED",
-        "INSUFFICIENT_DATA": "âšª NO DATA",
-    }
-    return mapping.get(state, "âšª WATCH")
+def _num(v):
+    try:
+        if v is None or pd.isna(v) or str(v).strip() == "":
+            return None
+        return float(v)
+    except (TypeError, ValueError):
+        return None
 
 
-def _direction_text(direction: str) -> str:
-    if direction == "BULLISH":
-        return "â–² BULLISH"
-    if direction == "BEARISH":
-        return "â–¼ BEARISH"
-    return "â€” NEUTRAL"
-
-
-def _strength_html(score: int, direction: str = "NEUTRAL") -> str:
-    score = max(0, min(5, int(score or 0)))
-    direction = str(direction or "NEUTRAL").upper()
-    circles = []
-    for index in range(1, 6):
-        if index <= score:
-            if direction == "BEARISH":
-                cls = "filled-red"
-            elif direction == "BULLISH":
-                cls = "filled-green"
-            elif score >= 3:
-                cls = "filled-amber"
-            else:
-                cls = "filled-grey"
-        else:
-            cls = "empty"
-        circles.append(f'<span class="strength-circle {cls}"></span>')
-    return "".join(circles)
-
-
-def _inject_css() -> None:
-    st.markdown(
-        """
-        <style>
-        .block-container {
-            padding-top: 2.0rem;
-            padding-bottom: 2rem;
-            max-width: 1450px;
-        }
-
-        .hero {
-            padding: 22px 26px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #172554, #312e81);
-            color: white;
-            margin-bottom: 16px;
-        }
-
-        .hero-title {
-            font-size: 30px;
-            font-weight: 800;
-            letter-spacing: -0.4px;
-        }
-
-        .hero-subtitle {
-            opacity: .82;
-            margin-top: 4px;
-            font-size: 14px;
-        }
-
-        .decision-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 15px 17px;
-            background: #ffffff;
-            min-height: 120px;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, .06);
-        }
-
-        .decision-symbol {
-            font-size: 17px;
-            font-weight: 800;
-            color: #111827;
-        }
-
-        .decision-state {
-            font-size: 14px;
-            font-weight: 750;
-            margin-top: 5px;
-        }
-
-        .decision-meta {
-            color: #64748b;
-            font-size: 12px;
-            margin-top: 7px;
-        }
-
-        .strength-wrap {
-            margin-top: 8px;
-            white-space: nowrap;
-        }
-
-        .strength-circle {
-            display: inline-block;
-            width: 13px;
-            height: 13px;
-            border-radius: 50%;
-            margin-right: 4px;
-            border: 1px solid #cbd5e1;
-            vertical-align: middle;
-        }
-
-        .filled-green {
-            background: #16a34a;
-            border-color: #16a34a;
-        }
-
-        .filled-red {
-            background: #dc2626;
-            border-color: #dc2626;
-        }
-
-        .filled-amber {
-            background: #f59e0b;
-            border-color: #f59e0b;
-        }
-
-        .filled-grey {
-            background: #64748b;
-            border-color: #64748b;
-        }
-
-        .empty {
-            background: #f8fafc;
-        }
-
-        .section-label {
-            font-size: 13px;
-            font-weight: 800;
-            color: #475569;
-            text-transform: uppercase;
-            letter-spacing: .6px;
-            margin: 18px 0 8px;
-        }
-
-        .level-box {
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px 14px;
-            background: #f8fafc;
-        }
-
-        .level-value {
-            font-size: 20px;
-            font-weight: 800;
-            color: #0f172a;
-        }
-
-        .level-caption {
-            font-size: 11px;
-            color: #64748b;
-        }
-
-        .action-box {
-            border-radius: 12px;
-            padding: 13px 16px;
-            background: #eef2ff;
-            border: 1px solid #c7d2fe;
-            font-weight: 800;
-            color: #312e81;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def _rank_result(result: pd.DataFrame) -> pd.DataFrame:
+def _rank(result: pd.DataFrame) -> pd.DataFrame:
     if result.empty:
-        return result
-
-    state_rank = {
-        "STRONG_BULLISH": 8,
-        "STRONG_BEARISH": 8,
-        "STRONG_NEAR_LEVEL": 7,
-        "ACTIVE_BULLISH": 6,
-        "ACTIVE_BEARISH": 6,
-        "WAIT_BREAK_CONFIRMATION": 5,
-        "DEVELOPING": 4,
-        "DIRECTIONAL_UNCONFIRMED": 2,
-        "WATCH": 1,
-        "INSUFFICIENT_DATA": 0,
-    }
+        return result.copy()
 
     out = result.copy()
-    out["_state_rank"] = out["state"].map(state_rank).fillna(0)
-    out = out.sort_values(
-        ["_state_rank", "strength", "price_change_pct"],
-        ascending=[False, False, False],
-        na_position="last",
+    rank_map = {
+        "CONFIRMED": 8, "BREAKOUT": 8, "BREAKDOWN": 8,
+        "REVERSAL_CONFIRMED": 8, "DEVELOPING": 5,
+        "WAIT": 4, "CONFLICT": 2, "WATCH": 1,
+    }
+    out["_action_rank"] = out["action"].map(rank_map).fillna(0)
+    out["_quality_rank"] = out["decision_quality"].map({"HIGH": 3, "MEDIUM": 2, "LOW": 1}).fillna(0)
+    out["_sr_rank"] = out["sr_status"].astype(str).str.contains(
+        "BROKEN|CROSSED|REVERSAL|CONFIR", case=False, regex=True
+    ).astype(int)
+    out["_score"] = (
+        out["_action_rank"] * 10
+        + out["_quality_rank"] * 3
+        + out["_sr_rank"] * 2
+        + pd.to_numeric(out.get("confluence_score", 0), errors="coerce").fillna(0)
     )
-    return out
+    return out.sort_values(["_score", "strength"], ascending=False, na_position="last")
 
 
-def _render_candidate_cards(result: pd.DataFrame) -> None:
-    candidates = result[
-        result["state"].isin(QUALIFIED_STATES)
-    ].copy()
-    candidates = _rank_result(candidates).head(8)
+def _css():
+    st.markdown("""
+<style>
+.block-container {max-width:1450px;padding-top:1.5rem}
+.hero {padding:22px 26px;border-radius:16px;background:#172554;color:white;margin-bottom:16px}
+.hero-title {font-size:29px;font-weight:800}.hero-sub {font-size:13px;opacity:.82;margin-top:4px}
+.card {border:1px solid #e2e8f0;border-radius:14px;padding:15px;background:#fff;min-height:205px;box-shadow:0 2px 8px rgba(15,23,42,.06)}
+.bull {color:#15803d;font-weight:800}.bear {color:#dc2626;font-weight:800}.wait {color:#a16207;font-weight:800}
+.small {font-size:12px;color:#64748b}.metric {font-size:20px;font-weight:800;color:#0f172a}
+.action {padding:9px 11px;border-radius:9px;background:#eef2ff;color:#312e81;font-weight:800;margin-top:8px}
+.sr {padding:8px 10px;border-radius:8px;background:#f8fafc;margin-top:7px;font-size:12px}
+</style>
+""", unsafe_allow_html=True)
 
-    if candidates.empty:
-        st.info("No qualified intraday candidates at this snapshot.")
+
+def _direction_html(direction: str) -> str:
+    d = str(direction).upper()
+    if d == "BULLISH":
+        return '<span class="bull">BULLISH</span>'
+    if d == "BEARISH":
+        return '<span class="bear">BEARISH</span>'
+    return '<span class="wait">NEUTRAL</span>'
+
+
+def _render_cards(result: pd.DataFrame):
+    ranked = _rank(result)
+    if ranked.empty:
+        st.info("No decision candidates available.")
         return
 
-    st.markdown('<div class="section-label">Top intraday decisions</div>', unsafe_allow_html=True)
+    st.subheader("Top Tradable Decisions")
 
-    for start in range(0, len(candidates), 4):
-        rowset = candidates.iloc[start:start + 4]
+    for start in range(0, min(len(ranked), 8), 4):
         cols = st.columns(4)
-
-        for col, (_, row) in zip(cols, rowset.iterrows()):
+        for col, (_, r) in zip(cols, ranked.iloc[start:start + 4].iterrows()):
             with col:
-                direction = _direction_text(row["direction"])
-                decision = _decision_text(row)
-                price = row.get("reference_price")
-                price_change = row.get("price_change_pct")
-                support = row.get("support")
-                resistance = row.get("resistance")
+                direction = str(r.get("direction", "NEUTRAL"))
+                action = str(r.get("action", "WATCH"))
+                setup = str(r.get("setup", r.get("opportunity", "WATCH")))
+                sr_status = str(r.get("sr_status", r.get("location", "UNKNOWN")))
+                cmpv = _num(r.get("reference_price"))
+                support = _num(r.get("support"))
+                resistance = _num(r.get("resistance"))
 
-                st.markdown(
-                    f"""
-                    <div class="decision-card">
-                      <div class="decision-symbol">{row['symbol']}</div>
-                      <div class="decision-state">{decision}</div>
-                      <div class="decision-meta">{direction}</div>
-                      <div class="strength-wrap">
-                        {_strength_html(int(row.get('strength', 0) or 0), row.get('direction', 'NEUTRAL'))}
-                        <span style="font-size:12px;color:#475569;margin-left:5px;">
-                          {row.get('strength_label', '')}
-                        </span>
-                      </div>
-                      <div class="decision-meta">
-                        CMP {price:.2f} &nbsp; | &nbsp; Move {price_change:+.2f}%
-                      </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-                if row["direction"] == "BULLISH":
-                    level_text = (
-                        f"R {resistance:.2f}"
-                        if pd.notna(resistance)
-                        else "R â€”"
-                    )
-                elif row["direction"] == "BEARISH":
-                    level_text = (
-                        f"S {support:.2f}"
-                        if pd.notna(support)
-                        else "S â€”"
-                    )
-                else:
-                    level_text = "S/R â€”"
-
-                st.caption(
-                    f"{level_text}  â€¢  {row.get('opportunity', 'WATCH')}  â€¢  "
-                    f"{row.get('action', 'WATCH')}"
-                )
-                st.caption(
-                    f"Momentum: {row.get('momentum_state', 'â€”')}  â€¢  "
-                    f"Room: {row.get('room_label', 'â€”')}  â€¢  "
-                    f"Evidence: {row.get('decision_quality', 'â€”')}"
-                )
+                st.markdown(f"""
+<div class="card">
+  <div class="metric">{r.get('symbol','')}</div>
+  <div>{_direction_html(direction)} &nbsp; | &nbsp; {setup}</div>
+  <div class="small">Decision confidence: {r.get('decision_quality','LOW')} &nbsp; | &nbsp; Strength {r.get('strength',0)}/5</div>
+  <div class="sr"><b>S/R:</b> {sr_status}<br>
+  CMP: {('—' if cmpv is None else f'{cmpv:.2f}')} &nbsp;
+  Support: {('—' if support is None else f'{support:.2f}')} &nbsp;
+  Resistance: {('—' if resistance is None else f'{resistance:.2f}')}</div>
+  <div class="small" style="margin-top:7px"><b>Why:</b> {r.get('decision_reason','Evidence being compiled')}</div>
+  <div class="action">{action}</div>
+</div>
+""", unsafe_allow_html=True)
 
 
-def _render_detail(result: pd.DataFrame) -> None:
-    if result.empty:
+def _render_decision_table(result: pd.DataFrame):
+    ranked = _rank(result)
+    if ranked.empty:
         return
 
-    ranked = _rank_result(result)
-    symbol = st.selectbox(
-        "Inspect decision",
-        ranked["symbol"].tolist(),
-        key="ds_candidate",
-    )
-    row = ranked.loc[ranked.symbol == symbol].iloc[0]
+    st.subheader("Decision Table")
+    table = pd.DataFrame({
+        "Rank": range(1, len(ranked) + 1),
+        "Stock": ranked["symbol"].astype(str),
+        "Direction": ranked["direction"].astype(str),
+        "Setup": ranked.get("setup", ranked.get("opportunity", "WATCH")).astype(str),
+        "S/R": ranked.get("sr_status", ranked.get("location", "UNKNOWN")).astype(str),
+        "Confirmation": ranked.get("confirmation", ranked.get("decision_quality", "LOW")).astype(str),
+        "Action": ranked["action"].astype(str),
+        "Why": ranked.get("decision_reason", "").astype(str),
+    }).head(20)
+
+    st.dataframe(table, use_container_width=True, hide_index=True)
+
+
+def _render_evidence(row: pd.Series):
+    st.subheader(f"Decision Evidence - {row['symbol']}")
+    cols = st.columns(4)
+    metrics = [
+        ("CMP", row.get("reference_price")),
+        ("Support", row.get("support")),
+        ("Resistance", row.get("resistance")),
+        ("S/R Distance %", row.get("sr_distance_pct")),
+    ]
+    for col, (label, value) in zip(cols, metrics):
+        with col:
+            v = _num(value)
+            st.metric(label, "—" if v is None else f"{v:.2f}")
+
+    evidence = pd.DataFrame({
+        "Evidence": [
+            "Price / Direction", "Futures", "PE-CE OI", "PCR",
+            "IV", "Volume", "Momentum", "S/R", "Straddle",
+        ],
+        "Interpretation": [
+            row.get("directional_interpretation", "—"),
+            row.get("futures_interpretation", "—"),
+            row.get("options_interpretation", "—"),
+            row.get("pcr_interpretation", "—"),
+            row.get("iv_interpretation", "—"),
+            row.get("volume_interpretation", "—"),
+            row.get("momentum_state", "—"),
+            row.get("sr_interpretation", "—"),
+            row.get("straddle_interpretation", "—"),
+        ],
+    })
+    st.dataframe(evidence, use_container_width=True, hide_index=True)
 
     st.markdown(
-        f"""
-        <div class="section-label">Decision detail â€” {symbol}</div>
-        <div class="action-box">
-            {_decision_text(row)} &nbsp; | &nbsp;
-            {_direction_text(row['direction'])} &nbsp; | &nbsp;
-            ACTION: {row.get('action', 'WATCH')}
-        </div>
-        """,
+        f'<div class="action"><b>Decision:</b> {row.get("decision_reason","—")} '
+        f'&nbsp; <b>Action:</b> {row.get("action","WATCH")}</div>',
         unsafe_allow_html=True,
     )
 
-    a, b, c, d, e = st.columns(5)
 
-    with a:
-        st.markdown(
-            f'<div class="level-box"><div class="level-caption">CMP</div>'
-            f'<div class="level-value">{row["reference_price"]:.2f}</div></div>',
-            unsafe_allow_html=True,
-        )
-    with b:
-        value = row.get("support")
-        text = "â€”" if pd.isna(value) else f"{value:.2f}"
-        st.markdown(
-            f'<div class="level-box"><div class="level-caption">SUPPORT</div>'
-            f'<div class="level-value">{text}</div></div>',
-            unsafe_allow_html=True,
-        )
-    with c:
-        value = row.get("resistance")
-        text = "â€”" if pd.isna(value) else f"{value:.2f}"
-        st.markdown(
-            f'<div class="level-box"><div class="level-caption">RESISTANCE</div>'
-            f'<div class="level-value">{text}</div></div>',
-            unsafe_allow_html=True,
-        )
-    with d:
-        value = row.get("price_change_pct")
-        text = "â€”" if pd.isna(value) else f"{value:+.2f}%"
-        st.markdown(
-            f'<div class="level-box"><div class="level-caption">PRICE MOVE</div>'
-            f'<div class="level-value">{text}</div></div>',
-            unsafe_allow_html=True,
-        )
-    with e:
-        st.markdown(
-            f'<div class="level-box"><div class="level-caption">STRENGTH</div>'
-            f'<div class="level-value">{int(row["strength"])}/5</div></div>',
-            unsafe_allow_html=True,
-        )
+def main():
+    st.set_page_config(page_title="NTIS SDL - Intraday Decision Center", layout="wide")
+    _css()
 
-    st.markdown('<div class="section-label">Why this direction?</div>', unsafe_allow_html=True)
-    reasons = row.get("reasons", [])
-    for reason in reasons:
-        st.write(f"â€¢ {reason}")
+    st.markdown("""
+<div class="hero">
+  <div class="hero-title">NTIS SDL - Intraday Decision Center</div>
+  <div class="hero-sub">Decision-oriented intraday analysis. Evidence is compiled into ranked setups.</div>
+</div>
+""", unsafe_allow_html=True)
 
-    factors = row.get("strength_factors", [])
-    if factors:
-        st.caption(
-            "Strength confirmation: " + " â€¢ ".join(factors)
-        )
+    default_root = str(Path(INTRADAY_SOURCE_ROOT).expanduser())
+    source_text = st.text_input("Source folder", value=default_root, help="Select the folder containing the Daywise snapshots and supporting evidence files.")
+    source_root = Path(source_text).expanduser()
 
-    # Raw indicators remain available only behind an explicit diagnostic
-    # expander. They are not part of the decision table.
-    with st.expander("Diagnostic evidence (optional)", expanded=False):
-        st.write(
-            {
-                "ATM Straddle %": row.get("straddle_pct"),
-                "ATM Straddle change %": row.get("straddle_delta_pct"),
-                "Straddle stage": row.get("straddle_stage"),
-                "IV change %": row.get("iv_change_pct"),
-                "PCR change %": row.get("pcr_change_pct"),
-                "OI evidence": row.get("oi_evidence"),
-                "Options structure": row.get("options_structure"),
-                "Futures buildup": row.get("futures_buildup"),
-                "Futures OI change %": row.get("futures_oi_change_pct"),
-                "Volume change %": row.get("volume_change_pct"),
-                "S/R location": row.get("location"),
-                "Level distance %": row.get("level_distance_pct"),
-                "Persistence": row.get("persistence"),
-            }
-        )
+    c1, c2, c3 = st.columns([1, 1, 1.5])
+    with c1:
+        trading_date = st.date_input("Trading date", value=date.today()).strftime("%Y-%m-%d")
+    with c2:
+        mode = st.radio("Read mode", ["Latest File", "All Files / Day Replay"], horizontal=False)
+    with c3:
+        st.caption(f"Source: {source_root}")
 
-
-def _render_timeline(timeline: pd.DataFrame) -> None:
-    if timeline.empty:
-        st.info("No qualifying state changes found in the selected folder.")
+    try:
+        sources = _discover_sources(trading_date, source_root)
+    except Exception as exc:
+        st.error(f"Source discovery failed: {type(exc).__name__}: {exc}")
         return
 
-    st.markdown('<div class="section-label">Intraday decision timeline</div>', unsafe_allow_html=True)
-
-    view = timeline.copy()
-    view["Time"] = pd.to_datetime(view["timestamp"]).dt.strftime("%H:%M")
-    view["Decision"] = view.apply(
-        lambda r: _decision_text(pd.Series({"state": r["state"]})),
-        axis=1,
-    )
-    view["Direction"] = view["direction"].map(
-        {"BULLISH": "â–² BULLISH", "BEARISH": "â–¼ BEARISH"}
-    ).fillna("â€”")
-    view["Strength"] = view["strength"].map(
-        lambda x: "â—" * int(x or 0) + "â—‹" * (5 - int(x or 0))
-    )
-
-    st.dataframe(
-        view[
-            ["Time", "symbol", "Decision", "Direction", "Strength", "action"]
-        ].rename(
-            columns={
-                "symbol": "Stock",
-                "action": "Action",
-            }
-        ),
-        width="stretch",
-        hide_index=True,
-    )
-
-
-def render() -> None:
-    _inject_css()
-
-    st.markdown(
-        """
-        <div class="hero">
-          <div class="hero-title">NTIS SDL â€” Intraday Decision Center</div>
-          <div class="hero-subtitle">
-            Precise candidate ranking â€¢ directional strength â€¢ breakout levels â€¢ action
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Apply pending date before the date widget is instantiated.
-    pending = st.session_state.pop("ds_pending_date", None)
-    if pending is not None:
-        pending_date = _as_date(pending)
-        if pending_date is not None:
-            st.session_state["ds_date"] = pending_date
-
-    default_source_root = str(
-        st.session_state.get("ds_source_root", INTRADAY_SOURCE_ROOT)
-    )
-
-    source_root_text = st.text_input(
-        "Source folder",
-        value=default_source_root,
-        key="ds_source_root",
-        help=(
-            "Select/type the folder containing the timestamped Daywise source files. "
-            "The derivative-signal project reads from this folder only; source files "
-            "are never modified."
-        ),
-    ).strip()
-
-    source_root = Path(source_root_text).expanduser()
-
-    if not source_root.exists() or not source_root.is_dir():
-        st.error(f"Source folder does not exist: {source_root}")
-        return
-
-    selected_date = st.date_input(
-        "Trading date",
-        value=date.today(),
-        key="ds_trading_date",
-    )
-    trading_date = selected_date.isoformat()
-
-    st.caption(f"Source root: {source_root}")
-
-    sources = _discover_sources(trading_date, source_root)
     if not sources:
-        st.info("No eligible Daywise source files found for the selected date.")
+        st.warning("No Daywise snapshots found for the selected date in the selected folder.")
         return
 
-    mode = st.radio(
-        "Read mode",
-        ["Latest File", "All Files / Day Replay"],
-        horizontal=True,
-        key="ds_read_mode",
-    )
+    labels = [
+        f"{parse_observation_timestamp(p):%H:%M:%S} - {p.name}"
+        for p in sources
+    ]
 
     if mode == "Latest File":
-        selected_path = sources[-1]
-
-        st.caption(
-            f"Latest snapshot: {selected_path.name}  â€¢  "
-            f"{datetime.fromtimestamp(selected_path.stat().st_mtime):%d %b %Y %H:%M:%S}"
-        )
-
-        if st.button(
-            "â–¶ PROCESS LATEST SNAPSHOT",
-            type="primary",
-            width="stretch",
-            key="ds_process_latest",
-        ):
-            try:
-                st.session_state["ds_result"] = process_selected_source(
-                    selected_path,
-                    trading_date,
-                )
-                st.session_state["ds_timeline"] = pd.DataFrame()
-                st.session_state["ds_source"] = selected_path.name
-                st.success("Latest snapshot processed.")
-            except Exception as exc:
-                st.error(
-                    f"Processing failed: {type(exc).__name__}: {exc}"
-                )
-
+        selected_idx = st.selectbox("Snapshot", list(range(len(sources))), index=len(sources) - 1, format_func=lambda i: labels[i])
+        if st.button("PROCESS SELECTED SNAPSHOT", type="primary", use_container_width=True):
+            st.session_state["ds_result"] = process_selected_source(sources[selected_idx], trading_date)
+            st.session_state["ds_timeline"] = pd.DataFrame()
+            st.session_state["ds_mode"] = mode
     else:
-        st.caption(
-            f"Day replay: {len(sources)} eligible snapshots will be read "
-            "chronologically. Source files are read-only."
-        )
-
-        if st.button(
-            "â–¶ PROCESS ALL FILES",
-            type="primary",
-            width="stretch",
-            key="ds_process_all",
-        ):
-            try:
-                latest, timeline = process_all_sources(
-                    sources,
-                    trading_date,
-                )
-                st.session_state["ds_result"] = latest
-                st.session_state["ds_timeline"] = timeline
-                st.session_state["ds_source"] = (
-                    f"{len(sources)} files / day replay"
-                )
-                st.success(
-                    f"Processed {len(sources)} snapshots chronologically."
-                )
-            except Exception as exc:
-                st.error(
-                    f"Replay failed: {type(exc).__name__}: {exc}"
-                )
+        st.info(f"{len(sources)} snapshots discovered. Replay will process them chronologically.")
+        if st.button("PROCESS ALL FILES / DAY REPLAY", type="primary", use_container_width=True):
+            latest, timeline = process_all_sources(sources, trading_date)
+            st.session_state["ds_result"] = latest
+            st.session_state["ds_timeline"] = timeline
+            st.session_state["ds_mode"] = mode
 
     result = st.session_state.get("ds_result")
-    if result is None or result.empty:
-        st.info(
-            "Choose Latest File or All Files / Day Replay and process the data."
-        )
+    if result is None or not isinstance(result, pd.DataFrame) or result.empty:
+        st.info("Select a mode and process the data.")
         return
 
-    result = _rank_result(result)
+    result = result.copy()
+    st.success(f"{len(result)} symbols evaluated using compiled decision evidence.")
 
-    # Compact decision summary â€” no raw indicator counters.
-    candidates = result[
-        result["state"].isin(QUALIFIED_STATES)
-    ]
-    strong = candidates[candidates["strength"] >= 4]
-    bullish = candidates[candidates["direction"] == "BULLISH"]
-    bearish = candidates[candidates["direction"] == "BEARISH"]
+    _render_cards(result)
+    _render_decision_table(result)
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Tradable Candidates", len(candidates))
-    c2.metric("Strong (4â€“5/5)", len(strong))
-    c3.metric("Bullish", len(bullish))
-    c4.metric("Bearish", len(bearish))
-
-    _render_candidate_cards(result)
-
-    st.markdown(
-        '<div class="section-label">Decision table</div>',
-        unsafe_allow_html=True,
-    )
-
-    table = result[
-        result["state"].isin(QUALIFIED_STATES)
-    ].copy()
-
-    if table.empty:
-        st.info("No qualified candidates in the latest snapshot.")
-    else:
-        table["Strength"] = table["strength"].map(
-            lambda x: "â—" * int(x or 0) + "â—‹" * (5 - int(x or 0))
-        )
-        table["Decision"] = table.apply(_decision_text, axis=1)
-        table["Direction"] = table["direction"].map(
-            {"BULLISH": "â–² BULLISH", "BEARISH": "â–¼ BEARISH"}
-        ).fillna("â€”")
-        table["Price"] = table["reference_price"].map(
-            lambda x: "â€”" if pd.isna(x) else f"{x:.2f}"
-        )
-        table["Move"] = table["price_change_pct"].map(
-            lambda x: "â€”" if pd.isna(x) else f"{x:+.2f}%"
-        )
-        table["Support"] = table["support"].map(
-            lambda x: "â€”" if pd.isna(x) else f"{x:.2f}"
-        )
-        table["Resistance"] = table["resistance"].map(
-            lambda x: "â€”" if pd.isna(x) else f"{x:.2f}"
-        )
-
-        # Only decision-essential fields are exposed.
-        st.dataframe(
-            table[
-                [
-                    "symbol",
-                    "Strength",
-                    "Decision",
-                    "Direction",
-                    "Price",
-                    "Support",
-                    "Resistance",
-                    "opportunity",
-                    "action",
-                ]
-            ].rename(
-                columns={
-                    "symbol": "Stock",
-                    "opportunity": "Opportunity",
-                    "action": "Action",
-                }
-            ),
-            width="stretch",
-            hide_index=True,
-        )
-
-    _render_detail(result)
+    ranked = _rank(result)
+    if not ranked.empty:
+        symbol = st.selectbox("Inspect one decision", ranked["symbol"].tolist())
+        row = ranked.loc[ranked["symbol"] == symbol].iloc[0]
+        _render_evidence(row)
 
     timeline = st.session_state.get("ds_timeline")
     if isinstance(timeline, pd.DataFrame) and not timeline.empty:
-        _render_timeline(timeline)
-
-    st.caption(
-        f"Source: {st.session_state.get('ds_source', 'current snapshot')}  â€¢  "
-        "Git repository is read-only. External source files are read-only. "
-        "The +/-0.75% price gate remains authoritative. "
-        "Straddle/IV/OI/PCR/Futures/Volume are supporting evidence, not hidden new trade triggers."
-    )
+        st.subheader("Decision Changes During Day Replay")
+        st.dataframe(timeline, use_container_width=True, hide_index=True)
 
 
+if __name__ == "__main__":
+    main()
 
+
+def render():
+    main()
 
