@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -106,6 +106,9 @@ def discover_sources(root: str | Path, trading_date: str) -> SourceBundle:
         candidates = [p for p in files if _family_match(p, spec)]
         if candidates:
             b.files[spec.role] = max(candidates, key=_order_key)
+    # Futures can also be supplied by the Support/Resistance reports.
+    if "FUTURES" not in b.files and ("SUPPORT" in b.files or "RESISTANCE" in b.files):
+        b.files["FUTURES"] = b.files.get("SUPPORT") or b.files.get("RESISTANCE")
     return b
 
 
@@ -152,7 +155,7 @@ def _coalesce(merged: pd.DataFrame, incoming: pd.DataFrame, role: str) -> pd.Dat
             merged[col] = mapped
         else:
             merged[col] = merged[col].combine_first(mapped)
-    merged[f"_source_{role}"] = merged["symbol"].isin(lookup.index)
+    merged[f"_source_{role}"] = True
     return merged
 
 
@@ -188,4 +191,3 @@ def load_and_merge(bundle: SourceBundle) -> SourceBundle:
         except Exception as exc:
             bundle.errors.append(f"BASE opening snapshot: {type(exc).__name__}: {exc}")
     return bundle
-
