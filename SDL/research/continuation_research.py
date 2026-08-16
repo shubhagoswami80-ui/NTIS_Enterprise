@@ -1,25 +1,5 @@
+
 from __future__ import annotations
-
-"""
-SDL continuation research — AUTHORIZED AGAINST Git master bda7958e...
-
-RESEARCH ONLY.
-This module never changes pipeline.py, approaching_breakout.py,
-processing_state.json, approaching_breakouts.csv, or Phase-1 logic.
-
-Research unit:
-    first persisted 50%-approach observation for (trading_date, symbol)
-
-Primary outcome:
-    a LATER observation on the same trading date crosses the frozen
-    1x breakout boundary in the same direction.
-
-Same-observation 50% + 100% is retained separately and excluded from
-the clean continuation rate.
-
-Point-in-time discipline:
-    features used for analysis must be available at first_50_timestamp.
-"""
 
 from pathlib import Path
 import re
@@ -27,15 +7,31 @@ import sys
 import numpy as np
 import pandas as pd
 
+# Keep these imports independent.  The previous bundle incorrectly grouped
+# config + approaching_breakout imports, which could leave the loader undefined.
 try:
-    from config import INTRADAY_SOURCE_ROOT, REQUIRED_EVIDENCE_DIR, OUTPUT_ROOT
-    from approaching_breakout import load_approaching_breakouts
+    from config import (
+        INTRADAY_SOURCE_ROOT,
+        REQUIRED_EVIDENCE_DIR,
+        OUTPUT_ROOT,
+        TRADABLE_EVENTS_DIR,
+    )
 except Exception:
     INTRADAY_SOURCE_ROOT = Path(r"D:\My-data\Share_P&L\Ichart Data\Screenshot")
     REQUIRED_EVIDENCE_DIR = Path(r"E:\NSE_Daily_Analysis\SDL\data\output\required_evidence")
     OUTPUT_ROOT = Path(r"E:\NSE_Daily_Analysis\SDL\data\output")
+    TRADABLE_EVENTS_DIR = OUTPUT_ROOT / "tradable_events"
+
+try:
+    from approaching_breakout import load_approaching_breakouts
+except Exception as exc:
+    raise RuntimeError(
+        "Unable to import current SDL approaching_breakout.load_approaching_breakouts. "
+        "Run from E:\\NSE_Daily_Analysis\\SDL. Original error: " + str(exc)
+    ) from exc
 
 RESEARCH_ROOT = Path(OUTPUT_ROOT) / "continuation_research"
+APPROACHING_CSV = Path(TRADABLE_EVENTS_DIR) / "approaching_breakouts.csv"
 
 PRIMARY_OUTCOME = "continued_to_100_after_50"
 SAME_OBS_OUTCOME = "same_observation_100"
@@ -44,17 +40,9 @@ MISSING_OUTCOME = "missing_replay_evidence"
 
 ALIASES = {
     "futures_oi": ["Fut OI", "Futures OI", "Future OI", "Fut. OI"],
-    "futures_oi_chg": [
-        "Fut OI Chg", "Futures OI Chg", "Future OI Chg", "Fut. OI Chg"
-    ],
-    "futures_oi_chg_pct": [
-        "Fut OI Chg %", "Fut OI Chg%",
-        "Futures OI Chg %", "Futures OI Chg%",
-        "Future OI Chg %", "Future OI Chg%",
-    ],
-    "futures_buildup": [
-        "Fut Buildup", "Futures Buildup", "Future Buildup"
-    ],
+    "futures_oi_chg": ["Fut OI Chg", "Futures OI Chg", "Future OI Chg", "Fut. OI Chg"],
+    "futures_oi_chg_pct": ["Fut OI Chg %", "Fut OI Chg%", "Futures OI Chg %", "Futures OI Chg%", "Future OI Chg %", "Future OI Chg%"],
+    "futures_buildup": ["Fut Buildup", "Futures Buildup", "Future Buildup"],
     "atm_straddle_pct": ["ATM Straddle %"],
     "atm_straddle_price": ["ATM Straddle Price"],
     "price_chg_pct": ["Price Chg %"],
@@ -90,21 +78,15 @@ def discover_day_files(trading_date):
     root = Path(INTRADAY_SOURCE_ROOT)
     if not root.exists():
         return []
-    matches = []
-    for p in root.rglob("*.xlsx"):
-        text = str(p)
-        if trading_date in text or trading_date.replace("-", "") in p.name.replace("-", ""):
-            matches.append(p)
-    return sorted(set(matches), key=lambda p: p.stat().st_mtime)
+    return sorted(
+        {p for p in root.rglob("*.xlsx")
+         if trading_date in str(p) or trading_date.replace("-", "") in p.name.replace("-", "")},
+        key=lambda p: p.stat().st_mtime,
+    )
 
-def schema_map(trading_date=None):
-    dates = [trading_date] if trading_date else []
-    files = []
-    for d in dates:
-        files.extend(discover_day_files(d))
-
+def schema_map(trading_date):
     rows = []
-    for p in files:
+    for p in discover_day_files(trading_date):
         try:
             df = pd.read_excel(p, nrows=2)
         except Exception as exc:
@@ -112,41 +94,29 @@ def schema_map(trading_date=None):
             continue
         for feature, aliases in ALIASES.items():
             physical = resolve(df.columns, aliases)
-            rows.append({
-                "file": str(p),
-                "feature": feature,
-                "physical_column": physical,
-                "available": bool(physical),
-            })
+            rows.append({"file": str(p), "feature": feature, "physical_column": physical, "available": bool(physical)})
     return pd.DataFrame(rows)
 
 def load_approaching():
-    # Current authoritative loader; no direct CSV rewriting.
-    df = load_approaching_breakouts()
-    if df is None:
-        return pd.DataFrame()
-    df = df.copy()
-    df.columns = [str(c).strip() for c in df.columns]
-    return df
+    if not APPROACHING_CSV.exists():
+        raise FileNotFoundError(f"Missing authoritative approaching file: {APPROACHING_CSV}")
+    # Current Git master signature requires the explicit CSV path.
+    return load_approaching_breakouts(APPROACHING_CSV)
 
 def first_50_events(trading_date=None):
     df = load_approaching()
     if df.empty:
         return df
-
     required = {"trading_date", "symbol", "observation_timestamp"}
     if not required.issubset(df.columns):
         raise ValueError(f"approaching_breakouts missing {required - set(df.columns)}")
-
+    df = df.copy()
     df["trading_date"] = pd.to_datetime(df["trading_date"], errors="coerce").dt.strftime("%Y-%m-%d")
     df["symbol"] = df["symbol"].astype(str).str.strip().str.upper()
     df["observation_timestamp"] = pd.to_datetime(df["observation_timestamp"], errors="coerce")
-
     if trading_date:
         df = df[df["trading_date"] == trading_date].copy()
-
-    df = df.dropna(subset=["observation_timestamp"])
-    df = df.sort_values(["trading_date", "symbol", "observation_timestamp"])
+    df = df.dropna(subset=["observation_timestamp"]).sort_values(["trading_date", "symbol", "observation_timestamp"])
     return df.drop_duplicates(["trading_date", "symbol"], keep="first").reset_index(drop=True)
 
 def load_evidence(trading_date):
@@ -155,29 +125,17 @@ def load_evidence(trading_date):
         return pd.DataFrame()
     df = pd.read_csv(path)
     if "observation_timestamp" in df.columns:
-        df["observation_timestamp"] = pd.to_datetime(
-            df["observation_timestamp"], errors="coerce"
-        )
+        df["observation_timestamp"] = pd.to_datetime(df["observation_timestamp"], errors="coerce")
     if "Symbol" in df.columns:
         df["Symbol"] = df["Symbol"].astype(str).str.strip().str.upper()
     return df
-
-def num(df, col):
-    if col not in df.columns:
-        return pd.Series(np.nan, index=df.index, dtype=float)
-    return pd.to_numeric(df[col], errors="coerce")
 
 def replay(events):
     rows = []
     for event in events.itertuples(index=False):
         evidence = load_evidence(event.trading_date)
         if evidence.empty or "Symbol" not in evidence.columns:
-            rows.append({
-                **event._asdict(),
-                "outcome": MISSING_OUTCOME,
-                "first_later_100_timestamp": pd.NaT,
-                "minutes_50_to_100": np.nan,
-            })
+            rows.append({**event._asdict(), "outcome": MISSING_OUTCOME, "first_later_100_timestamp": pd.NaT, "minutes_50_to_100": np.nan})
             continue
 
         g = evidence[
@@ -187,12 +145,7 @@ def replay(events):
         ].sort_values("observation_timestamp").copy()
 
         if g.empty:
-            rows.append({
-                **event._asdict(),
-                "outcome": MISSING_OUTCOME,
-                "first_later_100_timestamp": pd.NaT,
-                "minutes_50_to_100": np.nan,
-            })
+            rows.append({**event._asdict(), "outcome": MISSING_OUTCOME, "first_later_100_timestamp": pd.NaT, "minutes_50_to_100": np.nan})
             continue
 
         direction = str(getattr(event, "direction", "")).upper()
@@ -222,99 +175,53 @@ def replay(events):
             outcome = UNRESOLVED_OUTCOME
             minutes = np.nan
 
-        rows.append({
-            **event._asdict(),
-            "outcome": outcome,
-            "first_later_100_timestamp": ts,
-            "minutes_50_to_100": minutes,
-        })
-
+        rows.append({**event._asdict(), "outcome": outcome, "first_later_100_timestamp": ts, "minutes_50_to_100": minutes})
     return pd.DataFrame(rows)
 
 def point_in_time_features(events):
     out = events.copy()
     if out.empty:
         return out
-
     p = pd.to_numeric(out.get("approach_progress_pct"), errors="coerce")
     out["distance_to_100_pct"] = 100 - p
-    out["progress_band"] = pd.cut(
-        p,
-        bins=[-np.inf, 60, 75, 90, 100, np.inf],
-        labels=["50-60", "60-75", "75-90", "90-100", ">=100"],
-    )
-
+    out["progress_band"] = pd.cut(p, bins=[-np.inf, 60, 75, 90, 100, np.inf], labels=["50-60", "60-75", "75-90", "90-100", ">=100"])
     ts = pd.to_datetime(out["observation_timestamp"], errors="coerce")
     out["minutes_from_0915"] = ts.dt.hour * 60 + ts.dt.minute - 555
-    out["hour"] = ts.dt.hour
     return out
 
 def descriptive_effects(df):
     if df.empty:
         return pd.DataFrame()
-
     clean = df[df["outcome"].isin([PRIMARY_OUTCOME, UNRESOLVED_OUTCOME])].copy()
     if clean.empty:
         return pd.DataFrame()
-
     clean["continued"] = (clean["outcome"] == PRIMARY_OUTCOME).astype(int)
     rows = []
-
-    if "progress_band" in clean:
-        for band, g in clean.groupby("progress_band", observed=False):
-            if len(g):
-                rows.append({
-                    "feature": "progress_band",
-                    "bucket": str(band),
-                    "n": len(g),
-                    "continued": int(g["continued"].sum()),
-                    "continuation_rate": float(g["continued"].mean()),
-                })
-
-    if "direction" in clean:
-        for direction, g in clean.groupby("direction"):
-            if len(g):
-                rows.append({
-                    "feature": "direction",
-                    "bucket": str(direction),
-                    "n": len(g),
-                    "continued": int(g["continued"].sum()),
-                    "continuation_rate": float(g["continued"].mean()),
-                })
-
+    for band, g in clean.groupby("progress_band", observed=False):
+        if len(g):
+            rows.append({"feature": "progress_band", "bucket": str(band), "n": len(g), "continued": int(g["continued"].sum()), "continuation_rate": float(g["continued"].mean())})
+    for direction, g in clean.groupby("direction"):
+        if len(g):
+            rows.append({"feature": "direction", "bucket": str(direction), "n": len(g), "continued": int(g["continued"].sum()), "continuation_rate": float(g["continued"].mean())})
     return pd.DataFrame(rows)
 
 def run(*dates):
     RESEARCH_ROOT.mkdir(parents=True, exist_ok=True)
-
     dates = list(dates)
-    if not dates:
-        events = first_50_events()
-    else:
-        frames = [first_50_events(d) for d in dates]
-        events = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
+    events = pd.concat([first_50_events(d) for d in dates], ignore_index=True) if dates else first_50_events()
     events = point_in_time_features(events)
     replayed = replay(events)
-
     replayed.to_csv(RESEARCH_ROOT / "continuation_replay_events.csv", index=False)
-    descriptive_effects(replayed).to_csv(
-        RESEARCH_ROOT / "descriptive_feature_effects.csv", index=False
-    )
-
-    schema_frames = [schema_map(d) for d in dates]
-    schema = pd.concat(schema_frames, ignore_index=True) if schema_frames else pd.DataFrame()
+    descriptive_effects(replayed).to_csv(RESEARCH_ROOT / "descriptive_feature_effects.csv", index=False)
+    schema = pd.concat([schema_map(d) for d in dates], ignore_index=True) if dates else pd.DataFrame()
     schema.to_csv(RESEARCH_ROOT / "source_schema_map.csv", index=False)
-
-    summary = pd.DataFrame([{
+    pd.DataFrame([{
         "research_events": len(replayed),
         "clean_continuations": int((replayed["outcome"] == PRIMARY_OUTCOME).sum()) if not replayed.empty else 0,
         "same_observation_100_excluded": int((replayed["outcome"] == SAME_OBS_OUTCOME).sum()) if not replayed.empty else 0,
         "unresolved": int((replayed["outcome"] == UNRESOLVED_OUTCOME).sum()) if not replayed.empty else 0,
         "missing_replay_evidence": int((replayed["outcome"] == MISSING_OUTCOME).sum()) if not replayed.empty else 0,
-    }])
-    summary.to_csv(RESEARCH_ROOT / "research_summary.csv", index=False)
-
+    }]).to_csv(RESEARCH_ROOT / "research_summary.csv", index=False)
     print("AUTH BASELINE: bda7958e4616a611c196df615c95b83e6dc6ea4a")
     print("Research events:", len(replayed))
     print("Outputs:", RESEARCH_ROOT)
