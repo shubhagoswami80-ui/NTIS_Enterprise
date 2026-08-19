@@ -1,580 +1,702 @@
 """
-NTIS-Intraday Dashboard
-Professional Operational Cockpit & Intelligence Workbench UI.
+NTIS Intraday Predictive Decision Cockpit
+Phase 22A-1 — Predictive selection semantics refinement.
+
+Design boundary:
+- Existing producers remain authoritative.
+- No new numeric prediction score is created.
+- Exact pattern evidence is preferred over stock-level history.
+- Stock history is displayed separately from outcome-confirmed evidence.
+- Zero completed outcomes is rendered as "No completed outcomes", never as 0% success.
 """
+from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-import streamlit as st
-import pandas as pd
+import hashlib
+import subprocess
+import sys
+import time
 
-from dashboard.dashboard_loader import load_dashboard_data
-from dashboard.dashboard_sidebar import build_sidebar_filters
+import pandas as pd
+import streamlit as st
+
 from config_loader import OUTPUT_ROOT, LEARNING_ROOT, SCREENSHOT_ROOT
+from dashboard.dashboard_loader import load_dashboard_data, build_snapshot_path, safe_read
+from dashboard.dashboard_sidebar import build_sidebar_filters
 from intraday_dashboard_health_panel import health_status
 from intraday_intelligence_loader import IntradayIntelligenceLoader
 from intraday_intelligence_query import IntradayIntelligenceQuery
+from intraday_latest_snapshot_resolver import IntradayLatestSnapshotResolver
+
 
 st.set_page_config(
-    page_title="NTIS Intraday Intelligence Workbench",
-    page_icon="🧠",
+    page_title="NTIS Intraday Predictive Decision Cockpit",
+    page_icon="📊",
     layout="wide",
 )
 
-# Custom CSS for Professional Cockpit Styling
-st.markdown("""
+st.markdown(
+    """
 <style>
-    .metric-card {
-        background-color: #1e293b;
-        border: 1px solid #334155;
-        padding: 16px;
-        border-radius: 8px;
-        color: #f8fafc;
-        text-align: center;
-    }
-    .metric-value {
-        font-size: 24px;
-        font-weight: 700;
-        color: #38bdf8;
-    }
-    .metric-label {
-        font-size: 13px;
-        color: #94a3b8;
-        text-transform: uppercase;
-        margin-top: 4px;
-    }
+:root {
+    --navy:#0b1735; --navy2:#142653; --purple:#6d3df5;
+    --ink:#172033; --muted:#667085; --line:#e6e9f0;
+    --good:#14804a; --warn:#b76b00; --bad:#c43d4b; --soft:#f7f8fb;
+}
+.hero {background:linear-gradient(120deg,#0b1735,#142653);padding:26px 30px;border-radius:16px;color:white;margin-bottom:16px}
+.hero h1 {margin:0;font-size:30px}.hero p{margin:7px 0 0;color:#cbd5e1}
+.pill {display:inline-block;padding:5px 10px;border-radius:999px;background:#243766;color:#fff;font-size:12px;margin-right:6px}
+.card {background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 3px 14px rgba(15,23,42,.05)}
+.card .label {font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.card .value {font-size:26px;font-weight:750;color:var(--ink);margin-top:4px}
+.status-high {color:#fff;background:#14804a;padding:5px 10px;border-radius:999px;font-weight:700;font-size:11px}
+.status-supported {color:#fff;background:#2d6cdf;padding:5px 10px;border-radius:999px;font-weight:700;font-size:11px}
+.status-early {color:#fff;background:#c47b08;padding:5px 10px;border-radius:999px;font-weight:700;font-size:11px}
+.status-signal {color:#fff;background:#7b61a8;padding:5px 10px;border-radius:999px;font-weight:700;font-size:11px}
+.status-watch {color:#fff;background:#667085;padding:5px 10px;border-radius:999px;font-weight:700;font-size:11px}
+.decision-card {border:1px solid var(--line);border-left:5px solid var(--purple);border-radius:14px;padding:18px;background:#fff}
+.section-title {font-size:19px;font-weight:750;color:var(--ink);margin:12px 0 8px}
+.small {font-size:12px;color:var(--muted)}
+.warning-box {background:#fff8e8;border:1px solid #f2d28b;border-radius:10px;padding:12px}
+.info-box {background:#f4f1ff;border:1px solid #d9cdfc;border-radius:10px;padding:12px}
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
+
+
+def _clean(value):
+    if pd.isna(value):
+        return ""
+    return str(value).strip()
+
+
+def _num(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _first(row, *names, default=""):
+    for name in names:
+        if name in row.index:
+            value = row.get(name)
+            if _clean(value) not in {"", "nan", "None"}:
+                return value
+    return default
+
+
+def _pattern_identity(row):
+    return {
+        "id": _clean(_first(row, "Business_Pattern_ID", "Pattern_ID")),
+        "dna": _clean(_first(row, "Pattern_Fingerprint", "Pattern_DNA")),
+        "name": _clean(_first(row, "Pattern", "Pattern_Name")),
+    }
+
+
+def _historical_stats(records):
+    if records.empty:
+        return {
+            "observations": 0,
+            "wins": 0,
+            "losses": 0,
+            "completed": 0,
+            "success": None,
+            "avg_pnl": None,
+            "evidence": "NONE",
+            "first_seen": None,
+            "last_seen": None,
+        }
+
+    wins = int(pd.to_numeric(records.get("Successful_Trades", 0), errors="coerce").fillna(0).sum())
+    losses = int(pd.to_numeric(records.get("Failed_Trades", 0), errors="coerce").fillna(0).sum())
+    occurrences = int(pd.to_numeric(records.get("Occurrences", len(records)), errors="coerce").fillna(0).sum())
+    completed = wins + losses
+
+    # Repository Success_% is authoritative when outcomes exist.
+    success = (wins * 100.0 / completed) if completed else None
+
+    avg_pnl = None
+    if completed and "Average_PnL" in records.columns:
+        vals = pd.to_numeric(records["Average_PnL"], errors="coerce").dropna()
+        if not vals.empty:
+            avg_pnl = round(float(vals.mean()), 2)
+
+    evidence = "NONE"
+    if "Evidence_Level" in records.columns and not records["Evidence_Level"].dropna().empty:
+        evidence = _clean(records["Evidence_Level"].dropna().iloc[-1]).upper() or "NONE"
+
+    first_seen = None
+    last_seen = None
+    if "First_Seen" in records.columns:
+        vals = records["First_Seen"].dropna().astype(str)
+        if not vals.empty:
+            first_seen = vals.min()
+    if "Last_Seen" in records.columns:
+        vals = records["Last_Seen"].dropna().astype(str)
+        if not vals.empty:
+            last_seen = vals.max()
+
+    return {
+        "observations": occurrences,
+        "wins": wins,
+        "losses": losses,
+        "completed": completed,
+        "success": round(success, 1) if success is not None else None,
+        "avg_pnl": avg_pnl,
+        "evidence": evidence,
+        "first_seen": first_seen,
+        "last_seen": last_seen,
+    }
+
+
+def _exact_pattern_records(row, query):
+    ident = _pattern_identity(row)
+    if ident["id"]:
+        records = query.by_pattern_id(ident["id"])
+        if not records.empty:
+            return records, "Business Pattern ID"
+    if ident["dna"]:
+        records = query.by_pattern_dna(ident["dna"])
+        if not records.empty:
+            return records, "Pattern Fingerprint"
+    return pd.DataFrame(), "None"
+
+
+def _classify(row, pattern_records, stock_records):
+    pattern_stats = _historical_stats(pattern_records)
+    stock_stats = _historical_stats(stock_records)
+
+    probability = _num(_first(row, "Intraday Probability %", default=0))
+    score = _num(_first(row, "NTIS Intraday Score", "Decision Score", default=0))
+    signal = _clean(_first(row, "Validation Signal", default="WATCH")).upper()
+
+    complete_plan = all(
+        _clean(_first(row, c, default="")).upper() not in {"", "NONE", "NAN", "NA", "N/A"}
+        for c in ("Entry Price", "Stop Loss", "Target")
+    )
+
+    # Predictive state is a classification, not a new numeric score.
+    # Exact pattern outcomes outrank stock-level observation count.
+    if pattern_stats["completed"] >= 10 and (pattern_stats["success"] or 0) >= 65:
+        state = "HIGH-CONFIDENCE"
+    elif pattern_stats["completed"] >= 5 and (pattern_stats["success"] or 0) >= 55:
+        state = "SUPPORTED"
+    elif pattern_stats["observations"] > 0 or stock_stats["observations"] > 0:
+        state = "EARLY EVIDENCE"
+    else:
+        state = "SIGNAL ONLY"
+
+    if signal == "WATCH":
+        state = "WATCH"
+
+    return {
+        "state": state,
+        "pattern_stats": pattern_stats,
+        "stock_stats": stock_stats,
+        "probability": probability,
+        "score": score,
+        "signal": signal,
+        "complete_plan": complete_plan,
+        "pattern_match_type": "Exact pattern match" if not pattern_records.empty else "No exact pattern match",
+    }
+
+
+def _prepare_executive(trade_df, query):
+    if trade_df.empty:
+        return pd.DataFrame()
+
+    rows = []
+    for _, row in trade_df.iterrows():
+        symbol = _clean(_first(row, "Symbol"))
+        stock_records = query.by_symbol(symbol) if symbol else pd.DataFrame()
+        pattern_records, match_type = _exact_pattern_records(row, query)
+        decision = _classify(row, pattern_records, stock_records)
+
+        out = row.to_dict()
+        out.update({
+            "_predictive_state": decision["state"],
+            "_pattern_records": pattern_records,
+            "_stock_records": stock_records,
+            "_pattern_match_type": match_type,
+            "_pattern_stats": decision["pattern_stats"],
+            "_stock_stats": decision["stock_stats"],
+            "_probability": decision["probability"],
+            "_score": decision["score"],
+            "_signal": decision["signal"],
+            "_complete_plan": decision["complete_plan"],
+        })
+        rows.append(out)
+
+    result = pd.DataFrame(rows)
+    state_order = {
+        "HIGH-CONFIDENCE": 0, "SUPPORTED": 1, "EARLY EVIDENCE": 2,
+        "SIGNAL ONLY": 3, "WATCH": 4
+    }
+    result["_state_order"] = result["_predictive_state"].map(state_order).fillna(9)
+    result["_outcome_count"] = result["_pattern_stats"].apply(lambda x: x["completed"])
+    result["_evidence_rank"] = result["_pattern_stats"].apply(
+        lambda x: {"MATURE": 4, "ESTABLISHED": 3, "DEVELOPING": 2, "NEW": 1, "NONE": 0}.get(x["evidence"], 0)
+    )
+    return result.sort_values(
+        ["_state_order", "_evidence_rank", "_outcome_count", "_probability", "_score"],
+        ascending=[True, False, False, False, False],
+    ).reset_index(drop=True)
+
+
+def _status_badge(state):
+    css = {
+        "HIGH-CONFIDENCE": "status-high",
+        "SUPPORTED": "status-supported",
+        "EARLY EVIDENCE": "status-early",
+        "SIGNAL ONLY": "status-signal",
+        "WATCH": "status-watch",
+    }.get(state, "status-watch")
+    return f'<span class="{css}">{state}</span>'
+
+
+def _fmt_success(stats):
+    return f'{stats["success"]:.1f}%' if stats["success"] is not None else "N/A"
+
+
+def _fmt_pnl(stats):
+    return f'{stats["avg_pnl"]:.2f}' if stats["avg_pnl"] is not None else "N/A"
+
+
+def _snapshot_signature():
+    root = Path(SCREENSHOT_ROOT)
+    if not root.exists():
+        return ""
+    parts = []
+    try:
+        for p in root.rglob("*"):
+            if p.is_file():
+                try:
+                    s = p.stat()
+                    parts.append(f"{p}|{s.st_size}|{s.st_mtime_ns}")
+                except OSError:
+                    continue
+    except OSError:
+        return ""
+    return hashlib.sha1("\n".join(sorted(parts)).encode("utf-8")).hexdigest()
+
+
+def _run_pipeline():
+    project_root = Path(__file__).resolve().parent
+    cmd = [sys.executable, str(project_root / "run_intraday_pipeline.py")]
+    return subprocess.run(cmd, cwd=project_root, capture_output=True, text=True, timeout=1800)
+
+
+def _manual_controls():
+    c1, c2, c3 = st.columns([1, 1, 1.7])
+    refresh = c1.button("↻ Refresh Current Snapshot", use_container_width=True)
+    process = c2.button("▶ Process Next Snapshot", use_container_width=True)
+    auto = c3.toggle("Continue Automatically", value=st.session_state.get("ntis_auto", False), key="ntis_auto")
+    if refresh:
+        st.cache_data.clear()
+        st.rerun()
+    if process:
+        with st.spinner("Running the existing NTIS Intraday pipeline..."):
+            result = _run_pipeline()
+        if result.returncode == 0:
+            st.success("Pipeline completed successfully. Refreshing current snapshot.")
+            st.cache_data.clear()
+            st.rerun()
+        else:
+            st.error("Pipeline failed. No dashboard data was fabricated or substituted.")
+            st.code(result.stderr or result.stdout)
+    return auto
+
+
+def _automatic_cycle_once():
+    if not st.session_state.get("ntis_auto", False):
+        return
+    current = _snapshot_signature()
+    previous = st.session_state.get("ntis_last_signature")
+    if previous is None:
+        st.session_state.ntis_last_signature = current
+        return
+    if current and current != previous:
+        with st.spinner("New/modified runtime snapshot detected — running existing pipeline..."):
+            result = _run_pipeline()
+        st.session_state.ntis_last_signature = _snapshot_signature()
+        if result.returncode == 0:
+            st.success("Automatic processing completed. Executive snapshot refreshed.")
+            st.cache_data.clear()
+            st.rerun()
+        else:
+            st.error("Automatic pipeline execution failed.")
+            st.code(result.stderr or result.stdout)
+
+
+def _start_automatic_monitor():
+    fragment = getattr(st, "fragment", None)
+    if fragment is None:
+        st.caption("Automatic mode is enabled, but this Streamlit runtime does not expose the required fragment refresh API.")
+        return
+    @fragment(run_every="30s")
+    def _monitor():
+        _automatic_cycle_once()
+    _monitor()
+
+
+
+def _ntis_text(value, default="N/A"):
+    if value is None:
+        return default
+    try:
+        if pd.isna(value):
+            return default
+    except Exception:
+        pass
+    value = str(value).strip()
+    return default if value.lower() in {"", "nan", "none"} else value
+
+
+def _run_next_snapshot():
+    subprocess.Popen(
+        ["python", "run_intraday_pipeline.py"],
+        cwd=str(Path(__file__).resolve().parent),
+    )
+
+
+def _exact_pattern_history(intel_df, symbol, pattern):
+    if intel_df is None or intel_df.empty or "Symbol" not in intel_df.columns:
+        return pd.DataFrame()
+    stock = intel_df[
+        intel_df["Symbol"].astype(str).str.upper().eq(str(symbol).upper())
+    ]
+    if not pattern:
+        return pd.DataFrame()
+    for col in ("Pattern_Name", "Pattern"):
+        if col in stock.columns:
+            exact = stock[
+                stock[col].astype(str).str.strip().str.lower().eq(
+                    str(pattern).strip().lower()
+                )
+            ]
+            if not exact.empty:
+                return exact
+    return pd.DataFrame()
+
+
+def _predictive_label(exact_history):
+    if exact_history is None or exact_history.empty:
+        return "OBSERVATION ONLY", "No exact historical pattern evidence", "🟠"
+    wins = pd.to_numeric(
+        exact_history.get("Successful_Trades", 0), errors="coerce"
+    ).fillna(0).sum()
+    losses = pd.to_numeric(
+        exact_history.get("Failed_Trades", 0), errors="coerce"
+    ).fillna(0).sum()
+    completed = wins + losses
+    levels = exact_history.get(
+        "Evidence_Level",
+        exact_history.get("Lifecycle_State", pd.Series(["NEW"])),
+    ).astype(str).str.upper()
+    level = levels.iloc[0] if not levels.empty else "NEW"
+    if completed > 0 and level == "MATURE":
+        return "HIGH CONFIDENCE", "Mature exact-pattern outcome evidence", "🟢"
+    if completed > 0 and level == "ESTABLISHED":
+        return "SUPPORTED", "Outcome-confirmed exact-pattern evidence", "🟢"
+    return "EARLY EVIDENCE", "Pattern observed, but outcome confirmation is insufficient", "🟠"
+
 
 ctx = load_dashboard_data()
 status = ctx["status"]
 snapshot_date = ctx["snapshot_date"]
 base_path = ctx["base_path"]
-
 trade_df = ctx["trade_df"]
 prob_df = ctx["prob_df"]
 evolution_df = ctx["evolution_df"]
 
-# Load repository intelligence via loader & query layer
 intel_loader = IntradayIntelligenceLoader()
 intel_loader.load()
 intel_query = IntradayIntelligenceQuery(intel_loader)
 
-# Top Header / Navigation
-st.title("🛡️ NTIS Intraday Intelligence Workbench")
-st.caption(f"Active Session Date: {snapshot_date} | Pipeline Status: {status.get('status', 'UNKNOWN')} | Intelligence Store: Repository Connected")
+st.markdown(
+    f"""
+<div class="hero">
+<h1>NTIS Intraday Predictive Decision Cockpit</h1>
+<p>Executive stock selection from current-session behaviour, exact pattern evidence, historical outcomes and trade-plan readiness.</p>
+<div style="margin-top:12px">
+<span class="pill">Snapshot: {snapshot_date or "UNAVAILABLE"}</span>
+<span class="pill">Status: {status.get("status","UNKNOWN")}</span>
+<span class="pill">Repository: CONNECTED</span>
+</div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
-# Navigation Tabs matching required categories
+auto_mode = _manual_controls()
+_start_automatic_monitor()
+
 tabs = st.tabs([
-    "📊 Executive & Opportunities",
-    "🧠 Pattern Intelligence Workbench",
-    "🔄 Replay & Backtest",
-    "📈 Learning & Calibration",
-    "⚙️ Governance & Data Health"
+    "Executive Decision",
+    "Pattern Intelligence",
+    "Historical Replay",
+    "Learning & Calibration",
+    "Governance & Health",
 ])
 
-# ----------------------------------------------------------------------
-# TAB 1: EXECUTIVE & OPPORTUNITIES
-# ----------------------------------------------------------------------
 with tabs[0]:
-    filtered_trade_df = build_sidebar_filters(trade_df)
+    filtered = build_sidebar_filters(trade_df)
+    exec_df = _prepare_executive(filtered, intel_query)
 
-    intel_df = intel_loader.get_dataframe()
-    if not filtered_trade_df.empty:
-        if "Sector" not in filtered_trade_df.columns:
-            filtered_trade_df["Sector"] = filtered_trade_df.get("Sector", "GENERAL")
-        if "Decision Score" not in filtered_trade_df.columns:
-            filtered_trade_df["Decision Score"] = filtered_trade_df.get("NTIS Intraday Score", filtered_trade_df.get("Intraday Probability %", 50.0))
-        if "Historical Win %" not in filtered_trade_df.columns:
-            filtered_trade_df["Historical Win %"] = 50.0
-        if "Occurrences" not in filtered_trade_df.columns:
-            filtered_trade_df["Occurrences"] = 0
-        if "Evidence Level" not in filtered_trade_df.columns:
-            filtered_trade_df["Evidence Level"] = "🔴 New"
-        if "Historical Confidence" not in filtered_trade_df.columns:
-            filtered_trade_df["Historical Confidence"] = 50.0
+    high = int((exec_df["_predictive_state"] == "HIGH-CONFIDENCE").sum()) if not exec_df.empty else 0
+    supported = int((exec_df["_predictive_state"] == "SUPPORTED").sum()) if not exec_df.empty else 0
+    early = int((exec_df["_predictive_state"] == "EARLY EVIDENCE").sum()) if not exec_df.empty else 0
+    signal_only = int((exec_df["_predictive_state"] == "SIGNAL ONLY").sum()) if not exec_df.empty else 0
+    watch = int((exec_df["_predictive_state"] == "WATCH").sum()) if not exec_df.empty else 0
+    buy = int(exec_df["_signal"].isin(["BUY", "VALID BUY"]).sum()) if not exec_df.empty else 0
+    sell = int(exec_df["_signal"].isin(["SELL", "VALID SELL"]).sum()) if not exec_df.empty else 0
 
-        if not intel_df.empty:
-            for idx, row in filtered_trade_df.iterrows():
-                sym = str(row.get("Symbol", "")).strip().upper()
-                match = intel_df[(intel_df["Symbol"].str.upper() == sym)]
-                if not match.empty:
-                    m_row = match.iloc[0]
-                    filtered_trade_df.loc[idx, "Historical Win %"] = float(m_row.get("Success_%", m_row.get("WinRate", 50.0)))
-                    filtered_trade_df.loc[idx, "Occurrences"] = int(float(m_row.get("Occurrences", 0)))
-                    filtered_trade_df.loc[idx, "Historical Confidence"] = float(m_row.get("Confidence_Score", m_row.get("Historical_Confidence", 50.0)))
-                    evd = str(m_row.get("Evidence_Level", "NEW")).upper()
-                    if evd == "MATURE":
-                        filtered_trade_df.loc[idx, "Evidence Level"] = "🟢 Mature"
-                    elif evd == "ESTABLISHED":
-                        filtered_trade_df.loc[idx, "Evidence Level"] = "🟢 Established"
-                    elif evd == "DEVELOPING":
-                        filtered_trade_df.loc[idx, "Evidence Level"] = "🟡 Developing"
-                    else:
-                        filtered_trade_df.loc[idx, "Evidence Level"] = "🔴 New"
-
-    buy_count = sell_count = watch_count = 0
-    if not filtered_trade_df.empty and "Validation Signal" in filtered_trade_df.columns:
-        buy_count = int(filtered_trade_df["Validation Signal"].isin(["BUY", "VALID BUY"]).sum())
-        sell_count = int(filtered_trade_df["Validation Signal"].isin(["SELL", "VALID SELL"]).sum())
-        watch_count = int(filtered_trade_df["Validation Signal"].eq("WATCH").sum())
-
-    avg_win = round(filtered_trade_df["Historical Win %"].mean(), 1) if not filtered_trade_df.empty else 0.0
-    avg_conf = round(filtered_trade_df["Historical Confidence"].mean(), 1) if not filtered_trade_df.empty else 0.0
-    avg_score = round(filtered_trade_df["Decision Score"].mean(), 1) if not filtered_trade_df.empty else 0.0
-    top_sector = filtered_trade_df["Sector"].mode()[0] if not filtered_trade_df.empty and "Sector" in filtered_trade_df.columns else "GENERAL"
-
-    # Top Summary Cards (Trader-Oriented Metrics)
-    sc1, sc2, sc3, sc4, sc5 = st.columns(5)
-    sc1.markdown(f'<div class="metric-card"><div class="metric-value">{len(filtered_trade_df)}</div><div class="metric-label">Total Signals</div></div>', unsafe_allow_html=True)
-    sc2.markdown(f'<div class="metric-card"><div class="metric-value" style="color: #4ade80;">{buy_count}</div><div class="metric-label">BUY Signals</div></div>', unsafe_allow_html=True)
-    sc3.markdown(f'<div class="metric-card"><div class="metric-value" style="color: #f87171;">{sell_count}</div><div class="metric-label">SELL Signals</div></div>', unsafe_allow_html=True)
-    sc4.markdown(f'<div class="metric-card"><div class="metric-value" style="color: #fbbf24;">{watch_count}</div><div class="metric-label">WATCH</div></div>', unsafe_allow_html=True)
-    sc5.markdown(f'<div class="metric-card"><div class="metric-value">{avg_win}%</div><div class="metric-label">Avg Historical Win %</div></div>', unsafe_allow_html=True)
-
-    sc6, sc7, sc8, sc9 = st.columns(4)
-    sc6.metric("Avg Historical Confidence", f"{avg_conf}%")
-    sc7.metric("Avg Decision Score", avg_score)
-    sc8.metric("Top Sector", top_sector)
-    sc9.metric("Active Status", "Ready")
-
-    # Quick Filters Bar
-    st.markdown("### 🎛️ Quick Decision Filters")
-    qf1, qf2, qf3, qf4 = st.columns(4)
-    with qf1:
-        signal_filter = st.selectbox("Signal Action", ["ALL", "BUY", "SELL", "WATCH"])
-    with qf2:
-        evidence_filter = st.selectbox("Evidence Tier", ["ALL", "🟢 Mature", "🟢 Established", "🟡 Developing", "🔴 New"])
-    with qf3:
-        sector_filter = st.selectbox("Sector", ["ALL"] + sorted([str(x) for x in filtered_trade_df["Sector"].unique() if pd.notna(x)]))
-    with qf4:
-        symbol_search = st.text_input("Search Symbol", "").strip().upper()
-
-    exec_df = filtered_trade_df.copy()
-    if signal_filter != "ALL":
-        if signal_filter == "BUY":
-            exec_df = exec_df[exec_df["Validation Signal"].astype(str).isin(["BUY", "VALID BUY"])]
-        elif signal_filter == "SELL":
-            exec_df = exec_df[exec_df["Validation Signal"].astype(str).isin(["SELL", "VALID SELL"])]
-        else:
-            exec_df = exec_df[exec_df["Validation Signal"].astype(str) == signal_filter]
-    if evidence_filter != "ALL":
-        exec_df = exec_df[exec_df["Evidence Level"].astype(str) == evidence_filter]
-    if sector_filter != "ALL":
-        exec_df = exec_df[exec_df["Sector"].astype(str) == sector_filter]
-    if symbol_search:
-        exec_df = exec_df[exec_df["Symbol"].astype(str).str.contains(symbol_search, case=False, na=False)]
-
-    st.markdown("### 📋 Executive Trade Opportunities Table")
-    executive_cols = [
-        c for c in [
-            "Symbol",
-            "Sector",
-            "Validation Signal",
-            "Decision Score",
-            "Intraday Probability %",
-            "Historical Win %",
-            "Occurrences",
-            "Evidence Level",
-            "Historical Confidence",
-            "Pattern",
-            "NTIS Intraday Score",
-            "Entry Price",
-            "Stop Loss",
-            "Target",
-        ] if c in exec_df.columns
+    cards = [
+        ("HIGH CONFIDENCE", high, "evidence-backed"),
+        ("SUPPORTED", supported, "historical support"),
+        ("EARLY EVIDENCE", early, "observation only"),
+        ("SIGNAL ONLY", signal_only, "no predictive history"),
+        ("BUY / SELL", f"{buy} / {sell}", "validated direction"),
+        ("WATCH", watch, "observe only"),
     ]
+    cols = st.columns(6)
+    for col, (label, value, sub) in zip(cols, cards):
+        col.markdown(f'<div class="card"><div class="label">{label}</div><div class="value">{value}</div><div class="small">{sub}</div></div>', unsafe_allow_html=True)
 
-    st.dataframe(
-        exec_df[executive_cols],
-        use_container_width=True,
-        height=420,
-    )
-
-    st.markdown("---")
-    st.markdown("### 🎯 Executive Stock Decision Synthesizer & Explanation Workbench")
-    st.caption("Select a candidate stock from the filtered opportunities above to inspect the synthesized decision intelligence, historical evidence, pattern reliability, and decision explanation.")
-
-    if not exec_df.empty and "Symbol" in exec_df.columns:
-        cand_symbols = sorted(exec_df["Symbol"].dropna().unique().tolist())
-        selected_exec_sym = st.selectbox("Select Candidate Stock for Executive Decision Deep-Dive", cand_symbols, key="exec_decision_sym_select")
-        
-        row_match = exec_df[exec_df["Symbol"].astype(str).str.upper() == selected_exec_sym.upper()]
-        if not row_match.empty:
-            r_data = row_match.iloc[0]
-            
-            s_sym = str(r_data.get("Symbol", selected_exec_sym))
-            s_sector = str(r_data.get("Sector", "GENERAL"))
-            s_signal = str(r_data.get("Validation Signal", "WATCH"))
-            s_score = r_data.get("Decision Score", r_data.get("NTIS Intraday Score", 50.0))
-            s_prob = r_data.get("Intraday Probability %", 50.0)
-            s_win = r_data.get("Historical Win %", 50.0)
-            s_occ = r_data.get("Occurrences", 0)
-            s_conf = r_data.get("Historical Confidence", 50.0)
-            s_evd = r_data.get("Evidence Level", "🔴 New")
-            s_pattern = str(r_data.get("Pattern", "N/A"))
-            s_entry = r_data.get("Entry Price", "N/A")
-            s_sl = r_data.get("Stop Loss", "N/A")
-            s_target = r_data.get("Target", "N/A")
-            s_sup = r_data.get("Support", r_data.get("Support Level", "N/A"))
-            s_res = r_data.get("Resistance", r_data.get("Resistance Level", "N/A"))
-            s_rr = r_data.get("Risk / Reward", r_data.get("Risk/Reward", "N/A"))
-
-            ed1, ed2, ed3, ed4 = st.columns(4)
-            ed1.metric("Stock Symbol", s_sym, f"Sector: {s_sector}")
-            ed2.metric("Validation Signal", s_signal)
-            ed3.metric("Decision Score / Prob", f"{s_score} (Prob: {s_prob}%)")
-            ed4.metric("Historical Win %", f"{s_win}%", f"Occurrences: {s_occ}")
-
-            ed5, ed6, ed7, ed8 = st.columns(4)
-            ed5.metric("Historical Confidence", f"{s_conf}%")
-            ed6.metric("Evidence Level", s_evd)
-            ed7.metric("Pattern Reference", s_pattern)
-            ed8.metric("Risk / Reward", str(s_rr))
-
-            tp1, tp2, tp3 = st.columns(3)
-            tp1.metric("Entry Price", str(s_entry))
-            tp2.metric("Stop Loss", str(s_sl))
-            tp3.metric("Target", str(s_target))
-
-            st.markdown("#### 🧠 NTIS Decision Explanation & Synthesis ('Why?', True 'Why Now?' & Historical Average PnL)")
-            
-            stock_hist_rec = intel_query.by_symbol(s_sym)
-            avg_pnl_val = "N/A"
-            total_matches = 0
-            win_rate_sum = 0.0
-            first_seen_min = "N/A"
-            last_seen_max = "N/A"
-
-            if not stock_hist_rec.empty:
-                total_matches = len(stock_hist_rec)
-                if "Average_PnL" in stock_hist_rec.columns:
-                    pnl_vals = pd.to_numeric(stock_hist_rec["Average_PnL"], errors="coerce").dropna()
-                    if not pnl_vals.empty:
-                        avg_pnl_val = round(pnl_vals.mean(), 2)
-                if "Success_%" in stock_hist_rec.columns:
-                    succ_vals = pd.to_numeric(stock_hist_rec["Success_%"], errors="coerce").dropna()
-                    if not succ_vals.empty:
-                        win_rate_sum = round(succ_vals.mean(), 1)
-                if "First_Seen" in stock_hist_rec.columns:
-                    fs = stock_hist_rec["First_Seen"].dropna()
-                    if not fs.empty:
-                        first_seen_min = str(fs.min())
-                if "Last_Seen" in stock_hist_rec.columns:
-                    ls = stock_hist_rec["Last_Seen"].dropna()
-                    if not ls.empty:
-                        last_seen_max = str(ls.max())
-
-            has_complete_plan = (
-                str(s_entry).upper() not in {"N/A", "NONE", "NAN", ""} and
-                str(s_sl).upper() not in {"N/A", "NONE", "NAN", ""} and
-                str(s_target).upper() not in {"N/A", "NONE", "NAN", ""}
-            )
-            trade_status_badge = "🟢 Trade-Ready (Complete Plan)" if has_complete_plan else "🟡 Trade Plan Incomplete (Advisory Only)"
-
-            if not stock_hist_rec.empty and int(s_occ) > 1:
-                evd_upper = str(s_evd).upper()
-                if "NEW" in evd_upper:
-                    why_now_text = f"Current session validation signal (**{s_signal}**) and probability (**{s_prob}%**) occur with New / Insufficient historical evidence (Occurrences: **{s_occ}**). Historical observation spans from **{first_seen_min}** to **{last_seen_max}**; recurrence confirmation is preliminary and ongoing."
-                elif "DEVELOPING" in evd_upper:
-                    why_now_text = f"Current session validation signal (**{s_signal}**) and probability (**{s_prob}%**) align with developing historical intelligence records for **{s_sym}** (Occurrences: **{s_occ}**, Success Rate: **{s_win}%**). Observation window: **{first_seen_min}** to **{last_seen_max}**."
-                else:
-                    why_now_text = f"Current session validation signal (**{s_signal}**) and probability (**{s_prob}%**) align with established/mature historical intelligence records for **{s_sym}** (Evidence Tier: **{s_evd}**, Total Occurrences: **{s_occ}**, Historical Success Rate: **{s_win}%**). Historical observation window spans from **{first_seen_min}** to **{last_seen_max}**, validating recurring behavioural confirmation under current market conditions."
-            else:
-                why_now_text = f"Current session validation signal (**{s_signal}**) is classified under New / Insufficient evidence (Occurrences: **{s_occ}**). Historical confirmation is preliminary; timing alignment cannot be established from mature recurring evidence."
-
-            explanation_md = f"""
-> **Executive Recommendation for {s_sym}**: **{s_signal}** | **{trade_status_badge}**
-> 
-> - **Current Behaviour & Signal**: Today's action in **{s_sym}** yields a validation signal of **{s_signal}** with a Decision Score of **{s_score}** and Intraday Probability of **{s_prob}%**.
-> - **Why? (Historical Evidence)**: Historically, this stock under comparable intelligence has demonstrated a win rate of **{s_win}%** across **{s_occ}** recorded occurrences with historical confidence of **{s_conf}%** (Evidence Level: **{s_evd}**). Associated behavioural pattern is **{s_pattern}**.
-> - **Why Now? (Timing Alignment)**: {why_now_text}
-> - **Market Context & Trade Plan**: Operating within sector **{s_sector}** (Support: **{s_sup}**, Resistance: **{s_res}**, Risk/Reward: **{s_rr}**). Proposed Trade Plan: Entry at **{s_entry}**, Stop Loss at **{s_sl}**, Target at **{s_target}** (**{trade_status_badge}**).
-> - **Historical Average PnL**: Authoritative Average PnL from historical intelligence repository: **{avg_pnl_val if avg_pnl_val != 'N/A' else 'Historical Average PnL not available from current producer outputs'}**.
-            """
-            st.markdown(explanation_md)
-
-            with st.expander(f"📂 Historical Event Footprint & Evidence Depth for {s_sym}"):
-                if not stock_hist_rec.empty:
-                    st.success(f"Loaded {total_matches} authoritative historical event footprint records for {s_sym}.")
-                    
-                    fn1, fn2, fn3, fn4 = st.columns(4)
-                    fn1.metric("Event Matches", total_matches)
-                    fn2.metric("Avg Success Rate", f"{win_rate_sum}%")
-                    fn3.metric("Historical Avg PnL", avg_pnl_val)
-                    fn4.metric("Observation Range", f"{first_seen_min} → {last_seen_max}")
-
-                    footprint_cols = [c for c in [
-                        "Business_Pattern_ID", "Pattern_Name", "Lifecycle_State",
-                        "Occurrences", "Successful_Trades", "Failed_Trades", "Success_%", 
-                        "Average_PnL", "Confidence_Score", "Evidence_Level", "First_Seen", "Last_Seen"
-                    ] if c in stock_hist_rec.columns]
-                    st.dataframe(stock_hist_rec[footprint_cols], use_container_width=True, height=240)
-                else:
-                    st.info(f"No authoritative historical event footprint records found in repository for {s_sym}.")
-        else:
-            st.info("Selected stock record not found in filtered opportunities.")
+    st.markdown('<div class="section-title">Top Predictive Opportunities</div>', unsafe_allow_html=True)
+    if exec_df.empty:
+        st.info("No current trade candidates available.")
     else:
-        st.info("No executive trade opportunities available for decision synthesis.")
-
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.markdown("### 📊 Sector Intelligence")
-        if not exec_df.empty and "Sector" in exec_df.columns and "Intraday Probability %" in exec_df.columns:
-            sector_perf = exec_df.groupby("Sector")["Intraday Probability %"].mean()
-            st.bar_chart(sector_perf)
-            st.info(f"Strongest Sector: **{sector_perf.idxmax() if not sector_perf.empty else 'N/A'}** | Weakest Sector: **{sector_perf.idxmin() if not sector_perf.empty else 'N/A'}**")
+        top_df = exec_df[exec_df["_predictive_state"].isin(["HIGH-CONFIDENCE", "SUPPORTED", "EARLY EVIDENCE"])].head(12).copy()
+        if top_df.empty:
+            st.info("No evidence-supported predictive opportunities yet. Current signals remain below the predictive-evidence threshold.")
         else:
-            st.info("No sector performance data available.")
+            display = pd.DataFrame({
+                "Stock": top_df["Symbol"].astype(str),
+                "Action": top_df["_signal"],
+                "Predictive Status": top_df["_predictive_state"],
+                "Probability %": top_df["_probability"],
+                "Pattern Evidence": top_df["_pattern_stats"].apply(lambda x: x["evidence"]),
+                "Completed Outcomes": top_df["_pattern_stats"].apply(lambda x: x["completed"]),
+                "Historical Success": top_df["_pattern_stats"].apply(_fmt_success),
+                "Trade Plan": top_df["_complete_plan"].map({True: "READY", False: "INCOMPLETE"}),
+            })
+            st.dataframe(display, use_container_width=True, hide_index=True, height=360)
 
-    with col_b:
-        st.markdown("### ⚡ Signal Evolution")
+    st.markdown('<div class="section-title">Current Signals — Not Yet Predictive</div>', unsafe_allow_html=True)
+    weak_df = exec_df[exec_df["_predictive_state"].isin(["SIGNAL ONLY", "WATCH"])].head(15) if not exec_df.empty else pd.DataFrame()
+    if not weak_df.empty:
+        st.dataframe(
+            pd.DataFrame({
+                "Stock": weak_df["Symbol"].astype(str),
+                "Action": weak_df["_signal"],
+                "Probability %": weak_df["_probability"],
+                "Current Score": weak_df["_score"],
+                "Exact Pattern Evidence": weak_df["_pattern_stats"].apply(lambda x: x["evidence"] if x["observations"] else "NONE"),
+                "Completed Outcomes": weak_df["_pattern_stats"].apply(lambda x: x["completed"]),
+                "Trade Plan": weak_df["_complete_plan"].map({True: "READY", False: "INCOMPLETE"}),
+            }),
+            use_container_width=True, hide_index=True, height=300
+        )
+
+    st.markdown('<div class="section-title">Decision Detail</div>', unsafe_allow_html=True)
+    if not exec_df.empty:
+        options = exec_df["Symbol"].astype(str).drop_duplicates().tolist()
+        selected = st.selectbox("Select stock", options, key="predictive_stock")
+        selected_rows = exec_df[exec_df["Symbol"].astype(str) == selected]
+        if not selected_rows.empty:
+            r = selected_rows.iloc[0]
+            pstats = r["_pattern_stats"]
+            sstats = r["_stock_stats"]
+            state = r["_predictive_state"]
+            symbol = str(r["Symbol"])
+            pattern = _clean(_first(r, "Pattern", "Pattern_Name", default="N/A"))
+            signal = r["_signal"]
+            probability = r["_probability"]
+            score = r["_score"]
+            entry = _first(r, "Entry Price", default="N/A")
+            stop = _first(r, "Stop Loss", default="N/A")
+            target = _first(r, "Target", default="N/A")
+            plan = "READY" if r["_complete_plan"] else "INCOMPLETE"
+
+            st.markdown(
+                f'<div class="decision-card"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">{symbol}</h2>{_status_badge(state)}</div><div class="small">{pattern}</div></div>',
+                unsafe_allow_html=True,
+            )
+            a,b,c,d = st.columns(4)
+            a.metric("Decision", signal)
+            b.metric("Probability", f"{probability:.0f}%")
+            c.metric("NTIS Score", f"{score:.0f}")
+            d.metric("Trade Plan", plan)
+
+            e,f,g,h = st.columns(4)
+            e.metric("Exact Pattern Observations", pstats["observations"])
+            f.metric("Pattern Completed Outcomes", pstats["completed"])
+            g.metric("Pattern Success", _fmt_success(pstats))
+            h.metric("Pattern Avg PnL", _fmt_pnl(pstats))
+
+            st.markdown("#### WHY")
+            if pstats["observations"]:
+                st.markdown(
+                    f"Current **{signal}** for **{symbol}** is associated with **{pattern}**. "
+                    f"Exact pattern evidence contains **{pstats['observations']} observation(s)** and "
+                    f"**{pstats['completed']} completed outcome(s)**. "
+                    f"The current-session probability is **{probability:.0f}%** and NTIS score is **{score:.0f}**."
+                )
+            else:
+                st.markdown(
+                    f"Current **{signal}** for **{symbol}** is driven by the current-session setup (**{pattern}**). "
+                    "No exact historical pattern match is currently available."
+                )
+
+            st.markdown("#### WHY NOW")
+            if pstats["completed"]:
+                st.markdown(
+                    f"The current snapshot combines the active signal with an exact historical pattern that has "
+                    f"**{pstats['completed']} completed outcome(s)** and a historical success rate of **{_fmt_success(pstats)}**. "
+                    f"Observation window: **{pstats['first_seen'] or 'N/A'} → {pstats['last_seen'] or 'N/A'}**."
+                )
+            elif pstats["observations"] or sstats["observations"]:
+                st.markdown(
+                    "The current snapshot is being surfaced because the current validation signal is active, "
+                    "but historical outcome confirmation is still insufficient. This is an observation-stage opportunity, "
+                    "not a mature predictive confirmation."
+                )
+            else:
+                st.markdown(
+                    "The current snapshot is being surfaced because the existing validation engine produced an active signal. "
+                    "No historical confirmation is being implied."
+                )
+
+            st.markdown("#### EVIDENCE & EXECUTION")
+            ec1, ec2 = st.columns(2)
+            with ec1:
+                if pstats["completed"] == 0:
+                    st.markdown('<div class="warning-box"><b>Historical outcome status:</b> No completed outcomes. Success rate is N/A, not 0%.</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        f'<div class="info-box"><b>Pattern outcome evidence:</b> {pstats["wins"]} wins / {pstats["losses"]} losses; success {pstats["success"]:.1f}%.</div>',
+                        unsafe_allow_html=True
+                    )
+            with ec2:
+                st.markdown(
+                    f'<div class="info-box"><b>Trade plan:</b> {plan}<br>Entry: {entry} &nbsp; Stop: {stop} &nbsp; Target: {target}</div>',
+                    unsafe_allow_html=True
+                )
+
+            with st.expander("Stock-level historical footprint (separate from exact pattern evidence)"):
+                if sstats["observations"]:
+                    st.write(
+                        f"{symbol} has {sstats['observations']} historical observation(s), "
+                        f"{sstats['completed']} completed outcome(s), "
+                        f"{sstats['wins']} wins and {sstats['losses']} losses."
+                    )
+                    cols = [c for c in [
+                        "Business_Pattern_ID","Pattern_Name","Lifecycle_State","Occurrences",
+                        "Successful_Trades","Failed_Trades","Success_%","Average_PnL",
+                        "Confidence_Score","Evidence_Level","First_Seen","Last_Seen"
+                    ] if c in r["_stock_records"].columns]
+                    st.dataframe(r["_stock_records"][cols], use_container_width=True, hide_index=True, height=250)
+                else:
+                    st.info("No stock-level historical intelligence record is currently available.")
+
+            if pstats["observations"]:
+                with st.expander("Exact pattern historical evidence"):
+                    cols = [c for c in [
+                        "Business_Pattern_ID","Pattern_Name","Lifecycle_State","Occurrences",
+                        "Successful_Trades","Failed_Trades","Success_%","Average_PnL",
+                        "Confidence_Score","Evidence_Level","First_Seen","Last_Seen"
+                    ] if c in r["_pattern_records"].columns]
+                    st.dataframe(r["_pattern_records"][cols], use_container_width=True, hide_index=True, height=240)
+
+    st.markdown('<div class="section-title">Secondary Context</div>', unsafe_allow_html=True)
+    c1,c2 = st.columns(2)
+    with c1:
+        st.caption("Sector Intelligence")
+        if not exec_df.empty and "Sector" in exec_df.columns:
+            sec = exec_df.groupby("Sector")["_probability"].mean().sort_values(ascending=False)
+            if not sec.empty:
+                st.bar_chart(sec)
+    with c2:
+        st.caption("Signal Evolution")
         if not evolution_df.empty:
-            st.dataframe(evolution_df.head(10), use_container_width=True, height=250)
-        else:
-            st.info("No signal evolution data available.")
+            st.dataframe(evolution_df.head(10), use_container_width=True, hide_index=True, height=240)
 
-# ----------------------------------------------------------------------
-# TAB 2: PATTERN INTELLIGENCE WORKBENCH (NEW)
-# ----------------------------------------------------------------------
 with tabs[1]:
-    st.subheader("🧠 Repository Pattern Intelligence Workbench")
-    
+    st.subheader("Pattern Intelligence")
     intel_df = intel_loader.get_dataframe()
-    if not intel_df.empty:
-        col_search1, col_search2 = st.columns(2)
-        with col_search1:
-            search_sym = st.text_input("Filter by Symbol", "").strip().upper()
-        with col_search2:
-            search_pid = st.text_input("Filter by Business Pattern ID / Fingerprint", "").strip()
-
-        view_df = intel_df.copy()
-        if search_sym:
-            view_df = view_df[view_df["Symbol"].str.upper() == search_sym]
-        if search_pid:
-            view_df = view_df[
-                view_df["Business_Pattern_ID"].astype(str).str.contains(search_pid, case=False, na=False) |
-                view_df["Pattern_Fingerprint"].astype(str).str.contains(search_pid, case=False, na=False)
+    if intel_df.empty:
+        st.info("No pattern intelligence records available.")
+    else:
+        q1,q2 = st.columns(2)
+        with q1:
+            sym = st.text_input("Symbol filter", "").strip().upper()
+        with q2:
+            pid = st.text_input("Pattern ID / fingerprint filter", "").strip()
+        view = intel_df.copy()
+        if sym:
+            view = view[view["Symbol"].astype(str).str.upper() == sym]
+        if pid:
+            view = view[
+                view.get("Business_Pattern_ID", pd.Series("", index=view.index)).astype(str).str.contains(pid, case=False, na=False)
+                | view.get("Pattern_Fingerprint", pd.Series("", index=view.index)).astype(str).str.contains(pid, case=False, na=False)
             ]
+        cols = [c for c in [
+            "Business_Pattern_ID","Symbol","Pattern_Name","Lifecycle_State","Occurrences",
+            "Successful_Trades","Failed_Trades","Success_%","Average_PnL","Confidence_Score",
+            "Historical_Probability","Historical_Confidence","Evidence_Level","First_Seen","Last_Seen"
+        ] if c in view.columns]
+        st.dataframe(view[cols], use_container_width=True, hide_index=True, height=420)
 
-        st.markdown("### 🔍 Pattern Explorer & Historical Timeline")
-        display_intel_cols = [
-            c for c in [
-                "Business_Pattern_ID", "Symbol", "Pattern_Name", "Lifecycle_State",
-                "Occurrences", "Success_%", "Average_PnL", "Confidence_Score",
-                "Historical_Probability", "Historical_Confidence", "Evidence_Level",
-                "First_Seen", "Last_Seen"
-            ] if c in view_df.columns
-        ]
-        st.dataframe(view_df[display_intel_cols], use_container_width=True, height=400)
-
-        if not view_df.empty:
-            st.markdown("### 📊 Detailed Pattern Intelligence & Similar View")
-            selected_pid = st.selectbox("Select Business Pattern ID for Deep Dive", view_df["Business_Pattern_ID"].unique())
-            
-            p_record = intel_query.by_pattern_id(selected_pid)
-            if not p_record.empty:
-                r_item = p_record.iloc[0]
-                
-                ic1, ic2, ic3, ic4 = st.columns(4)
-                ic1.metric("Lifecycle State", str(r_item.get("Lifecycle_State", "UNKNOWN")))
-                ic2.metric("Success Rate", f"{r_item.get('Success_%', 0)}%")
-                ic3.metric("Total Occurrences", str(r_item.get("Occurrences", 0)))
-                ic4.metric("Average PnL", str(r_item.get("Average_PnL", 0)))
-
-                ic5, ic6, ic7 = st.columns(3)
-                ic5.metric("Historical Probability", f"{r_item.get('Historical_Probability', 50.0)}%")
-                ic6.metric("Historical Confidence", f"{r_item.get('Historical_Confidence', 50.0)}%")
-                ic7.metric("Evidence Level", str(r_item.get("Evidence_Level", "NEW")))
-
-                with st.expander("🧬 View Pattern DNA & Fingerprint"):
-                    st.write(f"**Business Pattern ID:** {r_item.get('Business_Pattern_ID')}")
-                    st.write(f"**Pattern Fingerprint:** {r_item.get('Pattern_Fingerprint')}")
-                    st.write(f"**Pattern Name:** {r_item.get('Pattern_Name')}")
-                    st.write(f"**Symbol:** {r_item.get('Symbol')}")
-                    st.write(f"**Evidence Level:** {r_item.get('Evidence_Level', 'NEW')}")
-                    st.write(f"**Confidence Score:** {r_item.get('Confidence_Score', 0)}")
-                    st.write(f"**First Seen / Last Seen:** {r_item.get('First_Seen')} -> {r_item.get('Last_Seen')}")
-
-                st.markdown("#### Similar Pattern Matches (Same Fingerprint / ID)")
-                sim_matches = view_df[view_df["Pattern_Fingerprint"] == r_item.get("Pattern_Fingerprint")]
-                st.dataframe(sim_matches, use_container_width=True, height=200)
-
-        st.markdown("---")
-        st.markdown("### 📈 Stock Intelligence History & Evidence Workbench")
-        st.caption("Query stock-specific historical intelligence, signals, outcomes, probabilities, confidence, and business pattern references.")
-        
-        all_symbols = sorted(list(set(intel_df["Symbol"].dropna().unique().tolist() + trade_df["Symbol"].dropna().unique().tolist())))
-        if all_symbols:
-            selected_stock_hist = st.selectbox("Select Stock Symbol for Intelligence History", all_symbols, key="stock_hist_select")
-            stock_intel_records = intel_query.by_symbol(selected_stock_hist)
-            
-            if not stock_intel_records.empty:
-                st.success(f"Loaded Stock Intelligence History for **{selected_stock_hist}** ({len(stock_intel_records)} records found)")
-                
-                st1, st2, st3, st4 = st.columns(4)
-                st1.metric("Selected Symbol", selected_stock_hist)
-                st1.metric("Historical Patterns", len(stock_intel_records))
-                
-                total_occ = pd.to_numeric(stock_intel_records.get("Occurrences", 0), errors="coerce").sum()
-                avg_win_rate = round(pd.to_numeric(stock_intel_records.get("Success_%", stock_intel_records.get("WinRate", 50.0)), errors="coerce").mean(), 1)
-                avg_conf_score = round(pd.to_numeric(stock_intel_records.get("Confidence_Score", stock_intel_records.get("Historical_Confidence", 50.0)), errors="coerce").mean(), 1)
-                
-                st2.metric("Total Occurrences", int(total_occ))
-                st3.metric("Avg Historical Win Rate", f"{avg_win_rate}%")
-                st4.metric("Avg Historical Confidence", f"{avg_conf_score}%")
-                
-                st.markdown("#### 🔍 Stock-Specific Historical Signals & Evidence Table")
-                stock_cols = [c for c in [
-                    "Business_Pattern_ID", "Symbol", "Pattern_Name", "Lifecycle_State",
-                    "Occurrences", "Success_%", "Average_PnL", "Confidence_Score",
-                    "Historical_Probability", "Historical_Confidence", "Evidence_Level",
-                    "First_Seen", "Last_Seen"
-                ] if c in stock_intel_records.columns]
-                st.dataframe(stock_intel_records[stock_cols], use_container_width=True, height=280)
-                
-                st.markdown("#### ⏱️ Stock Historical Timeline & Business Pattern Reference")
-                timeline_cols = [c for c in [
-                    "Business_Pattern_ID", "Symbol", "Pattern_Name", "First_Seen", "Last_Seen",
-                    "Success_%", "Average_PnL", "Evidence_Level", "Lifecycle_State"
-                ] if c in stock_intel_records.columns]
-                st.dataframe(stock_intel_records[timeline_cols], use_container_width=True, height=220)
-            else:
-                st.info(f"No stock intelligence records found for symbol **{selected_stock_hist}** in repository.")
-        else:
-            st.info("No stock symbols available for intelligence query.")
-    else:
-        st.info("No pattern intelligence records available in the repository.")
-
-# ----------------------------------------------------------------------
-# TAB 3: HISTORICAL REPLAY BROWSER & BACKTEST WORKBENCH
-# ----------------------------------------------------------------------
 with tabs[2]:
-    st.subheader("🗓️ Historical Trading Intelligence & Replay Browser")
-    
-    from intraday_latest_snapshot_resolver import IntradayLatestSnapshotResolver
-    from dashboard.dashboard_loader import build_snapshot_path, safe_read
-    
+    st.subheader("Historical Replay")
     resolver = IntradayLatestSnapshotResolver(SCREENSHOT_ROOT, OUTPUT_ROOT)
-    all_snapshots = resolver.get_available_snapshots()
-    
-    if not all_snapshots:
-        st.info("No historical replay snapshots available in the output repository.")
+    snapshots = resolver.get_available_snapshots()
+    if not snapshots:
+        st.info("No historical replay snapshots available.")
     else:
-        col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
-        
-        if "replay_selected_idx" not in st.session_state:
-            st.session_state.replay_selected_idx = len(all_snapshots) - 1
-            
-        with col_nav1:
-            if st.button("⬅️ Previous Trading Day") and st.session_state.replay_selected_idx > 0:
-                st.session_state.replay_selected_idx -= 1
-        with col_nav2:
-            selected_day = st.selectbox(
-                "Select Historical Trading Date (Trading Calendar)",
-                all_snapshots,
-                index=st.session_state.replay_selected_idx
-            )
-            if selected_day in all_snapshots:
-                st.session_state.replay_selected_idx = all_snapshots.index(selected_day)
-        with col_nav3:
-            if st.button("Next Trading Day ➡️") and st.session_state.replay_selected_idx < len(all_snapshots) - 1:
-                st.session_state.replay_selected_idx += 1
-
-        st.caption(f"📁 Active Historical Snapshot Date: **{selected_day}** (Read-Only Context)")
-        
+        selected_day = st.selectbox("Historical trading date", snapshots, index=len(snapshots)-1, key="replay_day")
         hist_base = build_snapshot_path(selected_day)
-        hist_backtest = hist_base / "intraday_backtest_results.csv" if hist_base else None
-        
-        if hist_backtest and hist_backtest.exists():
-            h_df = pd.read_csv(hist_backtest)
-            st.success(f"Loaded Historical Snapshot & Replay Intelligence for {selected_day} ({len(h_df)} records)")
-            
-            t1, t2, t3, t4 = st.columns(4)
-            t1.metric("Trading Date", selected_day)
-            t2.metric("Historical Signals", len(h_df))
-            wins_h = len(h_df[h_df["Outcome"].astype(str).isin(["TARGET HIT", "SUCCESS", "WIN"])]) if "Outcome" in h_df.columns else 0
-            win_r_h = round((wins_h / len(h_df)) * 100, 1) if len(h_df) > 0 else 0.0
-            t3.metric("Replay Win Rate", f"{win_r_h}%")
-            pnl_col_h = "PnL" if "PnL" in h_df.columns else ("Return %" if "Return %" in h_df.columns else None)
-            avg_pnl_h = round(h_df[pnl_col_h].astype(float).mean(), 2) if pnl_col_h and len(h_df) > 0 else 0.0
-            t4.metric("Avg PnL", avg_pnl_h)
-
-            st.markdown("### 🔍 Historical Snapshot Viewer & Decision Table")
-            viewer_cols = [c for c in [
-                "Symbol", "Pattern", "Direction", "Validation Signal", "Intraday Probability %",
-                "Historical_Probability", "Historical_Confidence", "Evidence_Level",
-                "Entry_Price", "Exit_Price", "Outcome", "PnL", "Return %", "Holding_Minutes"
-            ] if c in h_df.columns]
-            st.dataframe(h_df[viewer_cols], use_container_width=True, height=380)
-
-            st.markdown("### ⏱️ Historical Timeline & Audit Log")
-            if "Replay_Run_Date" in h_df.columns:
-                st.dataframe(h_df[["Symbol", "Replay_Run_Date", "Replay_Run_Time", "Replay_Status", "Outcome"]].drop_duplicates(), use_container_width=True, height=200)
-            else:
-                st.info(f"Historical timeline metadata recorded for snapshot session {selected_day}.")
+        hist_file = hist_base / "intraday_backtest_results.csv"
+        if hist_file.exists():
+            hdf = pd.read_csv(hist_file)
+            st.success(f"Replay loaded for {selected_day}: {len(hdf)} records.")
+            st.dataframe(hdf, use_container_width=True, hide_index=True, height=420)
         else:
-            st.warning(f"Historical source data unavailable for {selected_day}. Historical replay cannot be generated without the authoritative source data. Status: SOURCE DATA UNAVAILABLE.")
-    
-    st.markdown("---")
-    st.markdown("### 🔄 Global Replay Execution Runner")
-    run_date_input = st.text_input("Run Replay for Date (YYYY-MM-DD)", value=datetime.today().strftime("%Y-%m-%d"))
-    if st.button("Execute Historical Replay"):
-        st.info(f"To execute replay for {run_date_input}, run: `python run_intraday_replay.py {run_date_input}` from terminal.")
+            st.warning(
+                f"Historical source data unavailable for {selected_day}. "
+                "Historical replay cannot be generated without the authoritative source data. "
+                "Status: SOURCE DATA UNAVAILABLE."
+            )
+        st.caption("Replay execution remains a terminal operation: python run_intraday_replay.py YYYY-MM-DD")
 
-# ----------------------------------------------------------------------
-# TAB 4: LEARNING & CALIBRATION
-# ----------------------------------------------------------------------
 with tabs[3]:
-    st.subheader("📈 Closed Learning Loop & Probability Calibration")
-    calib_file = base_path / "intraday_probability_calibration.csv" if base_path else None
-    if calib_file and calib_file.exists():
-        calib_df = pd.read_csv(calib_file)
-        st.success("Loaded Probability Calibration Feedback")
-        st.dataframe(calib_df, use_container_width=True, height=350)
+    st.subheader("Learning & Calibration")
+    calib = base_path / "intraday_probability_calibration.csv" if base_path else None
+    if calib and calib.exists():
+        st.dataframe(pd.read_csv(calib), use_container_width=True, hide_index=True, height=350)
     else:
         st.info("Probability calibration data not found for current snapshot.")
-
-    st.markdown("### 📝 Learning Memory Repository")
-    mem_file = LEARNING_ROOT / "intraday_learning_memory.csv"
-    if mem_file.exists():
-        mem_df = pd.read_csv(mem_file)
-        st.dataframe(mem_df.tail(100), use_container_width=True, height=300)
+    mem = LEARNING_ROOT / "intraday_learning_memory.csv"
+    if mem.exists():
+        st.dataframe(pd.read_csv(mem).tail(100), use_container_width=True, hide_index=True, height=300)
     else:
         st.info("Learning memory repository is empty.")
 
-# ----------------------------------------------------------------------
-# TAB 5: GOVERNANCE & DATA HEALTH
-# ----------------------------------------------------------------------
 with tabs[4]:
-    st.subheader("⚙️ Governance, Data Health & Pipeline Status")
+    st.subheader("Governance & Data Health")
     health = health_status(base_path)
-    
-    hc1, hc2 = st.columns(2)
-    with hc1:
-        st.markdown("### 🏥 System Health Check")
-        for k, v in health.items():
-            color = "#4ade80" if v in {"PASS", "LIVE", "FALLBACK"} else "#f87171"
-            st.markdown(f"- **{k}**: <span style='color:{color}; font-weight:bold;'>{v}</span>", unsafe_allow_html=True)
-
-    with hc2:
-        st.markdown("### 📁 Registry & Storage")
-        reg_file = OUTPUT_ROOT / "report_registry.csv"
-        if reg_file.exists():
-            reg_df = pd.read_csv(reg_file)
-            st.dataframe(reg_df.tail(10), use_container_width=True, height=250)
+    hcols = st.columns(2)
+    with hcols[0]:
+        for k,v in health.items():
+            st.write(f"**{k}:** {v}")
+    with hcols[1]:
+        reg = OUTPUT_ROOT / "report_registry.csv"
+        if reg.exists():
+            st.dataframe(pd.read_csv(reg).tail(10), use_container_width=True, hide_index=True, height=250)
         else:
             st.info("Report registry not found.")
-
-    st.markdown("---")
-    st.markdown("### 🔍 Advanced Snapshot & Comparison Viewer")
-    from intraday_dashboard_snapshot_viewer import snapshot_summary
-    from intraday_dashboard_compare_engine import compare_snapshots
-    
-    if not trade_df.empty:
-        summary_dict = snapshot_summary(trade_df)
-        st.json(summary_dict)
-    else:
-        st.info("No active snapshot data for summary viewer.")
-
-
+    st.json({"snapshot": snapshot_date, "status": status, "base_path": str(base_path) if base_path else None})
