@@ -60,7 +60,6 @@ def _snapshot_rows(df: pd.DataFrame) -> dict[str, dict]:
     return rows
 
 
-
 def _first_range_from_path(path: Path, trading_date: str) -> dict[str, dict[str, Any]]:
     try:
         files = _discover_sources(trading_date, path.parent)
@@ -95,7 +94,13 @@ def _first_range_from_path(path: Path, trading_date: str) -> dict[str, dict[str,
     except Exception:
         return {}
 
-def _process_snapshot(path: Path, trading_date: str, previous: dict[str, dict], first_range: dict[str, Any] | None = None) -> pd.DataFrame:
+
+def _process_snapshot(
+    path: Path,
+    trading_date: str,
+    previous: dict[str, dict],
+    first_range: dict[str, Any] | None = None,
+) -> pd.DataFrame:
     df, source_map = merge_evidence(path, trading_date)
     first_range = first_range or {}
     rows = []
@@ -134,8 +139,10 @@ def process_all_sources(paths: list[Path], trading_date: str) -> tuple[pd.DataFr
     timeline_rows: list[dict[str, Any]] = []
     latest_result = pd.DataFrame()
 
-    ordered = sorted([Path(p) for p in paths if Path(p).is_file()],
-                     key=lambda p: (parse_observation_timestamp(p), p.stat().st_mtime, p.name.lower()))
+    ordered = sorted(
+        [Path(p) for p in paths if Path(p).is_file()],
+        key=lambda p: (parse_observation_timestamp(p), p.stat().st_mtime, p.name.lower()),
+    )
     first_range = _first_range_from_path(ordered[0], trading_date) if ordered else {}
 
     for sequence, path in enumerate(ordered, start=1):
@@ -176,10 +183,6 @@ def process_all_sources(paths: list[Path], trading_date: str) -> tuple[pd.DataFr
     return latest_result, pd.DataFrame(timeline_rows)
 
 
-# Preserve the frozen UI below this point by importing and delegating to the
-# existing card/table rendering helpers from the current frozen dashboard.
-# This compact wrapper is intentionally UI-neutral.
-
 def _num(v):
     try:
         if v is None or pd.isna(v) or str(v).strip() == "":
@@ -187,7 +190,6 @@ def _num(v):
         return float(v)
     except (TypeError, ValueError):
         return None
-
 
 
 def _rank(result: pd.DataFrame) -> pd.DataFrame:
@@ -275,6 +277,15 @@ def _rank(result: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def _rank_direction(result: pd.DataFrame, direction: str) -> pd.DataFrame:
+    ranked = _rank(result)
+    if ranked.empty:
+        return ranked
+    return ranked.loc[
+        ranked["direction"].astype(str).str.upper() == direction.upper()
+    ].copy()
+
+
 def _fmt(v, suffix=""):
     try:
         if v is None or pd.isna(v) or str(v).strip() == "":
@@ -295,6 +306,9 @@ def _css():
 .small {font-size:12px;color:#64748b}.metric {font-size:20px;font-weight:800;color:#0f172a}
 .action {padding:9px 11px;border-radius:9px;background:#eef2ff;color:#312e81;font-weight:800;margin-top:8px}
 .sr {padding:8px 10px;border-radius:8px;background:#f8fafc;margin-top:7px;font-size:12px}
+.pool {padding:8px 12px;border-radius:9px;background:#f8fafc;font-size:12px;margin-bottom:12px}
+.section-bull {color:#15803d;font-weight:800}
+.section-bear {color:#dc2626;font-weight:800}
 </style>
 """, unsafe_allow_html=True)
 
@@ -308,13 +322,8 @@ def _direction_html(direction: str) -> str:
     return '<span class="wait">NEUTRAL</span>'
 
 
-def _render_cards(result: pd.DataFrame):
-    ranked = _rank(result)
-    if ranked.empty:
-        st.info("No decision candidates available.")
-        return
-    st.subheader("Top Tradable Decisions")
-    for start in range(0, min(len(ranked), 8), 4):
+def _render_card_rows(ranked: pd.DataFrame):
+    for start in range(0, len(ranked), 4):
         cols = st.columns(4)
         for col, (_, r) in zip(cols, ranked.iloc[start:start + 4].iterrows()):
             with col:
@@ -326,11 +335,19 @@ def _render_cards(result: pd.DataFrame):
                 cmpv = _num(r.get("reference_price"))
                 support = _num(r.get("support"))
                 resistance = _num(r.get("resistance"))
+                score = r.get("decision_score", r.get("evidence_score"))
+                strength_label = r.get("decision_strength", "")
+                score_text = (
+                    f"{float(score):.0f}/100 — {strength_label}"
+                    if _num(score) is not None and strength_label
+                    else f"{r.get('strength', 0)}/5"
+                )
                 st.markdown(f"""
 <div class="card">
   <div class="metric">{r.get('symbol','')}</div>
   <div>{_direction_html(direction)} &nbsp; | &nbsp; {setup}</div>
-  <div class="small">Confidence {r.get('decision_quality','LOW')} | Strength {r.get('strength',0)}/5</div>
+  <div class="small">Evidence {score_text}</div>
+  <div class="small">Quality {r.get('decision_quality','LOW')} | Confluence {r.get('confluence_score',0)}</div>
   <div class="sr"><b>S/R:</b> {sr}<br>
   <b>First Range:</b> {first_range}<br>
   CMP: {('—' if cmpv is None else f'{cmpv:.2f}')} &nbsp;
@@ -342,6 +359,41 @@ def _render_cards(result: pd.DataFrame):
 """, unsafe_allow_html=True)
 
 
+def _render_cards(result: pd.DataFrame):
+    ranked = _rank(result)
+    if ranked.empty:
+        st.info("No decision candidates available.")
+        return
+
+    bullish = ranked.loc[
+        ranked["direction"].astype(str).str.upper() == "BULLISH"
+    ].head(4)
+    bearish = ranked.loc[
+        ranked["direction"].astype(str).str.upper() == "BEARISH"
+    ].head(4)
+
+    st.markdown(
+        f'<div class="pool"><b>Eligible candidate pool:</b> '
+        f'<span class="section-bull">Bullish {len(ranked.loc[ranked["direction"].astype(str).str.upper()=="BULLISH"])}</span>'
+        f' &nbsp; | &nbsp; '
+        f'<span class="section-bear">Bearish {len(ranked.loc[ranked["direction"].astype(str).str.upper()=="BEARISH"])}</span>'
+        f' &nbsp; | &nbsp; Hard gate: Price Chg % &gt; +0.75% / &lt; -0.75%</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("Top Bullish Decisions")
+    if bullish.empty:
+        st.info("No bullish candidate passed the hard +0.75% eligibility gate in this snapshot.")
+    else:
+        _render_card_rows(bullish)
+
+    st.subheader("Top Bearish Decisions")
+    if bearish.empty:
+        st.info("No bearish candidate passed the hard -0.75% eligibility gate in this snapshot.")
+    else:
+        _render_card_rows(bearish)
+
+
 def _render_decision_table(result: pd.DataFrame):
     ranked = _rank(result)
     if ranked.empty:
@@ -351,6 +403,12 @@ def _render_decision_table(result: pd.DataFrame):
         "Rank": range(1, len(ranked)+1),
         "Stock": ranked["symbol"].astype(str),
         "Direction": ranked["direction"].astype(str),
+        "Price Chg %": pd.to_numeric(ranked["price_change_pct"], errors="coerce").round(2),
+        "Evidence Score": pd.to_numeric(
+            ranked.get("decision_score", pd.Series(index=ranked.index)),
+            errors="coerce",
+        ),
+        "Strength": ranked.get("decision_strength", pd.Series("", index=ranked.index)).astype(str),
         "Setup": ranked["setup"].astype(str),
         "S/R": ranked["sr_status"].astype(str),
         "First Range": ranked["first_range_status"].astype(str),
