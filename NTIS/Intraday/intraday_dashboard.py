@@ -343,65 +343,12 @@ def _start_automatic_monitor():
 
 
 
-def _ntis_text(value, default="N/A"):
-    if value is None:
-        return default
-    try:
-        if pd.isna(value):
-            return default
-    except Exception:
-        pass
-    value = str(value).strip()
-    return default if value.lower() in {"", "nan", "none"} else value
 
 
-def _run_next_snapshot():
-    subprocess.Popen(
-        ["python", "run_intraday_pipeline.py"],
-        cwd=str(Path(__file__).resolve().parent),
-    )
 
 
-def _exact_pattern_history(intel_df, symbol, pattern):
-    if intel_df is None or intel_df.empty or "Symbol" not in intel_df.columns:
-        return pd.DataFrame()
-    stock = intel_df[
-        intel_df["Symbol"].astype(str).str.upper().eq(str(symbol).upper())
-    ]
-    if not pattern:
-        return pd.DataFrame()
-    for col in ("Pattern_Name", "Pattern"):
-        if col in stock.columns:
-            exact = stock[
-                stock[col].astype(str).str.strip().str.lower().eq(
-                    str(pattern).strip().lower()
-                )
-            ]
-            if not exact.empty:
-                return exact
-    return pd.DataFrame()
 
 
-def _predictive_label(exact_history):
-    if exact_history is None or exact_history.empty:
-        return "OBSERVATION ONLY", "No exact historical pattern evidence", "🟠"
-    wins = pd.to_numeric(
-        exact_history.get("Successful_Trades", 0), errors="coerce"
-    ).fillna(0).sum()
-    losses = pd.to_numeric(
-        exact_history.get("Failed_Trades", 0), errors="coerce"
-    ).fillna(0).sum()
-    completed = wins + losses
-    levels = exact_history.get(
-        "Evidence_Level",
-        exact_history.get("Lifecycle_State", pd.Series(["NEW"])),
-    ).astype(str).str.upper()
-    level = levels.iloc[0] if not levels.empty else "NEW"
-    if completed > 0 and level == "MATURE":
-        return "HIGH CONFIDENCE", "Mature exact-pattern outcome evidence", "🟢"
-    if completed > 0 and level == "ESTABLISHED":
-        return "SUPPORTED", "Outcome-confirmed exact-pattern evidence", "🟢"
-    return "EARLY EVIDENCE", "Pattern observed, but outcome confirmation is insufficient", "🟠"
 
 
 ctx = load_dashboard_data()
