@@ -1,0 +1,130 @@
+trading_date,source_file,feature,physical_column,available
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\VolumeAndOISpikesScans_25AUG26_Report_12_8_2026 (1).xlsx,price_chg_pct,Price chg (%),True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\VolumeAndOISpikesScans_25AUG26_Report_12_8_2026 (1).xlsx,oi_chg_pct,OI chg (%),True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\VolumeAndOISpikesScans_25AUG26_Report_12_8_2026 (1).xlsx,volume_chg_pct,Volume Chg (%),True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Resistance_25AUG26_Scan_12_8_2026 (2).xlsx,oi_chg_pct,,False
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Resistance_25AUG26_Scan_12_8_2026 (2).xlsx,futures_oi_chg_pct,Fut OI Chg %,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Resistance_25AUG26_Scan_12_8_2026 (2).xlsx,futures_oi_chg,Fut OI Chg %,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Resistance_25AUG26_Scan_12_8_2026 (2).xlsx,futures_oi,Fut OI,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Resistance_25AUG26_Scan_12_8_2026 (2).xlsx,futures_buildup,Fut Buildup,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\FuturesOI_25AUG26_Scan_12_8_2026 (1).xlsx,price_chg_pct,Price Chg%,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\FuturesOI_25AUG26_Scan_12_8_2026 (1).xlsx,iv_chg_pct,,False
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\FuturesOI_25AUG26_Scan_12_8_2026 (1).xlsx,pcr_chg_pct,,False
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\FuturesOI_25AUG26_Scan_12_8_2026 (1).xlsx,ce_oi_chg_pct,,False
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\FuturesOI_25AUG26_Scan_12_8_2026 (1).xlsx,pe_oi_chg_pct,,False
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\FuturesOI_25AUG26_Scan_12_8_2026 (1).xlsx,pe_minus_ce_oi_chg,,False
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\FuturesOI_25AUG26_Scan_12_8_2026 (1).xlsx,atm_straddle_pct,,False
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,price_chg_pct,Price Chg %,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,oi_chg_pct,OI Chg %,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,iv_chg_pct,IV Chg %,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,pcr_chg_pct,PCR Chg %,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,ce_oi_chg_pct,Tot CE OI Chg %,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,pe_oi_chg_pct,Tot PE OI Chg %,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,pe_minus_ce_oi_chg,Tot PE-CE OI Chg,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,futures_oi_chg_pct,futures_oi_chg,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,futures_oi_chg,futures_oi_chg,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,futures_oi,futures_oi,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,futures_buildup,futures_buildup,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,volume,volume,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,volume_chg_pct,,False
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,ivr,ivr,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,ivp,ivp,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,iv_hv10,iv_hv10,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,iv_hv20,iv_hv20,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,iv_hv30,iv_hv30,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,atm_straddle_pct,ATM Straddle %,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,atm_straddle_price,atm_straddle_price,True
+2026-08-12,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-12\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-12 (4).xlsx,support_resistance,support_resistance,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,price_chg_pct,Price Chg %,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,oi_chg_pct,OI Chg %,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,iv_chg_pct,IV Chg %,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,pcr_chg_pct,PCR Chg %,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,ce_oi_chg_pct,Tot CE OI Chg %,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,pe_oi_chg_pct,Tot PE OI Chg %,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,pe_minus_ce_oi_chg,Tot PE-CE OI Chg,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,futures_oi_chg_pct,futures_oi_chg,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,futures_oi_chg,futures_oi_chg,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,futures_oi,futures_oi,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,futures_buildup,futures_buildup,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,volume,volume,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,volume_chg_pct,,False
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,ivr,ivr,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,ivp,ivp,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,iv_hv10,iv_hv10,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,iv_hv20,iv_hv20,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,iv_hv30,iv_hv30,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,atm_straddle_pct,ATM Straddle %,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,atm_straddle_price,atm_straddle_price,True
+2026-08-13,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-13\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-13 (8).xlsx,support_resistance,support_resistance,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\VolumeAndOISpikesScans_25AUG26_Report_14_8_2026.xlsx,price_chg_pct,Price chg (%),True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\VolumeAndOISpikesScans_25AUG26_Report_14_8_2026.xlsx,oi_chg_pct,OI chg (%),True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\VolumeAndOISpikesScans_25AUG26_Report_14_8_2026.xlsx,volume_chg_pct,Volume Chg (%),True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Resistance_25AUG26_Scan_14_8_2026 (1).xlsx,oi_chg_pct,,False
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Resistance_25AUG26_Scan_14_8_2026 (1).xlsx,futures_oi_chg_pct,Fut OI Chg %,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Resistance_25AUG26_Scan_14_8_2026 (1).xlsx,futures_oi_chg,Fut OI Chg %,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Resistance_25AUG26_Scan_14_8_2026 (1).xlsx,futures_oi,Fut OI,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Resistance_25AUG26_Scan_14_8_2026 (1).xlsx,futures_buildup,Fut Buildup,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\FuturesOI_25AUG26_Scan_14_8_2026.xlsx,price_chg_pct,Price Chg%,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\FuturesOI_25AUG26_Scan_14_8_2026.xlsx,iv_chg_pct,,False
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\FuturesOI_25AUG26_Scan_14_8_2026.xlsx,pcr_chg_pct,,False
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\FuturesOI_25AUG26_Scan_14_8_2026.xlsx,ce_oi_chg_pct,,False
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\FuturesOI_25AUG26_Scan_14_8_2026.xlsx,pe_oi_chg_pct,,False
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\FuturesOI_25AUG26_Scan_14_8_2026.xlsx,pe_minus_ce_oi_chg,,False
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\FuturesOI_25AUG26_Scan_14_8_2026.xlsx,atm_straddle_pct,,False
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,price_chg_pct,Price Chg %,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,oi_chg_pct,OI Chg %,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,iv_chg_pct,IV Chg %,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,pcr_chg_pct,PCR Chg %,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,ce_oi_chg_pct,Tot CE OI Chg %,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,pe_oi_chg_pct,Tot PE OI Chg %,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,pe_minus_ce_oi_chg,Tot PE-CE OI Chg,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,futures_oi_chg_pct,futures_oi_chg,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,futures_oi_chg,futures_oi_chg,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,futures_oi,futures_oi,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,futures_buildup,futures_buildup,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,volume,volume,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,volume_chg_pct,,False
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,ivr,ivr,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,ivp,ivp,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,iv_hv10,iv_hv10,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,iv_hv20,iv_hv20,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,iv_hv30,iv_hv30,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,atm_straddle_pct,ATM Straddle %,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,atm_straddle_price,atm_straddle_price,True
+2026-08-14,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-14\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-14 (6).xlsx,support_resistance,support_resistance,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19.xlsx,price_chg_pct,Price Chg %,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19.xlsx,oi_chg_pct,OI Chg %,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19.xlsx,iv_chg_pct,IV Chg %,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19.xlsx,pcr_chg_pct,PCR Chg %,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19.xlsx,ce_oi_chg_pct,Tot CE OI Chg %,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19.xlsx,pe_oi_chg_pct,Tot PE OI Chg %,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19.xlsx,pe_minus_ce_oi_chg,Tot PE-CE OI Chg,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19.xlsx,atm_straddle_pct,ATM Straddle %,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\VolumeAndOISpikesScans_25AUG26_Report_19_8_2026.xlsx,price_chg_pct,Price chg (%),True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\VolumeAndOISpikesScans_25AUG26_Report_19_8_2026.xlsx,oi_chg_pct,OI chg (%),True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\VolumeAndOISpikesScans_25AUG26_Report_19_8_2026.xlsx,futures_oi_chg_pct,futures_oi_chg,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\VolumeAndOISpikesScans_25AUG26_Report_19_8_2026.xlsx,futures_oi_chg,futures_oi_chg,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\VolumeAndOISpikesScans_25AUG26_Report_19_8_2026.xlsx,futures_oi,futures_oi,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\VolumeAndOISpikesScans_25AUG26_Report_19_8_2026.xlsx,futures_buildup,futures_buildup,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\VolumeAndOISpikesScans_25AUG26_Report_19_8_2026.xlsx,volume_chg_pct,Volume Chg (%),True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,price_chg_pct,Price Chg%,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,oi_chg_pct,,False
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,iv_chg_pct,,False
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,pcr_chg_pct,,False
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,ce_oi_chg_pct,,False
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,pe_oi_chg_pct,,False
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,pe_minus_ce_oi_chg,,False
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,futures_oi_chg_pct,Fut OI Chg %,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,futures_oi_chg,Fut OI Chg %,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,futures_oi,Fut OI,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,futures_buildup,Fut Buildup,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,volume,volume,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,volume_chg_pct,,False
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,ivr,ivr,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,ivp,ivp,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,iv_hv10,iv_hv10,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,iv_hv20,iv_hv20,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,iv_hv30,iv_hv30,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,atm_straddle_pct,,False
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,atm_straddle_price,atm_straddle_price,True
+2026-08-19,D:\My-data\Share_P&L\Ichart Data\Screenshot\August26\2026-08-19\Resistance_Resistance_25AUG26_Scan_19_8_2026.xlsx,support_resistance,support_resistance,True

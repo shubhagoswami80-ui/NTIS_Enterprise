@@ -1,0 +1,11 @@
+feature,bucket,n,later_100,continuation_rate
+direction,DOWN,275,5,0.01818181818181818
+direction,UP,145,3,0.020689655172413793
+first_22_progress_band,22-30,274,0,0.0
+first_22_progress_band,30-40,100,3,0.03
+first_22_progress_band,40-50,30,2,0.06666666666666667
+first_22_progress_band,50-60,8,1,0.125
+first_22_progress_band,60-75,6,2,0.3333333333333333
+first_22_progress_band,75-100,1,0,0.0
+first_22_progress_band,>=100,1,0,0.0
+orb_direction_alignment,NOT_SCORABLE,420,8,0.01904761904761905

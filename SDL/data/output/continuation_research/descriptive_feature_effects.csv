@@ -1,0 +1,6 @@
+feature,bucket,n,continued,continuation_rate
+progress_band,50-60,16,0,0.0
+progress_band,60-75,9,0,0.0
+progress_band,75-90,1,0,0.0
+direction,DOWN,15,0,0.0
+direction,UP,11,0,0.0

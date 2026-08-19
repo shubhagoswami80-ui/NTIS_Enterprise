@@ -1,0 +1,53 @@
+
+from __future__ import annotations
+
+from datetime import datetime
+from pathlib import Path
+import pandas as pd
+
+from config import STATE_JSON
+from pipeline import discover_historical_snapshots, process_snapshot
+from storage import load_state
+
+def _valid_base(path: Path) -> bool:
+    try:
+        df = pd.read_excel(path)
+    except Exception:
+        return False
+    required = {"Symbol", "Open", "ATM Straddle %"}
+    if not required.issubset(df.columns):
+        return False
+    op = pd.to_numeric(df["Open"], errors="coerce")
+    atm = pd.to_numeric(df["ATM Straddle %"], errors="coerce")
+    return bool((op.gt(0) & atm.notna()).any())
+
+def process_latest_snapshot_for_today_first_valid():
+    trading_date = datetime.now().date().isoformat()
+    files = sorted(
+        [Path(p) for p in discover_historical_snapshots(trading_date) if Path(p).is_file()],
+        key=lambda p: p.stat().st_mtime,
+    )
+    if not files:
+        return None, None, None, "No Daywise snapshot found for today."
+
+    state = load_state(STATE_JSON) or {}
+    base = state.get("daily_opening_straddles", {}).get(trading_date)
+
+    if not base:
+        first_valid = next((p for p in files if _valid_base(p)), None)
+        if first_valid is None:
+            return None, None, None, "No valid opening snapshot found; daily base remains unfrozen."
+        observed = datetime.fromtimestamp(first_valid.stat().st_mtime)
+        process_snapshot(first_valid, observed)
+        state = load_state(STATE_JSON) or {}
+        base = state.get("daily_opening_straddles", {}).get(trading_date)
+        if not base:
+            return None, None, None, "Valid opening snapshot found, but frozen daily base was not persisted."
+
+    latest = files[-1]
+    if latest == next((p for p in files if _valid_base(p)), None):
+        return latest, pd.DataFrame(), None, "First valid snapshot processed and opening base frozen; no later snapshot available."
+
+    observed = datetime.fromtimestamp(latest.stat().st_mtime)
+    events, df, processed_at = process_snapshot(latest, observed)
+    return latest, events, df, "First valid snapshot established the frozen base; latest snapshot processed against that base."
