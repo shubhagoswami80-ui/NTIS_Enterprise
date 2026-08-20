@@ -1,13 +1,8 @@
 """
 NTIS EOD Dashboard Data Loader
 
-Purpose:
-    Safe loading layer for validated EOD dashboard datasets.
-
-Rules:
-    - Read only
-    - No data modification
-    - No pipeline changes
+Read-only loading layer with filesystem freshness detection.
+The loader never executes the EOD pipeline.
 """
 
 from datetime import datetime
@@ -21,6 +16,7 @@ from EOD_Dashboard.config.dashboard_config import (
 )
 
 _DATA_CACHE = {}
+_CACHE_MTIME = {}
 
 
 def get_file_path(dataset_name):
@@ -36,48 +32,45 @@ def dataset_exists(dataset_name):
 
 
 def load_dataset(dataset_name, force_reload=False):
+    path = get_file_path(dataset_name)
+
+    if path is None or not path.exists():
+        _DATA_CACHE.pop(dataset_name, None)
+        _CACHE_MTIME.pop(dataset_name, None)
+        return None
+
+    mtime = path.stat().st_mtime
 
     if (
         not force_reload
         and dataset_name in _DATA_CACHE
+        and _CACHE_MTIME.get(dataset_name) == mtime
     ):
         return _DATA_CACHE[dataset_name]
-
-    path = get_file_path(dataset_name)
-
-    if path is None or not path.exists():
-        return None
 
     df = pd.read_csv(path)
 
     _DATA_CACHE[dataset_name] = df
+    _CACHE_MTIME[dataset_name] = mtime
 
     return df
 
 
 def load_multiple(datasets, force_reload=False):
-
     loaded = {}
-
     for dataset in datasets:
-
-        df = load_dataset(
-            dataset,
-            force_reload=force_reload,
-        )
-
+        df = load_dataset(dataset, force_reload=force_reload)
         if df is not None:
             loaded[dataset] = df
-
     return loaded
 
 
 def clear_cache():
     _DATA_CACHE.clear()
+    _CACHE_MTIME.clear()
 
 
 def get_dataset_info(dataset_name):
-
     path = get_file_path(dataset_name)
 
     if path is None:
@@ -103,17 +96,13 @@ def get_dataset_info(dataset_name):
 
 
 def test_loader():
-
     print("=" * 60)
     print("NTIS EOD DATA LOADER CHECK")
     print("=" * 60)
 
     for dataset in REQUIRED_EOD_FILES:
-
         info = get_dataset_info(dataset)
-
         status = "READY" if info["available"] else "MISSING"
-
         print(f"{dataset:<30} {status}")
 
 

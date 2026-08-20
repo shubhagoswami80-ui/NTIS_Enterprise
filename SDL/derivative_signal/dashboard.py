@@ -8,19 +8,19 @@ import pandas as pd
 import streamlit as st
 
 from config import INTRADAY_SOURCE_ROOT
-STATE_JSON = Path(__file__).resolve().parent / 'data' / 'output' / 'state' / 'processing_state.json'
+STATE_JSON = Path(__file__).resolve().parent / "data" / "output" / "state" / "processing_state.json"
 from source_loader import discover_daywise_files, parse_observation_timestamp, read_source
 from storage import load_state, save_state
 from derivative_signal.signal_engine import build_signal
 from decision_evidence import merge_evidence, enrich_decision
 
 STATE_KEY = "derivative_signal"
-
-QUALIFIED_STATES = {
+CONFIRMED_STATES = {
     "STRONG_BULLISH", "STRONG_BEARISH", "STRONG_NEAR_LEVEL",
     "ACTIVE_BULLISH", "ACTIVE_BEARISH", "WAIT_BREAK_CONFIRMATION",
-    "DEVELOPING", "DIRECTIONAL_UNCONFIRMED",
 }
+DEVELOPING_STATES = {"DEVELOPING_BULLISH", "DEVELOPING_BEARISH"}
+QUALIFIED_STATES = CONFIRMED_STATES | DEVELOPING_STATES
 
 
 def _discover_sources(trading_date: str, source_root: Path | None = None) -> list[Path]:
@@ -104,17 +104,13 @@ def _process_snapshot(
     df, source_map = merge_evidence(path, trading_date)
     first_range = first_range or {}
     rows = []
-
     for record in df.to_dict(orient="records"):
         symbol = str(record.get("symbol", record.get("Symbol", ""))).strip().upper()
         if not symbol:
             continue
-
         signal = build_signal(record, previous.get(symbol))
         signal["source_evidence"] = source_map
-        enriched = enrich_decision(signal, record, context=first_range)
-        rows.append(enriched)
-
+        rows.append(enrich_decision(signal, record, context=first_range))
     return pd.DataFrame(rows)
 
 
@@ -123,7 +119,6 @@ def process_selected_source(path: Path, trading_date: str) -> pd.DataFrame:
     previous = _previous(state, trading_date)
     first_range = _first_range_from_path(path, trading_date)
     result = _process_snapshot(path, trading_date, previous, first_range)
-
     day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
     day["previous_snapshot"] = _snapshot_rows(_read(path))
     day["source_file"] = str(path)
@@ -138,48 +133,37 @@ def process_all_sources(paths: list[Path], trading_date: str) -> tuple[pd.DataFr
     previous_state: dict[str, str] = {}
     timeline_rows: list[dict[str, Any]] = []
     latest_result = pd.DataFrame()
-
     ordered = sorted(
         [Path(p) for p in paths if Path(p).is_file()],
         key=lambda p: (parse_observation_timestamp(p), p.stat().st_mtime, p.name.lower()),
     )
     first_range = _first_range_from_path(ordered[0], trading_date) if ordered else {}
-
     for sequence, path in enumerate(ordered, start=1):
         result = _process_snapshot(path, trading_date, previous, first_range)
         if result.empty:
             continue
-
         timestamp = parse_observation_timestamp(path)
         for row in result.to_dict(orient="records"):
             symbol = str(row.get("symbol", "")).upper()
-            state_name = str(row.get("state", "WATCH"))
+            state_name = str(row.get("decision_state", row.get("state", "WATCH")))
             old_state = previous_state.get(symbol)
-
             if state_name != old_state and state_name in QUALIFIED_STATES:
                 timeline_rows.append({
                     "Time": timestamp.strftime("%H:%M:%S"),
                     "Snapshot": sequence,
                     "Symbol": symbol,
-                    "Direction": row.get("direction", "NEUTRAL"),
-                    "Setup": row.get("setup", row.get("opportunity", "WATCH")),
-                    "State": state_name,
-                    "S/R": row.get("sr_status", row.get("location", "UNKNOWN")),
-                    "First Range": row.get("first_range_status", "UNAVAILABLE"),
-                    "Action": row.get("action", "WATCH"),
-                    "Evidence": row.get("decision_quality", "LOW"),
+                    "Decision": row.get("decision_state", "NO DECISION"),
+                    "Evidence": row.get("decision_score", 0),
+                    "Strength": row.get("decision_strength", "—"),
                 })
             previous_state[symbol] = state_name
-
         previous = _snapshot_rows(_read(path))
         latest_result = result
-
     day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
     day["previous_snapshot"] = previous
     day["source_file"] = str(ordered[-1]) if ordered else ""
     day["processed_at"] = datetime.now().isoformat()
     save_state(state, STATE_JSON)
-
     return latest_result, pd.DataFrame(timeline_rows)
 
 
@@ -195,104 +179,56 @@ def _num(v):
 def _rank(result: pd.DataFrame) -> pd.DataFrame:
     if result.empty:
         return result.copy()
-
     out = result.copy()
-    price = pd.to_numeric(
-        out.get("price_change_pct", pd.Series(0, index=out.index)),
-        errors="coerce",
-    )
-    direction = out.get(
-        "direction", pd.Series("NEUTRAL", index=out.index)
-    ).astype(str).str.upper()
 
-    # HARD ELIGIBILITY: agreed +/-0.75% rule.
-    eligible = (
-        ((direction == "BULLISH") & (price > 0.75))
-        | ((direction == "BEARISH") & (price < -0.75))
+    price = pd.to_numeric(out.get("price_change_pct", pd.Series(0, index=out.index)), errors="coerce")
+    decision = out.get("decision_direction", out.get("direction", pd.Series("NEUTRAL", index=out.index))).astype(str).str.upper()
+    state = out.get("decision_state", pd.Series("", index=out.index)).astype(str).str.upper()
+
+    # Confirmed decisions require the hard +/-0.75% gate.
+    confirmed = (
+        ((decision == "BULLISH") & (price > 0.75))
+        | ((decision == "BEARISH") & (price < -0.75))
     )
-    out = out.loc[eligible].copy()
+    # Developing candidates may appear before the gate when evidence is strong.
+    developing = state.isin(DEVELOPING_STATES) & (
+        pd.to_numeric(out.get("decision_score", pd.Series(0, index=out.index)), errors="coerce").fillna(0) >= 70
+    )
+    out = out.loc[confirmed | developing].copy()
     if out.empty:
         return out
 
     def num(name):
-        return pd.to_numeric(
-            out.get(name, pd.Series(0, index=out.index)),
-            errors="coerce"
-        ).fillna(0)
+        return pd.to_numeric(out.get(name, pd.Series(0, index=out.index)), errors="coerce").fillna(0)
 
-    state_rank = out.get("state", pd.Series("", index=out.index)).astype(str).map({
-        "STRONG_BULLISH": 50,
-        "STRONG_BEARISH": 50,
-        "STRONG_NEAR_LEVEL": 44,
-        "ACTIVE_BULLISH": 38,
-        "ACTIVE_BEARISH": 38,
-        "WAIT_BREAK_CONFIRMATION": 28,
-        "DEVELOPING": 22,
-        "DIRECTIONAL_UNCONFIRMED": 10,
+    state_rank = out.get("decision_state", pd.Series("", index=out.index)).astype(str).map({
+        "STRONG_BULLISH": 50, "STRONG_BEARISH": 50,
+        "ACTIVE_BULLISH": 42, "ACTIVE_BEARISH": 42,
+        "WAIT_BREAK_CONFIRMATION": 34,
+        "DEVELOPING_BULLISH": 30, "DEVELOPING_BEARISH": 30,
+        "STRONG_NEAR_LEVEL": 32,
     }).fillna(0)
 
-    confirmation_rank = out.get(
-        "confirmation", pd.Series("", index=out.index)
-    ).astype(str).map({
-        "CONFIRMED": 30,
-        "DEVELOPING": 16,
-        "BREAKOUT vs REJECTION": 8,
-        "BOUNCE vs BREAKDOWN": 8,
-    }).fillna(0)
-
-    quality_rank = out.get(
-        "decision_quality", pd.Series("", index=out.index)
-    ).astype(str).map({
-        "HIGH": 15,
-        "MEDIUM": 8,
-        "LOW": 2,
-    }).fillna(0)
-
-    range_rank = out.get(
-        "first_range_status", pd.Series("", index=out.index)
-    ).astype(str).map({
-        "FIRST-HIGH BROKEN": 20,
-        "FIRST-LOW BROKEN": 20,
-        "TESTING FIRST-HIGH": 8,
-        "TESTING FIRST-LOW": 8,
+    quality_rank = out.get("decision_quality", pd.Series("", index=out.index)).astype(str).map({
+        "HIGH": 15, "MEDIUM": 9, "LOW": 3,
     }).fillna(0)
 
     out["_decision_priority"] = (
         state_rank
-        + confirmation_rank
         + quality_rank
-        + range_rank
-        + num("confluence_score") * 5
-        + num("strength") * 4
+        + num("decision_score") * 0.35
+        + num("confluence_score") * 3
+        + num("strength") * 3
         + num("momentum_score") * 2
-        + (price.abs() - 0.75).clip(lower=0) * 2
         - num("conflict_count") * 8
+        + (price.abs() - 0.75).clip(lower=0) * 2
     )
     out["_price_abs"] = price.abs()
-
     return out.sort_values(
         ["_decision_priority", "_price_abs", "symbol"],
         ascending=[False, False, True],
         na_position="last",
     )
-
-
-def _rank_direction(result: pd.DataFrame, direction: str) -> pd.DataFrame:
-    ranked = _rank(result)
-    if ranked.empty:
-        return ranked
-    return ranked.loc[
-        ranked["direction"].astype(str).str.upper() == direction.upper()
-    ].copy()
-
-
-def _fmt(v, suffix=""):
-    try:
-        if v is None or pd.isna(v) or str(v).strip() == "":
-            return "—"
-        return f"{float(v):.2f}{suffix}"
-    except (TypeError, ValueError):
-        return "—"
 
 
 def _css():
@@ -301,25 +237,26 @@ def _css():
 .block-container {max-width:1450px;padding-top:1.5rem}
 .hero {padding:22px 26px;border-radius:16px;background:#172554;color:white;margin-bottom:16px}
 .hero-title {font-size:29px;font-weight:800}.hero-sub {font-size:13px;opacity:.82;margin-top:4px}
-.card {border:1px solid #e2e8f0;border-radius:14px;padding:15px;background:#fff;min-height:205px;box-shadow:0 2px 8px rgba(15,23,42,.06)}
-.bull {color:#15803d;font-weight:800}.bear {color:#dc2626;font-weight:800}.wait {color:#a16207;font-weight:800}
+.card {border:1px solid #e2e8f0;border-radius:14px;padding:15px;background:#fff;min-height:175px;box-shadow:0 2px 8px rgba(15,23,42,.06)}
+.bull {color:#15803d;font-weight:800}.bear {color:#dc2626;font-weight:800}.develop {color:#a16207;font-weight:800}
 .small {font-size:12px;color:#64748b}.metric {font-size:20px;font-weight:800;color:#0f172a}
-.action {padding:9px 11px;border-radius:9px;background:#eef2ff;color:#312e81;font-weight:800;margin-top:8px}
+.decision {padding:8px 10px;border-radius:9px;background:#eef2ff;color:#312e81;font-weight:800;margin-top:8px}
 .sr {padding:8px 10px;border-radius:8px;background:#f8fafc;margin-top:7px;font-size:12px}
 .pool {padding:8px 12px;border-radius:9px;background:#f8fafc;font-size:12px;margin-bottom:12px}
-.section-bull {color:#15803d;font-weight:800}
-.section-bear {color:#dc2626;font-weight:800}
+.section-bull {color:#15803d;font-weight:800}.section-bear {color:#dc2626;font-weight:800}
 </style>
 """, unsafe_allow_html=True)
 
 
-def _direction_html(direction: str) -> str:
-    d = str(direction).upper()
-    if d == "BULLISH":
-        return '<span class="bull">BULLISH</span>'
-    if d == "BEARISH":
-        return '<span class="bear">BEARISH</span>'
-    return '<span class="wait">NEUTRAL</span>'
+def _decision_html(row: pd.Series) -> str:
+    d = str(row.get("decision_state", "")).upper()
+    if d.endswith("BULLISH"):
+        cls = "bull"
+    elif d.endswith("BEARISH"):
+        cls = "bear"
+    else:
+        cls = "develop"
+    return f'<span class="{cls}">{d or "NO DECISION"}</span>'
 
 
 def _render_card_rows(ranked: pd.DataFrame):
@@ -327,34 +264,25 @@ def _render_card_rows(ranked: pd.DataFrame):
         cols = st.columns(4)
         for col, (_, r) in zip(cols, ranked.iloc[start:start + 4].iterrows()):
             with col:
-                direction = str(r.get("direction", "NEUTRAL"))
-                setup = str(r.get("setup", r.get("opportunity", "WATCH")))
-                sr = str(r.get("sr_status", "UNKNOWN"))
-                first_range = str(r.get("first_range_status", "UNAVAILABLE"))
-                action = str(r.get("action", "WATCH"))
                 cmpv = _num(r.get("reference_price"))
                 support = _num(r.get("support"))
                 resistance = _num(r.get("resistance"))
-                score = r.get("decision_score", r.get("evidence_score"))
-                strength_label = r.get("decision_strength", "")
-                score_text = (
-                    f"{float(score):.0f}/100 — {strength_label}"
-                    if _num(score) is not None and strength_label
-                    else f"{r.get('strength', 0)}/5"
-                )
+                score = _num(r.get("decision_score"))
+                price = _num(r.get("price_change_pct"))
+                score_text = f"{score:.0f}/100" if score is not None else "—"
+                price_text = "—" if price is None else f"{price:+.2f}%"
                 st.markdown(f"""
 <div class="card">
   <div class="metric">{r.get('symbol','')}</div>
-  <div>{_direction_html(direction)} &nbsp; | &nbsp; {setup}</div>
-  <div class="small">Evidence {score_text}</div>
-  <div class="small">Quality {r.get('decision_quality','LOW')} | Confluence {r.get('confluence_score',0)}</div>
-  <div class="sr"><b>S/R:</b> {sr}<br>
-  <b>First Range:</b> {first_range}<br>
-  CMP: {('—' if cmpv is None else f'{cmpv:.2f}')} &nbsp;
-  S: {('—' if support is None else f'{support:.2f}')} &nbsp;
-  R: {('—' if resistance is None else f'{resistance:.2f}')}</div>
-  <div class="small" style="margin-top:7px"><b>Why:</b> {r.get('decision_reason','—')}</div>
-  <div class="action">{action}</div>
+  <div>{_decision_html(r)}</div>
+  <div class="small">Evidence <b>{score_text}</b> &nbsp;|&nbsp; {r.get('decision_strength','—')}</div>
+  <div class="small">Quality {r.get('decision_quality','LOW')} &nbsp;|&nbsp; Confluence {r.get('confluence_score',0)}</div>
+  <div class="sr">
+    CMP: {('—' if cmpv is None else f'{cmpv:.2f}')} &nbsp; {price_text}<br>
+    S: {('—' if support is None else f'{support:.2f}')} &nbsp;
+    R: {('—' if resistance is None else f'{resistance:.2f}')}
+  </div>
+  <div class="small" style="margin-top:7px"><b>Decision:</b> {r.get('decision_reason','—')}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -365,31 +293,32 @@ def _render_cards(result: pd.DataFrame):
         st.info("No decision candidates available.")
         return
 
-    bullish = ranked.loc[
-        ranked["direction"].astype(str).str.upper() == "BULLISH"
-    ].head(4)
-    bearish = ranked.loc[
-        ranked["direction"].astype(str).str.upper() == "BEARISH"
-    ].head(4)
+    decision_direction = ranked.get(
+        "decision_direction",
+        ranked.get("direction", pd.Series("NEUTRAL", index=ranked.index)),
+    ).astype(str).str.upper()
+    bullish = ranked.loc[decision_direction == "BULLISH"].head(6)
+    bearish = ranked.loc[decision_direction == "BEARISH"].head(6)
 
+    developing_count = int(ranked["decision_state"].astype(str).str.startswith("DEVELOPING").sum())
+    confirmed_count = len(ranked) - developing_count
     st.markdown(
-        f'<div class="pool"><b>Eligible candidate pool:</b> '
-        f'<span class="section-bull">Bullish {len(ranked.loc[ranked["direction"].astype(str).str.upper()=="BULLISH"])}</span>'
-        f' &nbsp; | &nbsp; '
-        f'<span class="section-bear">Bearish {len(ranked.loc[ranked["direction"].astype(str).str.upper()=="BEARISH"])}</span>'
-        f' &nbsp; | &nbsp; Hard gate: Price Chg % &gt; +0.75% / &lt; -0.75%</div>',
+        f'<div class="pool"><b>Decision candidates:</b> '
+        f'<span class="section-bull">Bullish {len(bullish)}</span> &nbsp;|&nbsp; '
+        f'<span class="section-bear">Bearish {len(bearish)}</span> &nbsp;|&nbsp; '
+        f'Confirmed {confirmed_count} &nbsp;|&nbsp; Developing {developing_count}</div>',
         unsafe_allow_html=True,
     )
 
     st.subheader("Top Bullish Decisions")
     if bullish.empty:
-        st.info("No bullish candidate passed the hard +0.75% eligibility gate in this snapshot.")
+        st.info("No bullish decision candidate.")
     else:
         _render_card_rows(bullish)
 
     st.subheader("Top Bearish Decisions")
     if bearish.empty:
-        st.info("No bearish candidate passed the hard -0.75% eligibility gate in this snapshot.")
+        st.info("No bearish decision candidate.")
     else:
         _render_card_rows(bearish)
 
@@ -400,104 +329,80 @@ def _render_decision_table(result: pd.DataFrame):
         return
     st.subheader("Decision Table")
     st.dataframe(pd.DataFrame({
-        "Rank": range(1, len(ranked)+1),
+        "Rank": range(1, len(ranked) + 1),
         "Stock": ranked["symbol"].astype(str),
-        "Direction": ranked["direction"].astype(str),
+        "Decision": ranked["decision_state"].astype(str),
         "Price Chg %": pd.to_numeric(ranked["price_change_pct"], errors="coerce").round(2),
-        "Evidence Score": pd.to_numeric(
-            ranked.get("decision_score", pd.Series(index=ranked.index)),
-            errors="coerce",
-        ),
-        "Strength": ranked.get("decision_strength", pd.Series("", index=ranked.index)).astype(str),
-        "Setup": ranked["setup"].astype(str),
-        "S/R": ranked["sr_status"].astype(str),
-        "First Range": ranked["first_range_status"].astype(str),
-        "Confirmation": ranked["confirmation"].astype(str),
-        "Action": ranked["action"].astype(str),
-        "Why": ranked["decision_reason"].astype(str),
+        "Evidence": pd.to_numeric(ranked["decision_score"], errors="coerce"),
+        "Strength": ranked["decision_strength"].astype(str),
+        "CMP": pd.to_numeric(ranked["reference_price"], errors="coerce").round(2),
+        "Support": pd.to_numeric(ranked["support"], errors="coerce").round(2),
+        "Resistance": pd.to_numeric(ranked["resistance"], errors="coerce").round(2),
+        "Decision": ranked["decision_reason"].astype(str),
     }).head(20), use_container_width=True, hide_index=True)
 
 
 def _render_evidence(row: pd.Series):
-    st.subheader(f"Decision Evidence - {row['symbol']}")
+    st.subheader(f"Decision Evidence — {row['symbol']}")
     cols = st.columns(4)
     for col, (label, value) in zip(cols, [
         ("CMP", row.get("reference_price")),
         ("Support", row.get("support")),
         ("Resistance", row.get("resistance")),
-        ("First High", row.get("first_snapshot_high")),
+        ("Evidence", row.get("decision_score")),
     ]):
         with col:
             v = _num(value)
-            st.metric(label, "—" if v is None else f"{v:.2f}")
-    st.caption(
-        f"First Low: {_fmt(row.get('first_snapshot_low'))} | "
-        f"S/R: {row.get('sr_status','—')} | "
-        f"Setup: {row.get('setup','—')} | Action: {row.get('action','—')}"
-    )
-    evidence = pd.DataFrame({
-        "Evidence": [
-            "Price / Direction","First Range","Futures","PE-CE OI","PCR","IV",
-            "Volume","Momentum","S/R","Straddle"
-        ],
-        "Interpretation": [
-            row.get("directional_interpretation","—"),
-            row.get("first_range_status","—"),
-            row.get("futures_interpretation","—"),
-            row.get("options_interpretation","—"),
-            row.get("pcr_interpretation","—"),
-            row.get("iv_interpretation","—"),
-            row.get("volume_interpretation","—"),
-            row.get("momentum_state","—"),
-            row.get("sr_interpretation","—"),
-            row.get("straddle_interpretation","—"),
-        ],
-    })
-    st.dataframe(evidence, use_container_width=True, hide_index=True)
-    st.markdown(
-        f'<div class="action"><b>Decision:</b> {row.get("decision_reason","—")} '
-        f'&nbsp; <b>Action:</b> {row.get("action","WATCH")}</div>',
-        unsafe_allow_html=True,
-    )
+            col.metric(label, "—" if v is None else (f"{v:.0f}" if label == "Evidence" else f"{v:.2f}"))
+    with st.expander("Detailed evidence", expanded=False):
+        evidence = pd.DataFrame({
+            "Evidence": ["Price/Direction", "First Range", "Futures", "PE-CE OI", "PCR", "IV", "Volume", "S/R", "Straddle"],
+            "Interpretation": [
+                row.get("directional_interpretation", "—"),
+                row.get("first_range_event", "—"),
+                row.get("futures_interpretation", "—"),
+                row.get("options_interpretation", "—"),
+                row.get("pcr_interpretation", "—"),
+                row.get("iv_interpretation", "—"),
+                row.get("volume_interpretation", "—"),
+                row.get("sr_interpretation", "—"),
+                row.get("straddle_interpretation", "—"),
+            ],
+        })
+        st.dataframe(evidence, use_container_width=True, hide_index=True)
 
 
-def main():
-    st.set_page_config(page_title="NTIS SDL - Intraday Decision Center", layout="wide")
+def render():
+    st.set_page_config(page_title="NTIS SDL — Intraday Decision Center", layout="wide")
     _css()
     st.markdown("""
 <div class="hero">
-  <div class="hero-title">NTIS SDL - Intraday Decision Center</div>
-  <div class="hero-sub">Decision-oriented intraday analysis. Evidence is compiled into ranked setups.</div>
+  <div class="hero-title">NTIS SDL — Intraday Decision Center</div>
+  <div class="hero-sub">Decision-oriented intraday analysis. Main view shows only decision-essential fields.</div>
 </div>
 """, unsafe_allow_html=True)
 
     source_text = st.text_input("Source folder", value=str(Path(INTRADAY_SOURCE_ROOT).expanduser()))
     source_root = Path(source_text).expanduser()
-
-    c1, c2, c3 = st.columns([1,1,1.5])
+    c1, c2 = st.columns([1, 2])
     with c1:
         trading_date = st.date_input("Trading date", value=date.today()).strftime("%Y-%m-%d")
     with c2:
-        mode = st.radio("Read mode", ["Latest File","All Files / Day Replay"])
-    with c3:
-        st.caption(f"Source: {source_root}")
+        mode = st.radio("Read mode", ["Latest File", "All Files / Day Replay"], horizontal=True)
 
     try:
         sources = _discover_sources(trading_date, source_root)
     except Exception as exc:
         st.error(f"Source discovery failed: {type(exc).__name__}: {exc}")
         return
-
     if not sources:
-        st.warning("No Daywise snapshots found for the selected date in the selected folder.")
+        st.warning("No Daywise snapshots found for the selected date.")
         return
 
     if mode == "Latest File":
         idx = st.selectbox(
-            "Snapshot",
-            list(range(len(sources))),
-            index=len(sources)-1,
-            format_func=lambda i: f"{parse_observation_timestamp(sources[i]):%H:%M:%S} - {sources[i].name}",
+            "Snapshot", list(range(len(sources))), index=len(sources) - 1,
+            format_func=lambda i: f"{parse_observation_timestamp(sources[i]):%H:%M:%S} — {sources[i].name}",
         )
         if st.button("PROCESS SELECTED SNAPSHOT", type="primary", use_container_width=True):
             st.session_state["ds_result"] = process_selected_source(sources[idx], trading_date)
@@ -530,7 +435,3 @@ def main():
     if isinstance(timeline, pd.DataFrame) and not timeline.empty:
         st.subheader("Decision Changes During Day Replay")
         st.dataframe(timeline, use_container_width=True, hide_index=True)
-
-
-def render():
-    main()

@@ -294,28 +294,149 @@ class Manager:
         if not value and not selector:
             return True
 
+        def norm(text):
+            return " ".join(
+                str(text or "").split()
+            ).strip().casefold()
+
+        wanted = norm(value)
+
         try:
-            locator = (
-                page.locator(selector).first
-                if selector
-                else page.get_by_text(
-                    value,
-                    exact=True,
-                ).first
+            # 1. Explicit selector supplied by the user.
+            if selector:
+                locator = page.locator(selector).first
+
+                if locator.count() == 0:
+                    self.log(
+                        f"{job['name']}: selection selector "
+                        f"not found: {selector}"
+                    )
+                    return False
+
+                try:
+                    locator.check(force=True)
+                except Exception:
+                    locator.click(force=True)
+
+                page.wait_for_timeout(300)
+                return True
+
+            # 2. Prefer actual radio inputs and inspect their
+            # value/id/name plus associated label/container text.
+            radios = page.locator('input[type="radio"]')
+
+            for index in range(radios.count()):
+                radio = radios.nth(index)
+
+                try:
+                    details = radio.evaluate(
+                        """
+                        el => {
+                            const label = el.id
+                                ? document.querySelector(
+                                    `label[for="${CSS.escape(el.id)}"]`
+                                  )
+                                : null;
+                            const parentLabel = el.closest("label");
+                            const container = el.closest(
+                                "label, td, th, div, span, li"
+                            );
+
+                            return {
+                                value: el.value || "",
+                                id: el.id || "",
+                                name: el.name || "",
+                                aria: el.getAttribute("aria-label") || "",
+                                title: el.getAttribute("title") || "",
+                                label: label ? label.innerText : "",
+                                parentLabel: parentLabel
+                                    ? parentLabel.innerText
+                                    : "",
+                                container: container
+                                    ? container.innerText
+                                    : ""
+                            };
+                        }
+                        """
+                    )
+                except Exception:
+                    continue
+
+                candidates = [
+                    details.get("value"),
+                    details.get("id"),
+                    details.get("name"),
+                    details.get("aria"),
+                    details.get("title"),
+                    details.get("label"),
+                    details.get("parentLabel"),
+                    details.get("container"),
+                ]
+
+                if any(
+                    wanted == norm(candidate)
+                    for candidate in candidates
+                ):
+                    try:
+                        radio.check(force=True)
+                    except Exception:
+                        radio.click(force=True)
+
+                    page.wait_for_timeout(300)
+                    self.log(
+                        f"{job['name']}: selected radio option "
+                        f"'{value}'."
+                    )
+                    return True
+
+            # 3. Fallback to an exact matching label.
+            labels = page.locator("label")
+
+            for index in range(labels.count()):
+                label = labels.nth(index)
+
+                try:
+                    text = label.inner_text().strip()
+                except Exception:
+                    continue
+
+                if norm(text) != wanted:
+                    continue
+
+                try:
+                    label.click(force=True)
+                    page.wait_for_timeout(300)
+                    self.log(
+                        f"{job['name']}: selected option "
+                        f"'{value}' via label."
+                    )
+                    return True
+                except Exception:
+                    continue
+
+            # 4. Final visible-text fallback for unusual page markup.
+            locator = page.get_by_text(
+                value,
+                exact=True,
+            ).first
+
+            if locator.count() > 0:
+                try:
+                    locator.click(force=True)
+                    page.wait_for_timeout(300)
+                    self.log(
+                        f"{job['name']}: selected option "
+                        f"'{value}' via text."
+                    )
+                    return True
+                except Exception:
+                    pass
+
+            self.log(
+                f"{job['name']}: selection not found: "
+                f"'{value}'."
             )
-
-            if locator.count() == 0:
-                self.log(
-                    f"{job['name']}: selection not found."
-                )
-                return False
-
-            try:
-                locator.check()
-            except Exception:
-                locator.click()
-
-            return True
+            return False
 
         except Exception as error:
             self.log(
@@ -334,20 +455,30 @@ class Manager:
             Support_Resistance_25AUG26_Scan_14_8_2026.xlsx
 
         Result:
-            Resistance_Resistance_25AUG26_Scan_14_8_2026.xlsx
-
-        NOTE:
-        The user's requested final naming is:
             Resistance_25AUG26_Scan_14_8_2026.xlsx
 
-        Therefore the rule below removes the literal leading
-        'Support_' from the website filename and leaves the
-        remaining 'Resistance_' portion untouched.
+        The rule removes the literal leading 'Support_'
+        from the website filename and keeps the remaining
+        'Resistance_' portion untouched.
         """
         if rule == "replace_leading_support_with_resistance":
-            prefix = "Support_"
-            if filename.startswith(prefix):
-                return "Resistance_" + filename[len(prefix):]
+            # Normalize both possible website filename forms.
+            # Never prepend a second "Resistance_".
+            if filename.startswith("Support_Resistance_"):
+                return (
+                    "Resistance_"
+                    + filename[len("Support_Resistance_"):]
+                )
+
+            # The site may already return a Resistance-prefixed name,
+            # and a previous run/configuration may have produced a
+            # duplicated prefix. Normalize any repeated prefix.
+            while filename.startswith("Resistance_Resistance_"):
+                filename = filename[len("Resistance_"):]
+
+            if filename.startswith("Resistance_"):
+                return filename
+
         return filename
 
     def download(self, page, job):
@@ -363,11 +494,52 @@ class Manager:
             return
 
         try:
-            page.goto(
-                job["url"],
-                wait_until="domcontentloaded",
-                timeout=60000,
-            )
+            # A transient Chromium/network suspension can invalidate the
+            # current Page object. Retry navigation once only, and always
+            # reacquire a live page after browser recovery.
+            navigation_error = None
+
+            for navigation_attempt in range(2):
+                try:
+                    if (
+                        self.context is None
+                        or self.browser is None
+                        or len(self.context.pages) == 0
+                    ):
+                        self.open_browser()
+
+                    page = self.context.pages[-1]
+
+                    page.goto(
+                        job["url"],
+                        wait_until="domcontentloaded",
+                        timeout=60000,
+                    )
+
+                    navigation_error = None
+                    break
+
+                except Exception as error:
+                    navigation_error = error
+
+                    if navigation_attempt == 0:
+                        self.log(
+                            f"{name}: navigation failed; "
+                            f"reopening Chromium and retrying: {error}"
+                        )
+                        try:
+                            self.open_browser()
+                        except Exception as recovery_error:
+                            navigation_error = recovery_error
+                            break
+
+            if navigation_error is not None:
+                self.log(
+                    f"{name}: download failed during navigation: "
+                    f"{navigation_error}"
+                )
+                return
+
             page.wait_for_timeout(1000)
 
             if (
@@ -449,6 +621,9 @@ class Manager:
                 exist_ok=True,
             )
 
+            # Keep the configured selector as the first choice.
+            # Some iCharts pages use an icon-only export control
+            # whose title/HTML differs from the configured selector.
             download_selector = (
                 job.get("download_selector")
                 or 'button[title="Download Excel"]'
@@ -458,16 +633,106 @@ class Manager:
                 download_selector
             ).first
 
+            # Fallback selectors for icon-only Excel/download controls.
+            # These are intentionally restricted to attributes normally
+            # associated with the Excel/export control.
+            if button.count() == 0:
+                fallback_selectors = [
+                    'button[title*="Excel" i]',
+                    'a[title*="Excel" i]',
+                    '[role="button"][title*="Excel" i]',
+                    'button[aria-label*="Excel" i]',
+                    'a[aria-label*="Excel" i]',
+                    '[role="button"][aria-label*="Excel" i]',
+                    'button[title*="Download" i]',
+                    'a[title*="Download" i]',
+                    '[role="button"][title*="Download" i]',
+                    'button[aria-label*="Download" i]',
+                    'a[aria-label*="Download" i]',
+                    '[role="button"][aria-label*="Download" i]',
+                    'button[title*="Export" i]',
+                    'a[title*="Export" i]',
+                    '[role="button"][title*="Export" i]',
+                    'button[aria-label*="Export" i]',
+                    'a[aria-label*="Export" i]',
+                    '[role="button"][aria-label*="Export" i]',
+                ]
+
+                for candidate in fallback_selectors:
+                    locator = page.locator(candidate).first
+                    if locator.count() > 0:
+                        button = locator
+                        self.log(
+                            f"{name}: using fallback download "
+                            f"selector: {candidate}"
+                        )
+                        break
+
+            # Last-resort inspection of visible export/download
+            # controls. This handles pages where the icon's useful
+            # text is stored on a nested element rather than the
+            # button itself.
+            if button.count() == 0:
+                candidates = page.locator(
+                    'button, a, [role="button"]'
+                )
+
+                for index in range(candidates.count()):
+                    candidate = candidates.nth(index)
+
+                    try:
+                        details = candidate.evaluate(
+                            """
+                            el => ({
+                                text: (el.innerText || "").trim(),
+                                title: el.getAttribute("title") || "",
+                                aria: el.getAttribute("aria-label") || "",
+                                id: el.id || "",
+                                cls: el.className || "",
+                                html: (el.outerHTML || "").slice(0, 1500)
+                            })
+                            """
+                        )
+                    except Exception:
+                        continue
+
+                    combined = " ".join(
+                        str(details.get(key, ""))
+                        for key in (
+                            "text",
+                            "title",
+                            "aria",
+                            "id",
+                            "cls",
+                            "html",
+                        )
+                    ).casefold()
+
+                    if (
+                        "excel" in combined
+                        or "download" in combined
+                        or "export" in combined
+                        or ".xlsx" in combined
+                        or ".xls" in combined
+                    ):
+                        button = candidate
+                        self.log(
+                            f"{name}: found fallback export/download "
+                            f"control."
+                        )
+                        break
+
             if button.count() == 0:
                 self.log(
-                    f"{name}: Download button not found."
+                    f"{name}: Download button not found. "
+                    f"Configured selector: {download_selector}"
                 )
                 return
 
             with page.expect_download(
                 timeout=30000
             ) as event:
-                button.click()
+                button.click(force=True)
 
             download = event.value
 

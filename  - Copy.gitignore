@@ -1,0 +1,104 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# Environment variables / secrets
+.env
+.env.local
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# IDE/editor folders
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+#Logs/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+#NTIS genrated Output
+#Output/
+#Database/
+#Historical_Data/
+Archive/
+#08_Predictions/
+
+# Yearly Market Data
+2024/
+2025/
+#2026/
+2027/
+2028/
+2029/
+2030/
+
+# Market Reports
+#####################################################
+
+#*.xlsx
+*.xls
+*.xlsm
+
+#####################################################
+# Generated CSV Files
+#####################################################
+
+#*.csv
+
+#####################################################
+# SQLite
+#####################################################
+
+*.db
+*.sqlite
+*.sqlite3
+
+#####################################################
+# Zip / Backup
+#####################################################
+
+*.zip
+*.7z
+*.rar
+*.bak
+*.old
+
+OCR/
+#Intraday/Output/2026/July/2026-07-22/OCR
+
+# NTIS temporary backups
+NTIS/Intraday - Copy (2)/
+NTIS/Intraday/*_Old.py
+NTIS/Intraday/intraday_path_config.py
+
+# HMME experimental runtimes
+NTIS/similarity_core/integration/*Old*.py
+NTIS/similarity_core/integration/hmme_dataset_importer_1.py
+NTIS/similarity_core/integration/production_runtime4.py
+NTIS/Intraday/INSTALL_NOTES.txt
+NTIS/Intraday - Copy/
+
+

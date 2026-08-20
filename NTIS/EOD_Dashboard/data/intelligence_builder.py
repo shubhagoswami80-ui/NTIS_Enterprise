@@ -5,16 +5,16 @@ Intelligence Builder
 Data Preparation Layer
 
 Purpose:
-    Combine validated NTIS intelligence outputs
-    into a unified dashboard intelligence dataframe.
+Combine validated NTIS intelligence outputs
+into a unified dashboard intelligence dataframe.
 
 Rules:
-    - Read only
-    - No engine logic
-    - No scoring changes
-    - No probability changes
-    - No pattern changes
-    - No output file modification
+- Read only
+- No engine logic
+- No scoring changes
+- No probability changes
+- No pattern changes
+- No output file modification
 """
 
 from __future__ import annotations
@@ -35,6 +35,11 @@ def _safe_merge(
 ) -> pd.DataFrame:
     """
     Merge two intelligence datasets safely.
+
+    Only columns that do not already exist in the left dataframe are
+    imported from the right dataframe. This prevents repeated merges
+    from generating duplicate *_extra columns and preserves the
+    ranking dataframe as the primary/base dataset.
     """
 
     if left.empty:
@@ -49,14 +54,24 @@ def _safe_merge(
     if MERGE_KEY not in right.columns:
         return left.copy()
 
+    right_columns = [
+        column
+        for column in right.columns
+        if column != MERGE_KEY
+        and column not in left.columns
+    ]
+
+    if not right_columns:
+        return left.copy()
+
+    right_unique = right[
+        [MERGE_KEY, *right_columns]
+    ].copy()
+
     return left.merge(
-        right,
+        right_unique,
         on=MERGE_KEY,
         how="left",
-        suffixes=(
-            "",
-            "_extra",
-        ),
     )
 
 
@@ -65,15 +80,13 @@ def build_intelligence_view() -> pd.DataFrame:
     Build unified NTIS intelligence dataframe.
 
     Sources:
-
         ranking
         probability
         patterns
         outcome
 
     Returns:
-
-        Combined intelligence dataframe
+        Combined intelligence dataframe.
     """
 
     ranking = load_dataset(
@@ -83,9 +96,7 @@ def build_intelligence_view() -> pd.DataFrame:
     if ranking is None:
         return pd.DataFrame()
 
-
     intelligence = ranking.copy()
-
 
     probability = load_dataset(
         "probability"
@@ -98,7 +109,6 @@ def build_intelligence_view() -> pd.DataFrame:
         else pd.DataFrame(),
     )
 
-
     patterns = load_dataset(
         "patterns"
     )
@@ -109,7 +119,6 @@ def build_intelligence_view() -> pd.DataFrame:
         if patterns is not None
         else pd.DataFrame(),
     )
-
 
     outcome = load_dataset(
         "outcome"
@@ -122,53 +131,89 @@ def build_intelligence_view() -> pd.DataFrame:
         else pd.DataFrame(),
     )
 
-
     return intelligence
 
 
 def build_historical_from_runtime() -> dict:
     """
-    Fetch historical intelligence payloads directly from the ProductionRuntime result.
+    Fetch historical intelligence payloads directly from the
+    ProductionRuntime result.
 
-    Returns a dict containing the fields already produced by the runtime
-    (no calculations, no persistence, no transformations).
+    Returns a dict containing the fields already produced by the
+    runtime.
 
-    Fields returned (may be None if unavailable):
-      - repository_summary
-      - historical_intelligence
-      - historical_evidence
-      - historical_service_summary
-      - replay_status
-      - calibration_status
-      - learning_status
+    No calculations, persistence, or transformations are performed.
 
-    This function preserves existing dashboard interfaces and returns
-    raw objects for the presentation layer to render.
+    Fields returned:
+        repository_summary
+        historical_intelligence
+        historical_evidence
+        historical_service_summary
+        replay_status
+        calibration_status
+        learning_status
+        candidate_ranking
     """
 
     try:
-        from similarity_core_clean.integration.production_runtime import ProductionRuntime
+        from similarity_core_clean.integration.production_runtime import (
+            ProductionRuntime,
+        )
 
         runtime = ProductionRuntime()
         collected = runtime.run()
 
-        # Support both {'status':..., 'result': {...}} and direct dict
-        if isinstance(collected, dict) and "result" in collected:
-            payload = collected.get("result") or {}
-        elif isinstance(collected, dict):
+        if (
+            isinstance(collected, dict)
+            and "result" in collected
+        ):
+            payload = (
+                collected.get("result")
+                or {}
+            )
+
+        elif isinstance(
+            collected,
+            dict,
+        ):
             payload = collected
+
         else:
             payload = {}
 
         return {
-            "repository_summary": payload.get("repository_summary"),
-            "historical_intelligence": payload.get("historical_intelligence"),
-            "historical_evidence": payload.get("historical_evidence"),
-            "historical_service_summary": payload.get("historical_service_summary"),
-            "replay_status": payload.get("replay_status"),
-            "calibration_status": payload.get("calibration_status"),
-            "learning_status": payload.get("learning_status"),
-            "candidate_ranking": payload.get("candidate_ranking"),
+            "repository_summary":
+                payload.get(
+                    "repository_summary"
+                ),
+            "historical_intelligence":
+                payload.get(
+                    "historical_intelligence"
+                ),
+            "historical_evidence":
+                payload.get(
+                    "historical_evidence"
+                ),
+            "historical_service_summary":
+                payload.get(
+                    "historical_service_summary"
+                ),
+            "replay_status":
+                payload.get(
+                    "replay_status"
+                ),
+            "calibration_status":
+                payload.get(
+                    "calibration_status"
+                ),
+            "learning_status":
+                payload.get(
+                    "learning_status"
+                ),
+            "candidate_ranking":
+                payload.get(
+                    "candidate_ranking"
+                ),
         }
 
     except Exception:
@@ -180,7 +225,49 @@ def build_historical_from_runtime() -> dict:
             "replay_status": None,
             "calibration_status": None,
             "learning_status": None,
+            "candidate_ranking": None,
         }
+
+
+def _candidate_signal_series(
+    dataframe: pd.DataFrame,
+) -> pd.Series:
+    """
+    Return the signal series used by candidate filters.
+
+    Trade View is preferred because market_overview.py normalizes
+    the signal into this field before calling the candidate filters.
+
+    Signal remains the fallback for callers that invoke these filters
+    before Trade View has been created.
+    """
+
+    if "Trade View" in dataframe.columns:
+        trade_view = (
+            dataframe["Trade View"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+
+        if trade_view.ne("").any():
+            return trade_view
+
+    if "Signal" in dataframe.columns:
+        return (
+            dataframe["Signal"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+
+    return pd.Series(
+        "",
+        index=dataframe.index,
+        dtype="object",
+    )
 
 
 def filter_buy_candidates(
@@ -188,21 +275,23 @@ def filter_buy_candidates(
 ) -> pd.DataFrame:
     """
     Return BUY intelligence candidates.
+
+    Uses the dashboard-normalized Trade View when available,
+    with Signal as the fallback.
     """
 
     if dataframe.empty:
         return dataframe
 
-    if "Signal" not in dataframe.columns:
-        return dataframe.iloc[0:0]
+    signal_series = _candidate_signal_series(
+        dataframe
+    )
 
     return dataframe[
-        dataframe["Signal"]
-        .astype(str)
-        .str.upper()
-        .str.contains(
+        signal_series.str.contains(
             "BUY|BULLISH",
             regex=True,
+            na=False,
         )
     ].copy()
 
@@ -212,20 +301,22 @@ def filter_sell_candidates(
 ) -> pd.DataFrame:
     """
     Return SELL intelligence candidates.
+
+    Uses the dashboard-normalized Trade View when available,
+    with Signal as the fallback.
     """
 
     if dataframe.empty:
         return dataframe
 
-    if "Signal" not in dataframe.columns:
-        return dataframe.iloc[0:0]
+    signal_series = _candidate_signal_series(
+        dataframe
+    )
 
     return dataframe[
-        dataframe["Signal"]
-        .astype(str)
-        .str.upper()
-        .str.contains(
+        signal_series.str.contains(
             "SELL|BEARISH",
             regex=True,
+            na=False,
         )
     ].copy()

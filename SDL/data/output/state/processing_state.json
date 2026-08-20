@@ -8018,11 +8018,1741 @@
         "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-19\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19.xlsx",
         "opening_reference_timestamp": "2026-08-19T09:20:08.642909"
       }
+    },
+    "2026-08-20": {
+      "360ONE": {
+        "open_price": 1190.4,
+        "opening_atm_straddle_pct": 2.78,
+        "opening_straddle_premium": 33.09312,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ABB": {
+        "open_price": 7474.5,
+        "opening_atm_straddle_pct": 2.22,
+        "opening_straddle_premium": 165.93390000000002,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ABCAPITAL": {
+        "open_price": 401.0,
+        "opening_atm_straddle_pct": 2.25,
+        "opening_straddle_premium": 9.0225,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ADANIENSOL": {
+        "open_price": 1559.9,
+        "opening_atm_straddle_pct": 3.29,
+        "opening_straddle_premium": 51.32071,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ADANIENT": {
+        "open_price": 3008.0,
+        "opening_atm_straddle_pct": 2.47,
+        "opening_straddle_premium": 74.2976,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ADANIGREEN": {
+        "open_price": 1299.0,
+        "opening_atm_straddle_pct": 2.9,
+        "opening_straddle_premium": 37.671,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ADANIPORTS": {
+        "open_price": 1684.6,
+        "opening_atm_straddle_pct": 1.96,
+        "opening_straddle_premium": 33.018159999999995,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ADANIPOWER": {
+        "open_price": 205.0,
+        "opening_atm_straddle_pct": 2.52,
+        "opening_straddle_premium": 5.166,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ALKEM": {
+        "open_price": 5401.5,
+        "opening_atm_straddle_pct": 2.17,
+        "opening_straddle_premium": 117.21255,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "AMBER": {
+        "open_price": 7321.0,
+        "opening_atm_straddle_pct": 2.66,
+        "opening_straddle_premium": 194.73860000000002,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "AMBUJACEM": {
+        "open_price": 408.25,
+        "opening_atm_straddle_pct": 2.03,
+        "opening_straddle_premium": 8.287474999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ANGELONE": {
+        "open_price": 290.1,
+        "opening_atm_straddle_pct": 3.13,
+        "opening_straddle_premium": 9.08013,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "APLAPOLLO": {
+        "open_price": 2124.9,
+        "opening_atm_straddle_pct": 3.76,
+        "opening_straddle_premium": 79.89623999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "APOLLOHOSP": {
+        "open_price": 8799.5,
+        "opening_atm_straddle_pct": 1.52,
+        "opening_straddle_premium": 133.7524,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ASHOKLEY": {
+        "open_price": 174.8,
+        "opening_atm_straddle_pct": 2.31,
+        "opening_straddle_premium": 4.03788,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ASIANPAINT": {
+        "open_price": 2640.0,
+        "opening_atm_straddle_pct": 1.91,
+        "opening_straddle_premium": 50.424,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ASTRAL": {
+        "open_price": 1545.7,
+        "opening_atm_straddle_pct": 2.12,
+        "opening_straddle_premium": 32.768840000000004,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "AUBANK": {
+        "open_price": 1074.1,
+        "opening_atm_straddle_pct": 2.31,
+        "opening_straddle_premium": 24.811709999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "AUROPHARMA": {
+        "open_price": 1629.0,
+        "opening_atm_straddle_pct": 2.69,
+        "opening_straddle_premium": 43.820100000000004,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "AXISBANK": {
+        "open_price": 1240.4,
+        "opening_atm_straddle_pct": 1.67,
+        "opening_straddle_premium": 20.714679999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BAJAJ-AUTO": {
+        "open_price": 11700.0,
+        "opening_atm_straddle_pct": 1.84,
+        "opening_straddle_premium": 215.28,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BAJAJFINSV": {
+        "open_price": 2010.6,
+        "opening_atm_straddle_pct": 1.9,
+        "opening_straddle_premium": 38.2014,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BAJAJHLDNG": {
+        "open_price": 11476.0,
+        "opening_atm_straddle_pct": 2.36,
+        "opening_straddle_premium": 270.8336,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BAJFINANCE": {
+        "open_price": 1086.0,
+        "opening_atm_straddle_pct": 2.15,
+        "opening_straddle_premium": 23.349,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BANDHANBNK": {
+        "open_price": 170.64,
+        "opening_atm_straddle_pct": 2.82,
+        "opening_straddle_premium": 4.812047999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BANKBARODA": {
+        "open_price": 246.5,
+        "opening_atm_straddle_pct": 2.08,
+        "opening_straddle_premium": 5.1272,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BANKEX": {
+        "open_price": 65066.75,
+        "opening_atm_straddle_pct": 1.36,
+        "opening_straddle_premium": 884.9078000000002,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BANKINDIA": {
+        "open_price": 142.9,
+        "opening_atm_straddle_pct": 2.96,
+        "opening_straddle_premium": 4.22984,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BANKNIFTY": {
+        "open_price": 57588.2,
+        "opening_atm_straddle_pct": 1.03,
+        "opening_straddle_premium": 593.15846,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BDL": {
+        "open_price": 1353.9,
+        "opening_atm_straddle_pct": 2.91,
+        "opening_straddle_premium": 39.39849000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BEL": {
+        "open_price": 411.0,
+        "opening_atm_straddle_pct": 1.89,
+        "opening_straddle_premium": 7.7679,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BHARATFORG": {
+        "open_price": 2072.1,
+        "opening_atm_straddle_pct": 2.18,
+        "opening_straddle_premium": 45.17178,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BHARTIARTL": {
+        "open_price": 1943.8,
+        "opening_atm_straddle_pct": 1.49,
+        "opening_straddle_premium": 28.962619999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BHEL": {
+        "open_price": 422.0,
+        "opening_atm_straddle_pct": 2.86,
+        "opening_straddle_premium": 12.069199999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BIOCON": {
+        "open_price": 415.85,
+        "opening_atm_straddle_pct": 2.08,
+        "opening_straddle_premium": 8.64968,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BLUESTARCO": {
+        "open_price": 1502.4,
+        "opening_atm_straddle_pct": 2.51,
+        "opening_straddle_premium": 37.71024,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BOSCHLTD": {
+        "open_price": 48580.0,
+        "opening_atm_straddle_pct": 2.0,
+        "opening_straddle_premium": 971.6,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BPCL": {
+        "open_price": 307.3,
+        "opening_atm_straddle_pct": 2.28,
+        "opening_straddle_premium": 7.0064400000000004,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BRITANNIA": {
+        "open_price": 5474.5,
+        "opening_atm_straddle_pct": 1.95,
+        "opening_straddle_premium": 106.75274999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "BSE": {
+        "open_price": 3377.0,
+        "opening_atm_straddle_pct": 2.93,
+        "opening_straddle_premium": 98.9461,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "CAMS": {
+        "open_price": 758.0,
+        "opening_atm_straddle_pct": 2.16,
+        "opening_straddle_premium": 16.3728,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "CANBK": {
+        "open_price": 129.21,
+        "opening_atm_straddle_pct": 2.4,
+        "opening_straddle_premium": 3.10104,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "CDSL": {
+        "open_price": 1329.9,
+        "opening_atm_straddle_pct": 2.54,
+        "opening_straddle_premium": 33.77946,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "CGPOWER": {
+        "open_price": 873.0,
+        "opening_atm_straddle_pct": 2.55,
+        "opening_straddle_premium": 22.261499999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "CHOLAFIN": {
+        "open_price": 1888.8,
+        "opening_atm_straddle_pct": 2.51,
+        "opening_straddle_premium": 47.408879999999996,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "CIPLA": {
+        "open_price": 1429.0,
+        "opening_atm_straddle_pct": 2.22,
+        "opening_straddle_premium": 31.7238,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "COALINDIA": {
+        "open_price": 400.15,
+        "opening_atm_straddle_pct": 1.91,
+        "opening_straddle_premium": 7.642865,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "COCHINSHIP": {
+        "open_price": 1498.8,
+        "opening_atm_straddle_pct": 2.45,
+        "opening_straddle_premium": 36.7206,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "COFORGE": {
+        "open_price": 1841.9,
+        "opening_atm_straddle_pct": 2.44,
+        "opening_straddle_premium": 44.94236,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "COLPAL": {
+        "open_price": 1880.0,
+        "opening_atm_straddle_pct": 2.0,
+        "opening_straddle_premium": 37.6,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "CONCOR": {
+        "open_price": 518.75,
+        "opening_atm_straddle_pct": 1.94,
+        "opening_straddle_premium": 10.06375,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "CROMPTON": {
+        "open_price": 247.0,
+        "opening_atm_straddle_pct": 2.87,
+        "opening_straddle_premium": 7.0889,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "CUMMINSIND": {
+        "open_price": 5270.0,
+        "opening_atm_straddle_pct": 2.35,
+        "opening_straddle_premium": 123.845,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "DABUR": {
+        "open_price": 399.9,
+        "opening_atm_straddle_pct": 1.73,
+        "opening_straddle_premium": 6.91827,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "DALBHARAT": {
+        "open_price": 1873.9,
+        "opening_atm_straddle_pct": 3.14,
+        "opening_straddle_premium": 58.84046,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "DELHIVERY": {
+        "open_price": 453.9,
+        "opening_atm_straddle_pct": 2.06,
+        "opening_straddle_premium": 9.35034,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "DIVISLAB": {
+        "open_price": 8575.0,
+        "opening_atm_straddle_pct": 2.04,
+        "opening_straddle_premium": 174.93,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "DIXON": {
+        "open_price": 14566.0,
+        "opening_atm_straddle_pct": 2.98,
+        "opening_straddle_premium": 434.0668,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "DLF": {
+        "open_price": 672.0,
+        "opening_atm_straddle_pct": 2.58,
+        "opening_straddle_premium": 17.3376,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "DMART": {
+        "open_price": 3963.3,
+        "opening_atm_straddle_pct": 2.18,
+        "opening_straddle_premium": 86.39994,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "DRREDDY": {
+        "open_price": 1177.3,
+        "opening_atm_straddle_pct": 1.84,
+        "opening_straddle_premium": 21.66232,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "EICHERMOT": {
+        "open_price": 8014.0,
+        "opening_atm_straddle_pct": 1.6,
+        "opening_straddle_premium": 128.22400000000002,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ETERNAL": {
+        "open_price": 322.0,
+        "opening_atm_straddle_pct": 2.49,
+        "opening_straddle_premium": 8.017800000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "FEDERALBNK": {
+        "open_price": 361.2,
+        "opening_atm_straddle_pct": 1.91,
+        "opening_straddle_premium": 6.8989199999999995,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "FINNIFTY": {
+        "open_price": 26190.0,
+        "opening_atm_straddle_pct": 1.07,
+        "opening_straddle_premium": 280.233,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "FOCIT": {
+        "open_price": 36896.0,
+        "opening_atm_straddle_pct": 2.37,
+        "opening_straddle_premium": 874.4352,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "FORCEMOT": {
+        "open_price": 17813.0,
+        "opening_atm_straddle_pct": 2.99,
+        "opening_straddle_premium": 532.6087,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "FORTIS": {
+        "open_price": 913.95,
+        "opening_atm_straddle_pct": 2.77,
+        "opening_straddle_premium": 25.316415000000003,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "GAIL": {
+        "open_price": 172.29,
+        "opening_atm_straddle_pct": 1.97,
+        "opening_straddle_premium": 3.394113,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "GLENMARK": {
+        "open_price": 2280.0,
+        "opening_atm_straddle_pct": 2.31,
+        "opening_straddle_premium": 52.668,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "GMRAIRPORT": {
+        "open_price": 103.09,
+        "opening_atm_straddle_pct": 2.76,
+        "opening_straddle_premium": 2.845284,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "GODFRYPHLP": {
+        "open_price": 2111.8,
+        "opening_atm_straddle_pct": 3.04,
+        "opening_straddle_premium": 64.19872000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "GODREJCP": {
+        "open_price": 936.0,
+        "opening_atm_straddle_pct": 2.04,
+        "opening_straddle_premium": 19.0944,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "GODREJPROP": {
+        "open_price": 2013.7,
+        "opening_atm_straddle_pct": 3.15,
+        "opening_straddle_premium": 63.431549999999994,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "GRASIM": {
+        "open_price": 3266.1,
+        "opening_atm_straddle_pct": 1.86,
+        "opening_straddle_premium": 60.74946,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "GVT&D": {
+        "open_price": 4159.4,
+        "opening_atm_straddle_pct": 3.0,
+        "opening_straddle_premium": 124.78199999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HAL": {
+        "open_price": 5048.0,
+        "opening_atm_straddle_pct": 2.23,
+        "opening_straddle_premium": 112.57039999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HAVELLS": {
+        "open_price": 1276.0,
+        "opening_atm_straddle_pct": 2.1,
+        "opening_straddle_premium": 26.796,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HCLTECH": {
+        "open_price": 1341.7,
+        "opening_atm_straddle_pct": 2.37,
+        "opening_straddle_premium": 31.79829,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HDFCAMC": {
+        "open_price": 2559.9,
+        "opening_atm_straddle_pct": 2.33,
+        "opening_straddle_premium": 59.64567,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HDFCBANK": {
+        "open_price": 726.0,
+        "opening_atm_straddle_pct": 1.66,
+        "opening_straddle_premium": 12.051599999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HDFCLIFE": {
+        "open_price": 538.6,
+        "opening_atm_straddle_pct": 1.91,
+        "opening_straddle_premium": 10.287260000000002,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HEROMOTOCO": {
+        "open_price": 5735.0,
+        "opening_atm_straddle_pct": 2.0,
+        "opening_straddle_premium": 114.7,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HINDALCO": {
+        "open_price": 1042.0,
+        "opening_atm_straddle_pct": 2.09,
+        "opening_straddle_premium": 21.7778,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HINDPETRO": {
+        "open_price": 367.9,
+        "opening_atm_straddle_pct": 2.54,
+        "opening_straddle_premium": 9.34466,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HINDUNILVR": {
+        "open_price": 2021.0,
+        "opening_atm_straddle_pct": 1.59,
+        "opening_straddle_premium": 32.133900000000004,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HINDZINC": {
+        "open_price": 571.45,
+        "opening_atm_straddle_pct": 3.12,
+        "opening_straddle_premium": 17.829240000000002,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "HYUNDAI": {
+        "open_price": 2191.0,
+        "opening_atm_straddle_pct": 2.48,
+        "opening_straddle_premium": 54.336800000000004,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ICICIBANK": {
+        "open_price": 1411.0,
+        "opening_atm_straddle_pct": 1.43,
+        "opening_straddle_premium": 20.1773,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ICICIGI": {
+        "open_price": 1620.7,
+        "opening_atm_straddle_pct": 2.12,
+        "opening_straddle_premium": 34.35884000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ICICIPRULI": {
+        "open_price": 502.7,
+        "opening_atm_straddle_pct": 2.33,
+        "opening_straddle_premium": 11.712909999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "IDEA": {
+        "open_price": 14.16,
+        "opening_atm_straddle_pct": 2.69,
+        "opening_straddle_premium": 0.380904,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "IDFCFIRSTB": {
+        "open_price": 86.19,
+        "opening_atm_straddle_pct": 1.98,
+        "opening_straddle_premium": 1.706562,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "IEX": {
+        "open_price": 123.2,
+        "opening_atm_straddle_pct": 2.39,
+        "opening_straddle_premium": 2.9444800000000004,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "INDHOTEL": {
+        "open_price": 727.1,
+        "opening_atm_straddle_pct": 2.27,
+        "opening_straddle_premium": 16.50517,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "INDIANB": {
+        "open_price": 874.8,
+        "opening_atm_straddle_pct": 2.58,
+        "opening_straddle_premium": 22.56984,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "INDIGO": {
+        "open_price": 5260.0,
+        "opening_atm_straddle_pct": 2.17,
+        "opening_straddle_premium": 114.142,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "INDUSINDBK": {
+        "open_price": 1002.0,
+        "opening_atm_straddle_pct": 2.09,
+        "opening_straddle_premium": 20.941799999999997,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "INDUSTOWER": {
+        "open_price": 373.85,
+        "opening_atm_straddle_pct": 2.69,
+        "opening_straddle_premium": 10.056565,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "INFY": {
+        "open_price": 1143.0,
+        "opening_atm_straddle_pct": 2.1,
+        "opening_straddle_premium": 24.003,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "INOXWIND": {
+        "open_price": 74.49,
+        "opening_atm_straddle_pct": 3.67,
+        "opening_straddle_premium": 2.733783,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "IOC": {
+        "open_price": 137.0,
+        "opening_atm_straddle_pct": 2.09,
+        "opening_straddle_premium": 2.8632999999999997,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "IREDA": {
+        "open_price": 113.98,
+        "opening_atm_straddle_pct": 2.55,
+        "opening_straddle_premium": 2.90649,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "IRFC": {
+        "open_price": 85.0,
+        "opening_atm_straddle_pct": 2.37,
+        "opening_straddle_premium": 2.0145,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ITC": {
+        "open_price": 267.5,
+        "opening_atm_straddle_pct": 1.76,
+        "opening_straddle_premium": 4.708,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "JINDALSTEL": {
+        "open_price": 1123.9,
+        "opening_atm_straddle_pct": 2.01,
+        "opening_straddle_premium": 22.59039,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "JIOFIN": {
+        "open_price": 243.95,
+        "opening_atm_straddle_pct": 2.35,
+        "opening_straddle_premium": 5.732825,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "JSWENERGY": {
+        "open_price": 546.0,
+        "opening_atm_straddle_pct": 2.12,
+        "opening_straddle_premium": 11.5752,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "JSWSTEEL": {
+        "open_price": 1290.0,
+        "opening_atm_straddle_pct": 2.11,
+        "opening_straddle_premium": 27.218999999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "JUBLFOOD": {
+        "open_price": 503.15,
+        "opening_atm_straddle_pct": 2.44,
+        "opening_straddle_premium": 12.27686,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "KALYANKJIL": {
+        "open_price": 599.1,
+        "opening_atm_straddle_pct": 3.58,
+        "opening_straddle_premium": 21.44778,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "KAYNES": {
+        "open_price": 3849.9,
+        "opening_atm_straddle_pct": 3.84,
+        "opening_straddle_premium": 147.83616,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "KEI": {
+        "open_price": 5716.7,
+        "opening_atm_straddle_pct": 2.37,
+        "opening_straddle_premium": 135.48579,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "KFINTECH": {
+        "open_price": 950.0,
+        "opening_atm_straddle_pct": 3.1,
+        "opening_straddle_premium": 29.45,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "KOTAKBANK": {
+        "open_price": 394.0,
+        "opening_atm_straddle_pct": 1.59,
+        "opening_straddle_premium": 6.264600000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "KPITTECH": {
+        "open_price": 593.8,
+        "opening_atm_straddle_pct": 3.1,
+        "opening_straddle_premium": 18.407799999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "LAURUSLABS": {
+        "open_price": 1810.0,
+        "opening_atm_straddle_pct": 2.03,
+        "opening_straddle_premium": 36.742999999999995,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "LICHSGFIN": {
+        "open_price": 490.7,
+        "opening_atm_straddle_pct": 1.7,
+        "opening_straddle_premium": 8.341899999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "LICI": {
+        "open_price": 416.45,
+        "opening_atm_straddle_pct": 2.44,
+        "opening_straddle_premium": 10.16138,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "LODHA": {
+        "open_price": 1219.0,
+        "opening_atm_straddle_pct": 2.88,
+        "opening_straddle_premium": 35.1072,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "LT": {
+        "open_price": 4051.1,
+        "opening_atm_straddle_pct": 1.56,
+        "opening_straddle_premium": 63.197160000000004,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "LTF": {
+        "open_price": 318.4,
+        "opening_atm_straddle_pct": 2.85,
+        "opening_straddle_premium": 9.074399999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "LTM": {
+        "open_price": 4551.0,
+        "opening_atm_straddle_pct": 3.12,
+        "opening_straddle_premium": 141.99120000000002,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "LUPIN": {
+        "open_price": 2238.3,
+        "opening_atm_straddle_pct": 1.61,
+        "opening_straddle_premium": 36.03663,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "M&M": {
+        "open_price": 3433.0,
+        "opening_atm_straddle_pct": 1.81,
+        "opening_straddle_premium": 62.1373,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MANAPPURAM": {
+        "open_price": 347.0,
+        "opening_atm_straddle_pct": 5.48,
+        "opening_straddle_premium": 19.015600000000003,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MANKIND": {
+        "open_price": 2397.2,
+        "opening_atm_straddle_pct": 2.23,
+        "opening_straddle_premium": 53.457559999999994,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MARICO": {
+        "open_price": 854.0,
+        "opening_atm_straddle_pct": 1.71,
+        "opening_straddle_premium": 14.603399999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MARUTI": {
+        "open_price": 13748.0,
+        "opening_atm_straddle_pct": 1.78,
+        "opening_straddle_premium": 244.71439999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MAXHEALTH": {
+        "open_price": 998.0,
+        "opening_atm_straddle_pct": 2.32,
+        "opening_straddle_premium": 23.153599999999997,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MAZDOCK": {
+        "open_price": 2566.2,
+        "opening_atm_straddle_pct": 2.77,
+        "opening_straddle_premium": 71.08373999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MCX": {
+        "open_price": 3015.0,
+        "opening_atm_straddle_pct": 3.2,
+        "opening_straddle_premium": 96.48,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MFSL": {
+        "open_price": 1561.8,
+        "opening_atm_straddle_pct": 2.25,
+        "opening_straddle_premium": 35.140499999999996,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MIDCPNIFTY": {
+        "open_price": 14900.0,
+        "opening_atm_straddle_pct": 1.04,
+        "opening_straddle_premium": 154.96,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MOTHERSON": {
+        "open_price": 172.0,
+        "opening_atm_straddle_pct": 2.36,
+        "opening_straddle_premium": 4.0592,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MOTILALOFS": {
+        "open_price": 952.9,
+        "opening_atm_straddle_pct": 2.46,
+        "opening_straddle_premium": 23.44134,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MPHASIS": {
+        "open_price": 2449.0,
+        "opening_atm_straddle_pct": 2.82,
+        "opening_straddle_premium": 69.06179999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "MUTHOOTFIN": {
+        "open_price": 2910.0,
+        "opening_atm_straddle_pct": 2.87,
+        "opening_straddle_premium": 83.51700000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NAM-INDIA": {
+        "open_price": 1229.5,
+        "opening_atm_straddle_pct": 2.84,
+        "opening_straddle_premium": 34.9178,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NATIONALUM": {
+        "open_price": 391.0,
+        "opening_atm_straddle_pct": 3.35,
+        "opening_straddle_premium": 13.098500000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NAUKRI": {
+        "open_price": 1382.0,
+        "opening_atm_straddle_pct": 2.59,
+        "opening_straddle_premium": 35.7938,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NBCC": {
+        "open_price": 87.99,
+        "opening_atm_straddle_pct": 2.48,
+        "opening_straddle_premium": 2.182152,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NESTLEIND": {
+        "open_price": 1480.0,
+        "opening_atm_straddle_pct": 1.92,
+        "opening_straddle_premium": 28.416,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NHPC": {
+        "open_price": 76.93,
+        "opening_atm_straddle_pct": 2.06,
+        "opening_straddle_premium": 1.5847580000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NIFTY": {
+        "open_price": 24236.1,
+        "opening_atm_straddle_pct": 0.83,
+        "opening_straddle_premium": 201.15962999999996,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NIFTYNXT50": {
+        "open_price": 74135.6,
+        "opening_atm_straddle_pct": 1.72,
+        "opening_straddle_premium": 1275.13232,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NMDC": {
+        "open_price": 84.0,
+        "opening_atm_straddle_pct": 2.43,
+        "opening_straddle_premium": 2.0412,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NTPC": {
+        "open_price": 336.5,
+        "opening_atm_straddle_pct": 1.92,
+        "opening_straddle_premium": 6.460799999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "NYKAA": {
+        "open_price": 329.0,
+        "opening_atm_straddle_pct": 2.37,
+        "opening_straddle_premium": 7.7973,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "OBEROIRLTY": {
+        "open_price": 1875.3,
+        "opening_atm_straddle_pct": 2.73,
+        "opening_straddle_premium": 51.19568999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "OFSS": {
+        "open_price": 11760.0,
+        "opening_atm_straddle_pct": 3.13,
+        "opening_straddle_premium": 368.08799999999997,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "OIL": {
+        "open_price": 477.1,
+        "opening_atm_straddle_pct": 2.59,
+        "opening_straddle_premium": 12.35689,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ONGC": {
+        "open_price": 238.8,
+        "opening_atm_straddle_pct": 1.99,
+        "opening_straddle_premium": 4.752120000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PAGEIND": {
+        "open_price": 35705.0,
+        "opening_atm_straddle_pct": 2.47,
+        "opening_straddle_premium": 881.9135000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PATANJALI": {
+        "open_price": 350.85,
+        "opening_atm_straddle_pct": 2.88,
+        "opening_straddle_premium": 10.10448,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PAYTM": {
+        "open_price": 1599.0,
+        "opening_atm_straddle_pct": 2.63,
+        "opening_straddle_premium": 42.0537,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PERSISTENT": {
+        "open_price": 5600.0,
+        "opening_atm_straddle_pct": 2.67,
+        "opening_straddle_premium": 149.52,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PETRONET": {
+        "open_price": 288.0,
+        "opening_atm_straddle_pct": 2.08,
+        "opening_straddle_premium": 5.990399999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PFC": {
+        "open_price": 372.5,
+        "opening_atm_straddle_pct": 1.96,
+        "opening_straddle_premium": 7.301,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PGEL": {
+        "open_price": 608.0,
+        "opening_atm_straddle_pct": 3.05,
+        "opening_straddle_premium": 18.543999999999997,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PHOENIXLTD": {
+        "open_price": 1912.8,
+        "opening_atm_straddle_pct": 2.42,
+        "opening_straddle_premium": 46.289759999999994,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PIDILITIND": {
+        "open_price": 1660.0,
+        "opening_atm_straddle_pct": 1.61,
+        "opening_straddle_premium": 26.726000000000003,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PIIND": {
+        "open_price": 2520.4,
+        "opening_atm_straddle_pct": 2.33,
+        "opening_straddle_premium": 58.72532,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PNB": {
+        "open_price": 118.0,
+        "opening_atm_straddle_pct": 2.28,
+        "opening_straddle_premium": 2.6903999999999995,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PNBHOUSING": {
+        "open_price": 1188.0,
+        "opening_atm_straddle_pct": 2.69,
+        "opening_straddle_premium": 31.957199999999997,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "POLICYBZR": {
+        "open_price": 1787.2,
+        "opening_atm_straddle_pct": 2.69,
+        "opening_straddle_premium": 48.075680000000006,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "POLYCAB": {
+        "open_price": 9136.0,
+        "opening_atm_straddle_pct": 2.28,
+        "opening_straddle_premium": 208.30079999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "POWERGRID": {
+        "open_price": 263.4,
+        "opening_atm_straddle_pct": 1.76,
+        "opening_straddle_premium": 4.635839999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "POWERINDIA": {
+        "open_price": 34100.0,
+        "opening_atm_straddle_pct": 2.79,
+        "opening_straddle_premium": 951.39,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PREMIERENE": {
+        "open_price": 1010.0,
+        "opening_atm_straddle_pct": 2.54,
+        "opening_straddle_premium": 25.654,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "PRESTIGE": {
+        "open_price": 1582.8,
+        "opening_atm_straddle_pct": 2.87,
+        "opening_straddle_premium": 45.42636,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "RADICO": {
+        "open_price": 4725.0,
+        "opening_atm_straddle_pct": 2.37,
+        "opening_straddle_premium": 111.9825,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "RBLBANK": {
+        "open_price": 382.5,
+        "opening_atm_straddle_pct": 2.79,
+        "opening_straddle_premium": 10.67175,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "RECLTD": {
+        "open_price": 334.0,
+        "opening_atm_straddle_pct": 2.02,
+        "opening_straddle_premium": 6.7467999999999995,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "RELIANCE": {
+        "open_price": 1313.1,
+        "opening_atm_straddle_pct": 1.42,
+        "opening_straddle_premium": 18.64602,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "RVNL": {
+        "open_price": 225.1,
+        "opening_atm_straddle_pct": 2.44,
+        "opening_straddle_premium": 5.49244,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SAIL": {
+        "open_price": 174.02,
+        "opening_atm_straddle_pct": 2.05,
+        "opening_straddle_premium": 3.5674099999999997,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SBICARD": {
+        "open_price": 630.0,
+        "opening_atm_straddle_pct": 2.42,
+        "opening_straddle_premium": 15.245999999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SBILIFE": {
+        "open_price": 1790.0,
+        "opening_atm_straddle_pct": 1.85,
+        "opening_straddle_premium": 33.115,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SBIN": {
+        "open_price": 1051.0,
+        "opening_atm_straddle_pct": 1.93,
+        "opening_straddle_premium": 20.284299999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SENSEX": {
+        "open_price": 77410.05,
+        "opening_atm_straddle_pct": 0.33,
+        "opening_straddle_premium": 255.453165,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SHREECEM": {
+        "open_price": 24300.0,
+        "opening_atm_straddle_pct": 2.6,
+        "opening_straddle_premium": 631.8,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SHRIRAMFIN": {
+        "open_price": 1116.0,
+        "opening_atm_straddle_pct": 2.58,
+        "opening_straddle_premium": 28.792800000000003,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SIEMENS": {
+        "open_price": 3895.0,
+        "opening_atm_straddle_pct": 2.52,
+        "opening_straddle_premium": 98.154,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SOLARINDS": {
+        "open_price": 19504.0,
+        "opening_atm_straddle_pct": 2.89,
+        "opening_straddle_premium": 563.6656,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SONACOMS": {
+        "open_price": 831.95,
+        "opening_atm_straddle_pct": 2.55,
+        "opening_straddle_premium": 21.214724999999998,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SRF": {
+        "open_price": 2595.0,
+        "opening_atm_straddle_pct": 1.87,
+        "opening_straddle_premium": 48.526500000000006,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SUNPHARMA": {
+        "open_price": 1900.0,
+        "opening_atm_straddle_pct": 1.66,
+        "opening_straddle_premium": 31.54,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SUPREMEIND": {
+        "open_price": 3622.1,
+        "opening_atm_straddle_pct": 1.97,
+        "opening_straddle_premium": 71.35537,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SUZLON": {
+        "open_price": 47.08,
+        "opening_atm_straddle_pct": 2.8,
+        "opening_straddle_premium": 1.3182399999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "SWIGGY": {
+        "open_price": 276.75,
+        "opening_atm_straddle_pct": 3.46,
+        "opening_straddle_premium": 9.57555,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TATACONSUM": {
+        "open_price": 1075.5,
+        "opening_atm_straddle_pct": 1.86,
+        "opening_straddle_premium": 20.0043,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TATAELXSI": {
+        "open_price": 3695.0,
+        "opening_atm_straddle_pct": 2.7,
+        "opening_straddle_premium": 99.765,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TATAPOWER": {
+        "open_price": 378.55,
+        "opening_atm_straddle_pct": 1.78,
+        "opening_straddle_premium": 6.73819,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TATASTEEL": {
+        "open_price": 185.0,
+        "opening_atm_straddle_pct": 2.2,
+        "opening_straddle_premium": 4.07,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TCS": {
+        "open_price": 2320.0,
+        "opening_atm_straddle_pct": 2.16,
+        "opening_straddle_premium": 50.11200000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TECHM": {
+        "open_price": 1603.3,
+        "opening_atm_straddle_pct": 2.06,
+        "opening_straddle_premium": 33.02798,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TIINDIA": {
+        "open_price": 2949.9,
+        "opening_atm_straddle_pct": 3.23,
+        "opening_straddle_premium": 95.28177,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TITAN": {
+        "open_price": 5070.1,
+        "opening_atm_straddle_pct": 1.48,
+        "opening_straddle_premium": 75.03748,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TMPV": {
+        "open_price": 323.55,
+        "opening_atm_straddle_pct": 2.12,
+        "opening_straddle_premium": 6.859260000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TORNTPHARM": {
+        "open_price": 5039.0,
+        "opening_atm_straddle_pct": 2.04,
+        "opening_straddle_premium": 102.7956,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TRENT": {
+        "open_price": 2951.0,
+        "opening_atm_straddle_pct": 2.2,
+        "opening_straddle_premium": 64.92200000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "TVSMOTOR": {
+        "open_price": 4378.0,
+        "opening_atm_straddle_pct": 1.88,
+        "opening_straddle_premium": 82.3064,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ULTRACEMCO": {
+        "open_price": 11520.0,
+        "opening_atm_straddle_pct": 1.6,
+        "opening_straddle_premium": 184.32,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "UNIONBANK": {
+        "open_price": 188.5,
+        "opening_atm_straddle_pct": 2.88,
+        "opening_straddle_premium": 5.4288,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "UNITDSPR": {
+        "open_price": 1514.0,
+        "opening_atm_straddle_pct": 2.01,
+        "opening_straddle_premium": 30.4314,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "UNOMINDA": {
+        "open_price": 0.0,
+        "opening_atm_straddle_pct": 2.6,
+        "opening_straddle_premium": 0.0,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "UPL": {
+        "open_price": 569.85,
+        "opening_atm_straddle_pct": 2.18,
+        "opening_straddle_premium": 12.422730000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "VBL": {
+        "open_price": 438.5,
+        "opening_atm_straddle_pct": 2.0,
+        "opening_straddle_premium": 8.77,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "VEDL": {
+        "open_price": 266.0,
+        "opening_atm_straddle_pct": 2.88,
+        "opening_straddle_premium": 7.660799999999999,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "VMM": {
+        "open_price": 103.49,
+        "opening_atm_straddle_pct": 3.69,
+        "opening_straddle_premium": 3.8187809999999995,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "VOLTAS": {
+        "open_price": 1225.0,
+        "opening_atm_straddle_pct": 2.61,
+        "opening_straddle_premium": 31.9725,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "WAAREEENER": {
+        "open_price": 2687.9,
+        "opening_atm_straddle_pct": 2.3,
+        "opening_straddle_premium": 61.8217,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "WIPRO": {
+        "open_price": 181.58,
+        "opening_atm_straddle_pct": 2.26,
+        "opening_straddle_premium": 4.103708,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "YESBANK": {
+        "open_price": 22.76,
+        "opening_atm_straddle_pct": 2.46,
+        "opening_straddle_premium": 0.5598960000000001,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      },
+      "ZYDUSLIFE": {
+        "open_price": 1116.0,
+        "opening_atm_straddle_pct": 2.2,
+        "opening_straddle_premium": 24.552000000000003,
+        "opening_straddle_source": "open_x_atm_straddle_pct",
+        "opening_reference_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20.xlsx",
+        "opening_reference_timestamp": "2026-08-20T09:20:09.579250"
+      }
     }
   },
-  "last_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-19\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-19_131206.xlsx",
-  "last_observation_timestamp": "2026-08-19T13:12:07.298214",
-  "last_event_count": 1,
+  "last_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-20_095611.xlsx",
+  "last_observation_timestamp": "2026-08-20T09:56:11.955507",
+  "last_event_count": 2,
   "strategy_version": "SDL-P1-Standard-Straddle-v1.0",
   "breakout_rule": "current_price > open + frozen_opening_straddle OR current_price < open - frozen_opening_straddle",
   "opening_straddle_formula": "first_snapshot_open_x_atm_straddle_pct",

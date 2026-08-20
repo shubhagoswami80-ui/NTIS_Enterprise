@@ -1,6 +1,6 @@
 {
-  "start_time": "09:25",
-  "stop_time": "18:30",
+  "start_time": "09:20",
+  "stop_time": "14:45",
   "jobs": [
     {
       "id": "daywise_price_oi",
@@ -13,10 +13,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "E:\\testreports",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": false
+      "enabled": true
     },
     {
       "id": "report_1786791134",
@@ -29,10 +29,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "E:\\testreports",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": false
+      "enabled": true
     },
     {
       "id": "report_1786791316",
@@ -45,10 +45,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 15,
-      "destination": "E:\\testreports",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": false
+      "enabled": true
     },
     {
       "id": "report_1786791380",
@@ -61,10 +61,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "E:\\testreports",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": false
+      "enabled": true
     },
     {
       "id": "report_1786791444",
@@ -77,23 +77,23 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "E:\\testreports",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": false
+      "enabled": true
     },
     {
       "id": "report_1786791524",
       "name": " Futures Scrips Near Max OI Strike-Resistence",
       "url": "https://www.icharts.in/opt/SupportResistanceScan.php",
       "action": "radio_submit",
-      "selection": "Resistence",
+      "selection": "Resistance",
       "selection_selector": "",
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "E:\\testreports",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-20",
       "filename_suffix": "",
       "filename_rule": "replace_leading_support_with_resistance",
       "enabled": true

@@ -1,15 +1,18 @@
 """
 NTIS EOD Dashboard Sidebar Component
 
-Presentation Layer Only
+Presentation/navigation layer only.
 """
 
 from __future__ import annotations
 
 import streamlit as st
 
+from EOD_Dashboard.data.data_loader import clear_cache
+
 
 MENU_ITEMS = (
+    "Predictive Outlook",
     "Dashboard",
     "Market Overview",
     "BUY Opportunities",
@@ -32,28 +35,8 @@ REFRESH_INTERVALS = (
 
 
 def render_sidebar() -> dict:
-    """
-    Render dashboard sidebar.
-
-    Returns
-    -------
-    dict
-        {
-            "page": str,
-            "auto_refresh": bool,
-            "refresh_interval": str
-        }
-
-    Notes
-    -----
-    UI only.
-    No business logic should be implemented here.
-    """
-
     with st.sidebar:
-
         st.title("NTIS EOD")
-
         st.divider()
 
         selected_page = st.radio(
@@ -63,6 +46,10 @@ def render_sidebar() -> dict:
         )
 
         st.divider()
+
+        if st.button("Refresh Prediction Data", use_container_width=True):
+            clear_cache()
+            st.rerun()
 
         auto_refresh = st.checkbox(
             label="Auto Refresh",
@@ -77,7 +64,6 @@ def render_sidebar() -> dict:
         )
 
         st.divider()
-
         st.caption("Dashboard Status")
         st.success("Connected")
 
