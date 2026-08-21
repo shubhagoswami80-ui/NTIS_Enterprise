@@ -9,7 +9,7 @@ import streamlit as st
 
 from config import INTRADAY_SOURCE_ROOT
 STATE_JSON = Path(__file__).resolve().parent / "data" / "output" / "state" / "processing_state.json"
-from derivative_signal.source_loader import discover_daywise_files, parse_observation_timestamp, read_source
+from source_loader import discover_daywise_files, parse_observation_timestamp, read_source
 from storage import load_state, save_state
 from derivative_signal.signal_engine import build_signal
 from decision_evidence import merge_evidence, enrich_decision
@@ -108,25 +108,7 @@ def process_selected_source(path: Path, trading_date: str) -> pd.DataFrame:
     state = load_state(STATE_JSON)
     result = _process_snapshot(path, trading_date, _previous(state, trading_date), _first_range_from_path(path, trading_date))
     day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
-    # Keep raw previous_snapshot for the next signal calculation.
-    # Persist the enriched decision separately so qualified/developing
-    # candidates are never lost between processing and dashboard rendering.
-    decision_rows = result.to_dict(orient="records") if not result.empty else []
-    candidate_rows = [
-        row for row in decision_rows
-        if str(row.get("decision_state", "")).upper() in QUALIFIED_STATES
-    ]
     day["previous_snapshot"] = _snapshot_rows(_read(path))
-    day["decision_snapshot"] = {
-        str(row.get("symbol", "")).upper(): row
-        for row in decision_rows
-        if str(row.get("symbol", "")).strip()
-    }
-    day["candidate_snapshot"] = {
-        str(row.get("symbol", "")).upper(): row
-        for row in candidate_rows
-        if str(row.get("symbol", "")).strip()
-    }
     day["source_file"] = str(path)
     day["processed_at"] = datetime.now().isoformat()
     save_state(state, STATE_JSON)
@@ -162,25 +144,7 @@ def process_all_sources(paths: list[Path], trading_date: str) -> tuple[pd.DataFr
         previous = _snapshot_rows(_read(path))
         latest_result = result
     day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
-    # previous_snapshot remains the raw calculation state.
-    # decision_snapshot carries the complete enriched decision layer.
-    # candidate_snapshot carries every developing/qualified candidate.
-    decision_rows = latest_result.to_dict(orient="records") if not latest_result.empty else []
-    candidate_rows = [
-        row for row in decision_rows
-        if str(row.get("decision_state", "")).upper() in QUALIFIED_STATES
-    ]
     day["previous_snapshot"] = previous
-    day["decision_snapshot"] = {
-        str(row.get("symbol", "")).upper(): row
-        for row in decision_rows
-        if str(row.get("symbol", "")).strip()
-    }
-    day["candidate_snapshot"] = {
-        str(row.get("symbol", "")).upper(): row
-        for row in candidate_rows
-        if str(row.get("symbol", "")).strip()
-    }
     day["source_file"] = str(ordered[-1]) if ordered else ""
     day["processed_at"] = datetime.now().isoformat()
     save_state(state, STATE_JSON)
@@ -385,7 +349,7 @@ def _render_decision_table(result: pd.DataFrame):
         "Support": pd.to_numeric(ranked.get("support"), errors="coerce").round(2),
         "Resistance": pd.to_numeric(ranked.get("resistance"), errors="coerce").round(2),
         "Decision": ranked.get("decision_reason", pd.Series("—", index=ranked.index)).astype(str),
-    })
+    }).head(30)
     st.dataframe(_table_style(table), use_container_width=True, hide_index=True)
 
 

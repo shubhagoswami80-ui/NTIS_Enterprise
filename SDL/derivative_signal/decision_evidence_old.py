@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 from pathlib import Path
@@ -26,7 +26,7 @@ def _present(row: dict[str, Any], role: str) -> bool:
 
 def _fmt(v: Any, suffix: str = "") -> str:
     n = _num(v)
-    return "â€”" if n is None else f"{n:.2f}{suffix}"
+    return "—" if n is None else f"{n:.2f}{suffix}"
 
 
 def _direction_from_futures(v: Any) -> str:
@@ -336,54 +336,31 @@ def enrich_decision(
         or (decision_direction == "BEARISH" and price_change is not None and price_change < -PRICE_GATE)
     )
 
-    # Canonical dashboard decision-state vocabulary.
-    # The +/-0.75% gate remains the actionability boundary; it is not exposed
-    # as a separate dashboard field.
     if decision_direction == "BULLISH":
-        if gate_passed:
-            if sr_status == "RESISTANCE BROKEN" or score >= 85:
-                decision_state = "STRONG_BULLISH"
-            else:
-                decision_state = "ACTIVE_BULLISH"
-        elif sr_status in {"RESISTANCE TEST", "APPROACHING RESISTANCE"}:
-            decision_state = "WAIT_BREAK_CONFIRMATION"
-        else:
-            decision_state = "DEVELOPING_BULLISH"
+        decision_state = "BULLISH CONFIRMED" if gate_passed else "DEVELOPING BULLISH"
     elif decision_direction == "BEARISH":
-        if gate_passed:
-            if sr_status == "SUPPORT BROKEN" or score >= 85:
-                decision_state = "STRONG_BEARISH"
-            else:
-                decision_state = "ACTIVE_BEARISH"
-        elif sr_status in {"SUPPORT TEST", "APPROACHING SUPPORT"}:
-            decision_state = "WAIT_BREAK_CONFIRMATION"
-        else:
-            decision_state = "DEVELOPING_BEARISH"
+        decision_state = "BEARISH CONFIRMED" if gate_passed else "DEVELOPING BEARISH"
     else:
         decision_state = "NO DECISION"
 
-    if decision_state == "STRONG_BULLISH":
+    # The gate is the actionability boundary. It is intentionally not shown
+    # as a separate dashboard field.
+    if decision_state == "BULLISH CONFIRMED":
         if sr_status == "RESISTANCE BROKEN":
             decision_reason = "Resistance breakout confirmed with aligned derivative evidence."
         else:
-            decision_reason = "Strong bullish decision with aligned derivative evidence."
-    elif decision_state == "ACTIVE_BULLISH":
-        decision_reason = (f"Bullish actionability gate passed; derivative evidence has {conflict_count} conflicting signals." if conflict_count > 0 else "Bullish actionability gate passed with aligned derivative evidence.")
-    elif decision_state == "STRONG_BEARISH":
+            decision_reason = "Bullish direction confirmed with aligned derivative evidence."
+    elif decision_state == "BEARISH CONFIRMED":
         if sr_status == "SUPPORT BROKEN":
             decision_reason = "Support breakdown confirmed with aligned derivative evidence."
         else:
-            decision_reason = "Strong bearish decision with aligned derivative evidence."
-    elif decision_state == "ACTIVE_BEARISH":
-        decision_reason = "Bearish decision confirmed below the actionability gate."
-    elif decision_state == "DEVELOPING_BULLISH":
+            decision_reason = "Bearish direction confirmed with aligned derivative evidence."
+    elif decision_state == "DEVELOPING BULLISH":
         reason = "; ".join(developing_reasons[:4]) or "directional evidence building"
         decision_reason = f"Developing bullish structure: {reason}."
-    elif decision_state == "DEVELOPING_BEARISH":
+    elif decision_state == "DEVELOPING BEARISH":
         reason = "; ".join(developing_reasons[:4]) or "directional evidence building"
         decision_reason = f"Developing bearish structure: {reason}."
-    elif decision_state == "WAIT_BREAK_CONFIRMATION":
-        decision_reason = f"{sr_status}; waiting for decisive break confirmation."
     else:
         decision_reason = "Insufficient aligned directional evidence."
 
@@ -433,4 +410,3 @@ def merge_evidence(base_path: Path, trading_date: str):
         for role, path in bundle.files.items()
     }
     return bundle.rows.copy(), source_map
-

@@ -9,7 +9,7 @@ import streamlit as st
 
 from config import INTRADAY_SOURCE_ROOT
 STATE_JSON = Path(__file__).resolve().parent / "data" / "output" / "state" / "processing_state.json"
-from derivative_signal.source_loader import discover_daywise_files, parse_observation_timestamp, read_source
+from source_loader import discover_daywise_files, parse_observation_timestamp, read_source
 from storage import load_state, save_state
 from derivative_signal.signal_engine import build_signal
 from decision_evidence import merge_evidence, enrich_decision
@@ -385,7 +385,7 @@ def _render_decision_table(result: pd.DataFrame):
         "Support": pd.to_numeric(ranked.get("support"), errors="coerce").round(2),
         "Resistance": pd.to_numeric(ranked.get("resistance"), errors="coerce").round(2),
         "Decision": ranked.get("decision_reason", pd.Series("—", index=ranked.index)).astype(str),
-    })
+    }).head(30)
     st.dataframe(_table_style(table), use_container_width=True, hide_index=True)
 
 
