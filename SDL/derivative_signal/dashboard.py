@@ -248,6 +248,7 @@ def process_all_sources(
     previous_direction: dict[str, str] = {}
     timeline_rows: list[dict[str, Any]] = []
     latest_result = pd.DataFrame()
+    latest_valid_path: Path | None = None
 
     ordered = sorted(
         [Path(p) for p in paths if Path(p).is_file()],
@@ -276,10 +277,15 @@ def process_all_sources(
             first_range,
         )
         result = _attach_snapshot_metadata(result, path)
-        if result.empty:
-            continue
-
         timestamp = parse_observation_timestamp(path)
+
+        # A malformed/temporarily incomplete snapshot must not erase the
+        # last valid decision result. It is still part of the chronological
+        # chain, so its raw rows become the previous snapshot for the next
+        # batch item.
+        if result.empty:
+            previous = _snapshot_rows(_read(path))
+            continue
 
         for row in result.to_dict(orient="records"):
             symbol = str(row.get("symbol", "")).upper()
@@ -340,6 +346,7 @@ def process_all_sources(
 
         previous = _snapshot_rows(_read(path))
         latest_result = result
+        latest_valid_path = path
 
     day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
     decision_rows = (
@@ -365,7 +372,11 @@ def process_all_sources(
         for row in candidate_rows
         if str(row.get("symbol", "")).strip()
     }
-    day["source_file"] = str(ordered[-1]) if ordered else ""
+    day["source_file"] = (
+        str(latest_valid_path)
+        if latest_valid_path is not None
+        else ""
+    )
     day["processed_at"] = datetime.now().isoformat()
     save_state(state, STATE_JSON)
 
@@ -931,15 +942,226 @@ def _render_evidence(row: pd.Series) -> None:
 
 
 def _render_timeline(timeline: pd.DataFrame) -> None:
+    """Render the replay as a focused evidence-history investigation tool.
+
+    The replay never introduces a second stock-selection algorithm.  It uses
+    the decision states already produced by the primary engine and offers:
+      - Current Relevant: relevant in the latest replay observation
+      - Historical Relevant: relevant at any point in the replay
+      - Selected Stock: full evolution for one relevant stock
+      - Raw Audit: the complete underlying replay data
+    """
     if not isinstance(timeline, pd.DataFrame) or timeline.empty:
         return
 
     st.subheader("Decision Changes During Day Replay")
+
+    df = timeline.copy()
+    required = [
+        "Time", "Snapshot", "Symbol", "Decision", "Direction",
+        "Previous", "Evidence", "Strength", "S/R",
+    ]
+    for col in required:
+        if col not in df.columns:
+            df[col] = "—"
+
+    df["Symbol"] = df["Symbol"].astype(str).str.upper().str.strip()
+    df["Direction"] = df["Direction"].astype(str).str.upper().str.strip()
+    df["Decision"] = df["Decision"].astype(str).str.upper().str.strip()
+    df["Previous"] = df["Previous"].astype(str).str.upper().str.strip()
+
+    # Existing engine relevance only.  No new score or threshold is created.
+    relevant_states = {
+        "DEVELOPING_BULLISH",
+        "DEVELOPING_BEARISH",
+        "WAIT_BREAK_CONFIRMATION",
+        "ACTIVE_BULLISH",
+        "ACTIVE_BEARISH",
+        "STRONG_BULLISH",
+        "STRONG_BEARISH",
+    }
+    df["_relevant"] = df["Decision"].isin(relevant_states)
+
+    # Preserve chronological ordering while remaining tolerant of source
+    # timestamp strings that are not perfectly uniform.
+    if "Snapshot" in df.columns:
+        df["_snapshot_num"] = pd.to_numeric(df["Snapshot"], errors="coerce")
+    else:
+        df["_snapshot_num"] = pd.NA
+    df = df.sort_values(
+        ["_snapshot_num", "Time", "Symbol"],
+        kind="stable",
+        na_position="last",
+    ).reset_index(drop=True)
+
+    latest_snapshot = (
+        df["_snapshot_num"].dropna().max()
+        if df["_snapshot_num"].notna().any()
+        else None
+    )
+    if latest_snapshot is not None:
+        latest = df.loc[df["_snapshot_num"].eq(latest_snapshot)].copy()
+    else:
+        latest = df.tail(1).copy()
+
+    current_symbols = set(
+        latest.loc[latest["_relevant"], "Symbol"].dropna().tolist()
+    )
+    historical_symbols = set(
+        df.loc[df["_relevant"], "Symbol"].dropna().tolist()
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Current Relevant", len(current_symbols))
+    c2.metric("Historical Relevant", len(historical_symbols))
+    c3.metric("Replay Events", len(df))
+    c4.metric("Observation Times", df["Time"].astype(str).nunique())
+
+    scope = st.radio(
+        "Replay scope",
+        [
+            "Current Relevant",
+            "Historical Relevant",
+            "Selected Stock",
+            "Raw Audit",
+        ],
+        horizontal=True,
+        key="ds_replay_scope",
+    )
+
+    if scope == "Raw Audit":
+        st.caption(
+            "Complete replay retained for audit/debugging. "
+            "No stock-selection filtering is applied here."
+        )
+        st.dataframe(
+            df[required],
+            use_container_width=True,
+            hide_index=True,
+        )
+        return
+
+    if scope == "Current Relevant":
+        scope_symbols = current_symbols
+        scope_df = df[df["Symbol"].isin(scope_symbols)].copy()
+        st.caption(
+            "Only stocks relevant in the latest replay observation are shown. "
+            "Relevance comes from the existing decision engine."
+        )
+    elif scope == "Historical Relevant":
+        scope_symbols = historical_symbols
+        scope_df = df[df["Symbol"].isin(scope_symbols)].copy()
+        st.caption(
+            "Stocks that were relevant at any point during the session are "
+            "retained, including stocks that later lost relevance."
+        )
+    else:
+        scope_symbols = historical_symbols
+        scope_df = df[df["Symbol"].isin(scope_symbols)].copy()
+
+    if not scope_symbols:
+        st.info("No relevant decision stocks are present in this replay.")
+        return
+
+    symbols = sorted(scope_symbols)
+    selected_symbol = st.selectbox(
+        "Stock",
+        symbols,
+        key="ds_replay_symbol",
+    )
+
+    stock = scope_df.loc[scope_df["Symbol"].eq(selected_symbol)].copy()
+    if stock.empty:
+        st.info("No replay history is available for the selected stock.")
+        return
+
+    # Explicit relationship columns: state evolution and actual direction
+    # reversal are different things and should not be conflated.
+    stock["Decision Change"] = stock.apply(
+        lambda r: (
+            f'{r["Previous"]} → {r["Decision"]}'
+            if r["Previous"] not in {"", "—", "NONE", "NAN"}
+            else f'INITIAL → {r["Decision"]}'
+        ),
+        axis=1,
+    )
+    stock["Direction Change"] = stock.apply(
+        lambda r: (
+            f'{r["Previous"]} → {r["Direction"]}'
+            if r["Previous"] in {"BULLISH", "BEARISH"}
+            and r["Direction"] in {"BULLISH", "BEARISH"}
+            and r["Previous"] != r["Direction"]
+            else "—"
+        ),
+        axis=1,
+    )
+    stock["Event"] = stock.apply(
+        lambda r: (
+            "REVERSAL"
+            if r["Direction Change"] != "—"
+            else (
+                "STATE CHANGE"
+                if r["Previous"] not in {"", "—", "NONE", "NAN"}
+                and r["Previous"] != r["Decision"]
+                else "OBSERVATION"
+            )
+        ),
+        axis=1,
+    )
+
+    reversals = int((stock["Event"] == "REVERSAL").sum())
+    state_changes = int((stock["Event"] == "STATE CHANGE").sum())
+    st.markdown(
+        f"**{selected_symbol} — Intraday Decision Evolution**  "
+        f"({len(stock)} observation(s) · {state_changes} state change(s) · "
+        f"{reversals} direction reversal(s))"
+    )
+
+    display_cols = [
+        "Time",
+        "Snapshot",
+        "Event",
+        "Decision Change",
+        "Direction Change",
+        "Evidence",
+        "Strength",
+        "S/R",
+    ]
+
+    def _row_style(row):
+        event = str(row.get("Event", ""))
+        direction = str(row.get("Direction", "")).upper()
+        if event == "REVERSAL":
+            return ["background-color: #fff0f0; color: #8b0000"] * len(row)
+        if direction == "BULLISH":
+            return ["background-color: #eef9f0; color: #146c2e"] * len(row)
+        if direction == "BEARISH":
+            return ["background-color: #fff2f2; color: #9b1c1c"] * len(row)
+        return ["background-color: #fff9e8; color: #7a5200"] * len(row)
+
     st.dataframe(
-        timeline,
+        stock[display_cols].style.apply(_row_style, axis=1),
         use_container_width=True,
         hide_index=True,
     )
+
+    # Compact session relationship view.  This is deliberately derived from
+    # the existing replay rows and does not create a new trading signal.
+    st.markdown("**Decision path**")
+    path_parts = []
+    for _, row in stock.iterrows():
+        time_value = str(row["Time"])
+        decision = str(row["Decision"])
+        direction = str(row["Direction"])
+        path_parts.append(f"{time_value}  {direction}  {decision}")
+    st.code("\n↓\n".join(path_parts), language="text")
+
+    with st.expander("Raw replay audit data", expanded=False):
+        st.dataframe(
+            stock[required],
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 def render() -> None:
@@ -1000,6 +1222,7 @@ def render() -> None:
         return
 
     latest_timestamp = parse_observation_timestamp(sources[-1])
+    live_batch_count = len(sources)
 
     st.markdown(
         f"""
@@ -1017,7 +1240,12 @@ def render() -> None:
     )
 
     if mode == "Latest File":
-        idx = st.selectbox(
+        # The selected/latest file is a DISPLAY choice only.
+        # A live calculation must always consume the complete discovered
+        # snapshot batch chronologically so the base snapshot and every
+        # intermediate snapshot are respected before promoting the latest
+        # result.
+        selected_idx = st.selectbox(
             "Snapshot",
             list(range(len(sources))),
             index=len(sources) - 1,
@@ -1028,17 +1256,26 @@ def render() -> None:
         )
 
         if st.button(
-            "PROCESS SELECTED SNAPSHOT",
+            "PROCESS SELECTED SNAPSHOT BATCH",
             type="primary",
             use_container_width=True,
         ):
-            st.session_state["ds_result"] = (
-                process_selected_source(
-                    sources[idx],
+            try:
+                batch_sources = sources[: selected_idx + 1]
+                latest, _timeline = process_all_sources(
+                    batch_sources,
                     trading_date,
                 )
-            )
-            st.session_state["ds_timeline"] = pd.DataFrame()
+                st.session_state["ds_result"] = latest
+                st.session_state["ds_timeline"] = pd.DataFrame()
+                st.session_state["ds_processed_source"] = (
+                    str(batch_sources[-1]) if batch_sources else ""
+                )
+                st.rerun()
+            except Exception as exc:
+                st.error(
+                    f"Batch processing failed: {type(exc).__name__}: {exc}"
+                )
 
     else:
         st.info(
@@ -1164,12 +1401,24 @@ Underlying evidence is preserved in the processing result and replay state.
         unsafe_allow_html=True,
     )
 
-    _render_timeline(
-        st.session_state.get(
-            "ds_timeline",
-            pd.DataFrame(),
-        )
+    replay_data = st.session_state.get(
+        "ds_timeline",
+        pd.DataFrame(),
     )
+
+    if isinstance(replay_data, pd.DataFrame) and not replay_data.empty:
+        unique_times = (
+            replay_data["Time"].astype(str).nunique()
+            if "Time" in replay_data.columns
+            else 0
+        )
+        st.caption(
+            f"Replay coverage: {unique_times} recorded observation time(s). "
+            "Coverage reflects the source snapshots available for this session; "
+            "it is not interpreted as a missing decision change."
+        )
+
+    _render_timeline(replay_data)
 
 
 if __name__ == "__main__":
