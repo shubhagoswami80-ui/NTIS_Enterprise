@@ -20,6 +20,7 @@ from config import (
 from source_loader import (
     load_primary_snapshot,
     discover_daywise_files,
+    parse_observation_timestamp,
 )
 
 from approaching_breakout import save_approaching_breakouts
@@ -819,228 +820,156 @@ def discover_historical_snapshots(
 # Today's latest snapshot
 # ---------------------------------------------------------------------------
 
+def _snapshot_timestamp(path: Path):
+    """Use the source filename timestamp when available; filesystem mtime only as fallback."""
+    try:
+        return parse_observation_timestamp(path)
+    except Exception:
+        return datetime.fromtimestamp(path.stat().st_mtime)
+
+
+def _snapshot_sort_key(path: Path):
+    return (_snapshot_timestamp(path), str(path).lower())
+
+
 def process_latest_snapshot_for_today():
     """
-    Process today's Daywise snapshots in chronological filesystem order.
+    Process today's snapshots using source observation time ordering.
 
-    The first PHYSICALLY available snapshot is not necessarily the
-    first VALID snapshot.
-
-    Opening-base rule:
-        - inspect snapshots chronologically
-        - skip incomplete snapshots
-        - the first snapshot with a usable opening base establishes
-          and freezes the daily base
-        - later snapshots reuse that frozen base
-
-    Source files are read directly from INTRADAY_SOURCE_ROOT.
-    No source files are copied or modified.
+    The first VALID snapshot establishes the frozen daily base. Later
+    snapshots reuse that base. Source files remain read-only.
     """
-
-    today = datetime.now().date()
-    trading_date = today.isoformat()
-
-    files = list(
-        discover_historical_snapshots(
-            trading_date
-        )
-    )
+    trading_date = datetime.now().date().isoformat()
+    files = list(discover_historical_snapshots(trading_date))
 
     if not files:
-        return (
-            None,
-            None,
-            None,
-            "No Daywise snapshot found for today.",
-        )
+        return None, None, None, "No Daywise snapshot found for today."
 
-    ordered = sorted(
-        (Path(p) for p in files),
-        key=lambda p: p.stat().st_mtime,
-    )
-
+    ordered = sorted((Path(p) for p in files), key=_snapshot_sort_key)
     state = load_state(STATE_JSON)
-
-    daily_bases = state.get(
-        "daily_opening_straddles",
-        {},
-    )
-
-    # ---------------------------------------------------------------
-    # If today's base is not frozen, search chronologically for the
-    # FIRST VALID snapshot.
-    # ---------------------------------------------------------------
+    daily_bases = state.get("daily_opening_straddles", {})
 
     if not daily_bases.get(trading_date):
-
         valid_base_snapshot = None
         skipped = []
 
         for candidate in ordered:
-
-            candidate_observed_at = datetime.fromtimestamp(
-                candidate.stat().st_mtime
-            )
-
+            observed_at = _snapshot_timestamp(candidate)
             try:
-                candidate_df, _ = load_primary_snapshot(
-                    candidate,
-                    candidate_observed_at,
-                )
-
+                candidate_df, _ = load_primary_snapshot(candidate, observed_at)
                 candidate_df = derive_straddle_values(
                     candidate_df,
                     breakout_multiplier=BREAKOUT_MULTIPLIER,
                     current_price_field=CURRENT_PRICE_FIELD,
                 )
-
-                # A valid opening-base snapshot must contain:
-                # Symbol + Open + current price + ATM Straddle %
-                required = (
-                    "Symbol",
-                    "daily_open_reference",
-                    "current_price",
-                    "atm_straddle_pct",
-                )
-
-                missing = [
-                    column
-                    for column in required
-                    if column not in candidate_df.columns
-                ]
-
+                required = ("Symbol", "daily_open_reference", "current_price", "atm_straddle_pct")
+                missing = [c for c in required if c not in candidate_df.columns]
                 if missing:
-                    skipped.append(
-                        f"{candidate.name}: missing {missing}"
-                    )
+                    skipped.append(f"{candidate.name}: missing {missing}")
                     continue
-
                 valid_mask = (
-                    candidate_df["Symbol"]
-                    .astype(str)
-                    .str.strip()
-                    .ne("")
-                    &
-                    candidate_df["daily_open_reference"]
-                    .notna()
-                    &
-                    candidate_df["current_price"]
-                    .notna()
-                    &
-                    candidate_df["atm_straddle_pct"]
-                    .notna()
+                    candidate_df["Symbol"].astype(str).str.strip().ne("")
+                    & candidate_df["daily_open_reference"].notna()
+                    & candidate_df["current_price"].notna()
+                    & candidate_df["atm_straddle_pct"].notna()
                 )
-
-                valid_count = int(valid_mask.sum())
-
-                # Require a meaningful stock universe, not a partially
-                # populated market-open workbook.
-                if valid_count <= 0:
-                    skipped.append(
-                        f"{candidate.name}: no usable opening-base rows"
-                    )
+                if int(valid_mask.sum()) <= 0:
+                    skipped.append(f"{candidate.name}: no usable opening-base rows")
                     continue
-
-                valid_base_snapshot = (
-                    candidate,
-                    candidate_observed_at,
-                )
+                valid_base_snapshot = (candidate, observed_at)
                 break
-
             except Exception as exc:
-                skipped.append(
-                    f"{candidate.name}: {type(exc).__name__}: {exc}"
-                )
-                continue
+                skipped.append(f"{candidate.name}: {type(exc).__name__}: {exc}")
 
         if valid_base_snapshot is None:
-            return (
-                None,
-                None,
-                None,
-                (
-                    "No valid opening-base snapshot is available yet. "
-                    "Incomplete market-open snapshots were skipped."
-                ),
-            )
+            return None, None, None, "No valid opening-base snapshot is available yet."
 
         first, first_observed_at = valid_base_snapshot
-
-        process_snapshot(
-            first,
-            first_observed_at,
-        )
-
-    # ---------------------------------------------------------------
-    # Reload state after establishing the first VALID base.
-    # ---------------------------------------------------------------
+        process_snapshot(first, first_observed_at)
 
     state = load_state(STATE_JSON)
-
-    frozen_base = state.get(
-        "daily_opening_straddles",
-        {},
-    ).get(trading_date)
-
+    frozen_base = state.get("daily_opening_straddles", {}).get(trading_date)
     if not frozen_base:
-        return (
-            None,
-            None,
-            None,
-            "Unable to establish today's frozen opening base.",
-        )
-
-    # ---------------------------------------------------------------
-    # Process the latest available snapshot using the frozen base.
-    # ---------------------------------------------------------------
+        return None, None, None, "Unable to establish today's frozen opening base."
 
     latest = ordered[-1]
-    latest_observed_at = datetime.fromtimestamp(
-        latest.stat().st_mtime
+    latest_observed_at = _snapshot_timestamp(latest)
+    base_reference_file = next(iter(frozen_base.values()), {}).get("opening_reference_source_file")
+
+    if base_reference_file and str(latest) == str(base_reference_file):
+        return latest, pd.DataFrame(), None, "First valid snapshot processed and opening base frozen; no later snapshot available."
+
+    events, df, processed_at = process_snapshot(latest, latest_observed_at)
+    return latest, events, df, "Opening base established from the first VALID snapshot; latest workbook processed using the frozen daily base."
+
+
+def replay_trading_date(trading_date: str):
+    """
+    Rebuild one historical day from the configured Daywise source repository.
+
+    This is a controlled replay: the selected day's SDL-owned event/evidence
+    records are rebuilt from source files in chronological source timestamp
+    order. Other trading dates are preserved. Source files are never modified.
+    """
+    trading_date = pd.Timestamp(trading_date).date().isoformat()
+    files = sorted(
+        (Path(p) for p in discover_historical_snapshots(trading_date)),
+        key=_snapshot_sort_key,
     )
+    if not files:
+        return {"trading_date": trading_date, "files": 0, "events": 0, "first_timestamp": None, "last_timestamp": None}
 
-    # Find the snapshot that established the base so that we don't
-    # process it twice when it is also the latest file.
-    base_reference_file = None
+    state = load_state(STATE_JSON)
+    saved_runtime = {
+        k: state.get(k)
+        for k in ("last_source_file", "last_observation_timestamp", "last_event_count")
+    }
+    state.get("daily_opening_straddles", {}).pop(trading_date, None)
+    save_state(state, STATE_JSON)
 
-    if frozen_base:
-        first_entry = next(
-            iter(frozen_base.values()),
-            None,
-        )
+    if EVENT_CSV.exists() and EVENT_CSV.stat().st_size > 0:
+        existing = load_events(EVENT_CSV)
+        if not existing.empty and "trading_date" in existing.columns:
+            keep = existing[existing["trading_date"].astype(str).str[:10] != trading_date].copy()
+            if keep.empty:
+                EVENT_CSV.unlink()
+            else:
+                keep.to_csv(EVENT_CSV, index=False)
 
-        if first_entry:
-            base_reference_file = first_entry.get(
-                "opening_reference_source_file"
-            )
+    evidence_file = Path(REQUIRED_EVIDENCE_DIR) / f"{trading_date}.csv"
+    if evidence_file.exists():
+        evidence_file.unlink()
 
-    if (
-        base_reference_file
-        and str(latest) == str(base_reference_file)
-    ):
-        return (
-            latest,
-            pd.DataFrame(),
-            None,
-            (
-                "First valid snapshot processed and opening base "
-                "frozen; no later snapshot available."
-            ),
-        )
+    total_events = 0
+    first_ts = None
+    last_ts = None
+    for path in files:
+        ts = _snapshot_timestamp(path)
+        first_ts = ts if first_ts is None else min(first_ts, ts)
+        last_ts = ts if last_ts is None else max(last_ts, ts)
+        events, _, _ = process_snapshot(path, ts)
+        total_events += int(len(events))
 
-    events, df, processed_at = process_snapshot(
-        latest,
-        latest_observed_at,
-    )
+    state = load_state(STATE_JSON)
+    for key, value in saved_runtime.items():
+        if value is not None:
+            state[key] = value
+        else:
+            state.pop(key, None)
+    save_state(state, STATE_JSON)
 
-    return (
-        latest,
-        events,
-        df,
-        (
-            "Opening base established from the first VALID snapshot; "
-            "incomplete earlier snapshots were skipped. "
-            "Latest workbook processed using the frozen daily base."
-        ),
-    )
+    return {
+        "trading_date": trading_date,
+        "files": len(files),
+        "events": total_events,
+        "first_timestamp": first_ts.isoformat() if first_ts is not None else None,
+        "last_timestamp": last_ts.isoformat() if last_ts is not None else None,
+    }
 
+
+def replay_all_available():
+    """Replay every available trading day from the configured source root."""
+    files = [Path(p) for p in discover_historical_snapshots()]
+    dates = sorted({d for p in files for d in [pd.Timestamp(_snapshot_timestamp(p)).date().isoformat()]})
+    results = [replay_trading_date(d) for d in dates]
+    return results
