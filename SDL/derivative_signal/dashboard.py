@@ -106,7 +106,9 @@ def _process_snapshot(path: Path, trading_date: str, previous: dict[str, dict], 
 
 def process_selected_source(path: Path, trading_date: str) -> pd.DataFrame:
     state = load_state(STATE_JSON)
-    result = _process_snapshot(path, trading_date, _previous(state, trading_date), _first_range_from_path(path, trading_date))
+    sources = _discover_sources(trading_date, path.parent)
+    is_first_snapshot = bool(sources) and Path(sources[0]).resolve() == Path(path).resolve()
+    result = pd.DataFrame() if is_first_snapshot else _process_snapshot(path, trading_date, _previous(state, trading_date), _first_range_from_path(path, trading_date))
     day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
     # Keep raw previous_snapshot for the next signal calculation.
     # Persist the enriched decision separately so qualified/developing
