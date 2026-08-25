@@ -11,7 +11,6 @@ from pipeline import (
     process_latest_snapshot_for_today,
     replay_trading_date,
     replay_all_available,
-    process_snapshot,
 )
 from source_loader import parse_observation_timestamp
 from storage import load_events
@@ -57,11 +56,6 @@ st.markdown(
     .decision-down { background:#fff0f0; border-color:#efc2c2; color:#982020; }
     .decision-partial { background:#fff6e5; border-color:#f0d59d; color:#8b5a00; }
     .decision-none { background:#f3f4f6; color:#5d6472; }
-    .decision-up-2 { background:#dff3e6; color:#146c3b; }
-    .decision-up-3 { background:#c7ebd4; color:#0f5a30; }
-    .decision-down-2 { background:#ffe1e1; color:#982020; }
-    .decision-down-3 { background:#ffd0d0; color:#7f1717; }
-    .decision-watch { background:#fff6df; color:#8b5a00; }
 
     .decision-main { font-size: 18px; font-weight: 780; }
     .decision-meta { font-size: 11px; margin-top: 4px; opacity: .85; }
@@ -143,63 +137,6 @@ def _latest_source() -> tuple[Path | None, pd.Timestamp | None]:
     return max(valid, key=lambda x: x[1])
 
 
-
-def _snapshots_for_date(trading_date: str) -> list[Path]:
-    """Return SDL-owned source snapshots for one date in source timestamp order."""
-    try:
-        files = [Path(p) for p in discover_historical_snapshots(trading_date)]
-    except Exception:
-        return []
-    valid = []
-    for p in files:
-        ts = _source_timestamp(p)
-        if pd.notna(ts):
-            valid.append((p, ts))
-    valid.sort(key=lambda x: (x[1], str(x[0]).lower()))
-    return [p for p, _ in valid]
-
-
-def _replay_exact_snapshot(path: Path):
-    """Replay exactly the selected SDL source workbook through the existing pipeline."""
-    ts = _source_timestamp(path)
-    if pd.isna(ts):
-        raise ValueError(f"Cannot determine source observation timestamp: {path.name}")
-    events, df, processed_at = process_snapshot(path, ts)
-    return events, df, processed_at
-
-
-def _decision_queue_style(df: pd.DataFrame):
-    """Decision-only colour coding; this is presentation, not a scoring engine."""
-    def style_row(row):
-        decision = str(row.get("DECISION", "")).upper()
-        if "UP BREAKOUT" in decision:
-            bg = "#e8f7ee"       # light green
-            fg = "#146c3b"
-        elif "DOWN BREAKOUT" in decision:
-            bg = "#fff0f0"       # light red
-            fg = "#982020"
-        elif "WATCH" in decision or "PARTIAL" in decision:
-            bg = "#fff6df"       # amber
-            fg = "#8b5a00"
-        else:
-            bg = "#f0f1f3"
-            fg = "#555b66"
-        return [f"background-color:{bg};color:{fg};font-weight:650;" if c == "DECISION"
-                else "" for c in row.index]
-    return df.style.apply(style_row, axis=1)
-
-
-def _historical_style(df: pd.DataFrame):
-    """Colour only the directional decision column in historical evidence."""
-    def decision_style(value):
-        v = str(value).upper()
-        if v == "UP":
-            return "background-color:#dff3e6;color:#146c3b;font-weight:700;"
-        if v == "DOWN":
-            return "background-color:#ffe1e1;color:#982020;font-weight:700;"
-        return "background-color:#f0f1f3;color:#555b66;"
-    return df.style.map(decision_style, subset=["direction"]) if "direction" in df.columns else df.style
-
 def _fmt_ts(value) -> str:
     ts = pd.to_datetime(value, errors="coerce")
     if pd.isna(ts):
@@ -248,62 +185,6 @@ def _decision(row: pd.Series) -> tuple[str, str]:
         css = "decision-partial" if direction not in {"UP", "DOWN"} else css
 
     return label, css
-
-
-
-def _decision_bucket(row: pd.Series) -> str:
-    """Presentation filter only; SDL candidate selection remains upstream."""
-    direction = str(row.get("direction", "")).strip().upper()
-    label, _ = _decision(row)
-    u = label.upper()
-    if "BREAKOUT" in u:
-        return "Breakout"
-    if "WATCH" in u:
-        return "Wait Break"
-    if direction == "UP":
-        return "Bullish"
-    if direction == "DOWN":
-        return "Bearish"
-    return "Developing"
-
-
-def _apply_decision_filter(df: pd.DataFrame, selected: str) -> pd.DataFrame:
-    if df.empty or selected == "All":
-        return df.copy()
-    return df.loc[df.apply(_decision_bucket, axis=1).eq(selected)].copy()
-
-
-def _queue_filter(key: str) -> str:
-    return st.radio(
-        "Show",
-        ["All", "Bullish", "Bearish", "Developing", "Wait Break", "Breakout"],
-        horizontal=True,
-        key=key,
-    )
-
-
-def _replay_state_events() -> tuple[pd.DataFrame, pd.Timestamp | None]:
-    replay = st.session_state.get("sdl_replay_events")
-    replay_ts = pd.to_datetime(
-        st.session_state.get("sdl_replay_timestamp"), errors="coerce"
-    )
-    if replay is None:
-        return pd.DataFrame(), None
-    df = replay.copy()
-    if df.empty or pd.isna(replay_ts):
-        return df, replay_ts
-    if "observation_timestamp" in df.columns:
-        ts = pd.to_datetime(df["observation_timestamp"], errors="coerce")
-        df = df.loc[ts.notna() & (ts <= replay_ts)].copy()
-    return df, replay_ts
-
-
-def _store_replay_state(events_result: pd.DataFrame, snapshot: Path) -> None:
-    st.session_state["sdl_replay_events"] = (
-        events_result.copy() if isinstance(events_result, pd.DataFrame) else pd.DataFrame()
-    )
-    st.session_state["sdl_replay_timestamp"] = _source_timestamp(snapshot)
-
 
 
 def _decision_queue(df: pd.DataFrame) -> pd.DataFrame:
@@ -388,16 +269,9 @@ st.markdown(
 
 # ---------------------------------------------------------------------------
 # Processing / replay controls — reuse existing pipeline only
+# ---------------------------------------------------------------------------
 
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="card-title">CONTROLLED PROCESSING & REPLAY</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="card-subtitle">Replay uses the exact SDL source workbook selected below. '
-    'Source files remain read-only and the existing pipeline is reused.</div>',
-    unsafe_allow_html=True,
-)
-
-c1, c2, c3 = st.columns([1.1, 1.25, 1.1])
+c1, c2, c3 = st.columns([1.2, 1.2, 2.0])
 
 with c1:
     if st.button("▶ PROCESS LATEST", type="primary", width="stretch"):
@@ -415,95 +289,41 @@ with c1:
 available_dates = _available_source_dates()
 
 with c2:
-    replay_date = None
+    replay_clicked = False
     if available_dates:
         replay_date = st.selectbox(
-            "Replay trading date",
+            "Replay date",
             available_dates,
             format_func=lambda x: pd.Timestamp(x).strftime("%d %b %Y"),
-            key="sdl_replay_date",
+            label_visibility="collapsed",
         )
+        replay_clicked = st.button("↻ REPLAY DAY", width="stretch")
     else:
         st.caption("No replay dates discovered.")
 
 with c3:
-    if st.button("↻ REPLAY DAY", width="stretch", disabled=not bool(replay_date)):
-        try:
-            result = replay_trading_date(replay_date)
-            st.session_state.pop("sdl_replay_events", None)
-            st.session_state.pop("sdl_replay_timestamp", None)
-            st.success(
-                f"Replayed {result['trading_date']} · {result['files']} files · "
-                f"{result['events']} new first-breakout events · "
-                f"{result['first_timestamp'] or '—'} → {result['last_timestamp'] or '—'}"
-            )
-            st.rerun()
-        except Exception as exc:
-            st.error(f"Replay day failed: {exc}")
-
-if replay_date:
-    snapshots = _snapshots_for_date(replay_date)
-    if snapshots:
-        snapshot_labels = {
-            str(p): f"{_fmt_ts(_source_timestamp(p))}  |  {p.name}"
-            for p in snapshots
-        }
-        selected_snapshot_key = st.selectbox(
-            "Exact source snapshot",
-            [str(p) for p in snapshots],
-            format_func=lambda x: snapshot_labels.get(x, x),
-            key="sdl_exact_snapshot",
-        )
-        selected_snapshot = Path(selected_snapshot_key)
-
-        r1, r2 = st.columns([1.0, 3.0])
-        with r1:
-            replay_snapshot_clicked = st.button(
-                "↻ REPLAY EXACT SNAPSHOT",
-                type="primary",
-                width="stretch",
-            )
-        with r2:
-            st.caption(
-                f"Selected trigger/source timestamp: "
-                f"**{_fmt_ts(_source_timestamp(selected_snapshot))}**"
-            )
-
-        if replay_snapshot_clicked:
-            try:
-                events_result, _, processed_at = _replay_exact_snapshot(selected_snapshot)
-                _store_replay_state(events_result, selected_snapshot)
-                st.success(
-                    f"Exact snapshot replayed: {selected_snapshot.name} · "
-                    f"{len(events_result)} first-breakout events · "
-                    f"processed {_fmt_ts(processed_at)}"
-                )
-                st.rerun()
-            except Exception as exc:
-                st.error(f"Exact snapshot replay failed: {exc}")
-    else:
-        st.info("No timestamped SDL snapshots were discovered for the selected date.")
-
-with st.expander("Replay all available days", expanded=False):
     if st.button("↻ REPLAY ALL AVAILABLE", width="stretch"):
         try:
             results = replay_all_available()
-            st.session_state.pop("sdl_replay_events", None)
-            st.session_state.pop("sdl_replay_timestamp", None)
             files = sum(int(r.get("files", 0)) for r in results)
-            events_count = sum(int(r.get("events", 0)) for r in results)
-            st.success(
-                f"Replayed {len(results)} days · {files} files · "
-                f"{events_count} new first-breakout events"
-            )
+            events = sum(int(r.get("events", 0)) for r in results)
+            st.success(f"Replayed {len(results)} days · {files} files · {events} new first-breakout events")
             st.rerun()
         except Exception as exc:
-            st.error(
-                f"Full replay failed: {exc}. "
-                "Use Exact Snapshot Replay above to isolate the failing source workbook."
-            )
+            st.error(f"Full replay failed: {exc}")
 
-st.markdown("</div>", unsafe_allow_html=True)
+if replay_clicked:
+    try:
+        result = replay_trading_date(replay_date)
+        st.success(
+            f"Replayed {result['trading_date']} · {result['files']} files · "
+            f"{result['events']} new first-breakout events · "
+            f"{result['first_timestamp'] or '—'} → {result['last_timestamp'] or '—'}"
+        )
+        st.rerun()
+    except Exception as exc:
+        st.error(f"Replay failed: {exc}")
+
 
 # ---------------------------------------------------------------------------
 # Decision Center
@@ -512,55 +332,20 @@ st.markdown("</div>", unsafe_allow_html=True)
 events = _events()
 today = _today_events(events)
 latest_source, latest_ts = _latest_source()
-replay_events, replay_ts = _replay_state_events()
 
 st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="card-title">1. LIVE DECISION QUEUE</div>', unsafe_allow_html=True)
+st.markdown('<div class="card-title">1. CURRENT DECISION QUEUE</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="card-subtitle">Current decision surface from the latest available '
-    'SDL state. Existing Straddle Breakout selection and evidence grading remain upstream; '
-    'this radio control only filters qualified decisions for display.</div>',
+    '<div class="card-subtitle">Only first-breakout events are shown here. '
+    'The queue is the decision surface; raw evidence is below.</div>',
     unsafe_allow_html=True,
 )
 
 if today.empty:
     st.info("No first-breakout events have been recorded for today.")
 else:
-    live_filter = _queue_filter("sdl_live_queue_filter")
-    live_filtered = _apply_decision_filter(today, live_filter)
-    q = _decision_queue(live_filtered)
-    if q.empty:
-        st.info(f"No LIVE candidates match: {live_filter}.")
-    else:
-        st.dataframe(_decision_queue_style(q), width="stretch", hide_index=True)
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ---------------------------------------------------------------------------
-# Intraday / Replay Decision Queue
-# ---------------------------------------------------------------------------
-
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="card-title">2. INTRADAY / REPLAY DECISION QUEUE</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="card-subtitle">Point-in-time decision view. Only information with '
-    'an observation timestamp at or before the selected snapshot is eligible. '
-    'Later historical outcomes never feed backward into replay.</div>',
-    unsafe_allow_html=True,
-)
-
-if replay_events.empty or pd.isna(replay_ts):
-    st.info("Replay an exact source snapshot above to populate this decision queue.")
-else:
-    st.caption(f"Replay boundary: **{_fmt_ts(replay_ts)}**")
-    replay_filter = _queue_filter("sdl_replay_queue_filter")
-    replay_filtered = _apply_decision_filter(replay_events, replay_filter)
-    rq = _decision_queue(replay_filtered)
-    if rq.empty:
-        st.info(f"No replay candidates match: {replay_filter}.")
-    else:
-        st.dataframe(_decision_queue_style(rq), width="stretch", hide_index=True)
+    q = _decision_queue(today)
+    st.dataframe(q, width="stretch", hide_index=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -573,7 +358,7 @@ up = int((today.get("direction", pd.Series(dtype=str)).astype(str).str.upper() =
 down = int((today.get("direction", pd.Series(dtype=str)).astype(str).str.upper() == "DOWN").sum())
 
 st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="card-title">3. LIVE STATE</div>', unsafe_allow_html=True)
+st.markdown('<div class="card-title">2. LIVE STATE</div>', unsafe_allow_html=True)
 
 m1, m2, m3, m4 = st.columns(4)
 with m1:
@@ -689,8 +474,7 @@ else:
         "iv_chg_pct", "pcr_chg_pct",
     ]
     display_cols = [c for c in display_cols if c in hist.columns]
-    hist_view = hist[display_cols].head(250).copy()
-    st.dataframe(_historical_style(hist_view), width="stretch", hide_index=True)
+    st.dataframe(hist[display_cols].head(250), width="stretch", hide_index=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
 
