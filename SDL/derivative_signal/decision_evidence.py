@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 from pathlib import Path
@@ -26,7 +26,7 @@ def _present(row: dict[str, Any], role: str) -> bool:
 
 def _fmt(v: Any, suffix: str = "") -> str:
     n = _num(v)
-    return "â€”" if n is None else f"{n:.2f}{suffix}"
+    return "—" if n is None else f"{n:.2f}{suffix}"
 
 
 def _direction_from_futures(v: Any) -> str:
@@ -128,7 +128,6 @@ def _developing_direction(
     developing candidate to be visible before price confirmation.
     """
     votes = {"BULLISH": 0, "BEARISH": 0}
-    conflicts = 0
     reasons: list[str] = []
 
     price = _num(signal.get("price_change_pct"))
@@ -319,12 +318,23 @@ def enrich_decision(
     base_strength = int(out.get("strength", 0) or 0)
     if developing:
         base_strength = max(1, min(5, int(round(vote_strength / 2))))
+
+    effective_conflicts = conflict_count + (vote_conflict if developing else 0)
+
+    # Derivative consistency is a quality constraint, not a direction override.
+    # A price-gated move can remain ACTIVE, but material derivative conflict
+    # prevents the signal from being presented as strong/aligned evidence.
+    if effective_conflicts >= 2:
+        evidence_quality = "LOW"
+    elif effective_conflicts == 1 and evidence_quality == "HIGH":
+        evidence_quality = "MEDIUM"
+
     score, score_label = _decision_score(
         decision_direction,
         price_change,
         base_strength,
         confirmation_count,
-        conflict_count + (vote_conflict if developing else 0),
+        effective_conflicts,
         evidence_quality,
         first_range_status,
         sr_status,
@@ -339,9 +349,13 @@ def enrich_decision(
     # Canonical dashboard decision-state vocabulary.
     # The +/-0.75% gate remains the actionability boundary; it is not exposed
     # as a separate dashboard field.
+    #
+    # Material derivative conflict blocks STRONG classification unless the
+    # evidence is fully aligned. The directional decision itself is retained.
+    strong_allowed = effective_conflicts == 0
     if decision_direction == "BULLISH":
         if gate_passed:
-            if sr_status == "RESISTANCE BROKEN" or score >= 85:
+            if strong_allowed and (sr_status == "RESISTANCE BROKEN" or score >= 85):
                 decision_state = "STRONG_BULLISH"
             else:
                 decision_state = "ACTIVE_BULLISH"
@@ -351,7 +365,7 @@ def enrich_decision(
             decision_state = "DEVELOPING_BULLISH"
     elif decision_direction == "BEARISH":
         if gate_passed:
-            if sr_status == "SUPPORT BROKEN" or score >= 85:
+            if strong_allowed and (sr_status == "SUPPORT BROKEN" or score >= 85):
                 decision_state = "STRONG_BEARISH"
             else:
                 decision_state = "ACTIVE_BEARISH"
@@ -368,14 +382,20 @@ def enrich_decision(
         else:
             decision_reason = "Strong bullish decision with aligned derivative evidence."
     elif decision_state == "ACTIVE_BULLISH":
-        decision_reason = (f"Bullish actionability gate passed; derivative evidence has {conflict_count} conflicting signals." if conflict_count > 0 else "Bullish actionability gate passed with aligned derivative evidence.")
+        if effective_conflicts > 0:
+            decision_reason = f"Bullish actionability gate passed; derivative evidence has {effective_conflicts} conflicting signals."
+        else:
+            decision_reason = "Bullish actionability gate passed with aligned derivative evidence."
     elif decision_state == "STRONG_BEARISH":
         if sr_status == "SUPPORT BROKEN":
             decision_reason = "Support breakdown confirmed with aligned derivative evidence."
         else:
             decision_reason = "Strong bearish decision with aligned derivative evidence."
     elif decision_state == "ACTIVE_BEARISH":
-        decision_reason = "Bearish decision confirmed below the actionability gate."
+        if effective_conflicts > 0:
+            decision_reason = f"Bearish actionability gate passed; derivative evidence has {effective_conflicts} conflicting signals."
+        else:
+            decision_reason = "Bearish actionability gate passed with aligned derivative evidence."
     elif decision_state == "DEVELOPING_BULLISH":
         reason = "; ".join(developing_reasons[:4]) or "directional evidence building"
         decision_reason = f"Developing bullish structure: {reason}."
@@ -387,7 +407,6 @@ def enrich_decision(
     else:
         decision_reason = "Insufficient aligned directional evidence."
 
-    # Keep internal fields for diagnostics; do not expose duplicates in the main card.
     out.update({
         "decision_direction": decision_direction,
         "decision_state": decision_state,
@@ -400,7 +419,7 @@ def enrich_decision(
         "decision_quality": evidence_quality,
         "confluence_score": confirmation_count,
         "confirmation_count": confirmation_count,
-        "conflict_count": conflict_count + (vote_conflict if developing else 0),
+        "conflict_count": effective_conflicts,
         "decision_score": score,
         "decision_strength": score_label,
         "directional_interpretation": _directional_text(decision_direction, out),
@@ -412,7 +431,6 @@ def enrich_decision(
         "sr_interpretation": sr_status,
         "straddle_interpretation": f"Straddle {_fmt(out.get('straddle_progress_pct'), '%')}",
         "decision_reason": decision_reason,
-        # Legacy fields retained for compatibility with existing replay/state code.
         "setup": sr_status,
         "confirmation": "CONFIRMED" if gate_passed else "DEVELOPING",
         "action": "DECISION",
@@ -433,4 +451,3 @@ def merge_evidence(base_path: Path, trading_date: str):
         for role, path in bundle.files.items()
     }
     return bundle.rows.copy(), source_map
-
