@@ -13226,9 +13226,9 @@
       }
     }
   },
-  "last_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-25\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-25_094209.xlsx",
-  "last_observation_timestamp": "2026-08-25T09:42:09.383961",
-  "last_event_count": 1,
+  "last_source_file": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-25\\Daywise_Price_and_OI_Summary_25AUG26_Report_2026-08-25_131640.xlsx",
+  "last_observation_timestamp": "2026-08-25T13:16:40.578745",
+  "last_event_count": 0,
   "strategy_version": "SDL-P1-Standard-Straddle-v1.0",
   "breakout_rule": "current_price > open + frozen_opening_straddle OR current_price < open - frozen_opening_straddle",
   "opening_straddle_formula": "first_snapshot_open_x_atm_straddle_pct",

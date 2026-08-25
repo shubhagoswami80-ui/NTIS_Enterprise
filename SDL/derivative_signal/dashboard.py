@@ -143,6 +143,9 @@ def process_all_sources(paths: list[Path], trading_date: str) -> tuple[pd.DataFr
                      key=lambda p: (parse_observation_timestamp(p), p.stat().st_mtime, p.name.lower()))
     first_range = _first_range_from_path(ordered[0], trading_date) if ordered else {}
     for sequence, path in enumerate(ordered, start=1):
+        if sequence == 1:
+            previous = _snapshot_rows(_read(path))
+            continue
         result = _process_snapshot(path, trading_date, previous, first_range)
         if result.empty:
             continue

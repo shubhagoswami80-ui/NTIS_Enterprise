@@ -1,2 +1,2 @@
 trading_date,source_files_with_evidence,source_futures_oi_chg_valid,source_futures_oi_chg_pct_valid,source_ce_oi_chg_valid,source_pe_oi_chg_valid,source_pe_minus_ce_oi_chg_valid,source_futures_oi_chg_nonzero,source_futures_oi_chg_pct_nonzero,source_ce_oi_chg_nonzero,source_pe_oi_chg_nonzero,source_pe_minus_ce_oi_chg_nonzero,futures_schema_fut_prefixed,futures_schema_futuresoi
-2026-08-19,206,32019,31976,20696,20835,11172,31791,31613,20480,20221,11156,102,310
+2026-08-21,20,3189,3189,2048,2031,1059,3121,3105,1992,1919,1053,10,30
