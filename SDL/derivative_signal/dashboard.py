@@ -456,6 +456,13 @@ def _process_and_cache_day(
         capture_snapshots=True,
     )
     _store_replay_cache(trading_date, snapshots, timeline)
+    if latest is not None and not latest.empty and sources:
+        _persist_last_complete_state(
+            trading_date,
+            latest,
+            timeline,
+            sources[-1],
+        )
     return latest, timeline, snapshots
 
 
@@ -561,6 +568,12 @@ def _auto_process_new_snapshots(
         day["processed_at"] = datetime.now().isoformat()
         state.setdefault(STATE_KEY, {})[trading_date] = day
         save_state(state, STATE_JSON)
+        _persist_last_complete_state(
+            trading_date,
+            latest_result,
+            pd.DataFrame(timeline_rows),
+            path,
+        )
 
     timeline = pd.DataFrame(timeline_rows)
     _store_replay_cache(trading_date, cached_snapshots, timeline)
@@ -1437,6 +1450,59 @@ def _render_current_result(result: pd.DataFrame, timeline: pd.DataFrame, snapsho
 
 
 
+def _persist_last_complete_state(
+    trading_date: str,
+    result: pd.DataFrame,
+    timeline: pd.DataFrame,
+    source_path: Path,
+) -> None:
+    """Persist only the last complete decision-bearing dashboard state."""
+    if result is None or not isinstance(result, pd.DataFrame) or result.empty:
+        return
+
+    state = load_state(STATE_JSON)
+    day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
+    day["last_complete_state"] = {
+        "source_file": str(source_path),
+        "source_key": _source_key(source_path),
+        "observation_timestamp": parse_observation_timestamp(source_path).isoformat(),
+        "saved_at": datetime.now().isoformat(),
+        "result": result.to_dict(orient="records"),
+        "timeline": (
+            timeline.to_dict(orient="records")
+            if isinstance(timeline, pd.DataFrame) and not timeline.empty
+            else []
+        ),
+    }
+    save_state(state, STATE_JSON)
+
+
+def _restore_last_complete_state(
+    trading_date: str,
+) -> tuple[pd.DataFrame, pd.DataFrame, str, str] | None:
+    """Restore durable final state without replaying the day."""
+    state = load_state(STATE_JSON)
+    day = state.get(STATE_KEY, {}).get(trading_date, {}) or {}
+    saved = day.get("last_complete_state")
+    if not isinstance(saved, dict):
+        return None
+
+    rows = saved.get("result")
+    if not isinstance(rows, list) or not rows:
+        return None
+
+    result = pd.DataFrame(rows)
+    timeline_rows = saved.get("timeline", [])
+    timeline = (
+        pd.DataFrame(timeline_rows)
+        if isinstance(timeline_rows, list)
+        else pd.DataFrame()
+    )
+    source_file = str(saved.get("source_file", "")).strip()
+    observation_timestamp = str(saved.get("observation_timestamp", "")).strip()
+    return result, timeline, source_file, observation_timestamp
+
+
 if hasattr(st, "fragment"):
     @st.fragment(run_every="10s")
     def _live_auto_panel(source_root: Path, trading_date: str, auto_update: bool) -> None:
@@ -1456,21 +1522,45 @@ if hasattr(st, "fragment"):
                 latest, timeline, _changed = _auto_process_new_snapshots(sources, trading_date)
                 session_state["finalized"] = False
             else:
-                # Outside market hours, do not keep recalculating. If the day
-                # has not yet been cached in this UI session, build it once so
-                # the latest complete snapshot becomes the preserved final state.
-                latest, timeline, _ = _load_day_for_snapshot_view(sources, trading_date)
-                if not market_open and latest is not None and not latest.empty:
+                # Outside market hours, restore durable final state first.
+                # Do not replay the whole day merely because Streamlit state
+                # was lost.
+                restored = _restore_last_complete_state(trading_date)
+                if restored is not None:
+                    latest, timeline, persisted_source, persisted_timestamp = restored
                     session_state["finalized"] = True
-                    session_state["final_snapshot_key"] = _source_key(sources[-1])
+                    session_state["final_snapshot_key"] = (
+                        persisted_source or _source_key(sources[-1])
+                    )
                     session_state["finalized_at"] = datetime.now().isoformat()
+                else:
+                    latest, timeline, _ = _load_day_for_snapshot_view(
+                        sources, trading_date
+                    )
+                    persisted_source = ""
+                    persisted_timestamp = ""
+                    if latest is not None and not latest.empty:
+                        session_state["finalized"] = True
+                        session_state["final_snapshot_key"] = _source_key(sources[-1])
+                        session_state["finalized_at"] = datetime.now().isoformat()
 
             if latest is None or latest.empty:
                 st.info("The first snapshot is BASE ONLY. Waiting for the first decision-bearing snapshot.")
                 return
 
-            latest_path = sources[-1]
-            latest_time = parse_observation_timestamp(latest_path)
+            if not market_open and persisted_source:
+                latest_path = Path(persisted_source)
+                try:
+                    latest_time = (
+                        datetime.fromisoformat(persisted_timestamp)
+                        if persisted_timestamp
+                        else parse_observation_timestamp(latest_path)
+                    )
+                except (TypeError, ValueError):
+                    latest_time = parse_observation_timestamp(latest_path)
+            else:
+                latest_path = sources[-1]
+                latest_time = parse_observation_timestamp(latest_path)
             if market_open:
                 status = "LIVE • market open"
                 if auto_update:
@@ -1584,17 +1674,40 @@ def render() -> None:
                 live_sources = _discover_sources(trading_date, source_root)
                 _, market_open = _market_session_status(trading_date)
                 if market_open and auto_update:
-                    latest, timeline, _changed = _auto_process_new_snapshots(live_sources, trading_date)
+                    latest, timeline, _changed = _auto_process_new_snapshots(
+                        live_sources, trading_date
+                    )
+                    persisted_source = ""
+                    persisted_timestamp = ""
                 else:
-                    latest, timeline, _ = _load_day_for_snapshot_view(live_sources, trading_date)
+                    restored = _restore_last_complete_state(trading_date)
+                    if restored is not None:
+                        latest, timeline, persisted_source, persisted_timestamp = restored
+                    else:
+                        latest, timeline, _ = _load_day_for_snapshot_view(
+                            live_sources, trading_date
+                        )
+                        persisted_source = ""
+                        persisted_timestamp = ""
             except Exception as exc:
                 st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
                 return
             if latest is None or latest.empty:
                 st.info("The first snapshot is BASE ONLY. Waiting for the first decision-bearing snapshot.")
                 return
-            live_path = live_sources[-1]
-            live_time = parse_observation_timestamp(live_path)
+            if not market_open and persisted_source:
+                live_path = Path(persisted_source)
+                try:
+                    live_time = (
+                        datetime.fromisoformat(persisted_timestamp)
+                        if persisted_timestamp
+                        else parse_observation_timestamp(live_path)
+                    )
+                except (TypeError, ValueError):
+                    live_time = parse_observation_timestamp(live_path)
+            else:
+                live_path = live_sources[-1]
+                live_time = parse_observation_timestamp(live_path)
             if market_open:
                 status = "LIVE • market open" + (" • Auto-update ON" if auto_update else " • Auto-update OFF")
             else:
