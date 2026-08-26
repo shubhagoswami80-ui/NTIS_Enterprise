@@ -443,14 +443,19 @@ def _candidate_reason(row: pd.Series) -> str:
 
 
 def _candidate_mask(result: pd.DataFrame) -> pd.Series:
-    """
-    Return the primary-dashboard visibility mask.
+    """Promote only relevant post-primary-gate decision states.
 
-    All rows remain available in `result`; only this mask determines what is
-    promoted to the primary decision view.
+    This restores the previously established state-based selection model:
+      * confirmed/active: directional price gate passed
+      * developing: engine already classified the row as DEVELOPING
+      * wait-break: engine already classified the row as WAIT_BREAK
+      * no arbitrary extra score/confirmation floor is imposed here
+
+    The finalized +/-0.75% primary price gate remains an absolute boundary
+    for every state in the live dashboard.
     """
     if result.empty:
-        return pd.Series(dtype=bool)
+        return pd.Series(False, index=result.index, dtype=bool)
 
     state = (
         result.get(
@@ -459,18 +464,25 @@ def _candidate_mask(result: pd.DataFrame) -> pd.Series:
         )
         .astype(str)
         .str.upper()
+        .str.strip()
     )
-    score = pd.to_numeric(
-        result.get(
-            "decision_score",
-            pd.Series(0, index=result.index),
-        ),
-        errors="coerce",
-    ).fillna(0)
 
-    confirmations = pd.to_numeric(
+    direction = (
         result.get(
-            "confirmation_count",
+            "decision_direction",
+            result.get(
+                "direction",
+                pd.Series("NEUTRAL", index=result.index),
+            ),
+        )
+        .astype(str)
+        .str.upper()
+        .str.strip()
+    )
+
+    price = pd.to_numeric(
+        result.get(
+            "price_change_pct",
             pd.Series(0, index=result.index),
         ),
         errors="coerce",
@@ -484,46 +496,40 @@ def _candidate_mask(result: pd.DataFrame) -> pd.Series:
         errors="coerce",
     ).fillna(0)
 
+    # HARD PRIMARY GATE. No developing/wait/actionable state may bypass it.
     gate = result.get(
         "gate_passed",
         pd.Series(False, index=result.index),
-    ).map(_bool)
+    ).map(_bool).fillna(False)
 
-    # No decision is always excluded from the primary dashboard.
-    mask = pd.Series(False, index=result.index)
-
-    strong_or_active = state.isin(
-        {
-            "STRONG_BULLISH",
-            "STRONG_BEARISH",
-            "ACTIVE_BULLISH",
-            "ACTIVE_BEARISH",
-        }
-    )
-    mask |= strong_or_active & gate & (conflicts == 0)
-
-    # A break-confirmation setup is useful even before the +/-0.75% gate,
-    # but it must still have meaningful evidence and no material conflict.
-    wait_break = state.eq("WAIT_BREAK_CONFIRMATION")
-    mask |= (
-        wait_break
-        & (score >= 60)
-        & (confirmations >= 3)
-        & (conflicts <= 1)
+    # Preserve the existing actionable rule: direction must agree with the
+    # +/-0.75% move and material conflicts do not enter the primary board.
+    confirmed = (
+        (
+            (direction == "BULLISH") & (price >= 0.75)
+        )
+        | (
+            (direction == "BEARISH") & (price <= -0.75)
+        )
     )
 
-    # Developing rows are deliberately NOT all shown. Weak developing rows
-    # are exactly the clutter we want to remove.
+    actionable = state.isin({
+        "STRONG_BULLISH",
+        "STRONG_BEARISH",
+        "ACTIVE_BULLISH",
+        "ACTIVE_BEARISH",
+    }) & confirmed & (conflicts == 0)
+
+    # These states are already produced by the underlying evidence engine.
+    # Their state classification is the evidence/relevance decision; do not
+    # add an artificial confirmation-count floor at dashboard level.
     developing = state.isin(DEVELOPING_STATES)
-    mask |= (
-        developing
-        & (score >= 60)
-        & (confirmations >= 3)
-        & (conflicts == 0)
-    )
+    wait_break = state.eq("WAIT_BREAK_CONFIRMATION")
 
-    return mask
+    relevant = actionable | developing | wait_break
 
+    # Absolute gate is applied to ALL three branches.
+    return gate & relevant & (conflicts <= 1)
 
 def _rank(result: pd.DataFrame) -> pd.DataFrame:
     if result.empty:
@@ -782,14 +788,21 @@ def _render_summary(result: pd.DataFrame, candidates: pd.DataFrame) -> None:
             pd.Series(dtype=str),
         ).astype(str).str.upper().str.startswith("DEVELOPING").sum()
     )
+    wait_break = int(
+        candidates.get(
+            "decision_state",
+            pd.Series(dtype=str),
+        ).astype(str).str.upper().eq("WAIT_BREAK_CONFIRMATION").sum()
+    )
 
-    cols = st.columns(5)
+    cols = st.columns(6)
     values = [
         ("EVALUATED", total, ""),
         ("DECISION POOL", visible, ""),
         ("BULLISH", bullish, "metric-green"),
         ("BEARISH", bearish, "metric-red"),
         ("DEVELOPING", developing, "metric-amber"),
+        ("WAIT BREAK", wait_break, "metric-amber"),
     ]
 
     for col, (label, value, cls) in zip(cols, values):
@@ -1317,50 +1330,68 @@ def render() -> None:
     # pool. Earlier states remain history, not live opportunities.
     candidates = _rank(result)
 
+    gate_passed_count = int(
+        result.get(
+            "gate_passed",
+            pd.Series(False, index=result.index),
+        ).map(_bool).sum()
+    )
+
     st.success(
         f"{len(result)} symbols evaluated; "
+        f"{gate_passed_count} passed the primary gate; "
         f"{len(candidates)} promoted to the primary decision pool."
     )
 
     _render_summary(result, candidates)
 
-    # Direction filter is a visibility control only; it never changes the
-    # underlying calculation/evidence.
+    # Direction/state filters are visibility controls only. They never
+    # recalculate, reload, or alter the processed result.
     st.markdown(
         '<div class="section">Current Decision Opportunities</div>',
         unsafe_allow_html=True,
     )
 
+    _direction = candidates.get(
+        "decision_direction",
+        pd.Series("", index=candidates.index),
+    ).astype(str).str.upper()
+
+    _state = candidates.get(
+        "decision_state",
+        pd.Series("", index=candidates.index),
+    ).astype(str).str.upper()
+
+    bullish_view = candidates.loc[
+        _direction.eq("BULLISH")
+    ].copy()
+    bearish_view = candidates.loc[
+        _direction.eq("BEARISH")
+    ].copy()
+    developing_view = candidates.loc[
+        _state.str.startswith("DEVELOPING")
+    ].copy()
+    wait_view = candidates.loc[
+        _state.eq("WAIT_BREAK_CONFIRMATION")
+    ].copy()
+
     filter_value = st.radio(
         "Show",
         ["All", "Bullish", "Bearish", "Developing", "Wait Break"],
         horizontal=True,
+        key="ds_decision_filter",
     )
 
-    filtered = candidates.copy()
-
     if filter_value == "Bullish":
-        filtered = filtered[
-            filtered["decision_direction"]
-            .astype(str).str.upper().eq("BULLISH")
-        ]
+        filtered = bullish_view
     elif filter_value == "Bearish":
-        filtered = filtered[
-            filtered["decision_direction"]
-            .astype(str).str.upper().eq("BEARISH")
-        ]
+        filtered = bearish_view
     elif filter_value == "Developing":
-        filtered = filtered[
-            filtered["decision_state"]
-            .astype(str).str.upper().str.startswith("DEVELOPING")
-        ]
+        filtered = developing_view
     elif filter_value == "Wait Break":
-        filtered = filtered[
-            filtered["decision_state"]
-            .astype(str).str.upper().eq(
-                "WAIT_BREAK_CONFIRMATION"
-            )
-        ]
+        filtered = wait_view
+    else:
+        filtered = candidates.copy()
 
     _render_table(filtered)
 

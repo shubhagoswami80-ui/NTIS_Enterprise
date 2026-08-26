@@ -26,7 +26,7 @@ def _present(row: dict[str, Any], role: str) -> bool:
 
 def _fmt(v: Any, suffix: str = "") -> str:
     n = _num(v)
-    return "—" if n is None else f"{n:.2f}{suffix}"
+    return "â€”" if n is None else f"{n:.2f}{suffix}"
 
 
 def _direction_from_futures(v: Any) -> str:
@@ -128,6 +128,7 @@ def _developing_direction(
     developing candidate to be visible before price confirmation.
     """
     votes = {"BULLISH": 0, "BEARISH": 0}
+    conflicts = 0
     reasons: list[str] = []
 
     price = _num(signal.get("price_change_pct"))
@@ -318,23 +319,12 @@ def enrich_decision(
     base_strength = int(out.get("strength", 0) or 0)
     if developing:
         base_strength = max(1, min(5, int(round(vote_strength / 2))))
-
-    effective_conflicts = conflict_count + (vote_conflict if developing else 0)
-
-    # Derivative consistency is a quality constraint, not a direction override.
-    # A price-gated move can remain ACTIVE, but material derivative conflict
-    # prevents the signal from being presented as strong/aligned evidence.
-    if effective_conflicts >= 2:
-        evidence_quality = "LOW"
-    elif effective_conflicts == 1 and evidence_quality == "HIGH":
-        evidence_quality = "MEDIUM"
-
     score, score_label = _decision_score(
         decision_direction,
         price_change,
         base_strength,
         confirmation_count,
-        effective_conflicts,
+        conflict_count + (vote_conflict if developing else 0),
         evidence_quality,
         first_range_status,
         sr_status,
@@ -346,33 +336,74 @@ def enrich_decision(
         or (decision_direction == "BEARISH" and price_change is not None and price_change < -PRICE_GATE)
     )
 
-    # Canonical dashboard decision-state vocabulary.
-    # The +/-0.75% gate remains the actionability boundary; it is not exposed
-    # as a separate dashboard field.
+    # -----------------------------------------------------------------------
+    # CONTROLLED POST-GATE DECISION MATURITY
+    # -----------------------------------------------------------------------
+    # Gate 1 is absolute: a stock that has not moved beyond +/-0.75% in its
+    # established direction is NOT a primary dashboard opportunity. Its
+    # evidence remains available internally for replay/audit.
     #
-    # Material derivative conflict blocks STRONG classification unless the
-    # evidence is fully aligned. The directional decision itself is retained.
+    # Once Gate 1 passes, maturity is decided from the EXISTING evidence
+    # already calculated above (S/R, first-range/ORB, Futures, PE-CE, PCR,
+    # IV, Volume, OI, confirmations and conflicts). No new source or trading
+    # trigger is introduced here.
+    #
+    # Priority after Gate 1:
+    #   1. Material conflict -> NO DECISION
+    #   2. Structural level still awaiting break -> WAIT BREAK
+    #   3. Strong aligned evidence / actual break -> STRONG
+    #   4. Sufficient but not strong -> ACTIVE
+    #   5. Relevant evidence building -> DEVELOPING
+    # -----------------------------------------------------------------------
+    effective_conflicts = conflict_count + (vote_conflict if developing else 0)
     strong_allowed = effective_conflicts == 0
-    if decision_direction == "BULLISH":
-        if gate_passed:
-            if strong_allowed and (sr_status == "RESISTANCE BROKEN" or score >= 85):
-                decision_state = "STRONG_BULLISH"
-            else:
-                decision_state = "ACTIVE_BULLISH"
-        elif sr_status in {"RESISTANCE TEST", "APPROACHING RESISTANCE"}:
+
+    if not gate_passed:
+        decision_state = "NO DECISION"
+    elif effective_conflicts >= 2:
+        # Opposite evidence is material; suppress the directional entry rather
+        # than displaying a misleading bullish/bearish opportunity.
+        decision_state = "NO DECISION"
+    elif decision_direction == "BULLISH":
+        if sr_status in {"RESISTANCE TEST", "APPROACHING RESISTANCE"}:
+            # Price gate has passed, but structural confirmation is still
+            # pending. This is a genuine post-gate WAIT-BREAK state.
             decision_state = "WAIT_BREAK_CONFIRMATION"
-        else:
+        elif strong_allowed and (
+            sr_status == "RESISTANCE BROKEN" or score >= 85
+        ):
+            decision_state = "STRONG_BULLISH"
+        elif score >= 75 and strong_allowed:
+            decision_state = "ACTIVE_BULLISH"
+        elif (
+            score >= 45
+            and evidence_quality in {"MEDIUM", "HIGH"}
+            and strong_allowed
+            and confirmation_count >= 1
+        ):
             decision_state = "DEVELOPING_BULLISH"
-    elif decision_direction == "BEARISH":
-        if gate_passed:
-            if strong_allowed and (sr_status == "SUPPORT BROKEN" or score >= 85):
-                decision_state = "STRONG_BEARISH"
-            else:
-                decision_state = "ACTIVE_BEARISH"
-        elif sr_status in {"SUPPORT TEST", "APPROACHING SUPPORT"}:
-            decision_state = "WAIT_BREAK_CONFIRMATION"
         else:
+            decision_state = "NO DECISION"
+    elif decision_direction == "BEARISH":
+        if sr_status in {"SUPPORT TEST", "APPROACHING SUPPORT"}:
+            # Price gate has passed, but structural confirmation is still
+            # pending. This is a genuine post-gate WAIT-BREAK state.
+            decision_state = "WAIT_BREAK_CONFIRMATION"
+        elif strong_allowed and (
+            sr_status == "SUPPORT BROKEN" or score >= 85
+        ):
+            decision_state = "STRONG_BEARISH"
+        elif score >= 75 and strong_allowed:
+            decision_state = "ACTIVE_BEARISH"
+        elif (
+            score >= 45
+            and evidence_quality in {"MEDIUM", "HIGH"}
+            and strong_allowed
+            and confirmation_count >= 1
+        ):
             decision_state = "DEVELOPING_BEARISH"
+        else:
+            decision_state = "NO DECISION"
     else:
         decision_state = "NO DECISION"
 
@@ -382,20 +413,14 @@ def enrich_decision(
         else:
             decision_reason = "Strong bullish decision with aligned derivative evidence."
     elif decision_state == "ACTIVE_BULLISH":
-        if effective_conflicts > 0:
-            decision_reason = f"Bullish actionability gate passed; derivative evidence has {effective_conflicts} conflicting signals."
-        else:
-            decision_reason = "Bullish actionability gate passed with aligned derivative evidence."
+        decision_reason = (f"Bullish actionability gate passed; derivative evidence has {conflict_count} conflicting signals." if conflict_count > 0 else "Bullish actionability gate passed with aligned derivative evidence.")
     elif decision_state == "STRONG_BEARISH":
         if sr_status == "SUPPORT BROKEN":
             decision_reason = "Support breakdown confirmed with aligned derivative evidence."
         else:
             decision_reason = "Strong bearish decision with aligned derivative evidence."
     elif decision_state == "ACTIVE_BEARISH":
-        if effective_conflicts > 0:
-            decision_reason = f"Bearish actionability gate passed; derivative evidence has {effective_conflicts} conflicting signals."
-        else:
-            decision_reason = "Bearish actionability gate passed with aligned derivative evidence."
+        decision_reason = "Bearish decision confirmed below the actionability gate."
     elif decision_state == "DEVELOPING_BULLISH":
         reason = "; ".join(developing_reasons[:4]) or "directional evidence building"
         decision_reason = f"Developing bullish structure: {reason}."
@@ -405,8 +430,22 @@ def enrich_decision(
     elif decision_state == "WAIT_BREAK_CONFIRMATION":
         decision_reason = f"{sr_status}; waiting for decisive break confirmation."
     else:
-        decision_reason = "Insufficient aligned directional evidence."
+        if not gate_passed:
+            decision_reason = (
+                f"FAILED PRIMARY PRICE GATE — {price_change:+.2f}% "
+                f"did not reach +/-{PRICE_GATE:.2f}%"
+                if price_change is not None
+                else "FAILED PRIMARY PRICE GATE — price change unavailable"
+            )
+        elif effective_conflicts >= 2:
+            decision_reason = (
+                "Material opposing evidence; directional decision suppressed "
+                "to avoid a wrong entry."
+            )
+        else:
+            decision_reason = "Insufficient aligned post-gate evidence."
 
+    # Keep internal fields for diagnostics; do not expose duplicates in the main card.
     out.update({
         "decision_direction": decision_direction,
         "decision_state": decision_state,
@@ -431,6 +470,7 @@ def enrich_decision(
         "sr_interpretation": sr_status,
         "straddle_interpretation": f"Straddle {_fmt(out.get('straddle_progress_pct'), '%')}",
         "decision_reason": decision_reason,
+        # Legacy fields retained for compatibility with existing replay/state code.
         "setup": sr_status,
         "confirmation": "CONFIRMED" if gate_passed else "DEVELOPING",
         "action": "DECISION",
@@ -451,3 +491,4 @@ def merge_evidence(base_path: Path, trading_date: str):
         for role, path in bundle.files.items()
     }
     return bundle.rows.copy(), source_map
+
