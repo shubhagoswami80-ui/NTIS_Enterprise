@@ -171,17 +171,8 @@ def _queue(candidates: pd.DataFrame, key: str) -> pd.DataFrame:
     if candidates.empty:
         return pd.DataFrame()
     options = [
-        "All",
-        "Bullish",
-        "Bearish",
-        "25%+",
-        "50%+",
-        "75%+",
-        "Approaching 100%",
-        "100% Breakout",
-        "Strong",
-        "Developing",
-        "Wait",
+        "All", "Bullish", "Bearish", "25%+", "50%+", "75%+",
+        "Approaching 100%", "100% Breakout", "Strong", "Developing", "Wait",
     ]
     selected = st.radio("Show", options, horizontal=True, key=key)
     out = candidates.copy()
@@ -222,13 +213,13 @@ def _queue(candidates: pd.DataFrame, key: str) -> pd.DataFrame:
         })
     q = pd.DataFrame(rows)
     if not q.empty:
-        # Factual breakout first, then overall strength, then straddle progress.
         q["_break"] = out["factual_breakout"].to_numpy()
         q["_strength"] = out["strength"].to_numpy()
         q["_progress"] = out["progress"].to_numpy()
-        q = q.sort_values(["_break","_strength","_progress"], ascending=[False,False,False]).drop(
-            columns=["_break","_strength","_progress"]
-        )
+        q = q.sort_values(
+            ["_break", "_strength", "_progress"],
+            ascending=[False, False, False],
+        ).drop(columns=["_break", "_strength", "_progress"])
     return q.reset_index(drop=True)
 
 
@@ -247,6 +238,101 @@ def _evidence_table(row: pd.Series) -> pd.DataFrame:
         v = row.get(key, pd.NA)
         rec.append({"EVIDENCE": label, "VALUE": v if pd.notna(v) else "MISSING"})
     return pd.DataFrame(rec)
+
+
+def _historical_intelligence(events: pd.DataFrame, trading_date: str | None = None):
+    """Presentation-only transformation of existing factual first-breakout events."""
+    if events is None or events.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    hist = events.copy()
+    hist["trading_date"] = hist.get("trading_date", "").astype(str).str[:10]
+    hist["observation_timestamp"] = pd.to_datetime(
+        hist.get("observation_timestamp"), errors="coerce"
+    )
+
+    for col in [
+        "open_price", "current_price", "opening_straddle_premium",
+        "expected_1x_price", "breakout_distance", "price_chg_pct",
+        "oi_chg_pct", "ce_oi_chg_pct", "pe_oi_chg_pct",
+        "pe_minus_ce_oi_chg", "iv_chg_pct", "pcr_chg_pct",
+    ]:
+        if col in hist.columns:
+            hist[col] = pd.to_numeric(hist[col], errors="coerce")
+
+    # These are display metrics only; they do not alter event selection.
+    hist["straddle_progress_pct"] = (
+        (hist["current_price"] - hist["open_price"]).abs()
+        / hist["opening_straddle_premium"].replace(0, pd.NA)
+        * 100.0
+    )
+    hist["beyond_100_pct"] = hist["straddle_progress_pct"] - 100.0
+
+    hist["stage"] = "BREAKOUT"
+    hist.loc[hist["straddle_progress_pct"].ge(125), "stage"] = "EXTENDED"
+    hist.loc[
+        hist["straddle_progress_pct"].ge(100)
+        & hist["straddle_progress_pct"].lt(125),
+        "stage",
+    ] = "BREAKOUT+"
+
+    hist["direction_display"] = hist["direction"].map(
+        {"UP": "🟢 UP", "DOWN": "🔴 DOWN"}
+    ).fillna(hist["direction"].astype(str))
+
+    # Keep today's view separate from the historical archive.
+    if trading_date:
+        today = hist[hist["trading_date"].eq(str(trading_date)[:10])].copy()
+        archive = hist[~hist["trading_date"].eq(str(trading_date)[:10])].copy()
+    else:
+        today = hist.iloc[0:0].copy()
+        archive = hist.copy()
+
+    # Latest/strongest events first. Missing timestamps stay at bottom.
+    for frame in (today, archive):
+        if not frame.empty:
+            frame["_ts_sort"] = frame["observation_timestamp"].fillna(pd.Timestamp.min)
+            frame["_progress_sort"] = frame["straddle_progress_pct"].fillna(-1)
+            frame.sort_values(
+                ["_ts_sort", "_progress_sort"],
+                ascending=[False, False],
+                inplace=True,
+            )
+            frame.drop(columns=["_ts_sort", "_progress_sort"], inplace=True)
+
+    return today, archive
+
+
+def _render_breakout_table(frame: pd.DataFrame, compact: bool = True):
+    if frame.empty:
+        return
+
+    display = pd.DataFrame({
+        "TIME": frame["observation_timestamp"].dt.strftime("%H:%M:%S").fillna("—"),
+        "STOCK": frame["symbol"],
+        "DIRECTION": frame["direction_display"],
+        "STAGE": frame["stage"],
+        "STRADDLE %": frame["straddle_progress_pct"].map(
+            lambda x: f"{x:.1f}%" if pd.notna(x) else "—"
+        ),
+        "PRICE MOVE": frame["price_chg_pct"].map(
+            lambda x: f"{x:+.2f}%" if pd.notna(x) else "—"
+        ),
+        "BEYOND 100%": frame["beyond_100_pct"].map(
+            lambda x: f"{x:+.1f}%" if pd.notna(x) else "—"
+        ),
+        "BREAKOUT DIST ₹": frame["breakout_distance"].map(
+            lambda x: f"{x:+.2f}" if pd.notna(x) else "—"
+        ),
+    })
+
+    if not compact:
+        display["OPEN"] = frame["open_price"].map(lambda x: f"{x:.2f}" if pd.notna(x) else "—")
+        display["CMP"] = frame["current_price"].map(lambda x: f"{x:.2f}" if pd.notna(x) else "—")
+        display["FROZEN S ₹"] = frame["opening_straddle_premium"].map(lambda x: f"{x:.2f}" if pd.notna(x) else "—")
+        display["EVIDENCE"] = frame["oi_chg_pct"].map(lambda x: f"OI {x:+.2f}%" if pd.notna(x) else "OI —")
+
+    st.dataframe(display, width="stretch", hide_index=True)
 
 
 st.markdown(
@@ -331,9 +417,26 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 events = _events()
 latest_source, latest_ts = _latest_source()
-today_events = events[events.get("trading_date", pd.Series(dtype=str)).astype(str).eq(
-    pd.Timestamp.now().date().isoformat()
-)] if not events.empty else pd.DataFrame()
+
+# Active trading date for presentation:
+# prefer the selected replay timestamp, otherwise the latest discovered source
+# date, otherwise the machine date. This keeps the evidence view useful when
+# the latest available source day is not the machine's calendar day.
+_replay_state_ts = pd.to_datetime(
+    st.session_state.get("sdl_replay_timestamp"), errors="coerce"
+)
+if pd.notna(_replay_state_ts):
+    active_trading_date = _replay_state_ts.date().isoformat()
+elif pd.notna(latest_ts):
+    active_trading_date = latest_ts.date().isoformat()
+else:
+    active_trading_date = pd.Timestamp.now().date().isoformat()
+
+today_iso = active_trading_date
+today_events = (
+    events[events.get("trading_date", pd.Series(dtype=str)).astype(str).str[:10].eq(today_iso)]
+    if not events.empty else pd.DataFrame()
+)
 
 # LIVE: re-read/process the latest source through the existing pipeline so the
 # Decision Center sees early candidates, not only historical first-breakout events.
@@ -352,7 +455,8 @@ st.markdown(
     '<div class="card-subtitle">Primary gate: absolute price move ≥ ±0.75%. '
     'Then progress is measured against each stock\'s frozen Opening Straddle Premium: '
     '25% = 0.25×S, 50% = 0.50×S, 75% = 0.75×S, 100% = 1.00×S (factual breakout). '
-    'Confirmation factors rank the candidates; they do not replace the primary gates.</div>', unsafe_allow_html=True,
+    'Confirmation factors rank the candidates; they do not replace the primary gates.</div>',
+    unsafe_allow_html=True,
 )
 
 if live_candidates.empty:
@@ -390,7 +494,7 @@ else:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Compact decision counts
+
 def _counts(df):
     if df.empty:
         return {"bull":0,"bear":0,"strong":0,"dev":0,"wait":0,"break":0}
@@ -402,6 +506,7 @@ def _counts(df):
         "wait": int(df["strength_label"].isin(["WAIT","WAIT / CONFLICT"]).sum()),
         "break": int(df["factual_breakout"].sum()),
     }
+
 
 lc = _counts(live_candidates)
 rc = _counts(replay_candidates)
@@ -476,27 +581,51 @@ else:
 st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="card-title">5. HISTORICAL EVIDENCE</div>', unsafe_allow_html=True)
+st.markdown('<div class="card-title">5. BREAKOUT INTELLIGENCE — ACTIVE TRADING DAY</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="card-subtitle">Factual first-breakout history only. This is kept separate from '
-    'the live/replay decision queue and is not used to create a current decision.</div>',
+    '<div class="card-subtitle">Factual first-breakout events detected for the active source trading day. '
+    'Presentation only — this does not change the SDL selection or confirmation logic.</div>',
     unsafe_allow_html=True,
 )
-if events.empty:
-    st.info("No historical breakout events recorded.")
+
+today_hist, archive_hist = _historical_intelligence(events, today_iso)
+
+if today_hist.empty:
+    st.info(
+        f"No factual first-breakout event is currently recorded for {pd.Timestamp(today_iso).strftime('%d %b %Y')}. "
+        "Run PROCESS LATEST or REPLAY DAY after the source snapshots are available."
+    )
 else:
-    hist = events.copy()
-    hist["observation_timestamp"] = pd.to_datetime(hist.get("observation_timestamp"), errors="coerce")
-    hist = hist.sort_values("observation_timestamp", ascending=False)
-    cols = [
-        "observation_timestamp","trading_date","symbol","direction",
-        "open_price","current_price","opening_straddle_premium",
-        "expected_1x_price","breakout_distance","price_chg_pct",
-        "oi_chg_pct","ce_oi_chg_pct","pe_oi_chg_pct","pe_minus_ce_oi_chg",
-        "iv_chg_pct","pcr_chg_pct"
-    ]
-    cols = [c for c in cols if c in hist.columns]
-    st.dataframe(hist[cols].head(250), width="stretch", hide_index=True)
+    _render_breakout_table(today_hist, compact=True)
+
+    with st.expander("Today's breakout evidence detail", expanded=False):
+        _render_breakout_table(today_hist, compact=False)
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown('<div class="card">', unsafe_allow_html=True)
+st.markdown('<div class="card-title">6. HISTORICAL BREAKOUT ARCHIVE</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="card-subtitle">Previous factual first-breakout events. '
+    'The archive is separate from the current live/replay decision queue.</div>',
+    unsafe_allow_html=True,
+)
+
+if archive_hist.empty:
+    st.info("No previous historical breakout events recorded.")
+else:
+    _render_breakout_table(archive_hist.head(250), compact=True)
+
+    with st.expander("Historical raw evidence", expanded=False):
+        cols = [
+            "observation_timestamp","trading_date","symbol","direction",
+            "open_price","current_price","opening_straddle_premium",
+            "expected_1x_price","breakout_distance","price_chg_pct",
+            "oi_chg_pct","ce_oi_chg_pct","pe_oi_chg_pct","pe_minus_ce_oi_chg",
+            "iv_chg_pct","pcr_chg_pct"
+        ]
+        cols = [c for c in cols if c in archive_hist.columns]
+        st.dataframe(archive_hist[cols].head(250), width="stretch", hide_index=True)
 
 st.markdown(
     '<div style="margin-top:10px;color:#737c90;font-size:11px;">'
