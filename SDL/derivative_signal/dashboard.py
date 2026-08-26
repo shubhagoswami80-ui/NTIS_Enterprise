@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import time
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,34 @@ CONFIRMED_STATES = {
 }
 DEVELOPING_STATES = {"DEVELOPING_BULLISH", "DEVELOPING_BEARISH"}
 QUALIFIED_STATES = CONFIRMED_STATES | DEVELOPING_STATES
+
+# NSE regular cash-market session. LIVE auto-processing is active only while
+# the session is open; after close the dashboard preserves the last complete
+# processed intraday decision snapshot as the final session state.
+MARKET_OPEN_TIME = (9, 15)
+MARKET_CLOSE_TIME = (15, 30)
+
+def _market_session_status(trading_date: str) -> tuple[bool, bool]:
+    """Return (is_market_day, is_market_open) using the selected trading date.
+
+    This intentionally uses the selected trading date and local machine time.
+    The source discovery layer remains the authority for whether snapshots
+    actually exist; this helper only controls LIVE auto-refresh behavior.
+    """
+    try:
+        selected = datetime.strptime(trading_date, "%Y-%m-%d").date()
+    except ValueError:
+        return True, False
+    now = datetime.now()
+    if selected != now.date():
+        return True, False
+    current = (now.hour, now.minute)
+    return True, MARKET_OPEN_TIME <= current < MARKET_CLOSE_TIME
+
+
+def _live_session_key(trading_date: str) -> str:
+    return f"ds_live_session::{trading_date}"
+
 
 # ---------------------------------------------------------------------------
 # Source / replay layer
@@ -241,13 +270,15 @@ def process_selected_source(path: Path, trading_date: str) -> pd.DataFrame:
 def process_all_sources(
     paths: list[Path],
     trading_date: str,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+    capture_snapshots: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame] | None]:
     state = load_state(STATE_JSON)
     previous: dict[str, dict] = {}
     previous_state: dict[str, str] = {}
     previous_direction: dict[str, str] = {}
     timeline_rows: list[dict[str, Any]] = []
     latest_result = pd.DataFrame()
+    snapshot_results: dict[str, pd.DataFrame] = {}
     latest_valid_path: Path | None = None
 
     ordered = sorted(
@@ -284,6 +315,8 @@ def process_all_sources(
         # chain, so its raw rows become the previous snapshot for the next
         # batch item.
         if result.empty:
+            if capture_snapshots:
+                snapshot_results[_source_key(path)] = result
             previous = _snapshot_rows(_read(path))
             continue
 
@@ -347,6 +380,8 @@ def process_all_sources(
         previous = _snapshot_rows(_read(path))
         latest_result = result
         latest_valid_path = path
+        if capture_snapshots:
+            snapshot_results[_source_key(path)] = result
 
     day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
     decision_rows = (
@@ -380,7 +415,156 @@ def process_all_sources(
     day["processed_at"] = datetime.now().isoformat()
     save_state(state, STATE_JSON)
 
-    return latest_result, pd.DataFrame(timeline_rows)
+    return latest_result, pd.DataFrame(timeline_rows), (snapshot_results if capture_snapshots else None)
+
+
+# ---------------------------------------------------------------------------
+# Live / snapshot cache helpers
+# ---------------------------------------------------------------------------
+
+def _source_key(path: Path) -> str:
+    return str(Path(path).resolve())
+
+
+def _cache_key(trading_date: str) -> str:
+    return f"ds_snapshot_cache::{trading_date}"
+
+
+def _store_replay_cache(
+    trading_date: str,
+    snapshot_results: dict[str, pd.DataFrame],
+    timeline: pd.DataFrame,
+) -> None:
+    st.session_state[_cache_key(trading_date)] = {
+        "snapshots": snapshot_results,
+        "timeline": timeline,
+    }
+
+
+def _get_replay_cache(trading_date: str) -> dict[str, Any]:
+    value = st.session_state.get(_cache_key(trading_date))
+    return value if isinstance(value, dict) else {}
+
+
+def _process_and_cache_day(
+    sources: list[Path],
+    trading_date: str,
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
+    latest, timeline, snapshots = process_all_sources(
+        sources,
+        trading_date,
+        capture_snapshots=True,
+    )
+    _store_replay_cache(trading_date, snapshots, timeline)
+    return latest, timeline, snapshots
+
+
+def _auto_process_new_snapshots(
+    sources: list[Path],
+    trading_date: str,
+) -> tuple[pd.DataFrame, pd.DataFrame, bool]:
+    """Process only snapshots not already consumed by the live session/state.
+
+    The first live load establishes the BASE + chronological chain once.
+    Subsequent live updates consume only newly arrived files, preserving the
+    existing previous-snapshot state and decision evidence.
+    """
+    cache = _get_replay_cache(trading_date)
+    cached_snapshots = cache.get("snapshots", {})
+    if not isinstance(cached_snapshots, dict):
+        cached_snapshots = {}
+
+    known = set(cached_snapshots.keys())
+    source_keys = {_source_key(p) for p in sources}
+
+    # If the session has no cache, initialize the complete currently available
+    # chain once. This is required to establish the BASE snapshot correctly.
+    if not known or not known.intersection(source_keys):
+        latest, timeline, _ = _process_and_cache_day(sources, trading_date)
+        return latest, timeline, True
+
+    new_paths = [p for p in sources if _source_key(p) not in known]
+    if not new_paths:
+        latest_key = _source_key(sources[-1]) if sources else ""
+        latest = cached_snapshots.get(latest_key, pd.DataFrame())
+        return latest, cache.get("timeline", pd.DataFrame()), False
+
+    # Process only the new tail, in chronological order. The processing-state
+    # file already contains the previous raw snapshot and current decision
+    # snapshot needed to continue the chain.
+    state = load_state(STATE_JSON)
+    day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
+    previous = day.get("previous_snapshot", {}) or {}
+    previous_state = {
+        str(k).upper(): str(v.get("decision_state", "")).upper()
+        for k, v in (day.get("decision_snapshot", {}) or {}).items()
+        if isinstance(v, dict)
+    }
+    previous_direction = {
+        str(k).upper(): str(
+            v.get("decision_direction", v.get("direction", "NEUTRAL"))
+        ).upper()
+        for k, v in (day.get("decision_snapshot", {}) or {}).items()
+        if isinstance(v, dict)
+    }
+
+    first_range = _first_range_from_path(sources[0], trading_date) if sources else {}
+    timeline_rows = cache.get("timeline", pd.DataFrame()).to_dict(orient="records") if isinstance(cache.get("timeline"), pd.DataFrame) else []
+    latest_result = pd.DataFrame()
+
+    for path in new_paths:
+        result = _process_snapshot(path, trading_date, previous, first_range)
+        result = _attach_snapshot_metadata(result, path)
+        timestamp = parse_observation_timestamp(path)
+        if result.empty:
+            previous = _snapshot_rows(_read(path))
+            continue
+
+        for row in result.to_dict(orient="records"):
+            symbol = str(row.get("symbol", "")).upper()
+            state_name = str(row.get("decision_state", row.get("state", "WATCH"))).upper()
+            direction = str(row.get("decision_direction", row.get("direction", "NEUTRAL"))).upper()
+            old_state = previous_state.get(symbol)
+            old_direction = previous_direction.get(symbol)
+            state_changed = state_name != old_state
+            direction_changed = (
+                old_direction is not None
+                and direction not in {"", "NEUTRAL"}
+                and old_direction not in {"", "NEUTRAL"}
+                and direction != old_direction
+            )
+            if (state_changed or direction_changed) and state_name in QUALIFIED_STATES:
+                timeline_rows.append({
+                    "Time": timestamp.strftime("%H:%M:%S"),
+                    "Snapshot": len(cached_snapshots) + 1,
+                    "Symbol": symbol,
+                    "Decision": row.get("decision_state", "NO DECISION"),
+                    "Direction": direction,
+                    "Previous": old_direction if direction_changed else old_state or "—",
+                    "Evidence": row.get("decision_score", 0),
+                    "Strength": row.get("decision_strength", "—"),
+                    "S/R": row.get("sr_status", "—"),
+                })
+            previous_state[symbol] = state_name
+            previous_direction[symbol] = direction
+
+        previous = _snapshot_rows(_read(path))
+        latest_result = result
+        cached_snapshots[_source_key(path)] = result
+        day["previous_snapshot"] = previous
+        day["decision_snapshot"] = {
+            str(row.get("symbol", "")).upper(): row
+            for row in result.to_dict(orient="records")
+            if str(row.get("symbol", "")).strip()
+        }
+        day["source_file"] = str(path)
+        day["processed_at"] = datetime.now().isoformat()
+        state.setdefault(STATE_KEY, {})[trading_date] = day
+        save_state(state, STATE_JSON)
+
+    timeline = pd.DataFrame(timeline_rows)
+    _store_replay_cache(trading_date, cached_snapshots, timeline)
+    return latest_result, timeline, True
 
 
 # ---------------------------------------------------------------------------
@@ -1177,6 +1361,141 @@ def _render_timeline(timeline: pd.DataFrame) -> None:
         )
 
 
+def _render_current_result(result: pd.DataFrame, timeline: pd.DataFrame, snapshot_label: str) -> None:
+    if result is None or not isinstance(result, pd.DataFrame) or result.empty:
+        st.info("No decision result is available for this snapshot.")
+        return
+
+    candidates = _rank(result)
+    gate_passed_count = int(
+        result.get("gate_passed", pd.Series(False, index=result.index)).map(_bool).sum()
+    )
+
+    st.markdown(
+        f'<div class="snapshot"><b>Current Snapshot:</b> {snapshot_label} &nbsp;|&nbsp; '
+        f'<b>{len(result)}</b> evaluated &nbsp;|&nbsp; '
+        f'<b>{gate_passed_count}</b> primary gate passed &nbsp;|&nbsp; '
+        f'<b>{len(candidates)}</b> decision candidates</div>',
+        unsafe_allow_html=True,
+    )
+
+    _render_summary(result, candidates)
+    st.markdown('<div class="section">Current Decision Opportunities</div>', unsafe_allow_html=True)
+
+    direction = candidates.get("decision_direction", pd.Series("", index=candidates.index)).astype(str).str.upper()
+    state = candidates.get("decision_state", pd.Series("", index=candidates.index)).astype(str).str.upper()
+    bullish_view = candidates.loc[direction.eq("BULLISH")].copy()
+    bearish_view = candidates.loc[direction.eq("BEARISH")].copy()
+    developing_view = candidates.loc[state.str.startswith("DEVELOPING")].copy()
+
+    # WAIT BREAK is a state inside Bullish/Bearish. It is deliberately not a
+    # separate current queue, preventing the same stock from being displayed
+    # in multiple places.
+    filter_value = st.radio(
+        "Show",
+        ["All", "Bullish", "Bearish", "Developing"],
+        horizontal=True,
+        key="ds_decision_filter",
+    )
+    if filter_value == "Bullish":
+        filtered = bullish_view
+    elif filter_value == "Bearish":
+        filtered = bearish_view
+    elif filter_value == "Developing":
+        filtered = developing_view
+    else:
+        filtered = candidates.copy()
+
+    _render_table(filtered)
+    if not filtered.empty:
+        symbol = st.selectbox("Inspect one decision", filtered["symbol"].astype(str).tolist(), key="ds_inspect_stock")
+        selected = filtered.loc[filtered["symbol"].astype(str).eq(symbol)].iloc[0]
+        _render_evidence(selected)
+
+    no_decision_count = int(
+        result.get("decision_state", pd.Series("", index=result.index)).astype(str).str.upper().eq("NO DECISION").sum()
+    )
+    weak_excluded = len(result) - len(candidates) - no_decision_count
+    st.markdown(
+        f'<div class="note">Coverage: {len(result)} evaluated. '
+        f'NO DECISION hidden: {no_decision_count}. '
+        f'Weak/conflicted rows hidden: {max(0, weak_excluded)}.</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Decision evolution is a historical change log, not a second current
+    # stock queue. It is intentionally compact and timestamped.
+    if isinstance(timeline, pd.DataFrame) and not timeline.empty:
+        st.subheader("Decision Evolution — meaningful changes")
+        evo = timeline.copy()
+        evo["Time"] = evo["Time"].astype(str)
+        st.dataframe(
+            evo[[c for c in ["Time", "Symbol", "Decision", "Previous", "Direction", "Evidence", "S/R"] if c in evo.columns]].tail(40),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+
+
+if hasattr(st, "fragment"):
+    @st.fragment(run_every="10s")
+    def _live_auto_panel(source_root: Path, trading_date: str, auto_update: bool) -> None:
+        # Re-discover on every live fragment cycle so newly-arrived snapshots
+        # become visible without requiring a manual full-page refresh.
+        try:
+            sources = _discover_sources(trading_date, source_root)
+            if not sources:
+                st.info("No intraday snapshots are currently available for this date.")
+                return
+
+            _, market_open = _market_session_status(trading_date)
+            session_state = st.session_state.setdefault(_live_session_key(trading_date), {})
+            session_state["last_source_key"] = _source_key(sources[-1])
+
+            if market_open and auto_update:
+                latest, timeline, _changed = _auto_process_new_snapshots(sources, trading_date)
+                session_state["finalized"] = False
+            else:
+                # Outside market hours, do not keep recalculating. If the day
+                # has not yet been cached in this UI session, build it once so
+                # the latest complete snapshot becomes the preserved final state.
+                latest, timeline, _ = _load_day_for_snapshot_view(sources, trading_date)
+                if not market_open and latest is not None and not latest.empty:
+                    session_state["finalized"] = True
+                    session_state["final_snapshot_key"] = _source_key(sources[-1])
+                    session_state["finalized_at"] = datetime.now().isoformat()
+
+            if latest is None or latest.empty:
+                st.info("The first snapshot is BASE ONLY. Waiting for the first decision-bearing snapshot.")
+                return
+
+            latest_path = sources[-1]
+            latest_time = parse_observation_timestamp(latest_path)
+            if market_open:
+                status = "LIVE • market open"
+                if auto_update:
+                    status += " • Auto-update ON"
+                else:
+                    status += " • Auto-update OFF"
+            else:
+                status = "FINAL SESSION STATE • market closed • preserved from last complete snapshot"
+
+            st.caption(f"{status} • {latest_time:%H:%M:%S} • {latest_path.name}")
+            _render_current_result(latest, timeline, latest_time.strftime("%H:%M:%S"))
+        except Exception as exc:
+            st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
+
+
+def _load_day_for_snapshot_view(sources: list[Path], trading_date: str) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
+    cache = _get_replay_cache(trading_date)
+    snapshots = cache.get("snapshots", {})
+    if isinstance(snapshots, dict) and all(_source_key(p) in snapshots for p in sources):
+        latest = snapshots.get(_source_key(sources[-1]), pd.DataFrame()) if sources else pd.DataFrame()
+        return latest, cache.get("timeline", pd.DataFrame()), snapshots
+    latest, timeline, snapshots = _process_and_cache_day(sources, trading_date)
+    return latest, timeline, snapshots
+
+
 def render() -> None:
     st.set_page_config(
         page_title="NTIS SDL — Intraday Decision Center",
@@ -1188,268 +1507,150 @@ def render() -> None:
         """
 <div class="hero">
   <div class="hero-title">NTIS SDL — Intraday Decision Center</div>
-  <div class="hero-sub">
-    Evidence-filtered intraday decisions — only relevant directional
-    opportunities are promoted to the primary dashboard.
-  </div>
+  <div class="hero-sub">Current decision intelligence from the latest complete snapshot — with intraday and historical replay.</div>
 </div>
 """,
         unsafe_allow_html=True,
     )
 
-    source_text = st.text_input(
-        "Source folder",
-        value=str(Path(INTRADAY_SOURCE_ROOT).expanduser()),
-    )
-    source_root = Path(source_text).expanduser()
+    # Source location is intentionally hidden behind a collapsed configuration
+    # section. The production/default path remains the value from config.py,
+    # while an operator can override it when the data location changes.
+    default_source_root = str(Path(INTRADAY_SOURCE_ROOT).expanduser())
+    if "ds_source_root_override" not in st.session_state:
+        st.session_state["ds_source_root_override"] = default_source_root
 
-    c1, c2 = st.columns([1, 2])
+    with st.expander("⚙ Advanced Configuration", expanded=False):
+        configured_source_root = st.text_input(
+            "Intraday source data folder",
+            value=st.session_state["ds_source_root_override"],
+            key="ds_source_root_input",
+            help="Normally leave this unchanged. Use it only if the intraday snapshot source folder changes.",
+        ).strip()
+        if not configured_source_root:
+            configured_source_root = default_source_root
+        if configured_source_root != st.session_state["ds_source_root_override"]:
+            st.session_state["ds_source_root_override"] = configured_source_root
+            st.session_state.pop("ds_data_view", None)
+            st.rerun()
+
+    c1, c2 = st.columns([1, 1])
     with c1:
-        trading_date = st.date_input(
-            "Trading date",
-            value=date.today(),
-        ).strftime("%Y-%m-%d")
-
-    with c2:
-        mode = st.radio(
-            "Read mode",
-            ["Latest File", "All Files / Day Replay"],
+        view_mode = st.radio(
+            "Data view",
+            ["LIVE", "INTRADAY SNAPSHOT", "HISTORICAL"],
             horizontal=True,
+            key="ds_data_view",
         )
+    with c2:
+        trading_date = st.date_input("Trading date", value=date.today(), key="ds_trading_date").strftime("%Y-%m-%d")
 
+    source_root = Path(st.session_state.get("ds_source_root_override", default_source_root)).expanduser()
     try:
-        sources = _discover_sources(
-            trading_date,
-            source_root,
-        )
+        sources = _discover_sources(trading_date, source_root)
     except Exception as exc:
-        st.error(
-            f"Source discovery failed: {type(exc).__name__}: {exc}"
-        )
+        st.error(f"Source discovery failed: {type(exc).__name__}: {exc}")
         return
-
     if not sources:
-        st.warning(
-            "No Daywise snapshots found for the selected date."
-        )
+        st.warning("No Daywise snapshots found for the selected date.")
         return
 
-    latest_timestamp = parse_observation_timestamp(sources[-1])
-    live_batch_count = len(sources)
-
+    latest_path = sources[-1]
+    latest_time = parse_observation_timestamp(latest_path)
     st.markdown(
-        f"""
-<div class="snapshot">
-<b>Snapshots:</b> {len(sources)}
-&nbsp; | &nbsp;
-<b>First:</b> {parse_observation_timestamp(sources[0]):%H:%M:%S}
-&nbsp; | &nbsp;
-<b>Latest:</b> {latest_timestamp:%H:%M:%S}
-&nbsp; | &nbsp;
-<b>Base:</b> first snapshot is reference-only
-</div>
-""",
+        f'<div class="snapshot"><b>Snapshots:</b> {len(sources)} &nbsp;|&nbsp; '
+        f'<b>First:</b> {parse_observation_timestamp(sources[0]):%H:%M:%S} &nbsp;|&nbsp; '
+        f'<b>Latest:</b> {latest_time:%H:%M:%S}</div>',
         unsafe_allow_html=True,
     )
 
-    if mode == "Latest File":
-        # The selected/latest file is a DISPLAY choice only.
-        # A live calculation must always consume the complete discovered
-        # snapshot batch chronologically so the base snapshot and every
-        # intermediate snapshot are respected before promoting the latest
-        # result.
-        selected_idx = st.selectbox(
-            "Snapshot",
-            list(range(len(sources))),
-            index=len(sources) - 1,
-            format_func=lambda i: (
-                f"{parse_observation_timestamp(sources[i]):%H:%M:%S}"
-                f" — {sources[i].name}"
-            ),
-        )
+    if view_mode == "LIVE":
+        a1, a2 = st.columns([2, 1])
+        with a1:
+            auto_update = st.checkbox("Auto-update live feed", value=True, key="ds_auto_update")
+        with a2:
+            refresh = st.button("↻ Refresh", use_container_width=True)
 
-        if st.button(
-            "PROCESS SELECTED SNAPSHOT BATCH",
-            type="primary",
-            use_container_width=True,
-        ):
+        if refresh:
+            st.session_state.pop(_cache_key(trading_date), None)
+            st.rerun()
+
+        # Auto-update is intentionally a single live function; Refresh is
+        # only the manual recovery action when the feed appears stuck.
+        if hasattr(st, "fragment"):
+            _live_auto_panel(source_root, trading_date, auto_update)
+        else:
             try:
-                batch_sources = sources[: selected_idx + 1]
-                latest, _timeline = process_all_sources(
-                    batch_sources,
-                    trading_date,
-                )
-                st.session_state["ds_result"] = latest
-                st.session_state["ds_timeline"] = pd.DataFrame()
-                st.session_state["ds_processed_source"] = (
-                    str(batch_sources[-1]) if batch_sources else ""
-                )
-                st.rerun()
+                live_sources = _discover_sources(trading_date, source_root)
+                _, market_open = _market_session_status(trading_date)
+                if market_open and auto_update:
+                    latest, timeline, _changed = _auto_process_new_snapshots(live_sources, trading_date)
+                else:
+                    latest, timeline, _ = _load_day_for_snapshot_view(live_sources, trading_date)
             except Exception as exc:
-                st.error(
-                    f"Batch processing failed: {type(exc).__name__}: {exc}"
-                )
+                st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
+                return
+            if latest is None or latest.empty:
+                st.info("The first snapshot is BASE ONLY. Waiting for the first decision-bearing snapshot.")
+                return
+            live_path = live_sources[-1]
+            live_time = parse_observation_timestamp(live_path)
+            if market_open:
+                status = "LIVE • market open" + (" • Auto-update ON" if auto_update else " • Auto-update OFF")
+            else:
+                status = "FINAL SESSION STATE • market closed • preserved from last complete snapshot"
+            st.caption(f"{status} • {live_time:%H:%M:%S} • {live_path.name}")
+            _render_current_result(latest, timeline, live_time.strftime("%H:%M:%S"))
 
-    else:
-        st.info(
-            f"{len(sources)} snapshots discovered. "
-            "Replay processes all files chronologically; "
-            "the first snapshot is BASE ONLY."
+    elif view_mode == "INTRADAY SNAPSHOT":
+        # Process the available day once, then switching timestamps is a
+        # display-only operation. No recalculation occurs when the selector changes.
+        try:
+            _, timeline, snapshots = _load_day_for_snapshot_view(sources, trading_date)
+        except Exception as exc:
+            st.error(f"Intraday replay preparation failed: {type(exc).__name__}: {exc}")
+            return
+
+        labels = [parse_observation_timestamp(p).strftime("%H:%M:%S") for p in sources]
+        idx = st.selectbox("Snapshot time", list(range(len(sources))), index=len(sources)-1, format_func=lambda i: labels[i], key="ds_intraday_snapshot")
+        selected_path = sources[idx]
+        selected_key = _source_key(selected_path)
+        result = snapshots.get(selected_key, pd.DataFrame())
+        if idx == 0:
+            st.info(f"{labels[idx]} is the BASE snapshot only; it establishes the opening reference and has no decision rows.")
+            return
+        _render_current_result(result, timeline, labels[idx])
+
+    else:  # HISTORICAL
+        historical_date = st.date_input("Historical trading date", value=date.today(), key="ds_historical_date").strftime("%Y-%m-%d")
+        try:
+            historical_sources = _discover_sources(historical_date, source_root)
+        except Exception as exc:
+            st.error(f"Historical source discovery failed: {type(exc).__name__}: {exc}")
+            return
+        if not historical_sources:
+            st.info("No snapshots found for the selected historical day.")
+            return
+
+        try:
+            _, timeline, snapshots = _load_day_for_snapshot_view(historical_sources, historical_date)
+        except Exception as exc:
+            st.error(f"Historical replay preparation failed: {type(exc).__name__}: {exc}")
+            return
+
+        idx = st.selectbox(
+            "Historical snapshot time",
+            list(range(len(historical_sources))),
+            index=len(historical_sources)-1,
+            format_func=lambda i: parse_observation_timestamp(historical_sources[i]).strftime("%H:%M:%S"),
+            key="ds_historical_snapshot",
         )
-
-        if st.button(
-            "PROCESS ALL FILES / DAY REPLAY",
-            type="primary",
-            use_container_width=True,
-        ):
-            try:
-                latest, timeline = process_all_sources(
-                    sources,
-                    trading_date,
-                )
-                st.session_state["ds_result"] = latest
-                st.session_state["ds_timeline"] = timeline
-            except Exception as exc:
-                st.error(
-                    f"Replay failed: {type(exc).__name__}: {exc}"
-                )
-
-    result = st.session_state.get("ds_result")
-
-    if (
-        result is None
-        or not isinstance(result, pd.DataFrame)
-        or result.empty
-    ):
-        st.info(
-            "Select a mode and process the data."
-        )
-        return
-
-    # Only the latest processed snapshot is promoted to the live decision
-    # pool. Earlier states remain history, not live opportunities.
-    candidates = _rank(result)
-
-    gate_passed_count = int(
-        result.get(
-            "gate_passed",
-            pd.Series(False, index=result.index),
-        ).map(_bool).sum()
-    )
-
-    st.success(
-        f"{len(result)} symbols evaluated; "
-        f"{gate_passed_count} passed the primary gate; "
-        f"{len(candidates)} promoted to the primary decision pool."
-    )
-
-    _render_summary(result, candidates)
-
-    # Direction/state filters are visibility controls only. They never
-    # recalculate, reload, or alter the processed result.
-    st.markdown(
-        '<div class="section">Current Decision Opportunities</div>',
-        unsafe_allow_html=True,
-    )
-
-    _direction = candidates.get(
-        "decision_direction",
-        pd.Series("", index=candidates.index),
-    ).astype(str).str.upper()
-
-    _state = candidates.get(
-        "decision_state",
-        pd.Series("", index=candidates.index),
-    ).astype(str).str.upper()
-
-    bullish_view = candidates.loc[
-        _direction.eq("BULLISH")
-    ].copy()
-    bearish_view = candidates.loc[
-        _direction.eq("BEARISH")
-    ].copy()
-    developing_view = candidates.loc[
-        _state.str.startswith("DEVELOPING")
-    ].copy()
-    wait_view = candidates.loc[
-        _state.eq("WAIT_BREAK_CONFIRMATION")
-    ].copy()
-
-    filter_value = st.radio(
-        "Show",
-        ["All", "Bullish", "Bearish", "Developing", "Wait Break"],
-        horizontal=True,
-        key="ds_decision_filter",
-    )
-
-    if filter_value == "Bullish":
-        filtered = bullish_view
-    elif filter_value == "Bearish":
-        filtered = bearish_view
-    elif filter_value == "Developing":
-        filtered = developing_view
-    elif filter_value == "Wait Break":
-        filtered = wait_view
-    else:
-        filtered = candidates.copy()
-
-    _render_table(filtered)
-
-    if not filtered.empty:
-        symbol = st.selectbox(
-            "Inspect one decision",
-            filtered["symbol"].astype(str).tolist(),
-        )
-        selected = filtered.loc[
-            filtered["symbol"].astype(str).eq(symbol)
-        ].iloc[0]
-        _render_evidence(selected)
-
-    # NO DECISION is deliberately not rendered as 100+ dashboard rows.
-    # It remains visible only as a compact coverage metric.
-    no_decision_count = int(
-        result.get(
-            "decision_state",
-            pd.Series("", index=result.index),
-        )
-        .astype(str)
-        .str.upper()
-        .eq("NO DECISION")
-        .sum()
-    )
-
-    weak_excluded = len(result) - len(candidates) - no_decision_count
-
-    st.markdown(
-        f"""
-<div class="note">
-Coverage: {len(result)} evaluated.
-NO DECISION hidden: {no_decision_count}.
-Weak / conflicted candidates hidden from the primary pool: {max(0, weak_excluded)}.
-Underlying evidence is preserved in the processing result and replay state.
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    replay_data = st.session_state.get(
-        "ds_timeline",
-        pd.DataFrame(),
-    )
-
-    if isinstance(replay_data, pd.DataFrame) and not replay_data.empty:
-        unique_times = (
-            replay_data["Time"].astype(str).nunique()
-            if "Time" in replay_data.columns
-            else 0
-        )
-        st.caption(
-            f"Replay coverage: {unique_times} recorded observation time(s). "
-            "Coverage reflects the source snapshots available for this session; "
-            "it is not interpreted as a missing decision change."
-        )
-
-    _render_timeline(replay_data)
+        selected_path = historical_sources[idx]
+        if idx == 0:
+            st.info("The selected historical snapshot is BASE ONLY.")
+            return
+        result = snapshots.get(_source_key(selected_path), pd.DataFrame())
+        _render_current_result(result, timeline, parse_observation_timestamp(selected_path).strftime("%H:%M:%S"))
 
 
 if __name__ == "__main__":
