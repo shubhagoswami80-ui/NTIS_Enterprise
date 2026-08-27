@@ -1374,7 +1374,12 @@ def _render_timeline(timeline: pd.DataFrame) -> None:
         )
 
 
-def _render_current_result(result: pd.DataFrame, timeline: pd.DataFrame, snapshot_label: str) -> None:
+def _render_current_result(
+    result: pd.DataFrame,
+    timeline: pd.DataFrame,
+    snapshot_label: str,
+    widget_key_prefix: str = "",
+) -> None:
     if result is None or not isinstance(result, pd.DataFrame) or result.empty:
         st.info("No decision result is available for this snapshot.")
         return
@@ -1408,7 +1413,7 @@ def _render_current_result(result: pd.DataFrame, timeline: pd.DataFrame, snapsho
         "Show",
         ["All", "Bullish", "Bearish", "Developing"],
         horizontal=True,
-        key="ds_decision_filter",
+        key=f"{widget_key_prefix}ds_decision_filter",
     )
     if filter_value == "Bullish":
         filtered = bullish_view
@@ -1421,7 +1426,11 @@ def _render_current_result(result: pd.DataFrame, timeline: pd.DataFrame, snapsho
 
     _render_table(filtered)
     if not filtered.empty:
-        symbol = st.selectbox("Inspect one decision", filtered["symbol"].astype(str).tolist(), key="ds_inspect_stock")
+        symbol = st.selectbox(
+            "Inspect one decision",
+            filtered["symbol"].astype(str).tolist(),
+            key=f"{widget_key_prefix}ds_inspect_stock",
+        )
         selected = filtered.loc[filtered["symbol"].astype(str).eq(symbol)].iloc[0]
         _render_evidence(selected)
 
@@ -1571,7 +1580,7 @@ if hasattr(st, "fragment"):
                 status = "FINAL SESSION STATE • market closed • preserved from last complete snapshot"
 
             st.caption(f"{status} • {latest_time:%H:%M:%S} • {latest_path.name}")
-            _render_current_result(latest, timeline, latest_time.strftime("%H:%M:%S"))
+            _render_current_result(latest, timeline, latest_time.strftime("%H:%M:%S"), "live_")
         except Exception as exc:
             st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
 
@@ -1624,16 +1633,25 @@ def render() -> None:
             st.session_state.pop("ds_data_view", None)
             st.rerun()
 
+    view_options = ["CURRENT DAY", "HISTORICAL"]
+    if st.session_state.get("ds_data_view") not in view_options:
+        st.session_state["ds_data_view"] = "CURRENT DAY"
+
     c1, c2 = st.columns([1, 1])
     with c1:
         view_mode = st.radio(
             "Data view",
-            ["LIVE", "INTRADAY SNAPSHOT", "HISTORICAL"],
+            view_options,
             horizontal=True,
             key="ds_data_view",
+            help="CURRENT DAY keeps LIVE and INTRADAY SNAPSHOT visible together. HISTORICAL remains a separate replay view.",
         )
     with c2:
-        trading_date = st.date_input("Trading date", value=date.today(), key="ds_trading_date").strftime("%Y-%m-%d")
+        trading_date = st.date_input(
+            "Trading date",
+            value=date.today(),
+            key="ds_trading_date",
+        ).strftime("%Y-%m-%d")
 
     source_root = Path(st.session_state.get("ds_source_root_override", default_source_root)).expanduser()
     try:
@@ -1654,19 +1672,37 @@ def render() -> None:
         unsafe_allow_html=True,
     )
 
-    if view_mode == "LIVE":
+    if view_mode == "CURRENT DAY":
+        # CURRENT DAY intentionally renders LIVE and INTRADAY SNAPSHOT together.
+        # LIVE owns the live-processing path; the snapshot section only reads
+        # the already-prepared replay cache (or explicitly prepares it when
+        # needed for snapshot inspection). The two views use independent
+        # Streamlit widget keys so changing the snapshot selector cannot alter
+        # LIVE state.
+        st.markdown(
+            '<div class="section">LIVE</div>',
+            unsafe_allow_html=True,
+        )
+
         a1, a2 = st.columns([2, 1])
         with a1:
-            auto_update = st.checkbox("Auto-update live feed", value=True, key="ds_auto_update")
+            auto_update = st.checkbox(
+                "Auto-update live feed",
+                value=True,
+                key="ds_auto_update",
+            )
         with a2:
-            refresh = st.button("↻ Refresh", use_container_width=True)
+            refresh = st.button(
+                "↻ Refresh",
+                use_container_width=True,
+                key="ds_live_refresh",
+            )
 
         if refresh:
             st.session_state.pop(_cache_key(trading_date), None)
             st.rerun()
 
-        # Auto-update is intentionally a single live function; Refresh is
-        # only the manual recovery action when the feed appears stuck.
+        # Auto-update remains the existing live function and is not duplicated.
         if hasattr(st, "fragment"):
             _live_auto_panel(source_root, trading_date, auto_update)
         else:
@@ -1692,47 +1728,99 @@ def render() -> None:
             except Exception as exc:
                 st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
                 return
-            if latest is None or latest.empty:
-                st.info("The first snapshot is BASE ONLY. Waiting for the first decision-bearing snapshot.")
-                return
-            if not market_open and persisted_source:
-                live_path = Path(persisted_source)
-                try:
-                    live_time = (
-                        datetime.fromisoformat(persisted_timestamp)
-                        if persisted_timestamp
-                        else parse_observation_timestamp(live_path)
-                    )
-                except (TypeError, ValueError):
-                    live_time = parse_observation_timestamp(live_path)
-            else:
-                live_path = live_sources[-1]
-                live_time = parse_observation_timestamp(live_path)
-            if market_open:
-                status = "LIVE • market open" + (" • Auto-update ON" if auto_update else " • Auto-update OFF")
-            else:
-                status = "FINAL SESSION STATE • market closed • preserved from last complete snapshot"
-            st.caption(f"{status} • {live_time:%H:%M:%S} • {live_path.name}")
-            _render_current_result(latest, timeline, live_time.strftime("%H:%M:%S"))
 
-    elif view_mode == "INTRADAY SNAPSHOT":
-        # Process the available day once, then switching timestamps is a
-        # display-only operation. No recalculation occurs when the selector changes.
+            if latest is None or latest.empty:
+                st.info(
+                    "The first snapshot is BASE ONLY. Waiting for the first "
+                    "decision-bearing snapshot."
+                )
+            else:
+                if not market_open and persisted_source:
+                    live_path = Path(persisted_source)
+                    try:
+                        live_time = (
+                            datetime.fromisoformat(persisted_timestamp)
+                            if persisted_timestamp
+                            else parse_observation_timestamp(live_path)
+                        )
+                    except (TypeError, ValueError):
+                        live_time = parse_observation_timestamp(live_path)
+                else:
+                    live_path = live_sources[-1]
+                    live_time = parse_observation_timestamp(live_path)
+
+                if market_open:
+                    status = "LIVE • market open" + (
+                        " • Auto-update ON" if auto_update else " • Auto-update OFF"
+                    )
+                else:
+                    status = (
+                        "FINAL SESSION STATE • market closed • preserved from "
+                        "last complete snapshot"
+                    )
+
+                st.caption(
+                    f"{status} • {live_time:%H:%M:%S} • {live_path.name}"
+                )
+                _render_current_result(
+                    latest,
+                    timeline,
+                    live_time.strftime("%H:%M:%S"),
+                    "live_",
+                )
+
+        st.markdown(
+            '<div class="section">INTRADAY SNAPSHOT</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Snapshot inspection is independent from LIVE. It uses the existing
+        # replay cache and does not change the live session state.
         try:
-            _, timeline, snapshots = _load_day_for_snapshot_view(sources, trading_date)
+            replay_cache = _get_replay_cache(trading_date)
+            snapshots = replay_cache.get("snapshots", {})
+            timeline = replay_cache.get("timeline", pd.DataFrame())
+
+            if not isinstance(snapshots, dict) or not all(
+                _source_key(p) in snapshots for p in sources
+            ):
+                _, timeline, snapshots = _load_day_for_snapshot_view(
+                    sources,
+                    trading_date,
+                )
         except Exception as exc:
-            st.error(f"Intraday replay preparation failed: {type(exc).__name__}: {exc}")
+            st.error(
+                f"Intraday replay preparation failed: {type(exc).__name__}: {exc}"
+            )
             return
 
-        labels = [parse_observation_timestamp(p).strftime("%H:%M:%S") for p in sources]
-        idx = st.selectbox("Snapshot time", list(range(len(sources))), index=len(sources)-1, format_func=lambda i: labels[i], key="ds_intraday_snapshot")
+        labels = [
+            parse_observation_timestamp(p).strftime("%H:%M:%S")
+            for p in sources
+        ]
+        idx = st.selectbox(
+            "Snapshot time",
+            list(range(len(sources))),
+            index=len(sources) - 1,
+            format_func=lambda i: labels[i],
+            key="ds_intraday_snapshot",
+        )
         selected_path = sources[idx]
         selected_key = _source_key(selected_path)
         result = snapshots.get(selected_key, pd.DataFrame())
+
         if idx == 0:
-            st.info(f"{labels[idx]} is the BASE snapshot only; it establishes the opening reference and has no decision rows.")
-            return
-        _render_current_result(result, timeline, labels[idx])
+            st.info(
+                f"{labels[idx]} is the BASE snapshot only; it establishes "
+                "the opening reference and has no decision rows."
+            )
+        else:
+            _render_current_result(
+                result,
+                timeline,
+                labels[idx],
+                "intraday_",
+            )
 
     else:  # HISTORICAL
         historical_date = st.date_input("Historical trading date", value=date.today(), key="ds_historical_date").strftime("%Y-%m-%d")
@@ -1763,7 +1851,7 @@ def render() -> None:
             st.info("The selected historical snapshot is BASE ONLY.")
             return
         result = snapshots.get(_source_key(selected_path), pd.DataFrame())
-        _render_current_result(result, timeline, parse_observation_timestamp(selected_path).strftime("%H:%M:%S"))
+        _render_current_result(result, timeline, parse_observation_timestamp(selected_path).strftime("%H:%M:%S"), "historical_")
 
 
 if __name__ == "__main__":
