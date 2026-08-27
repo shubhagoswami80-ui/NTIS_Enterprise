@@ -1469,6 +1469,7 @@ def _render_current_result(
     timeline: pd.DataFrame,
     snapshot_label: str,
     widget_key_prefix: str = "",
+    show_opportunity_heading: bool = True,
 ) -> None:
     if result is None or not isinstance(result, pd.DataFrame) or result.empty:
         st.info("No decision result is available for this snapshot.")
@@ -1488,7 +1489,8 @@ def _render_current_result(
     )
 
     _render_summary(result, candidates)
-    st.markdown('<div class="section">Current Decision Opportunities</div>', unsafe_allow_html=True)
+    if show_opportunity_heading:
+        st.markdown('<div class="section">Current Decision Opportunities</div>', unsafe_allow_html=True)
 
     direction = candidates.get("decision_direction", pd.Series("", index=candidates.index)).astype(str).str.upper()
     state = candidates.get("decision_state", pd.Series("", index=candidates.index)).astype(str).str.upper()
@@ -1535,11 +1537,17 @@ def _render_current_result(
         unsafe_allow_html=True,
     )
 
-    # Decision Evolution is a focused, stock-wise progress view. It remains
-    # derived only from the existing timeline events and never creates a new
-    # decision rule.
+
+
+
+def _render_intraday_stock_evolution(timeline: pd.DataFrame) -> None:
+    """Render one shared current-day stock evolution table.
+
+    Presentation only: this uses the existing timeline and first-alert state
+    and never creates a new decision rule.
+    """
     if isinstance(timeline, pd.DataFrame) and not timeline.empty:
-        st.subheader("Decision Evolution — meaningful changes")
+        st.subheader("Intraday Stock Evolution")
         evo = timeline.copy()
         for col in [
             "Time", "Symbol", "Decision", "Previous", "Direction",
@@ -1656,7 +1664,6 @@ def _render_current_result(
             "indigo = wait-break, red/pink = reversal. First Alert is the first time "
             "the stock entered the existing decision table."
         )
-
 
 
 def _persist_last_complete_state(
@@ -2020,7 +2027,15 @@ def render() -> None:
                 timeline,
                 labels[idx],
                 "intraday_",
+                show_opportunity_heading=False,
             )
+
+        # One shared evolution view for CURRENT DAY. LIVE and INTRADAY
+        # SNAPSHOT intentionally do not render separate copies.
+        shared_timeline = _get_replay_cache(trading_date).get(
+            "timeline", pd.DataFrame()
+        )
+        _render_intraday_stock_evolution(shared_timeline)
 
     else:  # HISTORICAL
         historical_date = st.date_input("Historical trading date", value=date.today(), key="ds_historical_date").strftime("%Y-%m-%d")
