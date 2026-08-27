@@ -1540,7 +1540,7 @@ def _render_current_result(
 
 
 
-def _render_intraday_stock_evolution(timeline: pd.DataFrame) -> None:
+def _render_intraday_stock_evolution(timeline: pd.DataFrame, widget_key_prefix: str = "intraday_") -> None:
     """Render one shared current-day stock evolution table.
 
     Presentation only: this uses the existing timeline and first-alert state
