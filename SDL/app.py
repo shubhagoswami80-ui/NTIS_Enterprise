@@ -1,409 +1,1170 @@
-
 from __future__ import annotations
-
 from pathlib import Path
-import time
-
 import pandas as pd
 import streamlit as st
 
 import config as sdl_config
 import pipeline as sdl_pipeline
-from config import EVENT_CSV, STATE_JSON
-from pipeline import (
-    discover_historical_snapshots,
-    process_snapshot,
-    replay_trading_date,
-)
-from prediction_engine import build_current_predictions
+from config import EVENT_CSV
+from pipeline import discover_historical_snapshots, process_snapshot, replay_trading_date
+from prediction_engine import build_current_predictions, factor_labels
 from source_loader import parse_observation_timestamp
-from storage import load_events, load_state
-
+from storage import load_events
 
 st.set_page_config(
-    page_title="SDL — Straddle Breakout Decision Center",
-    page_icon="📈",
+    page_title="NTIS SDL — Intraday Decision Centre",
+    page_icon="SDL",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-st.markdown("""
+# ---------------------------------------------------------------------------
+# PRESENTATION LAYER
+# Existing SDL decision / scoring / replay engine is intentionally untouched.
+# ---------------------------------------------------------------------------
+st.markdown(
+    """
 <style>
 :root{
- --navy:#0b1730;--navy2:#293f7a;--ink:#17233f;--muted:#6e788c;
- --panel:#ffffff;--page:#f4f6fa;--line:#e2e7ef;
- --green:#bfe8ce;--green-dark:#084f28;--green-break:#72c58e;
- --red:#f5c9ca;--red-dark:#761219;--red-break:#e78a8d;
- --amber:#fff3cf;--amber-dark:#8a5b00;--wait:#eef2f7;
+  --bg:#0a1222; --bg2:#0e1729; --card:#111c2f; --card2:#152238;
+  --ink:#edf3ff; --muted:#9eacc3; --line:#263650; --line2:#1c2a41;
+  --navy:#07142d; --navy2:#102b5d; --purple:#6842f2; --purple2:#8061ff;
+  --green:#19c878; --green-bg:#0d2b20; --green-line:#175d43;
+  --red:#ff6670; --red-bg:#32171d; --red-line:#6a2b34;
+  --amber:#f3b63f; --amber-bg:#342812; --amber-line:#70531e;
+  --blue:#6f92ff; --blue-bg:#16264d; --blue-line:#34539a;
+  --slate:#a9b5c9; --slate-bg:#172235;
 }
-.stApp{background:var(--page)}
-.block-container{max-width:1220px;padding:14px 18px 34px}
-section[data-testid="stSidebar"]{background:#fff}
-.sdl-header{
- background:linear-gradient(105deg,var(--navy),#1a2b55 65%,var(--navy2));
- color:#fff;padding:14px 18px;border-radius:14px;margin-bottom:10px;
- box-shadow:0 5px 18px rgba(11,23,48,.12)
+.stApp{background:linear-gradient(180deg,#091222 0%,#0b1424 100%);color:var(--ink)}
+.block-container{max-width:1660px;padding:0 16px 24px}
+[data-testid="stSidebar"]{display:none!important}
+header[data-testid="stHeader"]{background:#07101f!important;height:42px}
+footer{display:none}
+div[data-testid="stToolbar"],div[data-testid="stDecoration"]{display:none}
+div[data-testid="stAppViewContainer"]{background:transparent}
+
+/* FINAL DARK HEADER */
+.header-shell{
+  margin:0 -16px 10px;
+  background:linear-gradient(105deg,#061126 0%,#0b1a38 58%,#11295a 100%);
+  color:#fff;border-bottom:1px solid #24385d;
+  min-height:62px;padding:8px 16px;
+  box-shadow:0 8px 24px rgba(0,0,0,.28)
 }
-.sdl-brand{display:flex;align-items:center;gap:11px}
-.sdl-logo{width:38px;height:38px;border-radius:10px;background:#fff;color:#182b57;
- display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;
- box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.sdl-title{font-size:22px;font-weight:820;line-height:1.1;margin:0}
-.sdl-subtitle{font-size:10px;opacity:.88;margin-top:3px}
-.status-row{display:flex;align-items:center;gap:10px;margin:6px 0 9px}
-.live-pill,.replay-pill,.processing-pill{
- display:inline-block;padding:4px 9px;border-radius:999px;font-size:9px;
- font-weight:850;letter-spacing:.06em
+.header-row{display:grid;grid-template-columns:2.1fr 3.4fr 3.0fr;gap:10px;align-items:center}
+.header-brand{font-size:20px;font-weight:950;letter-spacing:.01em;white-space:nowrap}
+.header-sub{font-size:9px;color:#aebbd2;letter-spacing:.08em;margin-top:2px}
+.header-nav{display:flex;align-items:center;gap:4px}
+.header-nav div[data-testid="stButton"] button{
+  min-height:32px!important;border-radius:7px!important;
+  font-size:10px!important;font-weight:900!important;padding:3px 9px!important
 }
-.live-pill{background:#e5f7ec;color:#116b38}
-.replay-pill{background:#eeeaff;color:#5540c9}
-.processing-pill{background:#fff3cf;color:#8a5b00}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
- padding:12px 14px;margin:8px 0;box-shadow:0 3px 12px rgba(20,34,72,.035)}
-.card-title{color:var(--ink);font-size:15px;font-weight:800;margin-bottom:2px}
-.card-subtitle{color:var(--muted);font-size:10px;margin-bottom:8px}
-.metric{background:#fbfcff;border:1px solid var(--line);border-radius:9px;
- padding:8px 9px;min-height:57px}
-.metric-label{color:#737d90;font-size:8px;font-weight:800;letter-spacing:.06em}
-.metric-value{color:var(--ink);font-size:17px;font-weight:800;margin-top:2px}
-.small-note{color:var(--muted);font-size:9px}
-section[data-testid="stExpander"]{border:1px solid var(--line);border-radius:11px;background:#fff}
-div[data-testid="stDataFrame"]{font-size:11px}
-@media (max-width:760px){
- .block-container{padding:8px 9px 24px}
- .sdl-header{padding:11px 12px;border-radius:11px}
- .sdl-logo{width:32px;height:32px;font-size:14px}
- .sdl-title{font-size:17px}
- .sdl-subtitle{font-size:8px}
- .card{padding:9px 10px;margin:6px 0}
- .card-title{font-size:13px}.card-subtitle{font-size:9px}
- .metric{min-height:50px}.metric-value{font-size:14px}
- .metric-label{font-size:7px}
+.header-nav div[data-testid="stButton"] button[kind="primary"]{
+  background:linear-gradient(135deg,#6036e7,#7a4cff)!important;
+  color:#fff!important;border:1px solid #8b70ff!important
+}
+.header-nav div[data-testid="stButton"] button[kind="secondary"]{
+  background:transparent!important;color:#e8eefb!important;border:1px solid transparent!important
+}
+.header-controls{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.header-live{
+  display:inline-flex;align-items:center;gap:5px;color:#57e39a;
+  border:1px solid #1c6046;background:#0a2a20;border-radius:999px;
+  padding:6px 9px;font-size:9px;font-weight:950
+}
+.header-live i{width:7px;height:7px;border-radius:50%;background:#20d27b;box-shadow:0 0 0 3px rgba(32,210,123,.13)}
+.header-time{text-align:right;font-variant-numeric:tabular-nums;line-height:1.05}
+.header-time b{font-size:14px}.header-time span{display:block;font-size:8px;color:#aebbd2;margin-top:3px}
+.header-controls div[data-testid="stButton"] button{
+  min-height:31px!important;border-radius:7px!important;font-size:9px!important;
+  font-weight:900!important;background:#111f3a!important;color:#eef3ff!important;
+  border:1px solid #344767!important
+}
+.header-controls div[data-testid="stCheckbox"] label p{
+  font-size:9px!important;color:#edf3ff!important;font-weight:850!important
+}
+.header-controls div[data-testid="stSelectbox"]>div>div{
+  min-height:31px!important;background:#111f3a!important;border:1px solid #344767!important;color:#fff!important;
+  font-size:9px!important
+}
+
+/* KPI STRIP */
+.kpi-strip{
+  background:var(--card);border:1px solid var(--line);border-radius:10px;
+  display:grid;grid-template-columns:repeat(6,1fr);
+  margin-bottom:10px;box-shadow:0 5px 18px rgba(0,0,0,.16)
+}
+.kpi-item{padding:9px 13px;border-right:1px solid var(--line2);min-height:70px}
+.kpi-item:last-child{border-right:0}
+.kpi-label{font-size:9px;color:#94a4bf;font-weight:950;letter-spacing:.08em}
+.kpi-value{font-size:23px;font-weight:950;line-height:1.05;margin-top:4px;color:#f5f8ff}
+.kpi-foot{font-size:8px;color:#8291aa;margin-top:4px}
+.kpi-live{float:right;width:7px;height:7px;background:#19c878;border-radius:50%;margin-top:3px;box-shadow:0 0 0 4px rgba(25,200,120,.10)}
+
+/* FILTERS — compact 2x2, all controls retained */
+.filter-panel{
+  background:#101b2d;border:1px solid var(--line);border-radius:10px;
+  padding:8px 10px;margin:8px 0;box-shadow:0 4px 14px rgba(0,0,0,.13)
+}
+.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px;align-items:start}
+.filter-group{
+  min-width:0;border-right:1px solid var(--line2);padding:0 10px 5px 0
+}
+.filter-group:nth-child(2n){border-right:0;padding-right:0}
+.filter-title{
+  font-size:9px;letter-spacing:.09em;font-weight:950;color:#9eb7e7;margin:0 0 4px
+}
+.filter-note{font-size:8px;color:#7f8ea7;margin:0 0 5px}
+div[data-testid="stRadio"]>label{display:none!important}
+div[data-testid="stRadio"] [role="radiogroup"]{
+  display:flex!important;flex-wrap:wrap!important;gap:4px!important;align-items:center!important
+}
+div[data-testid="stRadio"] [role="radiogroup"] label{
+  border:1px solid #34435c!important;border-radius:999px!important;
+  padding:4px 9px!important;background:#131f33!important;margin:0!important;
+  min-height:26px!important;box-shadow:none!important
+}
+div[data-testid="stRadio"] [role="radiogroup"] label p{
+  font-size:11px!important;font-weight:850!important;color:#d9e2f2!important;margin:0!important
+}
+div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){
+  background:#192c54!important;border-color:#6283e6!important
+}
+div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) p{color:#fff!important}
+div[data-testid="stButton"] button{
+  border-radius:7px!important;font-weight:850!important;min-height:32px
+}
+
+/* PRIORITY RADAR */
+.priority-strip{
+  background:linear-gradient(110deg,#081833,#102b5b);
+  border:1px solid #29436f;border-radius:9px;padding:7px 9px;margin:8px 0;color:#fff
+}
+.priority-caption{
+  font-size:9px;letter-spacing:.11em;font-weight:950;opacity:.88;margin-bottom:5px
+}
+.priority-card{
+  background:rgba(255,255,255,.065);border:1px solid rgba(157,183,235,.20);
+  border-radius:8px;padding:6px 8px;min-height:55px
+}
+.priority-symbol{font-size:12px;font-weight:950}.priority-meta{font-size:8px;color:#aebdd5;margin-top:2px}
+.priority-progress{font-size:13px;font-weight:950;margin-top:3px;color:#fff}
+
+/* TABLE */
+.table-head{
+  background:#121e31!important;border:1px solid var(--line)!important;
+  color:#f0f4fb!important
+}
+.table-title{font-size:13px;font-weight:950;letter-spacing:.02em}
+.table-meta{font-size:9px;color:#8fa0ba}
+.table-wrap{
+  background:#101a2b;border:1px solid var(--line);border-radius:0 0 10px 10px;
+  overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,.16)
+}
+table.sdlq{
+  width:100%;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed
+}
+table.sdlq th{
+  background:#18263b;color:#aebbd1;text-align:left;font-size:10px;
+  letter-spacing:.07em;font-weight:950;padding:10px 7px;
+  border-bottom:1px solid #33445f;white-space:nowrap
+}
+table.sdlq td{
+  padding:10px 7px;background:#101a2b;color:#e8eef8;
+  border-bottom:1px solid #1f2d43;vertical-align:middle;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis
+}
+table.sdlq tr:hover td{background:#142238}
+table.sdlq tr:last-child td{border-bottom:0}
+.row-no{color:#7e8da7;font-size:10px}
+.stock-cell{display:flex;align-items:center;gap:7px;font-weight:950}
+.stock-logo{
+  width:27px;height:27px;border-radius:7px;object-fit:contain;background:#fff;
+  border:1px solid #3a4b66;padding:3px;display:inline-flex;
+  align-items:center;justify-content:center;font-size:8px;color:#19366f;flex:0 0 27px
+}
+.direction-up{color:#2cda8b;font-weight:950}.direction-down{color:#ff6c76;font-weight:950}
+.behaviour-badge{display:inline-block;border-radius:5px;padding:5px 8px;font-size:9px;font-weight:950;white-space:nowrap}
+.behaviour-green{background:#0d2d21;color:#41e39a;border:1px solid #1b684a}
+.behaviour-red{background:#33171d;color:#ff7b83;border:1px solid #71303a}
+.behaviour-amber{background:#342812;color:#ffc95f;border:1px solid #74531e}
+.behaviour-slate{background:#182338;color:#aebbd0;border:1px solid #34445e}
+.progress-value{font-weight:950;font-variant-numeric:tabular-nums}
+.progress-rail{display:inline-block;width:65px;height:7px;border-radius:9px;background:#27364c;vertical-align:middle;margin-left:5px;overflow:hidden}
+.progress-fill{height:100%;border-radius:9px;background:#6f92ff}.progress-fill.hot{background:#f3b63f}.progress-fill.break{background:#19c878}
+.stage-chip{
+  display:inline-block;border-radius:999px;padding:4px 8px;
+  background:#172238;border:1px solid #3a4a62;color:#dce5f4;font-size:9px;font-weight:850
+}
+.confirm-chip{
+  display:inline-block;border-radius:999px;padding:4px 8px;
+  background:#18284e;border:1px solid #405da4;color:#91adff;font-size:9px;font-weight:900
+}
+.strength-strong{color:#25d583;font-weight:950}.strength-mid{color:#c38aff;font-weight:900}.strength-low{color:#9aa9c0;font-weight:850}
+.breakout-yes{color:#28d887;font-weight:950}.breakout-no{color:#74839c;font-weight:750}
+.time-cell{font-variant-numeric:tabular-nums;font-weight:900;color:#d7e1f2}
+
+/* DETAIL */
+.detail{
+  background:#111c2f;border:1px solid var(--line);border-radius:10px;
+  padding:11px 13px;margin-top:0;box-shadow:0 5px 18px rgba(0,0,0,.16)
+}
+.detail-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.detail-symbol{font-size:18px;font-weight:950;color:#f4f7fd}.detail-sub{font-size:9px;color:#8999b3;margin-top:3px}
+.detail-card{background:#152238;border:1px solid #2b3b55;border-radius:8px;padding:8px 9px;min-height:65px}
+.detail-label{font-size:8px;letter-spacing:.09em;font-weight:950;color:#93a5c0}
+.detail-value{font-size:19px;font-weight:950;margin-top:3px;color:#f2f6fd}
+.detail-foot{font-size:8px;color:#8190a8;margin-top:2px}
+.factor-list{background:#111c2f;border:1px solid #2a3a54;border-radius:8px;padding:7px 9px}
+.factor{display:flex;justify-content:space-between;gap:10px;padding:6px 2px;border-bottom:1px solid #233149;font-size:10px;color:#dce4f1}
+.factor:last-child{border-bottom:0}.factor-support{color:#29d687;font-weight:900}.factor-contradict{color:#ff6973;font-weight:900}.factor-neutral{color:#94a2b9;font-weight:800}
+.progress-box{background:#121f33;border:1px solid #2a3b55;border-radius:8px;padding:9px 10px}
+.progress-title{font-size:9px;letter-spacing:.09em;font-weight:950;color:#93a5c0}.big-progress{font-size:26px;font-weight:950;color:#f5f8ff;margin-top:2px}
+.progress-line{height:9px;background:#27364c;border-radius:9px;overflow:hidden;margin:7px 0}
+.progress-line-fill{height:100%;background:#19c878;border-radius:9px}
+.detail-time{color:#9aa9c0}.first-time{color:#75a0ff;font-weight:950}
+
+/* page cards / replay / history / settings */
+.board-head{
+  background:#111c2f;border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;margin:0 0 8px;box-shadow:0 4px 14px rgba(0,0,0,.14)
+}
+.board-title{font-size:15px;font-weight:950;color:#f3f6fb}.board-sub{font-size:9px;color:#8f9eb5;margin-top:2px}
+.page-card{background:#111c2f;border:1px solid var(--line);border-radius:9px;padding:12px}
+.refresh-row{font-size:9px;color:#8f9eb5;display:flex;justify-content:flex-end;align-items:center;gap:7px;margin-top:-2px}
+.footer{border-top:1px solid #223149;margin-top:10px;padding-top:7px;display:flex;justify-content:space-between;gap:10px;font-size:8px;color:#72819a}
+
+/* Streamlit native inputs */
+div[data-testid="stSelectbox"]>div>div,
+div[data-testid="stDateInput"] input,
+div[data-testid="stTextInput"] input{
+  background:#131f33!important;color:#edf3ff!important;border:1px solid #34445f!important
+}
+div[data-testid="stSelectbox"] label,div[data-testid="stDateInput"] label,div[data-testid="stTextInput"] label{
+  color:#aebbd0!important;font-size:10px!important;font-weight:850!important
+}
+.stCaption{color:#8190a8!important}
+
+/* compact replay expander */
+div[data-testid="stExpander"]{
+  background:#111c2f!important;border:1px solid #2a3b55!important;border-radius:9px!important
+}
+div[data-testid="stExpander"] summary p{color:#dce5f4!important;font-size:10px!important;font-weight:900!important}
+
+/* mobile */
+@media(max-width:1100px){
+  .header-row{grid-template-columns:1fr}.header-controls{justify-content:flex-start;flex-wrap:wrap}
+  .filter-grid{grid-template-columns:1fr 1fr}.workspace{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+  .block-container{padding:0 8px 16px}.header-shell{margin:0 -8px 8px;padding:8px}
+  .header-brand{font-size:18px}.header-sub{font-size:8px}
+  .kpi-strip{grid-template-columns:repeat(3,1fr)}.filter-grid{grid-template-columns:1fr}
+  .filter-group{border-right:0;border-bottom:1px solid #233149;padding:0 0 6px}
+  .table-wrap{overflow-x:auto}table.sdlq{min-width:1120px}
+  .footer{flex-direction:column}
 }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
-def source_ts(path: Path) -> pd.Timestamp:
+def ts(path):
     try:
         return parse_observation_timestamp(path)
     except Exception:
         try:
-            return pd.Timestamp.fromtimestamp(path.stat().st_mtime)
+            return pd.Timestamp.fromtimestamp(Path(path).stat().st_mtime)
         except Exception:
             return pd.NaT
 
 
-def source_files(trading_date: str | None = None) -> list[Path]:
+def files(day=None):
     try:
-        files = [Path(p) for p in discover_historical_snapshots(trading_date)]
+        found = [Path(p) for p in discover_historical_snapshots(day)]
     except Exception:
         return []
-    valid = [(p, source_ts(p)) for p in files]
-    valid = [(p, ts) for p, ts in valid if pd.notna(ts)]
-    valid.sort(key=lambda x: (x[1], str(x[0]).lower()))
-    return [p for p, _ in valid]
+    pairs = [(p, ts(p)) for p in found if pd.notna(ts(p))]
+    return [p for p, _ in sorted(pairs, key=lambda z: (z[1], str(z[0]).lower()))]
 
 
-def source_bundles(files: list[Path], tolerance_seconds: int = 60) -> list[list[Path]]:
-    if not files:
-        return []
-    groups = [[files[0]]]
-    for p in files[1:]:
-        prev = source_ts(groups[-1][-1]); cur = source_ts(p)
-        if pd.notna(prev) and pd.notna(cur) and (cur-prev).total_seconds() <= tolerance_seconds:
-            groups[-1].append(p)
-        else:
-            groups.append([p])
-    return groups
-
-
-def latest_file(files: list[Path]):
-    if not files: return None, None
-    p = max(files,key=source_ts)
-    return p,source_ts(p)
-
-
-def frozen_base(snapshot: pd.DataFrame) -> dict:
-    if snapshot.empty or "Symbol" not in snapshot.columns: return {}
-    result={}
-    for _,r in snapshot.drop_duplicates("Symbol").iterrows():
-        symbol=str(r.get("Symbol","")).strip().upper()
-        op=pd.to_numeric(r.get("daily_open_reference"),errors="coerce")
-        prem=pd.to_numeric(r.get("opening_straddle_premium"),errors="coerce")
-        if symbol and pd.notna(op) and pd.notna(prem) and prem>0:
-            result[symbol]={"open_price":float(op),"opening_straddle_premium":float(prem)}
+def frozen_base(df):
+    if df.empty or "Symbol" not in df.columns:
+        return {}
+    result = {}
+    for _, row in df.drop_duplicates("Symbol").iterrows():
+        symbol = str(row.get("Symbol", "")).strip().upper()
+        open_price = pd.to_numeric(row.get("daily_open_reference"), errors="coerce")
+        premium = pd.to_numeric(row.get("opening_straddle_premium"), errors="coerce")
+        if symbol and pd.notna(open_price) and pd.notna(premium) and premium > 0:
+            result[symbol] = {
+                "open_price": float(open_price),
+                "opening_straddle_premium": float(premium),
+            }
     return result
 
 
-def candidates(snapshot: pd.DataFrame) -> pd.DataFrame:
-    return pd.DataFrame() if snapshot.empty else build_current_predictions(snapshot,frozen_base(snapshot))
+def candidates(df):
+    if df is None or df.empty:
+        return pd.DataFrame()
+    return build_current_predictions(df, frozen_base(df))
 
 
-def decision_class(row):
-    d=str(row.get("direction_label","")).upper()
-    strength=str(row.get("strength_label","")).upper()
-    progress=float(row.get("progress",0) or 0)
-    if "WAIT" in strength: return "wait"
-    if progress>=100: return "dir-up-break" if d=="BULLISH" else "dir-down-break"
-    if strength=="STRONG": return "dir-up-strong" if d=="BULLISH" else "dir-down-strong"
-    if strength=="DEVELOPING": return "developing"
-    return "dir-up" if d=="BULLISH" else "dir-down"
+def bucket(row):
+    if bool(row.get("factual_breakout", False)):
+        return "Breakout"
+    strength = str(row.get("strength_label", "")).upper()
+    progress = float(row.get("progress", 0) or 0)
+    direction = str(row.get("direction_label", "")).upper()
+    if "WAIT" in strength:
+        return "Wait"
+    if progress >= 75:
+        return "Approaching"
+    if strength == "DEVELOPING":
+        return "Developing"
+    return "Bullish" if direction == "BULLISH" else "Bearish"
 
 
-def filter_queue(df,key):
-    if df.empty:return df
-    opts=["All","Bullish","Bearish","Developing","Wait","Approaching","Breakout"]
-    selected=st.radio("Filter",opts,horizontal=True,key=key)
-    out=df.copy()
-    if selected=="Bullish":out=out[out.direction_label.eq("BULLISH")]
-    elif selected=="Bearish":out=out[out.direction_label.eq("BEARISH")]
-    elif selected=="Developing":out=out[out.strength_label.eq("DEVELOPING")]
-    elif selected=="Wait":out=out[out.strength_label.str.contains("WAIT",na=False)]
-    elif selected=="Approaching":out=out[out.progress.ge(75)&out.progress.lt(100)]
-    elif selected=="Breakout":out=out[out.factual_breakout]
+def first_seen(row):
+    for key in (
+        "first_seen_timestamp",
+        "first_detection_timestamp",
+        "trigger_timestamp",
+        "decision_timestamp",
+        "observation_timestamp",
+    ):
+        value = pd.to_datetime(row.get(key), errors="coerce")
+        if pd.notna(value):
+            return value
+    return pd.NaT
+
+
+def pct(value):
+    x = pd.to_numeric(value, errors="coerce")
+    return "—" if pd.isna(x) else f"{x:+.2f}%"
+
+
+def time_text(value, date=True):
+    x = pd.to_datetime(value, errors="coerce")
+    if pd.isna(x):
+        return "—"
+    return x.strftime("%d %b %Y, %H:%M:%S" if date else "%H:%M:%S")
+
+
+def logo(symbol):
+    symbol = str(symbol).upper().strip()
+    if not symbol or symbol == "NAN":
+        return '<span class="stock-logo">—</span>'
+    safe = (
+        symbol.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+    # Original stock logo source with initials always retained as fallback.
+    return (
+        f'<span class="stock-logo" title="{safe}" aria-label="{safe} logo" '
+        f'style="background:#fff url(https://s3-symbol-logo.tradingview.com/'
+        f'{symbol.lower()}.svg) center/contain no-repeat;">{safe[:4]}</span>'
+    )
+
+
+def apply_filters(df, key):
+    """Presentation filters only. The qualified SDL decision universe is unchanged."""
+    if df.empty:
+        return df
+
+    progress_options = ["All", "25%+", "50%+", "70%+", "75%+", "Breakout"]
+    direction_options = ["All", "Bullish", "Bearish"]
+    strength_options = ["All"] + sorted({
+        str(x).title()
+        for x in df.get("strength_label", pd.Series(dtype=str)).dropna()
+        if str(x).strip()
+    })
+    stage_options = ["All"] + sorted({
+        str(x)
+        for x in df.get("stage", pd.Series(dtype=str)).dropna()
+        if str(x).strip() and str(x).lower() != "nan"
+    })
+
+    st.markdown(
+        '<div class="filter-panel"><div class="filter-note">'
+        'Four independent trader dimensions · filtering never changes the SDL decision score.'
+        '</div><div class="filter-grid">',
+        unsafe_allow_html=True,
+    )
+
+    groups = [
+        ("PROGRESS", "Progress", progress_options),
+        ("DECISION DIRECTION", "Direction", direction_options),
+        ("STRENGTH", "Strength", strength_options),
+        ("STAGE", "Stage", stage_options),
+    ]
+    values = {}
+    c1, c2 = st.columns(2)
+    for i, (title, label, options) in enumerate(groups):
+        with (c1 if i % 2 == 0 else c2):
+            st.markdown(
+                f'<div class="filter-group"><div class="filter-title">{title}</div>',
+                unsafe_allow_html=True,
+            )
+            values[label] = st.radio(
+                label,
+                options,
+                horizontal=True,
+                key=f"{key}_{label.lower().replace(' ', '_')}",
+                label_visibility="collapsed",
+            )
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
+    out = df.copy()
+    direction = values["Direction"]
+    strength = values["Strength"]
+    stage = values["Stage"]
+    progress = values["Progress"]
+
+    if direction != "All":
+        out = out[out.direction_label.astype(str).str.upper().eq(direction.upper())]
+    if strength != "All":
+        out = out[out.strength_label.astype(str).str.upper().eq(strength.upper())]
+    if stage != "All":
+        out = out[out.stage.astype(str).eq(stage)]
+
+    progress_values = pd.to_numeric(
+        out.get("progress", pd.Series(index=out.index, dtype=float)),
+        errors="coerce",
+    ).fillna(-1)
+
+    if progress == "25%+":
+        out = out[progress_values >= 25]
+    elif progress == "50%+":
+        out = out[progress_values >= 50]
+    elif progress == "70%+":
+        out = out[progress_values >= 70]
+    elif progress == "75%+":
+        out = out[progress_values >= 75]
+    elif progress == "Breakout":
+        out = out[out.factual_breakout.astype(bool)]
+
     return out
 
 
-def queue_table(df):
-    if df.empty:return pd.DataFrame()
-    return pd.DataFrame({
-      "SYMBOL":df.symbol,"DECISION":df.decision,
-      "PRICE MOVE":df.signed_price_move_pct.map(lambda x:f"{x:+.2f}%"),
-      "STRADDLE MOVE":df.progress.map(lambda x:f"{x:.1f}%"),
-      "STAGE":df.stage,"CONFIRMATION":df.strength_label,
-      "STRENGTH":df.strength.map(lambda x:f"{x:.0f}"),
-      "BREAKOUT":df.factual_breakout.map(lambda x:"YES" if x else "—")
-    })
+def behaviour_class(row):
+    direction = str(row.get("direction_label", "")).upper()
+    strength = str(row.get("strength_label", "")).upper()
+    if direction == "BULLISH":
+        return "behaviour-green"
+    if direction == "BEARISH":
+        return "behaviour-red"
+    if strength == "DEVELOPING":
+        return "behaviour-amber"
+    return "behaviour-slate"
 
 
-def styled_queue(df):
-    table=queue_table(df)
-    if table.empty:return
-    def style_row(row):
-        d=str(row.get("DECISION","")).upper()
-        if "BULLISH" in d: cls="background-color:#bfe8ce;color:#084f28;font-weight:750;"
-        elif "BEARISH" in d: cls="background-color:#f5c9ca;color:#761219;font-weight:750;"
-        elif "WAIT" in d: cls="background-color:#eef2f7;color:#536174;font-weight:700;"
-        else: cls="background-color:#fff3cf;color:#8a5b00;font-weight:700;"
-        return [cls if c in {"DECISION","STAGE","CONFIRMATION"} else "" for c in row.index]
-    st.dataframe(table.style.apply(style_row,axis=1),width="stretch",hide_index=True)
+def queue_html(df):
+    if df.empty:
+        return '<div style="padding:18px;text-align:center;color:#7d8797;font-size:12px">No stocks match the current filters.</div>'
+
+    rows = []
+    for idx, (_, row) in enumerate(df.iterrows(), 1):
+        price = pd.to_numeric(row.get("signed_price_move_pct"), errors="coerce")
+        progress = float(pd.to_numeric(row.get("progress"), errors="coerce") or 0)
+        strength_value = pd.to_numeric(row.get("strength"), errors="coerce")
+        strength_label = str(row.get("strength_label", "—")).upper()
+        direction = str(row.get("direction_label", "—")).upper()
+        stage = str(row.get("stage", "—"))
+        confirmation = str(row.get("confirmation", row.get("confirmation_label", "STRONG")))
+        breakout = bool(row.get("factual_breakout", False))
+        first = first_seen(row)
+        updated = pd.to_datetime(row.get("observation_timestamp"), errors="coerce")
+
+        price_class = (
+            "direction-up" if pd.notna(price) and price > 0
+            else "direction-down" if pd.notna(price) and price < 0
+            else ""
+        )
+        strength_class = (
+            "strength-strong" if strength_label == "STRONG"
+            else "strength-mid" if strength_label == "DEVELOPING"
+            else "strength-low"
+        )
+        fill_class = "break" if breakout else "hot" if progress >= 70 else ""
+        width = min(max(progress, 0), 100)
+        title = f"First trigger: {time_text(first)} | Updated: {time_text(updated)}"
+
+        rows.append(
+            f'''<tr title="{title}">
+<td class="row-no">{idx}</td>
+<td><div class="stock-cell">{logo(row.get("symbol"))}<span>{str(row.get("symbol")).upper()}</span></div></td>
+<td><span class="behaviour-badge {behaviour_class(row)}">{direction.title()} · {strength_label.title()}</span></td>
+<td class="{price_class}">{pct(price)}</td>
+<td><span class="progress-value">{progress:.1f}%</span><span class="progress-rail"><span class="progress-fill {fill_class}" style="width:{width:.0f}%"></span></span></td>
+<td><span class="stage-chip">{stage}</span></td>
+<td><span class="confirm-chip">{confirmation}</span></td>
+<td class="{strength_class}">{'—' if pd.isna(strength_value) else f'{float(strength_value):.0f}'}</td>
+<td class="{'breakout-yes' if breakout else 'breakout-no'}">{'YES' if breakout else '—'}</td>
+<td class="time-cell">{time_text(first, False)}</td>
+<td class="time-cell">{time_text(updated, False)}</td>
+</tr>'''
+        )
+
+    return (
+        '<div class="table-wrap"><table class="sdlq">'
+        '<thead><tr>'
+        '<th style="width:3%">#</th><th style="width:14%">STOCK</th>'
+        '<th style="width:18%">DIRECTION / STRENGTH</th><th style="width:9%">MOMENTUM</th>'
+        '<th style="width:15%">STRADDLE PROGRESS</th><th style="width:13%">STAGE</th>'
+        '<th style="width:11%">CONFIRMATION</th><th style="width:7%">STRENGTH</th>'
+        '<th style="width:6%">BREAKOUT</th><th style="width:7%">FIRST TIME</th>'
+        '<th style="width:7%">UPDATED</th>'
+        '</tr></thead><tbody>' + "".join(rows) + '</tbody></table></div>'
+    )
 
 
-def counts(df):
-    if df.empty:return {"bull":0,"bear":0,"strong":0,"dev":0,"wait":0,"break":0}
-    return {"bull":int(df.direction_label.eq("BULLISH").sum()),
-            "bear":int(df.direction_label.eq("BEARISH").sum()),
-            "strong":int(df.strength_label.eq("STRONG").sum()),
-            "dev":int(df.strength_label.eq("DEVELOPING").sum()),
-            "wait":int(df.strength_label.str.contains("WAIT",na=False).sum()),
-            "break":int(df.factual_breakout.sum())}
+def priority_strip(df, key="priority_filter"):
+    if df.empty:
+        return
+
+    st.markdown(
+        '<div class="priority-strip"><div class="priority-caption">'
+        'PRIORITY RADAR · INDEPENDENT FILTER</div>',
+        unsafe_allow_html=True,
+    )
+    p1, p2 = st.columns(2)
+    with p1:
+        st.markdown('<div class="filter-title">PROGRESS</div>', unsafe_allow_html=True)
+        priority_progress = st.radio(
+            "Priority progress",
+            ["All", "25%+", "50%+", "70%+", "75%+", "Breakout"],
+            horizontal=True,
+            key=f"{key}_progress",
+            label_visibility="collapsed",
+        )
+    with p2:
+        st.markdown('<div class="filter-title">STRENGTH</div>', unsafe_allow_html=True)
+        priority_strength = st.radio(
+            "Priority strength",
+            ["All", "Strong", "Developing"],
+            horizontal=True,
+            key=f"{key}_strength",
+            label_visibility="collapsed",
+        )
+
+    top = df.copy()
+    pv = pd.to_numeric(
+        top.get("progress", pd.Series(index=top.index, dtype=float)),
+        errors="coerce",
+    ).fillna(-1)
+
+    if priority_progress == "25%+":
+        top = top[pv >= 25]
+    elif priority_progress == "50%+":
+        top = top[pv >= 50]
+    elif priority_progress == "70%+":
+        top = top[pv >= 70]
+    elif priority_progress == "75%+":
+        top = top[pv >= 75]
+    elif priority_progress == "Breakout":
+        top = top[top.factual_breakout.astype(bool)]
+
+    if priority_strength != "All":
+        top = top[top.strength_label.astype(str).str.upper().eq(priority_strength.upper())]
+
+    top = top.sort_values(
+        ["factual_breakout", "strength", "progress"],
+        ascending=[False, False, False],
+    ).head(5)
+
+    if top.empty:
+        st.markdown(
+            '<div style="font-size:10px;opacity:.8;padding:6px 0">No priority stocks match these filters.</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    cards = []
+    for _, row in top.iterrows():
+        progress = float(pd.to_numeric(row.get("progress"), errors="coerce") or 0)
+        first = first_seen(row)
+        cards.append(
+            f'<div class="priority-card">'
+            f'<div class="priority-symbol">{logo(row.get("symbol"))} '
+            f'{str(row.get("symbol")).upper()}</div>'
+            f'<div class="priority-meta">{str(row.get("direction_label","—")).title()} · '
+            f'{str(row.get("strength_label","—")).title()} · {str(row.get("stage","—"))}</div>'
+            f'<div class="priority-progress">{progress:.1f}%'
+            f'{" · BREAKOUT" if bool(row.get("factual_breakout",False)) else ""}</div>'
+            f'<div class="priority-meta">First: {time_text(first, False)}</div>'
+            f'</div>'
+        )
+
+    st.markdown(
+        '<div style="display:flex;gap:8px;overflow-x:auto">' + "".join(cards) +
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
 
 
-def historical_table(events,trading_date):
-    if events.empty:return
-    h=events.copy()
-    h["observation_timestamp"]=pd.to_datetime(h.get("observation_timestamp"),errors="coerce")
-    h["trading_date"]=h.get("trading_date","").astype(str).str[:10]
-    h["straddle_progress_pct"]=((pd.to_numeric(h["current_price"],errors="coerce")-
-        pd.to_numeric(h["open_price"],errors="coerce")).abs()/
-        pd.to_numeric(h["opening_straddle_premium"],errors="coerce").replace(0,pd.NA)*100)
-    if trading_date:h=h[h.trading_date.eq(trading_date)]
-    if h.empty:
-        st.info("No factual first-breakout events recorded for this day.");return
-    h=h.sort_values(["observation_timestamp","straddle_progress_pct"],ascending=[False,False])
-    display=pd.DataFrame({
-      "TIME":h.observation_timestamp.dt.strftime("%H:%M:%S").fillna("—"),
-      "SYMBOL":h.symbol,
-      "DIRECTION":h.direction.map({"UP":"🟢 UP","DOWN":"🔴 DOWN"}).fillna(h.direction),
-      "STRADDLE":h.straddle_progress_pct.map(lambda x:f"{x:.1f}%" if pd.notna(x) else "—"),
-      "PRICE MOVE":pd.to_numeric(h.price_chg_pct,errors="coerce").map(lambda x:f"{x:+.2f}%" if pd.notna(x) else "—"),
-      "BREAKOUT DIST":pd.to_numeric(h.breakout_distance,errors="coerce").map(lambda x:f"{x:+.2f}" if pd.notna(x) else "—")
-    })
-    st.dataframe(display,width="stretch",hide_index=True)
+def selected_detail(df, key):
+    if df.empty or "symbol" not in df.columns:
+        return
 
+    symbols = [str(x).upper() for x in df["symbol"].dropna().tolist()]
+    if not symbols:
+        return
 
-# ---------- internal source settings ----------
-def apply_source_root(root_text: str):
-    root=Path(root_text).expanduser().resolve()
-    sdl_pipeline.INTRADAY_SOURCE_ROOT=root
-    sdl_config.INTRADAY_SOURCE_ROOT=root
-    st.session_state["sdl_source_root"]=str(root)
-    return root
+    symbol = st.selectbox(
+        "Selected stock — detail opens here",
+        symbols,
+        key=f"{key}_stock",
+    )
+    row = df[df.symbol.astype(str).str.upper().eq(symbol)].iloc[0]
 
-if "sdl_source_root" not in st.session_state:
-    st.session_state["sdl_source_root"]=str(sdl_pipeline.INTRADAY_SOURCE_ROOT)
+    direction = str(row.get("direction_label", "—")).upper()
+    strength_label = str(row.get("strength_label", "—")).upper()
+    stage = str(row.get("stage", "—"))
+    progress = float(pd.to_numeric(row.get("progress"), errors="coerce") or 0)
+    price_move = pd.to_numeric(row.get("signed_price_move_pct"), errors="coerce")
+    strength = pd.to_numeric(row.get("strength"), errors="coerce")
+    breakout = bool(row.get("factual_breakout", False))
+    updated = row.get("observation_timestamp")
+    first = first_seen(row)
 
-with st.sidebar:
-    with st.expander("⚙ Admin Settings", expanded=False):
-        st.caption("Administrator-only operational configuration. Runtime/log paths remain internal.")
-        source_text=st.text_input("Source data folder",value=st.session_state["sdl_source_root"],key="sdl_source_input")
-        if st.button("Save source folder",width="stretch"):
-            root=apply_source_root(source_text)
-            if root.exists():
-                st.success("Source folder saved.")
-            else:
-                st.warning("Folder path saved, but it is not currently accessible.")
-        st.caption(f"Active source: `{st.session_state['sdl_source_root']}`")
+    badge_class = (
+        "behaviour-green" if direction == "BULLISH"
+        else "behaviour-red" if direction == "BEARISH"
+        else "behaviour-amber"
+    )
 
-
-# ---------- header ----------
-st.markdown("""
-<div class="sdl-header">
- <div class="sdl-brand">
-  <div class="sdl-logo">SDL</div>
-  <div>
-   <div class="sdl-title">Straddle Breakout Decision Center</div>
-   <div class="sdl-subtitle">±0.75% price gate → 25/50/75/100% frozen straddle → confirmation → strength priority</div>
+    st.markdown(
+        f"""
+<div class="detail">
+  <div class="detail-head">
+    <div>
+      <div class="detail-symbol">{logo(symbol)} {symbol}</div>
+      <div class="detail-sub">
+        First seen: <b>{time_text(first)}</b> · Updated: <b>{time_text(updated)}</b>
+      </div>
+    </div>
+    <span class="behaviour-badge {badge_class}">
+      {direction.title()} · {strength_label.title()}
+    </span>
   </div>
- </div>
 </div>
-""",unsafe_allow_html=True)
+""",
+        unsafe_allow_html=True,
+    )
+
+    a, b, c, d = st.columns(4)
+    a.markdown(
+        f'<div class="detail-card"><div class="detail-label">STRENGTH</div>'
+        f'<div class="detail-value">{"—" if pd.isna(strength) else f"{float(strength):.0f}"}</div>'
+        f'<div class="detail-foot">{strength_label.title()}</div></div>',
+        unsafe_allow_html=True,
+    )
+    b.markdown(
+        f'<div class="detail-card"><div class="detail-label">STRADDLE PROGRESS</div>'
+        f'<div class="detail-value">{progress:.1f}%</div>'
+        f'<div class="detail-foot">Next: {"Breakout" if progress >= 75 else "75%" if progress >= 50 else "50%" if progress >= 25 else "25%"}</div></div>',
+        unsafe_allow_html=True,
+    )
+    c.markdown(
+        f'<div class="detail-card"><div class="detail-label">STAGE</div>'
+        f'<div class="detail-value" style="font-size:16px">{stage}</div>'
+        f'<div class="detail-foot">Existing SDL stage</div></div>',
+        unsafe_allow_html=True,
+    )
+    d.markdown(
+        f'<div class="detail-card"><div class="detail-label">MOMENTUM</div>'
+        f'<div class="detail-value">{pct(price_move)}</div>'
+        f'<div class="detail-foot">As of {time_text(updated, False)}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    p1, p2 = st.columns([1.35, 1])
+    with p1:
+        st.markdown(
+            f'<div class="progress-box"><div class="progress-title">STRADDLE PROCESS</div>'
+            f'<div class="big-progress">{progress:.1f}%</div>'
+            f'<div class="progress-line"><div class="progress-line-fill" style="width:{min(max(progress,0),100):.0f}%"></div></div>'
+            f'<div style="display:flex;justify-content:space-between;font-size:8px;color:#778196;font-weight:800">'
+            f'<span>25%</span><span>50%</span><span>75%</span><span>100% BREAKOUT</span></div></div>',
+            unsafe_allow_html=True,
+        )
+    with p2:
+        st.markdown('<div class="factor-list">', unsafe_allow_html=True)
+        for factor in row.get("factors", []) or []:
+            state = str(getattr(factor, "state", ""))
+            css = (
+                "factor-support" if state == "SUPPORT"
+                else "factor-contradict" if state == "CONTRADICT"
+                else "factor-neutral"
+            )
+            st.markdown(
+                f'<div class="factor"><span>{getattr(factor, "label", "Factor")}</span>'
+                f'<b class="{css}">{state}</b></div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    try:
+        labels = factor_labels(row.to_dict())
+        if labels:
+            st.caption(" · ".join(labels))
+    except Exception:
+        pass
+
+    st.markdown(
+        '<div style="font-size:9px;color:#8b9ab2;margin-top:5px">'
+        'Selection uses the existing qualified decision record; no new scoring is performed.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="detail-card" style="margin-top:8px">'
+        '<div class="detail-label">MARKET CONTEXT · PLANNED</div>'
+        '<div class="detail-foot" style="font-size:9px;margin-top:5px">'
+        'Latest stock news + latest result → impact analysis will be added as a separate evidence feed. '
+        'No placeholder/news data is injected into the SDL decision.'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
 
 
-# ---------- live processing ----------
-today=pd.Timestamp.now().date().isoformat()
-files=source_files(today)
-bundles=source_bundles(files)
-live_path,live_ts=latest_file(files)
-state=load_state(STATE_JSON)
-last_state_ts=pd.to_datetime(state.get("last_observation_timestamp"),errors="coerce")
+def metrics(df, stamp):
+    values = [
+        len(df),
+        int(df.direction_label.eq("BULLISH").sum()) if not df.empty else 0,
+        int(df.direction_label.eq("BEARISH").sum()) if not df.empty else 0,
+        int(df.strength_label.eq("STRONG").sum()) if not df.empty else 0,
+        int(df.factual_breakout.sum()) if not df.empty else 0,
+    ]
+    first_alert = pd.NaT
+    if not df.empty:
+        try:
+            first_alert = min(
+                (x for x in (first_seen(row) for _, row in df.iterrows()) if pd.notna(x)),
+                default=pd.NaT,
+            )
+        except Exception:
+            first_alert = pd.NaT
 
-if bundles:
-    bundle_meta=[(source_ts(g[-1]),g) for g in bundles]
-    pending=[x for x in bundle_meta if pd.notna(x[0]) and (pd.isna(last_state_ts) or x[0]>last_state_ts)]
-    if pending and st.session_state.get("sdl_auto_enabled",True):
-        ts,group=pending[0]
-        with st.status(f"Processing evidence bundle {ts.strftime('%H:%M:%S')}…",expanded=False) as status:
-            try:
-                process_snapshot(group[-1],ts)
-                st.session_state["sdl_last_auto_bundle"]=ts.isoformat()
-                status.update(label=f"Processed evidence bundle {ts.strftime('%H:%M:%S')}",state="complete")
-                st.rerun()
-            except Exception as exc:
-                status.update(label="Evidence bundle processing failed",state="error")
-                st.error(str(exc))
-
-
-# ---------- status ----------
-mode="REPLAY" if st.session_state.get("sdl_replay_timestamp") else "LIVE"
-c1,c2,c3,c4=st.columns([.9,1.5,1.1,1.0])
-with c1: st.markdown(f'<span class="{"replay-pill" if mode=="REPLAY" else "live-pill"}">● {mode}</span>',unsafe_allow_html=True)
-with c2: st.markdown(f"**As of:** {live_ts.strftime('%d %b %Y, %H:%M:%S') if pd.notna(live_ts) else '—'}")
-with c3: st.markdown(f"**Bundles:** {len(bundles)}")
-with c4:
-    if st.button("↻ Refresh",width="stretch"): st.rerun()
+    labels = ["QUALIFIED", "BULLISH", "BEARISH", "STRONG", "BREAKOUT", "FIRST ALERT"]
+    values = values + [time_text(first_alert, False)]
+    cols = st.columns(6)
+    for col, label, value in zip(cols, labels, values):
+        col.markdown(
+            f'<div class="kpi"><div class="kpi-label">{label}</div>'
+            f'<div class="kpi-value" style="font-size:{"14px" if label=="FIRST ALERT" else "23px"}">{value}</div>'
+            f'<div class="kpi-foot">Data updated · {time_text(stamp, False)}</div></div>',
+            unsafe_allow_html=True,
+        )
 
 
-# ---------- live queue ----------
-st.markdown('<div class="card">',unsafe_allow_html=True)
-st.markdown('<div class="card-title">1. LIVE DECISION QUEUE</div>',unsafe_allow_html=True)
-st.markdown('<div class="card-subtitle">Automatically advances through completed evidence bundles. Previous per-stock state is preserved.</div>',unsafe_allow_html=True)
-live_df=pd.DataFrame()
-if live_path is not None:
-    try: _,live_df,_=process_snapshot(live_path,live_ts)
-    except Exception: pass
-live_candidates=candidates(live_df); lc=counts(live_candidates)
-if live_candidates.empty: st.info("No currently qualified live decision candidates.")
-else:
-    st.caption(f"Current evidence bundle: **{live_ts.strftime('%d %b %Y, %H:%M:%S')}**")
-    styled_queue(filter_queue(live_candidates,"sdl_live_filter"))
-st.markdown('</div>',unsafe_allow_html=True)
+def run_live(path, stamp):
+    try:
+        result = process_snapshot(path, stamp)
+        frames = (
+            [x for x in result if isinstance(x, pd.DataFrame)]
+            if isinstance(result, tuple)
+            else [result]
+        )
+        # Preserve the existing application's current-snapshot selection.
+        df = frames[1] if len(frames) > 1 else (frames[0] if frames else pd.DataFrame())
+        return candidates(df)
+    except Exception:
+        return pd.DataFrame()
 
 
-# ---------- top priority ----------
-st.markdown('<div class="card">',unsafe_allow_html=True)
-st.markdown('<div class="card-title">2. TOP PRIORITY NOW</div>',unsafe_allow_html=True)
-st.markdown(f'<div class="card-subtitle">Ranked strongest current opportunities · Snapshot: {live_ts.strftime("%d %b %Y, %H:%M:%S") if pd.notna(live_ts) else "—"}</div>',unsafe_allow_html=True)
-if live_candidates.empty: st.info("No priority candidate at the current live snapshot.")
-else:
-    priority=live_candidates.sort_values(["factual_breakout","strength","progress"],ascending=[False,False,False]).head(10)
-    styled_queue(priority)
-st.markdown('</div>',unsafe_allow_html=True)
+# ---------------------------------------------------------------------------
+# FINAL HEADER / NAVIGATION
+# Presentation only. No decision-engine state is changed here.
+# ---------------------------------------------------------------------------
+if "page" not in st.session_state:
+    st.session_state["page"] = "Decision Board"
+if "auto_refresh" not in st.session_state:
+    st.session_state["auto_refresh"] = False
+if "refresh_seconds" not in st.session_state:
+    st.session_state["refresh_seconds"] = 10
 
+page = st.session_state["page"]
 
-# ---------- compact state ----------
-st.markdown('<div class="card">',unsafe_allow_html=True)
-st.markdown('<div class="card-title">3. CURRENT DECISION STATE</div>',unsafe_allow_html=True)
-items=[("CANDIDATES",len(live_candidates)),("BULLISH",lc["bull"]),("BEARISH",lc["bear"]),("STRONG",lc["strong"]),("DEVELOPING",lc["dev"]),("WAIT",lc["wait"]),("BREAKOUT",lc["break"]),("AS OF",live_ts.strftime("%H:%M:%S") if pd.notna(live_ts) else "—")]
-cols=st.columns(8)
-for col,(label,value) in zip(cols,items):
-    with col: st.markdown(f'<div class="metric"><div class="metric-label">{label}</div><div class="metric-value">{value}</div></div>',unsafe_allow_html=True)
-st.markdown('</div>',unsafe_allow_html=True)
+# Current live source is resolved before the header so the first/updated
+# timestamps shown in the header are the same timestamps used by the board.
+today = pd.Timestamp.now().date().isoformat()
+today_files = files(today)
+live_path = max(today_files, key=ts) if today_files else None
+live_ts = ts(live_path) if live_path else pd.NaT
+live = run_live(live_path, live_ts) if live_path is not None else pd.DataFrame()
 
+first_alert = pd.NaT
+if not live.empty:
+    try:
+        first_alert = min(
+            (x for x in (first_seen(row) for _, row in live.iterrows()) if pd.notna(x)),
+            default=pd.NaT,
+        )
+    except Exception:
+        first_alert = pd.NaT
 
-# ---------- replay ----------
-st.markdown('<div class="card">',unsafe_allow_html=True)
-st.markdown('<div class="card-title">4. REPLAY / SNAPSHOT CHECK</div>',unsafe_allow_html=True)
-st.markdown('<div class="card-subtitle">Manual historical investigation. Day → time → replay. No source filename is exposed.</div>',unsafe_allow_html=True)
+st.markdown('<div class="header-shell">', unsafe_allow_html=True)
+h1, h2, h3 = st.columns([2.0, 3.45, 3.1])
+with h1:
+    st.markdown(
+        '<div class="header-brand">◉ NTIS SDL</div>'
+        '<div class="header-sub">INTRADAY DECISION CENTRE · STRADDLE BREAKOUT</div>',
+        unsafe_allow_html=True,
+    )
+with h2:
+    st.markdown('<div class="header-nav">', unsafe_allow_html=True)
+    n1, n2, n3 = st.columns([1.2, 1.45, .95])
+    with n1:
+        if st.button(
+            "Decision Board",
+            type="primary" if page == "Decision Board" else "secondary",
+            key="nav_decision",
+            use_container_width=True,
+        ):
+            st.session_state["page"] = "Decision Board"
+            st.rerun()
+    with n2:
+        if st.button(
+            "Historical Evidence",
+            type="primary" if page == "Historical Evidence" else "secondary",
+            key="nav_history",
+            use_container_width=True,
+        ):
+            st.session_state["page"] = "Historical Evidence"
+            st.rerun()
+    with n3:
+        if st.button(
+            "Settings",
+            type="primary" if page == "Settings" else "secondary",
+            key="nav_settings",
+            use_container_width=True,
+        ):
+            st.session_state["page"] = "Settings"
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with h3:
+    st.markdown('<div class="header-controls">', unsafe_allow_html=True)
+    q1, q2, q3, q4, q5 = st.columns([.78, 1.25, .9, 1.05, .72])
+    with q1:
+        st.markdown(
+            '<div style="padding-top:3px"><span class="header-live"><i></i>LIVE</span></div>',
+            unsafe_allow_html=True,
+        )
+    with q2:
+        now = pd.Timestamp.now()
+        st.markdown(
+            f'<div class="header-time"><b>{now.strftime("%I:%M:%S %p")}</b>'
+            f'<span>{now.strftime("%d %b %Y")}</span></div>',
+            unsafe_allow_html=True,
+        )
+    with q3:
+        if st.button("↻ Refresh", key="header_refresh", use_container_width=True):
+            st.rerun()
+    with q4:
+        st.session_state["auto_refresh"] = st.checkbox(
+            "Auto Refresh",
+            value=st.session_state["auto_refresh"],
+            key="header_auto_refresh",
+        )
+    with q5:
+        st.selectbox(
+            "Refresh interval",
+            [5, 10, 15, 30, 60],
+            index=[5, 10, 15, 30, 60].index(
+                st.session_state.get("refresh_seconds", 10)
+            ),
+            key="refresh_seconds",
+            label_visibility="collapsed",
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-all_files=source_files()
-dates=sorted({source_ts(p).date().isoformat() for p in all_files if pd.notna(source_ts(p))},reverse=True)
-if dates:
-    current_date=pd.Timestamp(st.session_state.get("sdl_replay_date",dates[0]))
-    rdate=st.date_input("Trading day",value=current_date.date(),min_value=min(pd.Timestamp(d).date() for d in dates),max_value=max(pd.Timestamp(d).date() for d in dates),key="sdl_replay_calendar")
-    rdate_iso=rdate.isoformat()
-    rfiles=source_files(rdate_iso)
-    if rfiles:
-        times=[source_ts(p) for p in rfiles]
-        labels=[t.strftime("%H:%M:%S") for t in times]
-        idx=0
-        prev=st.session_state.get("sdl_replay_selected_time")
-        if prev in labels: idx=labels.index(prev)
-        selected_label=st.selectbox("Snapshot time",labels,index=idx,key="sdl_replay_time")
-        selected=rfiles[labels.index(selected_label)]
-        if st.button("Replay selected snapshot",type="primary"):
-            started=time.perf_counter()
-            try:
-                with st.status(f"Preparing replay {rdate.strftime('%d %b %Y')}…",expanded=True) as status:
-                    if st.session_state.get("sdl_replay_prepared_date") != rdate_iso:
-                        status.write("Rebuilding the selected trading day once…")
-                        replay_trading_date(rdate_iso)
-                        st.session_state["sdl_replay_prepared_date"]=rdate_iso
-                    status.write(f"Loading snapshot {selected_label}…")
-                    _,replay_df,replay_ts=process_snapshot(selected,source_ts(selected))
-                    st.session_state["sdl_replay_df"]=replay_df
-                    st.session_state["sdl_replay_timestamp"]=source_ts(selected)
-                    st.session_state["sdl_replay_selected_time"]=selected_label
-                    status.update(label=f"Replay ready · {selected_label} · {time.perf_counter()-started:.1f}s",state="complete",expanded=False)
-                st.rerun()
-            except Exception as exc:
-                st.error(f"Replay failed: {exc}")
-    else: st.info("No source snapshots available for this day.")
-else: st.info("No source snapshots available.")
+# A small timestamp strip directly under the header makes the immutable first
+# trigger visible without consuming a table column.
+st.markdown(
+    f'<div style="display:flex;justify-content:flex-end;gap:18px;align-items:center;'
+    f'font-size:9px;color:#8e9db5;margin:0 1px 8px">'
+    f'<span>FIRST ALERT <b style="color:#79a2ff">{time_text(first_alert)}</b></span>'
+    f'<span>DATA UPDATED <b style="color:#dce6f6">{time_text(live_ts)}</b></span>'
+    f'</div>',
+    unsafe_allow_html=True,
+)
 
-if st.session_state.get("sdl_replay_timestamp"):
-    rts=pd.to_datetime(st.session_state["sdl_replay_timestamp"])
-    st.markdown(f'<span class="replay-pill">REPLAY · {rts.strftime("%d %b %Y · %H:%M:%S")}</span>',unsafe_allow_html=True)
-    rdf=st.session_state.get("sdl_replay_df",pd.DataFrame())
-    rc=candidates(rdf)
-    if not rc.empty: styled_queue(filter_queue(rc,"sdl_replay_filter"))
-    else: st.info("No qualified candidates at the selected replay snapshot.")
-st.markdown('</div>',unsafe_allow_html=True)
+page = st.session_state["page"]
 
+today = pd.Timestamp.now().date().isoformat()
+today_files = files(today)
+live_path = max(today_files, key=ts) if today_files else None
+live_ts = ts(live_path) if live_path else pd.NaT
+live = run_live(live_path, live_ts) if live_path is not None else pd.DataFrame()
 
-# ---------- inspector, intentionally collapsed ----------
-with st.expander("5. DECISION INSPECTOR · tap to inspect",expanded=False):
-    st.caption("Detailed evidence and interpretation for the selected decision. Does not change selection.")
-    inspect=live_candidates
-    if st.session_state.get("sdl_replay_timestamp") and not st.session_state.get("sdl_replay_df",pd.DataFrame()).empty:
-        inspect=candidates(st.session_state["sdl_replay_df"])
-    if inspect.empty: st.info("No candidate available.")
+st.markdown(
+    f"""
+<div class="topbar">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:16px">
+    <div>
+      <div class="top-title">NTIS SDL — Intraday Decision Centre</div>
+      <div class="top-sub">Decision-first view · existing SDL engine · presentation layer only</div>
+    </div>
+    <div class="top-meta">
+      <div class="live-dot">● LIVE</div>
+      <div>As of: <span class="clock">{time_text(live_ts)}</span></div>
+      <div>Timestamp retained on every decision</div>
+    </div>
+  </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+if page == "Decision Board":
+    st.markdown(
+        '<div class="board-head"><div class="board-title">LIVE DECISION BOARD</div>'
+        '<div class="board-sub">Quick selection by the four primary trader dimensions: '
+        'Strength · Direction · Stage · Straddle Progress. Confirmation follows.</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    m1, m2 = st.columns([1, 1])
+    with m1:
+        if st.button("↻ Refresh evidence", use_container_width=True):
+            st.rerun()
+    with m2:
+        st.markdown(
+            f'<div class="refresh-row">Latest completed snapshot · '
+            f'<span class="clock">{time_text(live_ts)}</span></div>',
+            unsafe_allow_html=True,
+        )
+
+    metrics(live, live_ts)
+    visible = apply_filters(live, "board_filter")
+
+    st.markdown(
+        f'<div style="font-size:10px;color:#6f7b8e;margin:4px 2px 5px">'
+        f'<b>{len(visible)}</b> matching stock(s) · '
+        f'filtering never changes the underlying SDL decision score.</div>',
+        unsafe_allow_html=True,
+    )
+
+    priority_strip(live, "priority_filter")
+
+    left, right = st.columns([3.25, 1.05], gap="small")
+    with left:
+        st.markdown(
+            f'<div class="table-head" style="background:#fff;border:1px solid #dce3ed;'
+            f'border-radius:11px 11px 0 0"><div><div class="table-title">LIVE QUEUE</div>'
+            f'<div class="table-meta">UPDATED {time_text(live_ts)} · FIRST TIME is immutable</div></div>'
+            f'<div class="table-meta">{len(visible)} visible</div></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(queue_html(visible), unsafe_allow_html=True)
+
+        with st.expander("INTRADAY REPLAY · same page · Live state remains unchanged", expanded=False):
+            all_files = files()
+            days = sorted(
+                {ts(p).date().isoformat() for p in all_files if pd.notna(ts(p))},
+                reverse=True,
+            )
+            if days:
+                r1, r2, r3 = st.columns([1.0, 1.35, .95])
+                with r1:
+                    day = st.date_input("Trading day", pd.Timestamp(days[0]).date(), key="replay_day_home")
+                day_files = files(day.isoformat())
+                times = [ts(p) for p in day_files]
+                with r2:
+                    if times:
+                        labels = [t.strftime("%H:%M:%S") for t in times]
+                        label = st.selectbox("Snapshot time", labels, key="replay_time_home")
+                        selected = day_files[labels.index(label)]
+                    else:
+                        selected = None
+                        st.info("No snapshots for selected day.")
+                with r3:
+                    if selected is not None and st.button("Load Replay", type="primary", use_container_width=True, key="load_replay_home"):
+                        try:
+                            replay_trading_date(day.isoformat())
+                            _, replay_df, replay_ts = process_snapshot(selected, ts(selected))
+                            st.session_state["replay_df"] = replay_df
+                            st.session_state["replay_ts"] = replay_ts
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(f"Replay failed: {exc}")
+
+                replay_df = st.session_state.get("replay_df", pd.DataFrame())
+                if isinstance(replay_df, pd.DataFrame) and not replay_df.empty:
+                    replay_predictions = candidates(replay_df)
+                    replay_ts = st.session_state.get("replay_ts", pd.NaT)
+                    st.markdown(
+                        f'<div class="filter-panel"><b>Replay boundary:</b> '
+                        f'<span class="clock">{time_text(replay_ts)}</span> · '
+                        'Later observations cannot upgrade this result.</div>',
+                        unsafe_allow_html=True,
+                    )
+                    replay_visible = apply_filters(replay_predictions, "replay_home")
+                    st.markdown(queue_html(replay_visible), unsafe_allow_html=True)
+                else:
+                    st.caption("Select a trading day and snapshot, then Load Replay.")
+            else:
+                st.info("No historical snapshots available.")
+
+    with right:
+        st.markdown(
+            '<div class="table-head" style="background:#fff;border:1px solid #dce3ed;'
+            'border-radius:11px 11px 0 0"><div class="table-title">STOCK DETAIL</div>'
+            '<div class="table-meta">Selected decision</div></div>',
+            unsafe_allow_html=True,
+        )
+        selected_detail(visible, "board_detail")
+
+elif page == "Replay":
+    st.markdown(
+        '<div class="board-head"><div class="board-title">HISTORICAL REPLAY</div>'
+        '<div class="board-sub">Trading day and exact snapshot timestamp. Existing replay implementation '
+        'is used; later observations cannot upgrade the selected result.</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    all_files = files()
+    days = sorted(
+        {ts(p).date().isoformat() for p in all_files if pd.notna(ts(p))},
+        reverse=True,
+    )
+
+    if days:
+        day = st.date_input(
+            "Trading day",
+            pd.Timestamp(days[0]).date(),
+            key="replay_day",
+        )
+        day_files = files(day.isoformat())
+        times = [ts(p) for p in day_files]
+
+        if times:
+            labels = [t.strftime("%H:%M:%S") for t in times]
+            label = st.selectbox("Snapshot time", labels, key="replay_time")
+            selected = day_files[labels.index(label)]
+
+            if st.button("Replay selected snapshot", type="primary"):
+                try:
+                    replay_trading_date(day.isoformat())
+                    _, replay_df, replay_ts = process_snapshot(selected, ts(selected))
+                    st.session_state["replay_df"] = replay_df
+                    st.session_state["replay_ts"] = replay_ts
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Replay failed: {exc}")
+
+    replay_df = st.session_state.get("replay_df", pd.DataFrame())
+    if isinstance(replay_df, pd.DataFrame) and not replay_df.empty:
+        replay_predictions = candidates(replay_df)
+        replay_ts = st.session_state.get("replay_ts", pd.NaT)
+        st.markdown(
+            f'<div class="filter-panel"><b>Replay boundary:</b> '
+            f'<span class="clock">{time_text(replay_ts)}</span> · '
+            f'Later observations cannot upgrade this result.</div>',
+            unsafe_allow_html=True,
+        )
+        replay_visible = apply_filters(replay_predictions, "replay_filter")
+        st.markdown(queue_html(replay_visible), unsafe_allow_html=True)
+        selected_detail(replay_visible, "replay_detail")
     else:
-        sym=st.selectbox("Stock",inspect.symbol.tolist(),key="sdl_inspect")
-        row=inspect[inspect.symbol.eq(sym)].iloc[0]
-        css=decision_class(row)
-        st.markdown(f'<div class="card {css}"><div style="font-size:17px;font-weight:800">{row.decision}</div><div style="font-size:10px;margin-top:4px">Progress {row.progress:.1f}% of frozen S · Price {row.signed_price_move_pct:+.2f}% · Frozen S ₹{row.frozen_straddle:.2f}</div></div>',unsafe_allow_html=True)
-        a,b,c,d,e=st.columns(5)
-        a.metric("Open",f"{row.opening_price:.2f}"); b.metric("Current",f"{row.current_price:.2f}"); c.metric("Frozen S",f"{row.frozen_straddle:.2f}"); d.metric("Upper",f"{row.upper_breakout:.2f}"); e.metric("Lower",f"{row.lower_breakout:.2f}")
-        factors=[{"FACTOR":f.label,"STATE":f.state,"WEIGHT":f.weight} for f in row.factors]
-        st.dataframe(pd.DataFrame(factors),width="stretch",hide_index=True)
+        st.info("Select a trading day and snapshot time, then load Replay.")
+
+elif page == "Inspector":
+    source = live
+    if (
+        isinstance(st.session_state.get("replay_df"), pd.DataFrame)
+        and not st.session_state["replay_df"].empty
+    ):
+        source = candidates(st.session_state["replay_df"])
+
+    st.markdown(
+        '<div class="board-head"><div class="board-title">DECISION INSPECTOR</div>'
+        '<div class="board-sub">Detailed evidence for an already-qualified decision. '
+        'No new scoring is performed.</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    if source.empty:
+        st.info("No qualified decision available.")
+    else:
+        selected_detail(source, "inspector")
+
+elif page == "Historical Evidence":
+    st.markdown(
+        '<div class="board-head"><div class="board-title">HISTORICAL EVIDENCE</div>'
+        '<div class="board-sub">Factual historical evidence only; it never feeds information '
+        'backward into Live or Replay.</div></div>',
+        unsafe_allow_html=True,
+    )
+    events = load_events(EVENT_CSV)
+    if events is None or events.empty:
+        st.info("No historical evidence records available.")
+    else:
+        events = events.copy()
+        if "observation_timestamp" in events.columns:
+            events["observation_timestamp"] = pd.to_datetime(
+                events["observation_timestamp"], errors="coerce"
+            )
+            events = events.sort_values("observation_timestamp", ascending=False)
+            events["observation_timestamp"] = events["observation_timestamp"].dt.strftime(
+                "%d %b %Y, %H:%M:%S"
+            )
+        keep = [
+            c for c in [
+                "observation_timestamp", "symbol", "direction",
+                "price_chg_pct", "breakout_distance", "strength"
+            ]
+            if c in events.columns
+        ]
+        st.dataframe(
+            events[keep] if keep else events,
+            width="stretch",
+            hide_index=True,
+        )
+
+else:
+    st.markdown(
+        '<div class="board-head"><div class="board-title">SETTINGS</div>'
+        '<div class="board-sub">Administrator settings. Source location is intentionally '
+        'absent from the live decision view.</div></div>',
+        unsafe_allow_html=True,
+    )
+    root = st.text_input(
+        "Active source data folder",
+        str(getattr(sdl_pipeline, "INTRADAY_SOURCE_ROOT", "")),
+    )
+    if st.button("Apply source folder", type="primary"):
+        source_path = Path(root).expanduser().resolve()
+        sdl_pipeline.INTRADAY_SOURCE_ROOT = source_path
+        sdl_config.INTRADAY_SOURCE_ROOT = source_path
+        st.success("Source folder applied for this SDL application session.")
+
+    st.markdown(
+        '<div class="filter-panel"><b>Runtime:</b> Preview 8587 · Production 8504 untouched.<br>'
+        '<b>Decision engine:</b> existing SDL pipeline / prediction / replay implementation.</div>',
+        unsafe_allow_html=True,
+    )
 
 
-# ---------- historical evidence, intentionally collapsed ----------
-with st.expander("6. HISTORICAL EVIDENCE · factual audit",expanded=False):
-    st.caption("Factual first-breakout history only. It does not create the current decision.")
-    events=load_events(EVENT_CSV)
-    historical_table(events,rdate_iso if 'rdate_iso' in locals() else today)
+# ---------------------------------------------------------------------------
+# AUTO REFRESH
+# ---------------------------------------------------------------------------
+if st.session_state.get("auto_refresh"):
+    st.markdown(
+        f'<meta http-equiv="refresh" content="{int(st.session_state.get("refresh_seconds", 10))}">',
+        unsafe_allow_html=True,
+    )
 
-st.markdown('<div class="small-note">Frozen decision logic is unchanged: ±0.75% primary price gate → 25/50/75/100% of frozen opening straddle → secondary confirmation → strength priority. Source files remain read-only.</div>',unsafe_allow_html=True)
+st.markdown(
+    '<div class="footer"><span>NTIS SDL · Intraday Straddle Breakout Decision Centre</span>'
+    '<span>First trigger retained · Latest snapshot shown · Preview 8587 · Production 8504 untouched</span></div>',
+    unsafe_allow_html=True,
+)
