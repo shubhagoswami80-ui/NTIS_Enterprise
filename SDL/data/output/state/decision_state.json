@@ -1,0 +1,196 @@
+{
+  "trading_dates": {
+    "2026-08-26": {
+      "FOCIT": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "50\u2013<75%",
+        "progress": 68.9,
+        "strength_label": "STRONG",
+        "strength": 100.0,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 50\u2013<75% \u00b7 STRONG"
+      },
+      "VBL": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "DOWN",
+        "stage": "50\u2013<75%",
+        "progress": 63.9,
+        "strength_label": "STRONG",
+        "strength": 100.0,
+        "factual_breakout": false,
+        "decision": "BEARISH \u00b7 50\u2013<75% \u00b7 STRONG"
+      },
+      "HINDZINC": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 42.9,
+        "strength_label": "STRONG",
+        "strength": 100.0,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 STRONG"
+      },
+      "OFSS": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 39.8,
+        "strength_label": "STRONG",
+        "strength": 100.0,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 STRONG"
+      },
+      "BDL": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "DOWN",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 32.5,
+        "strength_label": "STRONG",
+        "strength": 100.0,
+        "factual_breakout": false,
+        "decision": "BEARISH \u00b7 25\u2013<50% EARLY \u00b7 STRONG"
+      },
+      "DIVISLAB": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 33.2,
+        "strength_label": "STRONG",
+        "strength": 86.2,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 STRONG"
+      },
+      "VEDL": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 32.7,
+        "strength_label": "STRONG",
+        "strength": 86.2,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 STRONG"
+      },
+      "ICICIBANK": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 31.9,
+        "strength_label": "STRONG",
+        "strength": 86.2,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 STRONG"
+      },
+      "LICHSGFIN": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "50\u2013<75%",
+        "progress": 65.2,
+        "strength_label": "SUPPORTED",
+        "strength": 72.3,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 50\u2013<75% \u00b7 SUPPORTED"
+      },
+      "POLICYBZR": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "50\u2013<75%",
+        "progress": 61.6,
+        "strength_label": "SUPPORTED",
+        "strength": 72.3,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 50\u2013<75% \u00b7 SUPPORTED"
+      },
+      "SHREECEM": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "50\u2013<75%",
+        "progress": 52.5,
+        "strength_label": "SUPPORTED",
+        "strength": 72.3,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 50\u2013<75% \u00b7 SUPPORTED"
+      },
+      "BANKINDIA": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 32.7,
+        "strength_label": "SUPPORTED",
+        "strength": 72.3,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 SUPPORTED"
+      },
+      "GODFRYPHLP": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 27.4,
+        "strength_label": "SUPPORTED",
+        "strength": 72.3,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 SUPPORTED"
+      },
+      "INDIANB": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 29.6,
+        "strength_label": "DEVELOPING",
+        "strength": 60.8,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 DEVELOPING"
+      },
+      "KOTAKBANK": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 43.7,
+        "strength_label": "WAIT / CONFLICT",
+        "strength": 58.5,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 WAIT / CONFLICT"
+      },
+      "CHOLAFIN": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 26.2,
+        "strength_label": "WAIT / CONFLICT",
+        "strength": 58.5,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 WAIT / CONFLICT"
+      },
+      "UNITDSPR": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "DOWN",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 28.0,
+        "strength_label": "DEVELOPING",
+        "strength": 57.3,
+        "factual_breakout": false,
+        "decision": "BEARISH \u00b7 25\u2013<50% EARLY \u00b7 DEVELOPING"
+      },
+      "RADICO": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "DOWN",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 30.2,
+        "strength_label": "DEVELOPING",
+        "strength": 55.0,
+        "factual_breakout": false,
+        "decision": "BEARISH \u00b7 25\u2013<50% EARLY \u00b7 DEVELOPING"
+      },
+      "BAJAJHLDNG": {
+        "timestamp": "2026-08-26T10:07:41.898679",
+        "direction": "UP",
+        "stage": "25\u2013<50% EARLY",
+        "progress": 43.0,
+        "strength_label": "WAIT / CONFLICT",
+        "strength": 27.3,
+        "factual_breakout": false,
+        "decision": "BULLISH \u00b7 25\u2013<50% EARLY \u00b7 WAIT / CONFLICT"
+      }
+    }
+  }
+}

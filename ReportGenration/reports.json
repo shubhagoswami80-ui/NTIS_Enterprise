@@ -12,8 +12,8 @@
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
-      "interval_minutes": 3,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-25",
+      "interval_minutes": 5,
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-27",
       "filename_suffix": "",
       "filename_rule": "",
       "enabled": true
@@ -28,8 +28,8 @@
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
-      "interval_minutes": 3,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-25",
+      "interval_minutes": 5,
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-27",
       "filename_suffix": "",
       "filename_rule": "",
       "enabled": true
@@ -45,7 +45,7 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-25",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-27",
       "filename_suffix": "",
       "filename_rule": "",
       "enabled": true
@@ -60,8 +60,8 @@
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
-      "interval_minutes": 3,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-25",
+      "interval_minutes": 5,
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-27",
       "filename_suffix": "",
       "filename_rule": "",
       "enabled": true
@@ -76,8 +76,8 @@
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
-      "interval_minutes": 4,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-25",
+      "interval_minutes": 5,
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-27",
       "filename_suffix": "",
       "filename_rule": "",
       "enabled": true
@@ -93,7 +93,7 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-25",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-27",
       "filename_suffix": "",
       "filename_rule": "replace_leading_support_with_resistance",
       "enabled": true
