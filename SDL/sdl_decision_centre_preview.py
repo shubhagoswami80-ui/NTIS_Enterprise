@@ -198,6 +198,47 @@ p,label,span,div,button,input,textarea{
   color:#b9c8dc!important;
 }
 
+/* ---------- TOP UTILITY STRIP ---------- */
+.utility-strip{
+  width:100%;
+  min-height:50px;
+  padding:7px 10px;
+  margin:0 0 9px;
+  background:linear-gradient(105deg,#081a35 0%,#0d2448 55%,#102b58 100%);
+  border:1px solid #203b66;
+  border-radius:8px;
+  box-shadow:0 7px 22px rgba(0,0,0,.22);
+}
+.utility-cell{
+  min-height:34px;
+  padding:3px 9px;
+  border-right:1px solid #203653;
+}
+.utility-cell:last-child{border-right:0}
+.utility-label{
+  color:#7f95b3;
+  font-size:7px!important;
+  font-weight:950!important;
+  letter-spacing:.11em;
+}
+.utility-value{
+  color:#eef4fb;
+  font-size:10px!important;
+  font-weight:900!important;
+  margin-top:3px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.utility-value.green{color:#18df82}
+.utility-value.amber{color:#ffb21c}
+.utility-value.cyan{color:#16cfe2}
+.utility-note{
+  color:#8fa2bb;
+  font-size:7px!important;
+  margin-top:2px;
+}
+
 /* ---------- STATUS ---------- */
 .status-strip{
   display:grid;
@@ -778,7 +819,47 @@ def observation_ts(path: str | Path) -> pd.Timestamp:
         return pd.NaT
 
 
+def active_source_root() -> Path:
+    """Return the dashboard-selected SDL source root for this app session."""
+    value = st.session_state.get("source_root")
+    if value:
+        return Path(str(value)).expanduser().resolve()
+    return Path(
+        getattr(
+            sdl_pipeline,
+            "INTRADAY_SOURCE_ROOT",
+            getattr(sdl_config, "INTRADAY_SOURCE_ROOT", ""),
+        )
+    ).expanduser().resolve()
+
+
+def apply_source_root(value: str) -> tuple[bool, str]:
+    """Apply a dashboard-selected source root without changing SDL logic."""
+    candidate = Path(str(value).strip()).expanduser()
+    if not str(candidate):
+        return False, "Source folder cannot be empty."
+    try:
+        candidate = candidate.resolve()
+    except Exception:
+        candidate = candidate.absolute()
+    if not candidate.exists() or not candidate.is_dir():
+        return False, f"Source folder does not exist or is not a folder: {candidate}"
+
+    # Keep the dashboard's existing source-discovery contract intact.
+    # Only runtime configuration is changed; no source files are copied or written.
+    sdl_pipeline.INTRADAY_SOURCE_ROOT = candidate
+    sdl_config.INTRADAY_SOURCE_ROOT = candidate
+    st.session_state["source_root"] = str(candidate)
+    return True, str(candidate)
+
+
 def snapshot_files(day: str | None = None) -> list[Path]:
+    # discover_historical_snapshots() resolves its root through the existing
+    # pipeline/config module state. Keep those values synchronized with the
+    # dashboard-selected session source before discovery.
+    root = active_source_root()
+    sdl_pipeline.INTRADAY_SOURCE_ROOT = root
+    sdl_config.INTRADAY_SOURCE_ROOT = root
     try:
         paths = [Path(p) for p in discover_historical_snapshots(day)]
     except Exception:
@@ -1178,6 +1259,43 @@ def detail_panel(df: pd.DataFrame, key: str) -> None:
     if labels:
         st.caption(" · ".join(str(x) for x in labels))
 
+    # Raw input evidence is displayed for operator verification only.
+    # It does not create a new score or alter the existing SDL decision.
+    evidence_specs = [
+        ("PRICE CHG %", ["Price Chg %", "price_chg_pct"]),
+        ("OI CHG %", ["OI Chg %", "oi_chg_pct"]),
+        ("IV CHG %", ["IV Chg %", "iv_chg_pct"]),
+        ("PCR CHG %", ["PCR Chg %", "pcr_chg_pct"]),
+        ("CE OI CHG %", ["Tot CE OI Chg %", "tot_ce_oi_chg_pct"]),
+        ("PE OI CHG %", ["Tot PE OI Chg %", "tot_pe_oi_chg_pct"]),
+    ]
+    evidence_cards = []
+    for label, names in evidence_specs:
+        value = None
+        for name in names:
+            if name in row.index:
+                value = row.get(name)
+                if value is not None and not (isinstance(value, float) and pd.isna(value)):
+                    break
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            display_value = "—"
+        else:
+            try:
+                display_value = f"{float(value):+.2f}%"
+            except Exception:
+                display_value = str(value)
+        evidence_cards.append(
+            f'<div class="detail-card"><div class="detail-label">{safe_text(label)}</div>'
+            f'<div class="detail-value" style="font-size:16px!important">{safe_text(display_value)}</div>'
+            f'<div class="detail-foot">Source snapshot field</div></div>'
+        )
+    st.markdown(
+        '<div class="detail-label" style="margin-top:8px">INPUT EVIDENCE · VERIFICATION</div>'
+        '<div class="detail-grid">' + "".join(evidence_cards) + '</div>'
+        '<div class="panel-meta" style="margin-top:5px">Displayed from the existing decision record; no additional scoring is performed.</div>',
+        unsafe_allow_html=True,
+    )
+
     st.markdown(
         '<div class="planned-panel" style="margin-top:7px">'
         '<div class="planned-title">MARKET CONTEXT · PLANNED</div>'
@@ -1237,13 +1355,31 @@ def latest_snapshot() -> tuple[Path | None, pd.Timestamp]:
 defaults = {
     "page": "Decision Board",
     "auto_refresh": False,
-    "refresh_seconds": 10,
+    # Stored internally as seconds; displayed to the operator as minutes.
+    "refresh_seconds": 300,
     "queue_limit": 12,
     "replay_path": None,
+    "source_root": str(getattr(sdl_pipeline, "INTRADAY_SOURCE_ROOT", getattr(sdl_config, "INTRADAY_SOURCE_ROOT", ""))),
 }
 for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
+
+# One-time migration from the previous preview's 5/10/15/30/60-second values.
+_refresh_value = int(st.session_state.get("refresh_seconds", 300))
+if _refresh_value in (5, 10, 15, 30, 60):
+    st.session_state["refresh_seconds"] = _refresh_value * 60
+elif _refresh_value not in (180, 300, 420, 600, 900):
+    st.session_state["refresh_seconds"] = 300
+
+# Ensure the selected source is reflected in the existing pipeline/config runtime.
+try:
+    _initial_source = Path(str(st.session_state.get("source_root", ""))).expanduser().resolve()
+    if _initial_source.exists() and _initial_source.is_dir():
+        sdl_pipeline.INTRADAY_SOURCE_ROOT = _initial_source
+        sdl_config.INTRADAY_SOURCE_ROOT = _initial_source
+except Exception:
+    pass
 
 
 # ============================================================================
@@ -1253,7 +1389,58 @@ for key, value in defaults.items():
 live_path_for_header, live_ts_for_header = latest_snapshot()
 clock_now = pd.Timestamp.now()
 
-st.markdown('<div class="sdl-header">', unsafe_allow_html=True)
+# The approved reference contains a reserved upper header band. It is now
+# used as a compact operational strip rather than remaining visually empty.
+utility_source = active_source_root()
+utility_source_text = str(utility_source)
+utility_snapshot = live_ts_for_header
+utility_exists = live_path_for_header is not None
+utility_age = ""
+if pd.notna(utility_snapshot):
+    age_seconds = max(0, int((pd.Timestamp.now() - utility_snapshot).total_seconds()))
+    if age_seconds < 60:
+        utility_age = f"{age_seconds}s ago"
+    elif age_seconds < 3600:
+        utility_age = f"{age_seconds // 60}m ago"
+    else:
+        utility_age = f"{age_seconds // 3600}h ago"
+india_now = pd.Timestamp.now(tz="Asia/Kolkata")
+market_open = india_now.hour > 9 or (india_now.hour == 9 and india_now.minute >= 15)
+market_close = india_now.hour < 15 or (india_now.hour == 15 and india_now.minute <= 30)
+session_label = "OPEN" if market_open and market_close else "CLOSED"
+
+st.markdown('<div class="utility-strip">', unsafe_allow_html=True)
+u1, u2, u3, u4 = st.columns([2.35, 1.35, .85, 1.15], gap="small")
+with u1:
+    st.markdown(
+        f'<div class="utility-cell"><div class="utility-label">ACTIVE SDL SOURCE</div>'
+        f'<div class="utility-value">{safe_text(utility_source_text)}</div>'
+        f'<div class="utility-note">Dashboard runtime source · read only</div></div>',
+        unsafe_allow_html=True,
+    )
+with u2:
+    st.markdown(
+        f'<div class="utility-cell"><div class="utility-label">LATEST SNAPSHOT</div>'
+        f'<div class="utility-value cyan">{safe_text(fmt_time(utility_snapshot, True))}</div>'
+        f'<div class="utility-note">{safe_text(utility_age) if utility_age else "No completed snapshot"}</div></div>',
+        unsafe_allow_html=True,
+    )
+with u3:
+    st.markdown(
+        f'<div class="utility-cell"><div class="utility-label">MARKET SESSION</div>'
+        f'<div class="utility-value {"green" if session_label == "OPEN" else "amber"}">{session_label}</div>'
+        f'<div class="utility-note">NSE cash hours</div></div>',
+        unsafe_allow_html=True,
+    )
+with u4:
+    st.markdown(
+        f'<div class="utility-cell"><div class="utility-label">DECISION MODE</div>'
+        f'<div class="utility-value">FACTS ONLY</div>'
+        f'<div class="utility-note">Existing SDL engine</div></div>',
+        unsafe_allow_html=True,
+    )
+st.markdown('</div>', unsafe_allow_html=True)
+
 h1, h2, h3 = st.columns([2.0, 3.55, 3.65], gap="small")
 
 with h1:
@@ -1315,14 +1502,12 @@ with h3:
     with q5:
         st.session_state["refresh_seconds"] = st.selectbox(
             "Interval",
-            [5, 10, 15, 30, 60],
-            index=[5, 10, 15, 30, 60].index(int(st.session_state["refresh_seconds"])),
+            [180, 300, 420, 600, 900],
+            index=[180, 300, 420, 600, 900].index(int(st.session_state["refresh_seconds"])),
             key="refresh_seconds_select",
-            format_func=lambda x: f"{x}s",
+            format_func=lambda x: f"{int(x // 60)} min",
             label_visibility="collapsed",
         )
-
-st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ============================================================================
@@ -1807,14 +1992,29 @@ else:
     )
     st.session_state["refresh_seconds"] = st.selectbox(
         "Refresh interval",
-        [5, 10, 15, 30, 60],
-        index=[5, 10, 15, 30, 60].index(int(st.session_state["refresh_seconds"])),
+        [180, 300, 420, 600, 900],
+        index=[180, 300, 420, 600, 900].index(int(st.session_state["refresh_seconds"])),
         key="settings_refresh_interval",
-        format_func=lambda x: f"{x}s",
+        format_func=lambda x: f"{int(x // 60)} min",
     )
+
+    current_root = active_source_root()
+    source_text = st.text_input(
+        "Active SDL source data folder",
+        value=str(current_root),
+        key="settings_source_root",
+        help="Dashboard-only runtime source location. No source files are copied or modified.",
+    )
+    if st.button("Apply source folder", type="primary", key="apply_source_folder"):
+        ok, message = apply_source_root(source_text)
+        if ok:
+            st.success(f"Source folder applied: {message}")
+            st.rerun()
+        else:
+            st.error(message)
+
     st.caption(
-        f"Configured SDL source root: "
-        f"{getattr(sdl_pipeline, 'INTRADAY_SOURCE_ROOT', getattr(sdl_config, 'INTRADAY_SOURCE_ROOT', ''))}"
+        f"Configured SDL source root: {active_source_root()}"
     )
 
 
