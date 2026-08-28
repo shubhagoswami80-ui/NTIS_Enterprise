@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import html
+import json
+import re
 
 import pandas as pd
 import streamlit as st
@@ -103,6 +105,62 @@ div[data-testid="stTimeInput"] svg{
 p,label,span,div,button,input,textarea{
   font-family:Inter,Segoe UI,Arial,sans-serif!important;
   box-sizing:border-box;
+}
+
+/* Native Streamlit controls must remain inside the approved dark system.
+   Do not depend on HTML wrapper divs around Streamlit widgets. */
+div[data-testid="stButton"] button{
+  min-height:35px!important;
+  border-radius:7px!important;
+  font-size:10px!important;
+  font-weight:900!important;
+  padding:4px 10px!important;
+  background:#0d1b2e!important;
+  border:1px solid #29405e!important;
+  color:#e7eef8!important;
+  box-shadow:none!important;
+}
+div[data-testid="stButton"] button:hover{
+  background:#142743!important;
+  border-color:#5b78a5!important;
+  color:#fff!important;
+}
+div[data-testid="stButton"] button[kind="primary"]{
+  background:#f02f35!important;
+  border-color:#ff5960!important;
+  color:#fff!important;
+}
+div[data-testid="stButton"] button[kind="primary"]:hover{
+  background:#ff4047!important;
+  border-color:#ff6970!important;
+}
+div[data-testid="stCheckbox"] label p{
+  color:#eef4fb!important;
+  font-size:9px!important;
+  font-weight:850!important;
+}
+div[data-testid="stSelectbox"]>div>div,
+div[data-testid="stDateInput"] input,
+div[data-testid="stTimeInput"] input,
+div[data-testid="stTextInput"] input{
+  background:#101f35!important;
+  color:#eef4fb!important;
+  border:1px solid #29405e!important;
+  border-radius:7px!important;
+}
+div[data-testid="stSelectbox"] label,
+div[data-testid="stDateInput"] label,
+div[data-testid="stTimeInput"] label,
+div[data-testid="stTextInput"] label{
+  color:#aebdd1!important;
+  font-size:9px!important;
+  font-weight:850!important;
+}
+div[data-testid="stSelectbox"] svg,
+div[data-testid="stDateInput"] svg,
+div[data-testid="stTimeInput"] svg{
+  fill:#b9c8dc!important;
+  color:#b9c8dc!important;
 }
 
 /* ---------- HEADER ---------- */
@@ -665,6 +723,20 @@ table.queue td{
 .contradict{color:#ff626c!important;font-weight:950!important}
 .neutral{color:#8ea0b8!important;font-weight:850!important}
 
+
+/* ---------- CUMULATIVE TRADER CONTEXT ---------- */
+.context-box{background:#0b192b;border:1px solid #203653;border-radius:7px;padding:8px;margin-top:7px}
+.context-head{display:flex;justify-content:space-between;color:#edf3fc;font-size:9px!important;font-weight:950!important;letter-spacing:.08em}
+.context-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}
+.context-card{background:#0f1e33;border:1px solid #203a59;border-radius:7px;padding:7px}
+.context-label{color:#8da0b9;font-size:7px!important;font-weight:950!important;letter-spacing:.08em}
+.context-value{color:#f4f7fc;font-size:12px!important;font-weight:950!important;margin-top:3px}
+.history-box{background:#0b192b;border:1px solid #29415f;border-radius:7px;padding:8px;margin-top:7px}
+.history-head{display:flex;justify-content:space-between;color:#e4ebf5;font-size:8px!important;font-weight:950!important}
+.history-rail{height:7px;background:#26384f;border-radius:99px;overflow:hidden;margin-top:6px}
+.history-fill{height:100%;background:#7a62ff;border-radius:99px}
+@media(max-width:1200px){.context-grid{grid-template-columns:1fr 1fr}}
+
 /* ---------- PLANNED PANELS ---------- */
 .planned-panel{
   background:#091729;
@@ -804,6 +876,30 @@ def safe_text(value) -> str:
 
 
 def observation_ts(path: str | Path) -> pd.Timestamp:
+    """Resolve the exact snapshot timestamp without using file mtime first.
+
+    Current Daywise files use a compact ``YYYY-MM-DD_HHMMSS`` suffix
+    (for example ``..._2026-08-28_144503.xlsx``).  The upstream parser
+    historically accepted only the hour/minute form, which could make the
+    dashboard fall back to filesystem mtime.  The dashboard now recognizes
+    the exact compact form first, then delegates to the existing parser.
+    """
+    path = Path(path)
+    stem = path.stem
+
+    compact = re.search(
+        r"(?P<date>\d{4}-\d{2}-\d{2})[_-](?P<hour>\d{2})(?P<minute>\d{2})(?P<second>\d{2})$",
+        stem,
+    )
+    if compact:
+        try:
+            return pd.Timestamp(
+                f"{compact.group('date')} {compact.group('hour')}:"
+                f"{compact.group('minute')}:{compact.group('second')}"
+            )
+        except Exception:
+            pass
+
     try:
         value = parse_observation_timestamp(path)
         value = pd.to_datetime(value, errors="coerce")
@@ -811,10 +907,11 @@ def observation_ts(path: str | Path) -> pd.Timestamp:
             return value
     except Exception:
         pass
-    # This is only a last-resort display fallback. SDL logic never uses mtime
-    # as a market observation timestamp.
+
+    # Last-resort display fallback only. SDL logic never intentionally uses
+    # filesystem mtime as the market observation timestamp.
     try:
-        return pd.Timestamp.fromtimestamp(Path(path).stat().st_mtime)
+        return pd.Timestamp.fromtimestamp(path.stat().st_mtime)
     except Exception:
         return pd.NaT
 
@@ -1169,6 +1266,90 @@ def queue_html(df: pd.DataFrame) -> str:
     )
 
 
+def _numeric_from_row(row: pd.Series, names: list[str]):
+    for name in names:
+        if name in row.index:
+            value = pd.to_numeric(row.get(name), errors="coerce")
+            if pd.notna(value):
+                return float(value)
+    return None
+
+
+def _historical_evidence_summary(events: pd.DataFrame, symbol: str):
+    if events is None or events.empty or "symbol" not in events.columns:
+        return None
+    e = events.copy()
+    e["symbol"] = e["symbol"].astype(str).str.upper().str.strip()
+    e = e[e["symbol"].eq(str(symbol).upper().strip())]
+    if e.empty:
+        return None
+    price = pd.to_numeric(e.get("price_chg_pct"), errors="coerce").dropna().abs()
+    sample = int(len(e))
+    significant = int((price >= 1.0).sum()) if not price.empty else 0
+    avg_move = float(price.mean()) if not price.empty else None
+    availability = min(sample / 10.0, 1.0)
+    significance = min(significant / max(sample, 1), 1.0)
+    strength = int(round(100 * (0.55 * availability + 0.45 * significance)))
+    label = "STRONG" if strength >= 70 else "MODERATE" if strength >= 45 else "LIMITED"
+    return {"strength": strength, "label": label, "sample": sample, "significant": significant, "avg_move": avg_move}
+
+
+def render_cumulative_context(row: pd.Series, current_ts: pd.Timestamp):
+    symbol = str(row.get("symbol", "")).upper()
+    values = {
+        "PRICE CHG": _numeric_from_row(row, ["Price Chg %", "price_chg_pct", "signed_price_move_pct"]),
+        "OI CHG": _numeric_from_row(row, ["OI Chg %", "oi_chg_pct"]),
+        "IV CHG": _numeric_from_row(row, ["IV Chg %", "iv_chg_pct"]),
+        "PCR CHG": _numeric_from_row(row, ["PCR Chg %", "pcr_chg_pct"]),
+        "CE OI CHG": _numeric_from_row(row, ["Tot CE OI Chg %", "tot_ce_oi_chg_pct"]),
+        "PE OI CHG": _numeric_from_row(row, ["Tot PE OI Chg %", "tot_pe_oi_chg_pct"]),
+    }
+
+    def fmt(v):
+        return "—" if v is None else f"{v:+.2f}%"
+
+    try:
+        events = load_events(EVENT_CSV)
+    except Exception:
+        events = pd.DataFrame()
+
+    hist = _historical_evidence_summary(events, symbol)
+    if hist is None:
+        hist_html = (
+            '<div class="history-box"><div class="history-head">'
+            '<span>HISTORICAL EVIDENCE STRENGTH</span><span>INSUFFICIENT</span>'
+            '</div><div class="panel-meta">No sufficient stored historical event sample for this stock.</div></div>'
+        )
+    else:
+        avg = "—" if hist["avg_move"] is None else f'{hist["avg_move"]:.2f}%'
+        hist_html = (
+            f'<div class="history-box"><div class="history-head">'
+            f'<span>HISTORICAL EVIDENCE STRENGTH</span><span>{hist["label"]} · {hist["strength"]}/100</span>'
+            f'</div><div class="history-rail"><div class="history-fill" style="width:{hist["strength"]}%"></div></div>'
+            f'<div class="panel-meta">Stored events: {hist["sample"]} · Significant moves ≥1%: {hist["significant"]} · Avg absolute move: {avg} · INFORMATION ONLY — NOT A FILTER GATE.</div></div>'
+        )
+
+    cards = "".join(
+        f'<div class="context-card"><div class="context-label">{safe_text(k)}</div><div class="context-value">{safe_text(fmt(v))}</div></div>'
+        for k, v in values.items()
+    )
+    cards += (
+        f'<div class="context-card"><div class="context-label">AS OF</div><div class="context-value">{safe_text(fmt_time(current_ts))}</div></div>'
+        f'<div class="context-card"><div class="context-label">DIRECTION</div><div class="context-value">{safe_text(str(row.get("direction_label", "—")).title())}</div></div>'
+        f'<div class="context-card"><div class="context-label">STRENGTH</div><div class="context-value">{safe_text(str(row.get("strength_label", "—")).title())}</div></div>'
+    )
+
+    return (
+        '<details class="context-box" open>'
+        '<summary class="context-head"><span>MARKET CONTEXT</span><span>▼</span></summary>'
+        f'<div class="context-grid">{cards}</div>'
+        '</details>'
+        + hist_html
+        + '<details class="context-box"><summary class="context-head"><span>NEWS / RESULT / IMPACT</span><span>▶</span></summary>'
+        '<div class="panel-meta">External news/result feeds are not connected in this bundle. No synthetic context is injected into SDL decisions.</div></details>'
+    )
+
+
 def detail_panel(df: pd.DataFrame, key: str) -> None:
     if df is None or df.empty:
         st.markdown(
@@ -1297,10 +1478,10 @@ def detail_panel(df: pd.DataFrame, key: str) -> None:
     )
 
     st.markdown(
-        '<div class="planned-panel" style="margin-top:7px">'
-        '<div class="planned-title">MARKET CONTEXT · PLANNED</div>'
-        '<div class="planned-copy">Latest stock news + latest result → impact analysis will be added as a separate evidence feed. No placeholder/news data is injected into the SDL decision.</div>'
-        '</div>',
+        render_cumulative_context(
+            row,
+            updated if pd.notna(updated) else pd.Timestamp.now(),
+        ),
         unsafe_allow_html=True,
     )
 
@@ -1349,17 +1530,87 @@ def latest_snapshot() -> tuple[Path | None, pd.Timestamp]:
 
 
 # ============================================================================
+# PERSISTED DASHBOARD PRESENTATION SETTINGS
+# ============================================================================
+# Settings are dashboard-only and never alter SDL decision/scoring logic.
+# The file is created locally beside this dashboard when an operator applies
+# a setting. It contains only presentation/runtime preferences.
+DASHBOARD_SETTINGS_FILE = Path(__file__).resolve().parent / ".sdl_dashboard_settings.json"
+
+
+def _load_dashboard_settings() -> dict:
+    try:
+        if not DASHBOARD_SETTINGS_FILE.exists():
+            return {}
+        raw = json.loads(DASHBOARD_SETTINGS_FILE.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_dashboard_settings(**values) -> None:
+    payload = {}
+    try:
+        existing = _load_dashboard_settings()
+        if isinstance(existing, dict):
+            payload.update(existing)
+        for key, value in values.items():
+            if key == "source_root":
+                payload[key] = str(value)
+            elif key == "refresh_seconds":
+                payload[key] = int(value)
+            elif key == "auto_refresh":
+                payload[key] = bool(value)
+        DASHBOARD_SETTINGS_FILE.write_text(
+            json.dumps(payload, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+    except Exception:
+        # Settings persistence is best-effort and must never block the dashboard.
+        pass
+
+
+def _restore_persisted_settings() -> dict:
+    saved = _load_dashboard_settings()
+    restored = {}
+    source = saved.get("source_root")
+    if source:
+        candidate = Path(str(source)).expanduser()
+        try:
+            candidate = candidate.resolve()
+        except Exception:
+            candidate = candidate.absolute()
+        if candidate.exists() and candidate.is_dir():
+            restored["source_root"] = str(candidate)
+
+    try:
+        refresh = int(saved.get("refresh_seconds", 300))
+        if refresh in (180, 300, 420, 600, 900):
+            restored["refresh_seconds"] = refresh
+    except Exception:
+        pass
+
+    if isinstance(saved.get("auto_refresh"), bool):
+        restored["auto_refresh"] = bool(saved["auto_refresh"])
+    return restored
+
+
+# ============================================================================
 # SESSION STATE
 # ============================================================================
 
+_persisted = _restore_persisted_settings()
 defaults = {
     "page": "Decision Board",
-    "auto_refresh": False,
+    "auto_refresh": _persisted.get("auto_refresh", False),
     # Stored internally as seconds; displayed to the operator as minutes.
-    "refresh_seconds": 300,
+    "refresh_seconds": _persisted.get("refresh_seconds", 300),
     "queue_limit": 12,
     "replay_path": None,
-    "source_root": str(getattr(sdl_pipeline, "INTRADAY_SOURCE_ROOT", getattr(sdl_config, "INTRADAY_SOURCE_ROOT", ""))),
+    "source_root": _persisted.get(
+        "source_root",
+        str(getattr(sdl_pipeline, "INTRADAY_SOURCE_ROOT", getattr(sdl_config, "INTRADAY_SOURCE_ROOT", ""))),
+    ),
 }
 for key, value in defaults.items():
     if key not in st.session_state:
@@ -1409,37 +1660,35 @@ market_open = india_now.hour > 9 or (india_now.hour == 9 and india_now.minute >=
 market_close = india_now.hour < 15 or (india_now.hour == 15 and india_now.minute <= 30)
 session_label = "OPEN" if market_open and market_close else "CLOSED"
 
-st.markdown('<div class="utility-strip">', unsafe_allow_html=True)
-u1, u2, u3, u4 = st.columns([2.35, 1.35, .85, 1.15], gap="small")
-with u1:
-    st.markdown(
-        f'<div class="utility-cell"><div class="utility-label">ACTIVE SDL SOURCE</div>'
-        f'<div class="utility-value">{safe_text(utility_source_text)}</div>'
-        f'<div class="utility-note">Dashboard runtime source · read only</div></div>',
-        unsafe_allow_html=True,
-    )
-with u2:
-    st.markdown(
-        f'<div class="utility-cell"><div class="utility-label">LATEST SNAPSHOT</div>'
-        f'<div class="utility-value cyan">{safe_text(fmt_time(utility_snapshot, True))}</div>'
-        f'<div class="utility-note">{safe_text(utility_age) if utility_age else "No completed snapshot"}</div></div>',
-        unsafe_allow_html=True,
-    )
-with u3:
-    st.markdown(
-        f'<div class="utility-cell"><div class="utility-label">MARKET SESSION</div>'
-        f'<div class="utility-value {"green" if session_label == "OPEN" else "amber"}">{session_label}</div>'
-        f'<div class="utility-note">NSE cash hours</div></div>',
-        unsafe_allow_html=True,
-    )
-with u4:
-    st.markdown(
-        f'<div class="utility-cell"><div class="utility-label">DECISION MODE</div>'
-        f'<div class="utility-value">FACTS ONLY</div>'
-        f'<div class="utility-note">Existing SDL engine</div></div>',
-        unsafe_allow_html=True,
-    )
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown(
+    f'''
+    <div class="utility-strip">
+      <div style="display:grid;grid-template-columns:2.35fr 1.35fr .85fr 1.15fr;gap:0">
+        <div class="utility-cell">
+          <div class="utility-label">ACTIVE SDL SOURCE</div>
+          <div class="utility-value">{safe_text(utility_source_text)}</div>
+          <div class="utility-note">Dashboard runtime source · read only</div>
+        </div>
+        <div class="utility-cell">
+          <div class="utility-label">LATEST SNAPSHOT</div>
+          <div class="utility-value cyan">{safe_text(fmt_time(utility_snapshot, True))}</div>
+          <div class="utility-note">{safe_text(utility_age) if utility_age else "No completed snapshot"}</div>
+        </div>
+        <div class="utility-cell">
+          <div class="utility-label">MARKET SESSION</div>
+          <div class="utility-value {"green" if session_label == "OPEN" else "amber"}">{session_label}</div>
+          <div class="utility-note">NSE cash hours</div>
+        </div>
+        <div class="utility-cell">
+          <div class="utility-label">DECISION MODE</div>
+          <div class="utility-value">FACTS ONLY</div>
+          <div class="utility-note">Existing SDL engine</div>
+        </div>
+      </div>
+    </div>
+    ''',
+    unsafe_allow_html=True,
+)
 
 h1, h2, h3 = st.columns([2.0, 3.55, 3.65], gap="small")
 
@@ -1499,6 +1748,7 @@ with h3:
             value=bool(st.session_state["auto_refresh"]),
             key="auto_refresh_checkbox",
         )
+        _save_dashboard_settings(auto_refresh=st.session_state["auto_refresh"])
     with q5:
         st.session_state["refresh_seconds"] = st.selectbox(
             "Interval",
@@ -1508,6 +1758,7 @@ with h3:
             format_func=lambda x: f"{int(x // 60)} min",
             label_visibility="collapsed",
         )
+        _save_dashboard_settings(refresh_seconds=st.session_state["refresh_seconds"])
 
 
 # ============================================================================
@@ -1519,24 +1770,28 @@ if st.session_state["page"] == "Decision Board":
     # Fixed presentation filters live outside the fragment so auto refresh
     # cannot reset them. The fragment reads their session state on each cycle.
     st.markdown(
-        '<div class="filter-panel"><div class="filter-caption">✦ Four independent trader dimensions · filtering never changes the underlying SDL decision score.</div>',
+        '<div class="section-bar">✦ FOUR INDEPENDENT TRADER DIMENSIONS · FILTERING NEVER CHANGES THE UNDERLYING SDL DECISION SCORE</div>',
         unsafe_allow_html=True,
     )
 
-    # We intentionally render filters once outside the targeted live fragment.
-    # Their values are retained while live data changes underneath.
-    filter_cols = st.columns(4)
+    if st.button("↻ Reset Filters", key="reset_filters"):
+        for key in ("board_progress", "board_direction", "board_strength", "board_stage"):
+            st.session_state[key] = "All"
+        st.session_state["queue_limit"] = 12
+        st.rerun()
 
+    # Render filters as native Streamlit controls.  Native controls are kept
+    # outside auto-refresh so their selections persist while live data changes.
+    filter_cols = st.columns(4)
     filter_specs = [
         ("PROGRESS", ["All", "25%+", "50%+", "70%+", "75%+", "Breakout"], "board_progress"),
         ("DIRECTION", ["All", "Bullish", "Bearish"], "board_direction"),
         ("STRENGTH", ["All", "Developing", "Strong", "Supported", "Wait / Conflict"], "board_strength"),
         ("STAGE", ["All", "100%+ BREAKOUT", "25–<50% EARLY", "50–<75%", "75–<100% APPROACHING"], "board_stage"),
     ]
-
     for col, (title, options, key) in zip(filter_cols, filter_specs):
         with col:
-            st.markdown(f'<div class="filter-group"><div class="filter-title">{title} ⓘ</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="filter-title">{title} ⓘ</div>', unsafe_allow_html=True)
             st.radio(
                 title,
                 options,
@@ -1544,18 +1799,6 @@ if st.session_state["page"] == "Decision Board":
                 key=key,
                 label_visibility="collapsed",
             )
-            st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    with st.container():
-        st.markdown('<div class="reset-wrap">', unsafe_allow_html=True)
-        if st.button("↻ Reset Filters", key="reset_filters"):
-            for key in ("board_progress", "board_direction", "board_strength", "board_stage"):
-                st.session_state[key] = "All"
-            st.session_state["queue_limit"] = 12
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
 
     def render_live_region() -> None:
         current_path, current_ts = latest_snapshot()
@@ -1676,13 +1919,10 @@ if st.session_state["page"] == "Decision Board":
 
         # Priority Radar: controls are retained above the cards and the cards
         # update with the live fragment without rebuilding the rest of the page.
-        st.markdown('<div class="radar-panel">', unsafe_allow_html=True)
-        radar_filter_cols = st.columns([2.0, 1.15, 4.8, 1.9], gap="small")
-        with radar_filter_cols[0]:
-            st.markdown('<div class="radar-title">PRIORITY RADAR · INDEPENDENT FILTER</div>', unsafe_allow_html=True)
-        with radar_filter_cols[1]:
-            radar_progress = st.session_state.get("radar_progress", "All")
-            radar_strength = st.session_state.get("radar_strength", "All")
+        st.markdown(
+            '<div class="section-bar">PRIORITY RADAR · INDEPENDENT FILTER</div>',
+            unsafe_allow_html=True,
+        )
 
         # Radar controls are rendered using persistent native radios.
         rcols = st.columns([2.1, 1.2, 4.7], gap="small")
@@ -1759,8 +1999,6 @@ if st.session_state["page"] == "Decision Board":
                             unsafe_allow_html=True,
                         )
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
         # Main approved three-column workspace.
         qcol, dcol, ncol = st.columns([2.25, 1.05, .82], gap="small")
 
@@ -1771,7 +2009,7 @@ if st.session_state["page"] == "Decision Board":
             st.markdown(
                 f'<div class="workspace-panel"><div class="panel-head">'
                 f'<div class="panel-title">LIVE QUEUE</div>'
-                f'<div class="panel-meta">As of {fmt_time(current_ts, True)} · FIRST TIME is immutable · {len(filtered)} visible</div>'
+                f'<div class="panel-meta">As of {fmt_time(current_ts, True)} · FIRST TIME is immutable · UPDATED = snapshot time · {len(filtered)} visible</div>'
                 f'</div>{queue_html(queue_view)}</div>',
                 unsafe_allow_html=True,
             )
@@ -1788,15 +2026,30 @@ if st.session_state["page"] == "Decision Board":
             st.markdown("</div>", unsafe_allow_html=True)
 
         with dcol:
-            st.markdown(
-                '<div class="workspace-panel"><div class="panel-head">'
-                '<div class="panel-title">STOCK DETAIL</div>'
-                '<div class="panel-meta">Selected decision</div></div>'
-                '<div class="detail-body">',
-                unsafe_allow_html=True,
-            )
-            detail_panel(filtered, "live_detail")
-            st.markdown("</div></div>", unsafe_allow_html=True)
+            detail_open = bool(st.session_state.get("live_detail_open", True))
+            detail_label = "▼ STOCK DETAIL" if detail_open else "▶ STOCK DETAIL"
+            if st.button(
+                f"{detail_label}  ·  Selected decision · click to {'collapse' if detail_open else 'expand'}",
+                key="live_detail_toggle",
+                use_container_width=True,
+            ):
+                st.session_state["live_detail_open"] = not detail_open
+                st.rerun()
+
+            if detail_open:
+                st.markdown(
+                    '<div class="workspace-panel"><div class="panel-head">'
+                    '<div class="panel-title">SELECTED DECISION</div></div>',
+                    unsafe_allow_html=True,
+                )
+                detail_panel(filtered, "live_detail")
+                st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    '<div class="workspace-panel"><div class="panel-meta" style="padding:11px">'
+                    'Stock detail collapsed.</div></div>',
+                    unsafe_allow_html=True,
+                )
 
         with ncol:
             planned_panel("LATEST NEWS (PLANNED)", "Real-time stock related news will appear here.")
@@ -1815,9 +2068,8 @@ if st.session_state["page"] == "Decision Board":
     # ------------------------------------------------------------------------
     # REPLAY — deliberately outside live fragment
     # ------------------------------------------------------------------------
-    st.markdown('<div class="replay-panel">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="replay-title">⌄ INTRADAY REPLAY · same page · Live state remains unchanged</div>'
+        '<div class="section-bar">⌄ INTRADAY REPLAY · SAME PAGE · LIVE STATE REMAINS UNCHANGED</div>'
         '<div class="replay-note">Replay loads an existing completed snapshot only. Later observations cannot upgrade that replay result.</div>',
         unsafe_allow_html=True,
     )
@@ -1894,6 +2146,24 @@ if st.session_state["page"] == "Decision Board":
             replay_visible = replay_df.copy() if isinstance(replay_df, pd.DataFrame) else pd.DataFrame()
             if not replay_visible.empty:
                 st.markdown(
+                    '<div class="filter-caption">Replay filters are independent of Live filters and apply only to the selected completed snapshot.</div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("↻ Reset Replay Filters", key="reset_replay_filters"):
+                    for replay_key in (
+                        "replay_progress",
+                        "replay_direction",
+                        "replay_strength",
+                        "replay_stage",
+                    ):
+                        st.session_state[replay_key] = "All"
+                    st.session_state["replay_limit"] = 12
+                    st.rerun()
+
+                replay_visible = apply_filters(replay_visible, "replay")
+
+            if not replay_visible.empty:
+                st.markdown(
                     f'<div class="panel-meta">{len(replay_visible)} qualified decision(s) in selected replay snapshot.</div>',
                     unsafe_allow_html=True,
                 )
@@ -1920,9 +2190,7 @@ if st.session_state["page"] == "Decision Board":
     else:
         st.markdown('<div class="replay-note">No historical snapshots are available.</div>', unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
+    
 # ============================================================================
 # HISTORICAL EVIDENCE
 # ============================================================================
@@ -1935,6 +2203,13 @@ elif st.session_state["page"] == "Historical Evidence":
         '</div>',
         unsafe_allow_html=True,
     )
+    # Ensure the latest completed source snapshot has had the opportunity to
+    # persist any newly detected factual breakout events before evidence is read.
+    # This uses the existing SDL processor; it does not change scoring logic.
+    latest_evidence_path, latest_evidence_ts = latest_snapshot()
+    if latest_evidence_path is not None:
+        run_snapshot(latest_evidence_path)
+
     try:
         events = load_events(EVENT_CSV)
     except Exception as exc:
@@ -1950,6 +2225,16 @@ elif st.session_state["page"] == "Historical Evidence":
                 events["observation_timestamp"], errors="coerce"
             )
             events = events.sort_values("observation_timestamp", ascending=False)
+
+        latest_event_ts = pd.NaT
+        if "observation_timestamp" in events.columns:
+            latest_event_ts = events["observation_timestamp"].dropna().max()
+        st.markdown(
+            f'<div class="panel-meta">Latest completed source snapshot: {fmt_time(latest_evidence_ts, True)} · '
+            f'Latest stored breakout evidence: {fmt_time(latest_event_ts, True)} · '
+            f'Event store: {safe_text(str(EVENT_CSV))}</div>',
+            unsafe_allow_html=True,
+        )
 
         keep = [
             c for c in [
@@ -1997,6 +2282,10 @@ else:
         key="settings_refresh_interval",
         format_func=lambda x: f"{int(x // 60)} min",
     )
+    _save_dashboard_settings(
+        auto_refresh=st.session_state["auto_refresh"],
+        refresh_seconds=st.session_state["refresh_seconds"],
+    )
 
     current_root = active_source_root()
     source_text = st.text_input(
@@ -2008,6 +2297,7 @@ else:
     if st.button("Apply source folder", type="primary", key="apply_source_folder"):
         ok, message = apply_source_root(source_text)
         if ok:
+            _save_dashboard_settings(source_root=active_source_root())
             st.success(f"Source folder applied: {message}")
             st.rerun()
         else:
@@ -2016,6 +2306,45 @@ else:
     st.caption(
         f"Configured SDL source root: {active_source_root()}"
     )
+
+    st.markdown(
+        '<div class="section-bar">SOURCE SNAPSHOT PROCESSING</div>',
+        unsafe_allow_html=True,
+    )
+    settings_files = snapshot_files()
+    if settings_files:
+        settings_labels = [f"{fmt_time(observation_ts(p), True)} · {p.name}" for p in settings_files]
+        current_setting_path = st.session_state.get("settings_snapshot_path")
+        if current_setting_path not in [str(p) for p in settings_files]:
+            current_setting_path = str(settings_files[-1])
+            st.session_state["settings_snapshot_path"] = current_setting_path
+
+        selected_setting_label = st.selectbox(
+            "Source snapshot",
+            settings_labels,
+            index=[str(p) for p in settings_files].index(current_setting_path),
+            key="settings_snapshot_select",
+        )
+        selected_setting_path = settings_files[settings_labels.index(selected_setting_label)]
+        st.session_state["settings_snapshot_path"] = str(selected_setting_path)
+
+        if st.button(
+            "Process Selected Snapshot",
+            type="primary",
+            key="process_selected_snapshot",
+            use_container_width=True,
+        ):
+            st.session_state.pop("sdl_live_error", None)
+            processed = run_snapshot(selected_setting_path)
+            if st.session_state.get("sdl_live_error"):
+                st.error(st.session_state["sdl_live_error"])
+            else:
+                st.success(
+                    f"Processed completed snapshot: {fmt_time(observation_ts(selected_setting_path), True)}"
+                )
+                st.rerun()
+    else:
+        st.info("No Daywise snapshots are available under the configured source root.")
 
 
 # ============================================================================
