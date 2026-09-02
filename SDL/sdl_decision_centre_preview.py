@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime
 import html
 import json
+import re
 import time
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -22,6 +23,22 @@ from pipeline import (
 from prediction_engine import build_current_predictions
 from source_loader import load_primary_snapshot, parse_observation_timestamp
 from storage import load_events, load_state
+
+IST = "Asia/Kolkata"
+
+
+def to_ist(value):
+    """Normalize dashboard display timestamps to Asia/Kolkata."""
+    ts = pd.to_datetime(value, errors="coerce")
+    if pd.isna(ts):
+        return pd.NaT
+    try:
+        if getattr(ts, "tzinfo", None) is None:
+            ts = ts.tz_localize("UTC")
+        return ts.tz_convert(IST).tz_localize(None)
+    except Exception:
+        return pd.NaT
+
 
 
 # ============================================================================
@@ -174,7 +191,23 @@ p,label,span,div,button,input,textarea{
   margin-top:4px;
 }
 .header-nav div[data-testid="stButton"] button,
-.header-action div[data-testid="stButton"] button{
+.header-action 
+/* SDL FINAL native control override */
+div[data-testid="stButton"] button,
+div[data-testid="stButton"] button:hover,
+div[data-testid="stButton"] button:focus{
+  opacity:1!important;
+  background:#0d1b2e!important;
+  color:#eef4fb!important;
+  border:1px solid #3a5a82!important;
+  box-shadow:none!important;
+}
+div[data-testid="stButton"] button p,
+div[data-testid="stButton"] button span{
+  color:#eef4fb!important;
+  opacity:1!important;
+}
+div[data-testid="stButton"] button{
   min-height:38px!important;
   border-radius:7px!important;
   font-size:10px!important;
@@ -417,7 +450,7 @@ div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) span{
   overflow:hidden;
 }
 .panel-head{padding:9px 11px;background:#0e1d31;border-bottom:1px solid #203653}
-.panel-title{color:#edf3fc;font-size:12px!important;font-weight:950!important}
+.panel-title{color:#edf3fc;font-size:13px!important;font-weight:950!important}
 .panel-meta{color:#8fa2bb;font-size:9px!important;margin-top:3px}
 .queue-wrap{overflow-x:auto}
 table.queue{
@@ -428,9 +461,9 @@ table.queue{
 table.queue th{
   background:#13243a;
   color:#a9b8ce;
-  font-size:9px!important;
+  font-size:10px!important;
   font-weight:900!important;
-  letter-spacing:.05em;
+  letter-spacing:.04em;
   text-align:left;
   padding:9px 6px;
   border-bottom:1px solid #2a4260;
@@ -439,15 +472,15 @@ table.queue th{
 table.queue td{
   background:#0b192b;
   color:#e3ebf7;
-  font-size:11px!important;
-  padding:9px 6px;
+  font-size:12px!important;
+  padding:10px 6px;
   border-bottom:1px solid #1b2c43;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
   vertical-align:middle;
 }
-.stock-cell{display:flex;align-items:center;gap:7px;font-weight:950!important}
+.stock-cell{display:flex;align-items:center;gap:8px;font-size:12px!important;font-weight:950!important}
 .logo{
   width:25px;height:25px;flex:0 0 25px;border-radius:6px;
   background:#fff;color:#17325c;border:1px solid #415675;
@@ -456,7 +489,7 @@ table.queue td{
 }
 .badge{
   display:inline-block;padding:4px 7px;border-radius:5px;
-  font-size:9px!important;font-weight:950!important;
+  font-size:10px!important;font-weight:950!important;
   border:1px solid #29405e;background:#0d1b2e;color:#e8eff8;
 }
 .badge-green{background:#063a29;border-color:#0f7550;color:#38e58e}
@@ -498,7 +531,7 @@ table.queue td{
   border:1px solid #203a5b;border-radius:7px;
 }
 .trader-label{color:#9eb0c8;font-size:8px!important;font-weight:950!important;letter-spacing:.08em}
-.trader-value{color:#f3f7fd;font-size:14px!important;font-weight:950!important;margin-top:6px}
+.trader-value{color:#f3f7fd;font-size:16px!important;font-weight:950!important;margin-top:6px}
 .trader-note{color:#7e91aa;font-size:7px!important;margin-top:4px}
 .interpretation{
   padding:0 9px 9px;color:#aabbd0;font-size:9px!important;line-height:1.45;
@@ -516,6 +549,61 @@ table.queue td{
 .news-empty{color:#7f92ab;font-size:8px!important;padding:8px 0;line-height:1.4}
 
 /* ---------- EXPANDERS / DATAFRAME ---------- */
+
+/* ---------- FINAL GAP PATCH: EXPANDERS / TYPOGRAPHY ---------- */
+div[data-testid="stExpander"] details,
+div[data-testid="stExpander"] details[open],
+div[data-testid="stExpander"] summary{
+  background:#091729!important;
+  color:#edf3fc!important;
+  border-color:#203653!important;
+}
+div[data-testid="stExpander"] summary{
+  min-height:42px!important;
+  padding:10px 12px!important;
+}
+div[data-testid="stExpander"] summary:hover{
+  background:#0e1d31!important;
+}
+div[data-testid="stExpander"] summary p,
+div[data-testid="stExpander"] summary span{
+  color:#edf3fc!important;
+  font-size:12px!important;
+  font-weight:950!important;
+  letter-spacing:.02em!important;
+}
+div[data-testid="stExpander"] [data-testid="stSelectbox"] label{
+  color:#a9b8ce!important;
+}
+div[data-testid="stExpander"] [data-testid="stSelectbox"]>div>div{
+  background:#101f35!important;
+  color:#eef4fb!important;
+  border:1px solid #29405e!important;
+}
+div[data-testid="stExpander"] [data-baseweb="select"] *{
+  color:#eef4fb!important;
+}
+div[data-testid="stExpander"] .detail-symbol{
+  font-size:20px!important;
+  font-weight:950!important;
+}
+div[data-testid="stExpander"] .detail-sub{
+  font-size:10px!important;
+  color:#9cafc8!important;
+}
+div[data-testid="stExpander"] .trader-label{
+  font-size:10px!important;
+}
+div[data-testid="stExpander"] .trader-value{
+  font-size:20px!important;
+}
+div[data-testid="stExpander"] .trader-note{
+  font-size:9px!important;
+}
+div[data-testid="stExpander"] .news-item{
+  font-size:10px!important;
+}
+
 div[data-testid="stExpander"]{
   background:#091729!important;
   border:1px solid #203653!important;
@@ -553,7 +641,7 @@ def safe_text(value) -> str:
 
 
 def fmt_time(value, full: bool = False) -> str:
-    value = pd.to_datetime(value, errors="coerce")
+    value = to_ist(value)
     if pd.isna(value):
         return "—"
     return value.strftime("%d %b %Y, %H:%M:%S" if full else "%H:%M:%S")
@@ -567,6 +655,29 @@ def pct(value) -> str:
 
 
 def observation_ts(path: Path) -> pd.Timestamp:
+    # Prefer source observation time encoded in the filename.
+    # Supports YYYY-MM-DD_HHMMSS, YYYY-MM-DD_HH-MM-SS and YYYY-MM-DD_HHMM.
+    name = Path(path).stem
+    patterns = [
+        (r"(\d{4}-\d{2}-\d{2})[_-](\d{2})[-_:](\d{2})[-_:](\d{2})",
+         "%Y-%m-%d %H:%M:%S"),
+        (r"(\d{4}-\d{2}-\d{2})[_-](\d{6})",
+         "%Y-%m-%d %H%M%S"),
+        (r"(\d{4}-\d{2}-\d{2})[_-](\d{4})",
+         "%Y-%m-%d %H%M"),
+    ]
+    for pattern, fmt in patterns:
+        match = re.search(pattern, name)
+        if not match:
+            continue
+        try:
+            raw = f"{match.group(1)} {match.group(2)}"
+            if len(match.groups()) == 3:
+                raw += f" {match.group(3)}"
+            return pd.Timestamp(datetime.strptime(raw, fmt))
+        except Exception:
+            continue
+
     try:
         return parse_observation_timestamp(path)
     except Exception:
@@ -574,7 +685,6 @@ def observation_ts(path: Path) -> pd.Timestamp:
             return pd.Timestamp(path.stat().st_mtime, unit="s")
         except Exception:
             return pd.NaT
-
 
 def snapshot_files(trading_date: str | None = None) -> list[Path]:
     try:
@@ -684,7 +794,7 @@ def candidates(
     if out is None or out.empty:
         return pd.DataFrame()
 
-    out = out.copy()
+    out = normalize_dashboard_predictions(out)
 
     day = None
     if "observation_timestamp" in out.columns:
@@ -695,6 +805,66 @@ def candidates(
             day = ts.iloc[0].date().isoformat()
 
     return add_first_times(out, day)
+
+
+def normalize_dashboard_predictions(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize compatible prediction fields for dashboard presentation only."""
+    if df is None or df.empty:
+        return pd.DataFrame() if df is None else df
+
+    out = df.copy()
+
+    # Direction label: prefer authoritative label, otherwise derive from direction.
+    if "direction_label" not in out.columns:
+        if "direction" in out.columns:
+            out["direction_label"] = (
+                out["direction"].astype(str).str.upper()
+                .map({"UP": "BULLISH", "DOWN": "BEARISH"})
+                .fillna(out["direction"].astype(str).str.upper())
+            )
+        elif "decision" in out.columns:
+            s = out["decision"].astype(str).str.upper()
+            out["direction_label"] = s.map(
+                lambda v: "BULLISH" if "BULLISH" in v or "UP" in v
+                else "BEARISH" if "BEARISH" in v or "DOWN" in v
+                else "WAIT"
+            )
+        else:
+            out["direction_label"] = "WAIT"
+
+    # Strength label: preserve engine value; derive only when absent.
+    if "strength_label" not in out.columns:
+        strength = pd.to_numeric(out.get("strength"), errors="coerce")
+        out["strength_label"] = strength.map(
+            lambda v: (
+                "STRONG" if pd.notna(v) and v >= 80 else
+                "SUPPORTED" if pd.notna(v) and v >= 65 else
+                "DEVELOPING" if pd.notna(v) and v >= 50 else
+                "WAIT"
+            )
+        ).fillna("WAIT")
+
+    # Stage from progress when the presentation alias is absent.
+    if "stage" not in out.columns:
+        progress = pd.to_numeric(out.get("progress"), errors="coerce")
+        out["stage"] = progress.map(
+            lambda v: (
+                "100%+ BREAKOUT" if pd.notna(v) and v >= 100 else
+                "75–<100% APPROACHING" if pd.notna(v) and v >= 75 else
+                "50–<75%" if pd.notna(v) and v >= 50 else
+                "25–<50% EARLY" if pd.notna(v) and v >= 25 else
+                "—"
+            )
+        )
+
+    if "factual_breakout" not in out.columns:
+        progress = pd.to_numeric(out.get("progress"), errors="coerce")
+        out["factual_breakout"] = progress.ge(100).fillna(False)
+
+    if "symbol" not in out.columns and "Symbol" in out.columns:
+        out["symbol"] = out["Symbol"]
+
+    return out
 
 
 def breakout_series(df: pd.DataFrame) -> pd.Series:
@@ -856,29 +1026,53 @@ def queue_html(df: pd.DataFrame) -> str:
     if df is None or df.empty:
         return (
             '<div style="padding:20px;text-align:center;'
-            'color:#8293aa;font-size:11px">'
+            'color:#8293aa;font-size:12px">'
             'No stocks match the current filters.</div>'
         )
+
+    def first_available(row, aliases):
+        for alias in aliases:
+            if alias in row.index:
+                value = row.get(alias)
+                if pd.notna(value) and str(value).strip() not in {"", "nan", "NaT"}:
+                    return value
+        return None
+
+    def row_time(row, aliases):
+        value = first_available(row, aliases)
+        if value is None:
+            return "—"
+        ts = pd.to_datetime(value, errors="coerce")
+        return fmt_time(ts) if pd.notna(ts) else safe_text(str(value))
 
     rows = []
 
     for i, (_, row) in enumerate(df.iterrows(), 1):
-        price = pd.to_numeric(
-            row.get("signed_price_move_pct"), errors="coerce"
-        )
-        progress = pd.to_numeric(
-            row.get("progress"), errors="coerce"
-        )
-        strength = pd.to_numeric(
-            row.get("strength"), errors="coerce"
-        )
+        price = pd.to_numeric(row.get("signed_price_move_pct"), errors="coerce")
+        progress = pd.to_numeric(row.get("progress"), errors="coerce")
+        strength = pd.to_numeric(row.get("strength"), errors="coerce")
 
         direction = str(row.get("direction_label", "—"))
         strength_label = str(row.get("strength_label", "—"))
         stage = str(row.get("stage", "—"))
         breakout = bool(row.get("factual_breakout", False))
-        first = pd.to_datetime(
-            row.get("first_trigger_timestamp"), errors="coerce"
+
+        first = row_time(
+            row,
+            ["first_trigger_timestamp", "first_alert_timestamp"],
+        )
+        breakout_time = row_time(
+            row,
+            [
+                "breakout_timestamp",
+                "breakout_time",
+                "factual_breakout_timestamp",
+                "breakout_event_timestamp",
+            ],
+        )
+        updated = row_time(
+            row,
+            ["observation_timestamp", "updated_timestamp", "snapshot_timestamp"],
         )
 
         price_class = (
@@ -909,22 +1103,26 @@ def queue_html(df: pd.DataFrame) -> str:
             f'{"—" if pd.isna(strength) else f"{float(strength):.0f}"}'
             f'</td>'
             f'<td class="breakout">{"YES" if breakout else "—"}</td>'
-            f'<td>{fmt_time(first)}</td>'
+            f'<td>{first}</td>'
+            f'<td>{breakout_time}</td>'
+            f'<td>{updated}</td>'
             "</tr>"
         )
 
     return (
         '<div class="queue-wrap"><table class="queue"><thead><tr>'
         '<th style="width:3%">#</th>'
-        '<th style="width:14%">STOCK</th>'
-        '<th style="width:18%">DIRECTION / STRENGTH</th>'
-        '<th style="width:8%">MOMENTUM</th>'
-        '<th style="width:15%">STRADDLE PROGRESS</th>'
-        '<th style="width:15%">STAGE</th>'
-        '<th style="width:11%">CONFIRMATION</th>'
-        '<th style="width:7%">STRENGTH</th>'
-        '<th style="width:7%">BREAKOUT</th>'
+        '<th style="width:13%">STOCK</th>'
+        '<th style="width:17%">DIRECTION / STRENGTH</th>'
+        '<th style="width:7%">MOMENTUM</th>'
+        '<th style="width:13%">STRADDLE PROGRESS</th>'
+        '<th style="width:13%">STAGE</th>'
+        '<th style="width:10%">CONFIRMATION</th>'
+        '<th style="width:6%">STRENGTH</th>'
+        '<th style="width:6%">BREAKOUT</th>'
         '<th style="width:7%">FIRST ALERT</th>'
+        '<th style="width:7%">BREAKOUT TIME</th>'
+        '<th style="width:8%">UPDATED</th>'
         '</tr></thead><tbody>'
         + "".join(rows)
         + "</tbody></table></div>"
@@ -1048,18 +1246,36 @@ def render_stock_detail(
                 "Future OI Chg %",
                 "Futures OI Change %",
                 "Future OI Change %",
+                "Futures OI Δ %",
+                "Future OI Δ %",
+                "Futures OI Change",
+                "Future OI Change",
                 "futures_oi_chg_pct",
+                "future_oi_chg_pct",
                 "fut_oi_chg_pct",
                 "_futures_oi",
             ],
         )
         pcr = metric(
             row,
-            ["PCR Chg %", "PCR Change %", "pcr_chg_pct"],
+            [
+                "PCR Chg %",
+                "PCR Change %",
+                "PCR Δ %",
+                "PCR Change",
+                "pcr_chg_pct",
+                "pcr_change_pct",
+            ],
         )
         iv = metric(
             row,
-            ["IV Chg %", "IV Change %", "iv_chg_pct"],
+            [
+                "IV Chg %",
+                "IV Change %",
+                "IV Δ %",
+                "iv_chg_pct",
+                "iv_change_pct",
+            ],
         )
         pe_ce = metric(
             row,
@@ -1067,8 +1283,12 @@ def render_stock_detail(
                 "PE−CE OI Chg %",
                 "PE-CE OI Chg %",
                 "PE−CE OI Change %",
+                "PE-CE OI Change %",
+                "PE−CE OI Δ %",
+                "PE-CE OI Δ %",
                 "Tot PE-CE OI Chg %",
                 "pe_minus_ce_oi_chg_pct",
+                "pe_ce_oi_chg_pct",
                 "pe_minus_ce_oi",
             ],
         )
@@ -1100,8 +1320,7 @@ def render_stock_detail(
                   {logo(selected)} {safe_text(selected)}
                 </div>
                 <div class="detail-sub">
-                  First alert: {fmt_time(first, True)}
-                  · Live feed: {fmt_time(current_ts, True)}
+                  First alert: {fmt_time(first, True)} · Data updated: {fmt_time(current_ts, True)}
                 </div>
               </div>
               <span class="badge {badge_class(row)}">
@@ -1679,29 +1898,6 @@ def render_live() -> None:
         st.warning(message)
         return
 
-    first_map = first_event_map(
-        data_ts.date().isoformat()
-    )
-
-    first_values = [
-        value
-        for value in first_map.values()
-        if pd.notna(value)
-    ]
-
-    first_alert = (
-        min(first_values)
-        if first_values
-        else pd.NaT
-    )
-
-    source_root = str(
-        getattr(
-            sdl_pipeline,
-            "INTRADAY_SOURCE_ROOT",
-            "",
-        )
-    )
 
     now = datetime.now()
 
@@ -1718,23 +1914,20 @@ def render_live() -> None:
         else "CLOSED"
     )
 
-    # Distinct meanings — no duplicate timestamp fields.
+    # Compact live context strip.
+    # Source-path and input-filename details are intentionally hidden from
+    # the Decision Board; the dashboard remains focused on trader-facing
+    # live state and source observation time.
     st.markdown(
         f"""
         <div class="utility-strip">
-          <div style="display:grid;
-                      grid-template-columns:1.7fr 1.1fr 1fr 1fr 1fr">
+          <div style="display:grid;grid-template-columns:1.35fr 1fr 1fr">
             <div class="utility-cell">
-              <div class="utility-label">ACTIVE SDL SOURCE</div>
-              <div class="utility-value">{safe_text(source_root)}</div>
-              <div class="utility-note">Read-only source repository</div>
-            </div>
-            <div class="utility-cell">
-              <div class="utility-label">LATEST SNAPSHOT</div>
+              <div class="utility-label">LATEST SOURCE SNAPSHOT</div>
               <div class="utility-value cyan">
                 {safe_text(fmt_time(data_ts, True))}
               </div>
-              <div class="utility-note">Source observation time</div>
+              <div class="utility-note">Actual source observation time</div>
             </div>
             <div class="utility-cell">
               <div class="utility-label">MARKET SESSION</div>
@@ -1746,46 +1939,15 @@ def render_live() -> None:
               <div class="utility-value">FACTS ONLY</div>
               <div class="utility-note">No dashboard re-scoring</div>
             </div>
-            <div class="utility-cell">
-              <div class="utility-label">SOURCE FILE</div>
-              <div class="utility-value">{safe_text(path.name)}</div>
-              <div class="utility-note">Latest completed source</div>
-            </div>
           </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        f"""
-        <div class="alert-strip">
-          <div class="alert-cell">
-            <div class="alert-label">FIRST ALERT ⓘ</div>
-            <div class="alert-value">
-              {safe_text(fmt_time(first_alert, True))}
-            </div>
-            <div class="alert-foot">
-              Earliest recorded breakout event for
-              {safe_text(data_ts.strftime("%d %b %Y"))}.
-              This is an event timestamp, not a feed timestamp.
-            </div>
-          </div>
-          <div class="alert-cell">
-            <div class="alert-label" style="text-align:right">
-              DATA UPDATED ⓘ
-            </div>
-            <div class="alert-value green" style="text-align:right">
-              {safe_text(fmt_time(data_ts, True))}
-            </div>
-            <div class="alert-foot" style="text-align:right">
-              Last successfully loaded source snapshot.
-            </div>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Presentation guard: never allow a missing optional label to crash
+    # the Decision Centre. No decision is recalculated here.
+    pred = normalize_dashboard_predictions(pred)
 
     # Agreed order: KPI ribbon first, Priority Radar second.
     total = len(pred)
@@ -1848,7 +2010,7 @@ def render_live() -> None:
     radar = pred.sort_values(
         ["factual_breakout", "strength", "progress"],
         ascending=[False, False, False],
-    ).head(5)
+    ).head(4)
 
     st.markdown(
         '<div class="radar-panel">'
@@ -1858,7 +2020,7 @@ def render_live() -> None:
         unsafe_allow_html=True,
     )
 
-    rcols = st.columns(5)
+    rcols = st.columns(4)
 
     for col, (_, row) in zip(
         rcols,
@@ -1914,7 +2076,7 @@ def render_live() -> None:
         f'<div class="panel-head">'
         f'<div class="panel-title">LIVE QUEUE</div>'
         f'<div class="panel-meta">'
-        f'As of {safe_text(fmt_time(data_ts, True))} · '
+        f'Source snapshot {safe_text(fmt_time(data_ts, True))} · '
         f'{len(filtered)} visible · '
         f'row timestamps are intentionally not duplicated.'
         f'</div></div>',
