@@ -377,6 +377,43 @@ div[data-testid="stButton"] button{
   padding:9px 11px 10px;
   margin-bottom:8px;
 }
+/* Live Queue header: title row + one equal-width aligned filter row. */
+.live-queue-header-title{
+  display:flex;
+  align-items:center;
+  min-height:44px;
+  padding:7px 11px 6px;
+  background:#0e1d31;
+  border-bottom:1px solid #203653;
+}
+.live-queue-header-title .panel-title{
+  font-size:14px!important;
+  line-height:1.05;
+}
+.live-queue-header-title .panel-meta{
+  margin-top:4px;
+  font-size:9px!important;
+}
+.live-queue-filter-row{
+  background:#091729;
+  border-bottom:1px solid #203653;
+  padding:7px 11px 8px;
+}
+.live-queue-filter-row > div[data-testid="stHorizontalBlock"]{
+  align-items:flex-start!important;
+}
+.live-queue-filter-row .filter-title{
+  min-height:15px;
+  margin-bottom:5px!important;
+}
+.live-queue-filter-row div[data-testid="stRadio"] [role="radiogroup"]{
+  align-content:flex-start!important;
+  min-height:30px;
+}
+.live-queue-filter-row div[data-testid="stRadio"] [role="radiogroup"] label{
+  padding:5px 9px!important;
+  min-height:30px!important;
+}
 .filter-caption{color:#a7b7cc;font-size:11px!important;font-weight:750!important;margin-bottom:7px}
 .filter-group{padding:0 9px;border-right:1px solid #1c304a}
 .filter-group:first-child{padding-left:1px}
@@ -384,7 +421,7 @@ div[data-testid="stButton"] button{
 .live-inline-filter-title{margin-bottom:4px!important;white-space:nowrap}
 .filter-title{
   color:#b7c6da;
-  font-size:9px!important;
+  font-size:11px!important;
   font-weight:950!important;
   letter-spacing:.10em;
   margin-bottom:5px;
@@ -406,7 +443,7 @@ div[data-testid="stRadio"] [role="radiogroup"] label{
 div[data-testid="stRadio"] [role="radiogroup"] label p,
 div[data-testid="stRadio"] [role="radiogroup"] label span{
   color:#e7eef8!important;
-  font-size:9px!important;
+  font-size:11px!important;
   font-weight:850!important;
 }
 div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){
@@ -417,6 +454,8 @@ div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) p,
 div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) span{
   color:#fff!important;
 }
+
+/* V24 UI REFINEMENT: filter text +2px; non-stock queue data +2px. No logic changes. */
 
 /* ---------- PRIORITY RADAR ---------- */
 .radar-panel{
@@ -484,7 +523,7 @@ table.queue th{
 table.queue td{
   background:#0b192b;
   color:#e3ebf7;
-  font-size:12px!important;
+  font-size:14px!important;
   padding:10px 6px;
   border-bottom:1px solid #1b2c43;
   white-space:nowrap;
@@ -501,7 +540,7 @@ table.queue td{
 }
 .badge{
   display:inline-block;padding:4px 7px;border-radius:5px;
-  font-size:10px!important;font-weight:950!important;
+  font-size:12px!important;font-weight:950!important;
   border:1px solid #29405e;background:#0d1b2e;color:#e8eff8;
 }
 .badge-green{background:#063a29;border-color:#0f7550;color:#38e58e}
@@ -1119,22 +1158,30 @@ def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
         "75–<100% APPROACHING",
     ]
 
-    cols = st.columns([1.35, 1.65, 1.25, 1.65, 1.65])
+    # Keep the queue title/meta on its own aligned header row.
+    # The four existing filters then share one equal-width control row.
+    # This is presentation-only; filter options and semantics are unchanged.
+    st.markdown(
+        '<div class="live-queue-header-title">'
+        '<div>'
+        '<div class="panel-title">LIVE QUEUE</div>'
+        f'<div class="panel-meta">Source snapshot {safe_text(fmt_time(data_ts, True))} · '
+        f'{len(df)} qualified · filters below control this queue only.</div>'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    cols = st.columns(4, gap="small")
     selections = {}
 
-    with cols[0]:
-        st.markdown(
-            '<div class="panel-title">LIVE QUEUE</div>'
-            f'<div class="panel-meta">Source snapshot {safe_text(fmt_time(data_ts, True))} · '
-            f'{len(df)} qualified · filters below control this queue only.</div>',
-            unsafe_allow_html=True,
-        )
+    st.markdown('<div class="live-queue-filter-row">', unsafe_allow_html=True)
 
     groups = [
-        (cols[1], "PROGRESS ⓘ", progress_opts, "progress"),
-        (cols[2], "DIRECTION ⓘ", direction_opts, "direction"),
-        (cols[3], "STRENGTH ⓘ", strength_opts, "strength"),
-        (cols[4], "STAGE ⓘ", stage_opts, "stage"),
+        (cols[0], "PROGRESS ⓘ", progress_opts, "progress"),
+        (cols[1], "DIRECTION ⓘ", direction_opts, "direction"),
+        (cols[2], "STRENGTH ⓘ", strength_opts, "strength"),
+        (cols[3], "STAGE ⓘ", stage_opts, "stage"),
     ]
     for col, title, options, key in groups:
         with col:
@@ -1146,6 +1193,8 @@ def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
                 title, options, horizontal=True,
                 key=f"live_{key}", label_visibility="collapsed",
             )
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
     out = df.copy()
     if selections["direction"] != "All":
