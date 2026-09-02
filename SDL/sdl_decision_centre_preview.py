@@ -33,8 +33,10 @@ def to_ist(value):
     if pd.isna(ts):
         return pd.NaT
     try:
+        # SDL source/event timestamps are naive local NSE/IST timestamps.
+        # Never reinterpret a naive source timestamp as UTC.
         if getattr(ts, "tzinfo", None) is None:
-            ts = ts.tz_localize("UTC")
+            ts = ts.tz_localize(IST)
         return ts.tz_convert(IST).tz_localize(None)
     except Exception:
         return pd.NaT
@@ -375,7 +377,7 @@ div[data-testid="stButton"] button{
   padding:9px 11px 10px;
   margin-bottom:8px;
 }
-.filter-caption{color:#8fa2bb;font-size:9px!important;margin-bottom:7px}
+.filter-caption{color:#a7b7cc;font-size:11px!important;font-weight:750!important;margin-bottom:7px}
 .filter-group{padding:0 9px;border-right:1px solid #1c304a}
 .filter-group:first-child{padding-left:1px}
 .filter-group:last-child{border-right:0;padding-right:1px}
@@ -431,16 +433,16 @@ div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) span{
   margin-bottom:6px;
 }
 .radar-card{
-  min-height:86px;
-  padding:8px;
+  min-height:82px;
+  padding:7px;
   background:#0f1e33;
   border:1px solid #203a5b;
   border-radius:7px;
 }
 .radar-symbol{color:#f0f5fc;font-size:11px!important;font-weight:950!important}
-.radar-meta{color:#93a5bd;font-size:8px!important;margin-top:4px}
+.radar-meta{color:#a5b5ca;font-size:9px!important;margin-top:3px}
 .radar-progress{color:#ffb31c;font-size:15px!important;font-weight:950!important;margin-top:5px}
-.radar-first{color:#7489a4;font-size:8px!important;margin-top:3px}
+.radar-first{color:#8195af;font-size:9px!important;margin-top:3px}
 
 /* ---------- LIVE / REPLAY TABLE ---------- */
 .workspace-panel{
@@ -565,12 +567,21 @@ div[data-testid="stExpander"] summary{
 div[data-testid="stExpander"] summary:hover{
   background:#0e1d31!important;
 }
-div[data-testid="stExpander"] summary p,
-div[data-testid="stExpander"] summary span{
+div[data-testid="stExpander"] summary p{
   color:#edf3fc!important;
   font-size:12px!important;
   font-weight:950!important;
   letter-spacing:.02em!important;
+}
+div[data-testid="stExpander"] summary span{
+  font-size:0!important;
+  color:transparent!important;
+  width:0!important;
+  min-width:0!important;
+  overflow:hidden!important;
+}
+div[data-testid="stExpander"] summary span svg{
+  display:none!important;
 }
 div[data-testid="stExpander"] [data-testid="stSelectbox"] label{
   color:#a9b8ce!important;
@@ -612,7 +623,7 @@ div[data-testid="stExpander"]{
 div[data-testid="stExpander"] summary,
 div[data-testid="stExpander"] summary p{
   color:#edf3fc!important;
-  font-size:10px!important;
+  font-size:12px!important;
   font-weight:950!important;
 }
 div[data-testid="stButton"] button{
@@ -655,36 +666,17 @@ def pct(value) -> str:
 
 
 def observation_ts(path: Path) -> pd.Timestamp:
-    # Prefer source observation time encoded in the filename.
-    # Supports YYYY-MM-DD_HHMMSS, YYYY-MM-DD_HH-MM-SS and YYYY-MM-DD_HHMM.
-    name = Path(path).stem
-    patterns = [
-        (r"(\d{4}-\d{2}-\d{2})[_-](\d{2})[-_:](\d{2})[-_:](\d{2})",
-         "%Y-%m-%d %H:%M:%S"),
-        (r"(\d{4}-\d{2}-\d{2})[_-](\d{6})",
-         "%Y-%m-%d %H%M%S"),
-        (r"(\d{4}-\d{2}-\d{2})[_-](\d{4})",
-         "%Y-%m-%d %H%M"),
-    ]
-    for pattern, fmt in patterns:
-        match = re.search(pattern, name)
-        if not match:
-            continue
-        try:
-            raw = f"{match.group(1)} {match.group(2)}"
-            if len(match.groups()) == 3:
-                raw += f" {match.group(3)}"
-            return pd.Timestamp(datetime.strptime(raw, fmt))
-        except Exception:
-            continue
+    """
+    Return the authoritative source observation timestamp.
 
+    SDL uses the source file's filesystem creation/arrival time as the
+    observation timestamp. The filename is deliberately ignored so historical
+    and future filename conventions cannot alter chronology.
+    """
     try:
-        return parse_observation_timestamp(path)
+        return parse_observation_timestamp(Path(path))
     except Exception:
-        try:
-            return pd.Timestamp(path.stat().st_mtime, unit="s")
-        except Exception:
-            return pd.NaT
+        return pd.NaT
 
 def snapshot_files(trading_date: str | None = None) -> list[Path]:
     try:
@@ -703,55 +695,243 @@ def logo(symbol) -> str:
     return f'<span class="logo">{safe_text(text[:4])}</span>'
 
 
-def first_event_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
+def _daily_evidence(trading_date: str | None = None) -> pd.DataFrame:
+    """Load read-only SDL evidence for one trading date."""
+    if not trading_date:
+        return pd.DataFrame()
+    path = Path(REQUIRED_EVIDENCE_DIR) / f"{str(trading_date)[:10]}.csv"
+    try:
+        if not path.exists() or path.stat().st_size == 0:
+            return pd.DataFrame()
+        return pd.read_csv(path)
+    except Exception:
+        return pd.DataFrame()
+
+
+def _evidence_timestamp(df: pd.DataFrame) -> pd.Series:
+    if df is None or df.empty or "observation_timestamp" not in df.columns:
+        return pd.Series(dtype="datetime64[ns]")
+    return pd.to_datetime(df["observation_timestamp"], errors="coerce")
+
+
+def _source_timestamp_set(trading_date: str | None) -> list[pd.Timestamp]:
+    """Return authoritative filesystem observation times for one trading day.
+
+    This is a validation boundary only. It does not calculate or alter SDL
+    decisions; it prevents stale/non-source timestamps from being displayed
+    as factual event times.
+    """
+    if not trading_date:
+        return []
+    values = []
+    for path in snapshot_files(str(trading_date)[:10]):
+        ts = observation_ts(path)
+        if pd.notna(ts):
+            values.append(pd.Timestamp(ts))
+    return values
+
+
+def _matches_source_snapshot(ts, source_times: list[pd.Timestamp], tolerance_seconds: float = 2.0) -> bool:
+    if ts is None or pd.isna(ts) or not source_times:
+        return False
+    value = pd.Timestamp(ts)
+    return any(abs((value - candidate).total_seconds()) <= tolerance_seconds for candidate in source_times)
+
+
+def first_alert_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
+    """Return first primary-gate qualification time from persisted evidence.
+
+    Uses the frozen daily opening base, not each later snapshot's Open field.
+    This is display-only timestamp reconstruction; the primary SDL candidate
+    engine remains authoritative and is not modified.
+    """
+    evidence = _daily_evidence(trading_date)
+    if evidence.empty:
+        return {}
+
+    required = {"Symbol", "current_price", "observation_timestamp"}
+    if not required.issubset(evidence.columns):
+        return {}
+
+    try:
+        state = load_state(STATE_JSON)
+    except Exception:
+        state = {}
+    base_map = (
+        state.get("daily_opening_straddles", {}).get(str(trading_date)[:10], {})
+        if isinstance(state, dict)
+        else {}
+    )
+    if not base_map:
+        return {}
+
+    source_times = _source_timestamp_set(trading_date)
+    e = evidence.copy()
+    e["Symbol"] = e["Symbol"].astype(str).str.strip().str.upper()
+    e["observation_timestamp"] = _evidence_timestamp(e)
+    e["current_price"] = pd.to_numeric(e["current_price"], errors="coerce")
+    e["_frozen_open"] = e["Symbol"].map(
+        {k: v.get("open_price") for k, v in base_map.items()}
+    )
+    e["_frozen_premium"] = e["Symbol"].map(
+        {k: v.get("opening_straddle_premium") for k, v in base_map.items()}
+    )
+    e["_frozen_open"] = pd.to_numeric(e["_frozen_open"], errors="coerce")
+    e["_frozen_premium"] = pd.to_numeric(e["_frozen_premium"], errors="coerce")
+    e["price_gate"] = (e["current_price"] - e["_frozen_open"]).abs() / e["_frozen_open"] * 100.0
+    e["progress"] = (e["current_price"] - e["_frozen_open"]).abs() / e["_frozen_premium"] * 100.0
+    e = e[
+        e["Symbol"].ne("")
+        & e["observation_timestamp"].notna()
+        & e["current_price"].notna()
+        & e["_frozen_open"].notna()
+        & e["_frozen_premium"].gt(0)
+        & e["price_gate"].ge(0.75)
+        & e["progress"].ge(25.0)
+    ]
+    if source_times:
+        e = e[e["observation_timestamp"].map(lambda x: _matches_source_snapshot(x, source_times))]
+    if e.empty:
+        return {}
+    return e.groupby("Symbol")["observation_timestamp"].min().to_dict()
+
+
+def breakout_event_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
+    """Return the first factual breakout observed in the source snapshots.
+
+    This is a display-only reconstruction boundary. It deliberately uses the
+    existing SDL pipeline's frozen-base application and breakout flags rather
+    than creating a second breakout rule in the dashboard.
+
+    Persisted event rows are accepted only when they agree with an actual
+    source snapshot that contains the same factual breakout. If an event row
+    is missing, the chronological source scan can recover the first factual
+    breakout timestamp without modifying any persisted data.
+    """
+    if not trading_date:
+        return {}
+
+    day = str(trading_date)[:10]
+    files = snapshot_files(day)
+    if not files:
+        return {}
+
+    # The frozen opening base is authoritative. Do not manufacture a new
+    # opening base from a later snapshot merely to populate the dashboard.
+    try:
+        state = load_state(STATE_JSON)
+    except Exception:
+        state = {}
+    base_map = (
+        state.get("daily_opening_straddles", {}).get(day, {})
+        if isinstance(state, dict)
+        else {}
+    )
+    if not base_map:
+        return {}
+
+    # Reconstruct factual breakouts directly from the real source snapshots,
+    # in authoritative filesystem-creation-time order. The actual SDL helper
+    # computes the frozen-base breakout flags; no dashboard-specific formula
+    # is introduced here.
+    source_breakouts: dict[str, pd.Timestamp] = {}
+    for path in files:
+        ts = observation_ts(path)
+        if pd.isna(ts):
+            continue
+        try:
+            snapshot, _ = load_primary_snapshot(path, ts)
+            snapshot = sdl_pipeline.derive_straddle_values(
+                snapshot,
+                breakout_multiplier=getattr(sdl_config, "BREAKOUT_MULTIPLIER", 1.0),
+                current_price_field=getattr(sdl_config, "CURRENT_PRICE_FIELD", "Close"),
+            )
+            evaluated = sdl_pipeline._apply_frozen_base(snapshot, base_map)
+        except Exception:
+            continue
+
+        if "Symbol" not in evaluated.columns or "standard_straddle_breakout" not in evaluated.columns:
+            continue
+
+        mask = evaluated["standard_straddle_breakout"].fillna(False).astype(bool)
+        if not mask.any():
+            continue
+
+        symbols = (
+            evaluated.loc[mask, "Symbol"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        for symbol in symbols:
+            if symbol and symbol not in source_breakouts:
+                source_breakouts[symbol] = pd.Timestamp(ts)
+
+    if not source_breakouts:
+        return {}
+
+    # Validate any persisted event against the reconstructed factual source
+    # timeline. A stale event timestamp is never allowed to override it.
     try:
         events = load_events(EVENT_CSV)
     except Exception:
-        return {}
-    if events is None or events.empty:
-        return {}
-    if "symbol" not in events.columns or "observation_timestamp" not in events.columns:
-        return {}
+        events = pd.DataFrame()
 
-    e = events.copy()
-    e["symbol"] = e["symbol"].astype(str).str.strip().str.upper()
-    e["observation_timestamp"] = pd.to_datetime(
-        e["observation_timestamp"], errors="coerce"
-    )
+    if events is not None and not events.empty and {"symbol", "observation_timestamp"}.issubset(events.columns):
+        events = events.copy()
+        events["symbol"] = events["symbol"].astype(str).str.strip().str.upper()
+        events["observation_timestamp"] = pd.to_datetime(
+            events["observation_timestamp"], errors="coerce"
+        )
+        if "trading_date" in events.columns:
+            events = events[
+                events["trading_date"].astype(str).str[:10].eq(day)
+            ]
+        events = events.dropna(subset=["observation_timestamp"])
 
-    if trading_date is not None and "trading_date" in e.columns:
-        e = e[
-            e["trading_date"].astype(str).str[:10].eq(
-                str(trading_date)[:10]
-            )
-        ]
+        validated: dict[str, pd.Timestamp] = {}
+        for _, row in events.iterrows():
+            symbol = str(row.get("symbol", "")).strip().upper()
+            if symbol not in source_breakouts:
+                continue
+            event_ts = pd.Timestamp(row["observation_timestamp"])
+            source_ts = source_breakouts[symbol]
+            if abs((event_ts - source_ts).total_seconds()) <= 2.0:
+                validated[symbol] = source_ts
 
-    e = e.dropna(subset=["observation_timestamp"])
-    if e.empty:
-        return {}
+        # Source chronology is the final authority for the first factual
+        # breakout. This also recovers symbols whose event row was never
+        # persisted because the old live processor examined only the latest
+        # snapshot.
+        validated.update(source_breakouts)
+        return validated
 
-    return e.groupby("symbol")["observation_timestamp"].min().to_dict()
+    return source_breakouts
 
-
-def add_first_times(
-    df: pd.DataFrame,
-    trading_date: str | None = None,
-) -> pd.DataFrame:
+def add_first_times(df: pd.DataFrame, trading_date: str | None = None) -> pd.DataFrame:
     if df is None or df.empty:
         return df
-
     out = df.copy()
-    if trading_date is None and "observation_timestamp" in out.columns:
-        ts = pd.to_datetime(
-            out["observation_timestamp"], errors="coerce"
-        ).dropna()
-        if not ts.empty:
-            trading_date = ts.iloc[0].date().isoformat()
-
-    out["first_trigger_timestamp"] = out["symbol"].map(
-        first_event_map(trading_date)
-    )
+    out["first_trigger_timestamp"] = out["symbol"].map(first_alert_map(trading_date))
+    out["breakout_timestamp"] = out["symbol"].map(breakout_event_map(trading_date))
     return out
+
+
+def first_seen(row: pd.Series) -> pd.Timestamp:
+    """Display fallback: historical first trigger, then current observation."""
+    for key in (
+        "first_trigger_timestamp",
+        "first_alert_timestamp",
+        "first_seen_timestamp",
+        "first_detection_timestamp",
+        "trigger_timestamp",
+        "decision_timestamp",
+        "observation_timestamp",
+    ):
+        value = pd.to_datetime(row.get(key), errors="coerce")
+        if pd.notna(value):
+            return value
+    return pd.NaT
 
 
 def frozen_base_from_df(df: pd.DataFrame) -> dict:
@@ -783,6 +963,7 @@ def frozen_base_from_df(df: pd.DataFrame) -> dict:
 def candidates(
     df: pd.DataFrame,
     base: dict | None = None,
+    snapshot_ts: pd.Timestamp | None = None,
 ) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
@@ -795,6 +976,52 @@ def candidates(
         return pd.DataFrame()
 
     out = normalize_dashboard_predictions(out)
+
+    # The frozen prediction engine intentionally returns prediction fields
+    # only. Re-attach source snapshot fields here for dashboard display.
+    # This is presentation-only and does not feed anything back into SDL
+    # scoring/qualification.
+    try:
+        source = df.copy()
+        source.columns = [str(c).strip() for c in source.columns]
+
+        if "Symbol" in source.columns and "symbol" in out.columns:
+            source["__dashboard_symbol"] = (
+                source["Symbol"].astype(str).str.strip().str.upper()
+            )
+            lookup = (
+                source.drop_duplicates("__dashboard_symbol")
+                .set_index("__dashboard_symbol")
+            )
+
+            for column in source.columns:
+                if column == "__dashboard_symbol":
+                    continue
+                if column in out.columns:
+                    # Never overwrite authoritative prediction fields.
+                    continue
+                out[column] = out["symbol"].map(lookup[column])
+    except Exception:
+        # Dashboard remains functional even if a source field cannot be
+        # reattached; missing source data is displayed as "—".
+        pass
+
+    # Canonical dashboard timestamp alias.
+    # The source dataframe does not reliably carry observation_timestamp,
+    # because the authoritative source observation time belongs to the
+    # snapshot file. When supplied by the caller, use that exact timestamp
+    # for every row in this snapshot.
+    if snapshot_ts is not None and pd.notna(snapshot_ts):
+        out["observation_timestamp"] = snapshot_ts
+    elif "observation_timestamp" not in out.columns:
+        for alias in (
+            "source_observation_timestamp",
+            "snapshot_timestamp",
+            "updated_timestamp",
+        ):
+            if alias in out.columns:
+                out["observation_timestamp"] = out[alias]
+                break
 
     day = None
     if "observation_timestamp" in out.columns:
@@ -1057,22 +1284,25 @@ def queue_html(df: pd.DataFrame) -> str:
         stage = str(row.get("stage", "—"))
         breakout = bool(row.get("factual_breakout", False))
 
-        first = row_time(
-            row,
-            ["first_trigger_timestamp", "first_alert_timestamp"],
-        )
-        breakout_time = row_time(
+        first = fmt_time(first_seen(row))
+        breakout_value = first_available(
             row,
             [
                 "breakout_timestamp",
-                "breakout_time",
                 "factual_breakout_timestamp",
                 "breakout_event_timestamp",
+                "breakout_time",
             ],
         )
+        breakout_time = fmt_time(breakout_value)
         updated = row_time(
             row,
-            ["observation_timestamp", "updated_timestamp", "snapshot_timestamp"],
+            [
+                "observation_timestamp",
+                "source_observation_timestamp",
+                "updated_timestamp",
+                "snapshot_timestamp",
+            ],
         )
 
         price_class = (
@@ -1083,6 +1313,15 @@ def queue_html(df: pd.DataFrame) -> str:
             else ""
         )
         progress = 0 if pd.isna(progress) else float(progress)
+        # Preserve the previously deployed confirmation display.
+        confirmation_value = row.get("confirmation")
+        if confirmation_value is None or pd.isna(confirmation_value) or str(confirmation_value).strip().lower() in {"", "nan", "nat"}:
+            # Current SDL prediction_engine exposes strength_label as the
+            # authoritative factor-derived confirmation state. Do not invent
+            # a fallback such as STRONG.
+            confirmation = str(row.get("strength_label", "—"))
+        else:
+            confirmation = str(confirmation_value)
 
         rows.append(
             "<tr>"
@@ -1098,7 +1337,7 @@ def queue_html(df: pd.DataFrame) -> str:
             f'{"break" if breakout else ""}" '
             f'style="width:{min(max(progress,0),100):.0f}%"></span></span></td>'
             f'<td><span class="badge badge-blue">{safe_text(stage)}</span></td>'
-            f'<td><span class="badge badge-blue">TRACKING</span></td>'
+            f'<td><span class="badge badge-blue">{safe_text(confirmation)}</span></td>'
             f'<td class="strength">'
             f'{"—" if pd.isna(strength) else f"{float(strength):.0f}"}'
             f'</td>'
@@ -1238,12 +1477,20 @@ def render_stock_detail(
             row.get("observation_timestamp"),
             errors="coerce",
         )
+        breakout_ts = pd.to_datetime(
+            row.get("breakout_timestamp"),
+            errors="coerce",
+        )
 
         fut = metric(
             row,
             [
                 "Futures OI Chg %",
                 "Future OI Chg %",
+                "Futures OI Change %",
+                "Future OI Change %",
+                "Futures OI Δ %",
+                "Future OI Δ %",
                 "Futures OI Change %",
                 "Future OI Change %",
                 "Futures OI Δ %",
@@ -1263,6 +1510,8 @@ def render_stock_detail(
                 "PCR Change %",
                 "PCR Δ %",
                 "PCR Change",
+                "PCR Δ %",
+                "PCR Change",
                 "pcr_chg_pct",
                 "pcr_change_pct",
             ],
@@ -1272,6 +1521,7 @@ def render_stock_detail(
             [
                 "IV Chg %",
                 "IV Change %",
+                "IV Δ %",
                 "IV Δ %",
                 "iv_chg_pct",
                 "iv_change_pct",
@@ -1320,7 +1570,7 @@ def render_stock_detail(
                   {logo(selected)} {safe_text(selected)}
                 </div>
                 <div class="detail-sub">
-                  First alert: {fmt_time(first, True)} · Data updated: {fmt_time(current_ts, True)}
+                  First alert: {fmt_time(first, True)} · Breakout: {fmt_time(breakout_ts, True)} · Data updated: {fmt_time(current_ts, True)}
                 </div>
               </div>
               <span class="badge {badge_class(row)}">
@@ -1744,7 +1994,7 @@ def replay_snapshot_frame(
             base = frozen_base_from_df(first_df)
 
     df = derive_straddle_values(df)
-    pred = candidates(df, base or {})
+    pred = candidates(df, base or {}, snapshot_ts=ts)
 
     return pred, ts
 
@@ -1784,7 +2034,14 @@ def replay_view() -> None:
             key="replay_day",
         )
 
+        if not date_values:
+            st.info("No snapshots have a valid filesystem creation timestamp for replay.")
+            return
+
         day_files = snapshot_files(day)
+        if not day_files:
+            st.info("No snapshots are available for the selected trading day.")
+            return
 
         selected_idx = st.selectbox(
             "Snapshot time",
@@ -1795,12 +2052,17 @@ def replay_view() -> None:
             key="replay_snapshot_index",
         )
 
+        if selected_idx is None or pd.isna(selected_idx):
+            st.info("Select a snapshot time to open Replay.")
+            return
+
         path = day_files[int(selected_idx)]
 
         pred, ts = replay_snapshot_frame(path)
 
+        replay_ts_text = fmt_time(ts, full=True)
         st.caption(
-            f"Replay snapshot: {ts.strftime('%d %b %Y, %H:%M:%S')} · "
+            f"Replay snapshot: {replay_ts_text} · "
             f"source: {path.name}"
         )
 
@@ -1832,7 +2094,7 @@ def replay_view() -> None:
             '<div class="panel-title">REPLAY QUEUE</div>'
             f'<div class="panel-meta">'
             f'Snapshot time is immutable: '
-            f'{safe_text(ts.strftime("%d %b %Y, %H:%M:%S"))}'
+            f'{safe_text(fmt_time(ts, full=True))}'
             f'</div></div>',
             unsafe_allow_html=True,
         )
@@ -1878,7 +2140,7 @@ def latest_live() -> tuple[
 
         path = Path(path)
         ts = observation_ts(path)
-        pred = candidates(df)
+        pred = candidates(df, snapshot_ts=ts)
 
         return path, pred, ts, message
 
@@ -2010,7 +2272,7 @@ def render_live() -> None:
     radar = pred.sort_values(
         ["factual_breakout", "strength", "progress"],
         ascending=[False, False, False],
-    ).head(4)
+    ).head(8)
 
     st.markdown(
         '<div class="radar-panel">'
@@ -2020,7 +2282,8 @@ def render_live() -> None:
         unsafe_allow_html=True,
     )
 
-    rcols = st.columns(4)
+    radar_count = len(radar)
+    rcols = st.columns(radar_count) if radar_count else []
 
     for col, (_, row) in zip(
         rcols,

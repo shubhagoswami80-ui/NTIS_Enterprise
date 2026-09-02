@@ -6,6 +6,8 @@ import re
 import pandas as pd
 
 
+# Kept for backward compatibility/documentation only. It is NOT used as the
+# authoritative timestamp source.
 TIMESTAMP_RE = re.compile(
     r"(?P<date>\d{4}-\d{2}-\d{2})[_-]"
     r"(?P<time>\d{2})[-_:](?P<minute>\d{2})"
@@ -13,21 +15,42 @@ TIMESTAMP_RE = re.compile(
 
 
 def parse_observation_timestamp(path: Path, supplied_timestamp=None):
-    if supplied_timestamp:
+    """
+    Return the authoritative observation timestamp for a source file.
+
+    SDL's source-time contract is filesystem creation/arrival time. Filename
+    conventions are deliberately ignored because the earliest source files
+    did not contain an intraday timestamp and future naming changes must not
+    affect chronology.
+
+    On Windows, st_ctime is the file creation time. The project runs on
+    Windows, so this is the intended source timestamp.
+
+    An explicitly supplied timestamp remains authoritative for callers that
+    already have the observation timestamp from the pipeline.
+    """
+    if supplied_timestamp is not None:
         return pd.Timestamp(supplied_timestamp)
 
-    match = TIMESTAMP_RE.search(path.stem)
-    if not match:
-        raise ValueError(
-            "Observation timestamp is missing. Supply an explicit timestamp "
-            "or use a filename containing YYYY-MM-DD_HH-MM."
-        )
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Source file does not exist: {path}")
 
-    return pd.Timestamp(
-        f"{match.group('date')} "
-        f"{match.group('time')}:"
-        f"{match.group('minute')}"
-    )
+    try:
+        # st_ctime is a Unix-epoch timestamp. Passing it directly to
+        # pd.Timestamp(int) interprets the integer as nanoseconds, which
+        # incorrectly produces an epoch-era value such as 1970-01-01
+        # 00:00:01. Use the epoch value explicitly and convert it to IST.
+        creation_epoch = path.stat().st_ctime
+        timestamp = pd.Timestamp.fromtimestamp(
+            creation_epoch,
+            tz="Asia/Kolkata",
+        )
+        return timestamp.tz_localize(None)
+    except Exception as exc:
+        raise ValueError(
+            f"Unable to read source file creation timestamp: {path}"
+        ) from exc
 
 
 def read_source(path: Path) -> pd.DataFrame:
