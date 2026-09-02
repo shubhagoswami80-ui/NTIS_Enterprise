@@ -381,6 +381,7 @@ div[data-testid="stButton"] button{
 .filter-group{padding:0 9px;border-right:1px solid #1c304a}
 .filter-group:first-child{padding-left:1px}
 .filter-group:last-child{border-right:0;padding-right:1px}
+.live-inline-filter-title{margin-bottom:4px!important;white-space:nowrap}
 .filter-title{
   color:#b7c6da;
   font-size:9px!important;
@@ -443,7 +444,13 @@ div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) span{
 .radar-symbol{color:#f0f5fc;font-size:11px!important;font-weight:950!important}
 .radar-meta{color:#a5b5ca;font-size:9px!important;margin-top:3px}
 .radar-progress{color:#ffb31c;font-size:15px!important;font-weight:950!important;margin-top:5px}
-.radar-first{color:#8195af;font-size:9px!important;margin-top:3px}
+ .radar-first{color:#8195af;font-size:9px!important;margin-top:3px}
+.radar-up{border-color:#0f7550!important;background:#0a211c!important}
+.radar-up .radar-symbol{color:#38e58e!important}
+.radar-up .radar-meta{color:#9be8c1!important}
+.radar-down{border-color:#a33b48!important;background:#241318!important}
+.radar-down .radar-symbol{color:#ff6671!important}
+.radar-down .radar-meta{color:#ffb0b6!important}
 
 /* ---------- LIVE / REPLAY TABLE ---------- */
 .workspace-panel{
@@ -457,6 +464,7 @@ div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) span{
 .panel-meta{color:#8fa2bb;font-size:9px!important;margin-top:3px}
 .replay-note{color:#b7c6d9;font-size:11px!important;line-height:1.45;margin:5px 0 2px}
 .queue-wrap{overflow-x:auto}
+.queue-header-note{color:#91a3ba;font-size:9px!important;padding:4px 11px 6px;background:#091729;border-bottom:1px solid #203653}
 table.queue{
   width:100%;
   border-collapse:collapse;
@@ -1092,6 +1100,70 @@ def breakout_series(df: pd.DataFrame) -> pd.Series:
 # ============================================================================
 # FILTERS — DIRECTLY ABOVE THE QUEUE THEY CONTROL
 # ============================================================================
+
+def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
+    """Render Live Queue title/meta and its four filters in one native row.
+
+    Presentation-only relocation of the existing filter controls. The same
+    options and filtering semantics are retained; Replay continues to use
+    the independent render_filters() layout.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    progress_opts = ["All", "25%+", "50%+", "70%+", "75%+", "Breakout"]
+    direction_opts = ["All", "Bullish", "Bearish"]
+    strength_opts = ["All", "Developing", "Strong", "Supported", "Wait / Conflict"]
+    stage_opts = [
+        "All", "100%+ BREAKOUT", "25–<50% EARLY", "50–<75%",
+        "75–<100% APPROACHING",
+    ]
+
+    cols = st.columns([1.35, 1.65, 1.25, 1.65, 1.65])
+    selections = {}
+
+    with cols[0]:
+        st.markdown(
+            '<div class="panel-title">LIVE QUEUE</div>'
+            f'<div class="panel-meta">Source snapshot {safe_text(fmt_time(data_ts, True))} · '
+            f'{len(df)} qualified · filters below control this queue only.</div>',
+            unsafe_allow_html=True,
+        )
+
+    groups = [
+        (cols[1], "PROGRESS ⓘ", progress_opts, "progress"),
+        (cols[2], "DIRECTION ⓘ", direction_opts, "direction"),
+        (cols[3], "STRENGTH ⓘ", strength_opts, "strength"),
+        (cols[4], "STAGE ⓘ", stage_opts, "stage"),
+    ]
+    for col, title, options, key in groups:
+        with col:
+            st.markdown(
+                f'<div class="filter-title live-inline-filter-title">{title}</div>',
+                unsafe_allow_html=True,
+            )
+            selections[key] = st.radio(
+                title, options, horizontal=True,
+                key=f"live_{key}", label_visibility="collapsed",
+            )
+
+    out = df.copy()
+    if selections["direction"] != "All":
+        out = out[out["direction_label"].astype(str).str.upper().eq(selections["direction"].upper())]
+    if selections["strength"] != "All":
+        wanted = selections["strength"].upper().split("/")[0].strip()
+        out = out[out["strength_label"].astype(str).str.upper().str.startswith(wanted)]
+    if selections["stage"] != "All":
+        out = out[out["stage"].astype(str).eq(selections["stage"])]
+    if selections["progress"] != "All":
+        progress = pd.to_numeric(out["progress"], errors="coerce").fillna(0)
+        if selections["progress"] == "Breakout":
+            out = out[breakout_series(out)]
+        else:
+            threshold = float(selections["progress"].replace("%+", ""))
+            out = out[progress.ge(threshold)]
+    return out
+
 
 def render_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
     if df is None or df.empty:
@@ -2311,38 +2383,18 @@ def render_live() -> None:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # These filters control LIVE QUEUE only.
-    st.markdown(
-        '<div class="filter-panel">'
-        '<div class="filter-caption">'
-        'LIVE QUEUE FILTERS · independent from Priority Radar · '
-        'filtering never changes the underlying SDL decision score.'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-    filtered = render_filters(pred, "live")
-
-    st.markdown("</div>", unsafe_allow_html=True)
+    # The existing Live Queue filters are presented in the queue header row.
+    filtered = render_live_queue_filters(pred, data_ts)
 
     st.markdown(
-        f'<div class="workspace-panel">'
-        f'<div class="panel-head">'
-        f'<div class="panel-title">LIVE QUEUE</div>'
-        f'<div class="panel-meta">'
-        f'Source snapshot {safe_text(fmt_time(data_ts, True))} · '
-        f'{len(filtered)} visible · '
-        f'row timestamps are intentionally not duplicated.'
-        f'</div></div>',
+        '<div class="queue-header-note">'
+        'Filtering is independent from Priority Radar and never changes the underlying SDL decision score.'
+        '</div>'
+        '<div class="workspace-panel">'
+        + queue_html(filtered)
+        + '</div>',
         unsafe_allow_html=True,
     )
-
-    st.markdown(
-        queue_html(filtered),
-        unsafe_allow_html=True,
-    )
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
     # Default collapsed; expands into a larger trader-specific workspace.
     render_stock_detail(
