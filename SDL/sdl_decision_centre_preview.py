@@ -422,12 +422,13 @@ div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) span{
   background:#091729;
   border:1px solid #203653;
   border-radius:8px;
-  padding:8px 10px;
+  padding:9px 10px;
   margin-bottom:8px;
+  box-shadow:0 0 18px rgba(42,105,176,.10);
 }
 .radar-title{
-  color:#b1c0d3;
-  font-size:10px!important;
+  color:#e8f0fb;
+  font-size:12px!important;
   font-weight:950!important;
   letter-spacing:.10em;
   margin-bottom:6px;
@@ -454,6 +455,7 @@ div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) span{
 .panel-head{padding:9px 11px;background:#0e1d31;border-bottom:1px solid #203653}
 .panel-title{color:#edf3fc;font-size:13px!important;font-weight:950!important}
 .panel-meta{color:#8fa2bb;font-size:9px!important;margin-top:3px}
+.replay-note{color:#b7c6d9;font-size:11px!important;line-height:1.45;margin:5px 0 2px}
 .queue-wrap{overflow-x:auto}
 table.queue{
   width:100%;
@@ -465,7 +467,7 @@ table.queue th{
   color:#a9b8ce;
   font-size:10px!important;
   font-weight:900!important;
-  letter-spacing:.04em;
+  letter-spacing:.025em;
   text-align:left;
   padding:9px 6px;
   border-bottom:1px solid #2a4260;
@@ -569,7 +571,7 @@ div[data-testid="stExpander"] summary:hover{
 }
 div[data-testid="stExpander"] summary p{
   color:#edf3fc!important;
-  font-size:12px!important;
+  font-size:13px!important;
   font-weight:950!important;
   letter-spacing:.02em!important;
 }
@@ -623,7 +625,7 @@ div[data-testid="stExpander"]{
 div[data-testid="stExpander"] summary,
 div[data-testid="stExpander"] summary p{
   color:#edf3fc!important;
-  font-size:12px!important;
+  font-size:13px!important;
   font-weight:950!important;
 }
 div[data-testid="stButton"] button{
@@ -797,16 +799,15 @@ def first_alert_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
 
 
 def breakout_event_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
-    """Return the first factual breakout observed in the source snapshots.
+    """Return the first factual breakout observed in the real source snapshots.
 
-    This is a display-only reconstruction boundary. It deliberately uses the
-    existing SDL pipeline's frozen-base application and breakout flags rather
-    than creating a second breakout rule in the dashboard.
+    BREAKOUT TIME is reconstructed only from the existing SDL pipeline's
+    frozen-base breakout flag.  No persisted event timestamp is used as the
+    authority, because older event files may contain timestamps created by
+    earlier timestamp implementations.
 
-    Persisted event rows are accepted only when they agree with an actual
-    source snapshot that contains the same factual breakout. If an event row
-    is missing, the chronological source scan can recover the first factual
-    breakout timestamp without modifying any persisted data.
+    This function is display-only: it does not write state, evidence or event
+    files, and it does not alter the primary SDL decision engine.
     """
     if not trading_date:
         return {}
@@ -816,12 +817,13 @@ def breakout_event_map(trading_date: str | None = None) -> dict[str, pd.Timestam
     if not files:
         return {}
 
-    # The frozen opening base is authoritative. Do not manufacture a new
-    # opening base from a later snapshot merely to populate the dashboard.
+    # The already-frozen daily opening base is mandatory.  Never create a new
+    # opening base here merely to populate the dashboard.
     try:
         state = load_state(STATE_JSON)
     except Exception:
         state = {}
+
     base_map = (
         state.get("daily_opening_straddles", {}).get(day, {})
         if isinstance(state, dict)
@@ -830,30 +832,51 @@ def breakout_event_map(trading_date: str | None = None) -> dict[str, pd.Timestam
     if not base_map:
         return {}
 
-    # Reconstruct factual breakouts directly from the real source snapshots,
-    # in authoritative filesystem-creation-time order. The actual SDL helper
-    # computes the frozen-base breakout flags; no dashboard-specific formula
-    # is introduced here.
+    # Source chronology is authoritative.  Each source file is evaluated
+    # independently using the EXISTING SDL pipeline functions.  Therefore the
+    # dashboard does not duplicate or reinterpret the breakout rule.
     source_breakouts: dict[str, pd.Timestamp] = {}
+
     for path in files:
         ts = observation_ts(path)
         if pd.isna(ts):
             continue
+
         try:
             snapshot, _ = load_primary_snapshot(path, ts)
             snapshot = sdl_pipeline.derive_straddle_values(
                 snapshot,
-                breakout_multiplier=getattr(sdl_config, "BREAKOUT_MULTIPLIER", 1.0),
-                current_price_field=getattr(sdl_config, "CURRENT_PRICE_FIELD", "Close"),
+                breakout_multiplier=getattr(
+                    sdl_config,
+                    "BREAKOUT_MULTIPLIER",
+                    1.0,
+                ),
+                current_price_field=getattr(
+                    sdl_config,
+                    "CURRENT_PRICE_FIELD",
+                    "Close",
+                ),
             )
-            evaluated = sdl_pipeline._apply_frozen_base(snapshot, base_map)
+            evaluated = sdl_pipeline._apply_frozen_base(
+                snapshot,
+                base_map,
+            )
         except Exception:
+            # A malformed/unreadable historical source snapshot must not
+            # manufacture a breakout timestamp or affect live decisions.
             continue
 
-        if "Symbol" not in evaluated.columns or "standard_straddle_breakout" not in evaluated.columns:
+        if (
+            "Symbol" not in evaluated.columns
+            or "standard_straddle_breakout" not in evaluated.columns
+        ):
             continue
 
-        mask = evaluated["standard_straddle_breakout"].fillna(False).astype(bool)
+        mask = (
+            evaluated["standard_straddle_breakout"]
+            .fillna(False)
+            .astype(bool)
+        )
         if not mask.any():
             continue
 
@@ -863,48 +886,10 @@ def breakout_event_map(trading_date: str | None = None) -> dict[str, pd.Timestam
             .str.strip()
             .str.upper()
         )
+
         for symbol in symbols:
             if symbol and symbol not in source_breakouts:
                 source_breakouts[symbol] = pd.Timestamp(ts)
-
-    if not source_breakouts:
-        return {}
-
-    # Validate any persisted event against the reconstructed factual source
-    # timeline. A stale event timestamp is never allowed to override it.
-    try:
-        events = load_events(EVENT_CSV)
-    except Exception:
-        events = pd.DataFrame()
-
-    if events is not None and not events.empty and {"symbol", "observation_timestamp"}.issubset(events.columns):
-        events = events.copy()
-        events["symbol"] = events["symbol"].astype(str).str.strip().str.upper()
-        events["observation_timestamp"] = pd.to_datetime(
-            events["observation_timestamp"], errors="coerce"
-        )
-        if "trading_date" in events.columns:
-            events = events[
-                events["trading_date"].astype(str).str[:10].eq(day)
-            ]
-        events = events.dropna(subset=["observation_timestamp"])
-
-        validated: dict[str, pd.Timestamp] = {}
-        for _, row in events.iterrows():
-            symbol = str(row.get("symbol", "")).strip().upper()
-            if symbol not in source_breakouts:
-                continue
-            event_ts = pd.Timestamp(row["observation_timestamp"])
-            source_ts = source_breakouts[symbol]
-            if abs((event_ts - source_ts).total_seconds()) <= 2.0:
-                validated[symbol] = source_ts
-
-        # Source chronology is the final authority for the first factual
-        # breakout. This also recovers symbols whose event row was never
-        # persisted because the old live processor examined only the latest
-        # snapshot.
-        validated.update(source_breakouts)
-        return validated
 
     return source_breakouts
 
@@ -1343,7 +1328,7 @@ def queue_html(df: pd.DataFrame) -> str:
             f'</td>'
             f'<td class="breakout">{"YES" if breakout else "—"}</td>'
             f'<td>{first}</td>'
-            f'<td>{breakout_time}</td>'
+            f'<td title="First observed factual breakout in source snapshots">{breakout_time}</td>'
             f'<td>{updated}</td>'
             "</tr>"
         )
@@ -1351,17 +1336,17 @@ def queue_html(df: pd.DataFrame) -> str:
     return (
         '<div class="queue-wrap"><table class="queue"><thead><tr>'
         '<th style="width:3%">#</th>'
-        '<th style="width:13%">STOCK</th>'
-        '<th style="width:17%">DIRECTION / STRENGTH</th>'
+        '<th style="width:12%">STOCK</th>'
+        '<th style="width:15%">DIRECTION / STRENGTH</th>'
         '<th style="width:7%">MOMENTUM</th>'
-        '<th style="width:13%">STRADDLE PROGRESS</th>'
-        '<th style="width:13%">STAGE</th>'
-        '<th style="width:10%">CONFIRMATION</th>'
-        '<th style="width:6%">STRENGTH</th>'
+        '<th style="width:12%">STRADDLE PROGRESS</th>'
+        '<th style="width:11%">STAGE</th>'
+        '<th style="width:9%">CONFIRMATION</th>'
+        '<th style="width:5%">STRENGTH</th>'
         '<th style="width:6%">BREAKOUT</th>'
-        '<th style="width:7%">FIRST ALERT</th>'
-        '<th style="width:7%">BREAKOUT TIME</th>'
-        '<th style="width:8%">UPDATED</th>'
+        '<th style="width:6%">FIRST ALERT</th>'
+        '<th style="width:8%">FIRST BREAKOUT TIME</th>'
+        '<th style="width:7%">UPDATED</th>'
         '</tr></thead><tbody>'
         + "".join(rows)
         + "</tbody></table></div>"
@@ -2001,7 +1986,7 @@ def replay_snapshot_frame(
 
 def replay_view() -> None:
     with st.expander(
-        "INTRADAY REPLAY · historical snapshot · live state remains unchanged",
+        "INTRADAY REPLAY · HISTORICAL SNAPSHOT · LIVE STATE REMAINS UNCHANGED",
         expanded=False,
     ):
         st.markdown(
@@ -2294,9 +2279,15 @@ def render_live() -> None:
                 row.get("first_trigger_timestamp"),
                 errors="coerce",
             )
+            direction_text = str(row.get("direction_label", "")).lower()
+            radar_class = (
+                "radar-up" if direction_text.startswith("bull")
+                else "radar-down" if direction_text.startswith("bear")
+                else ""
+            )
 
             st.markdown(
-                f'<div class="radar-card">'
+                f'<div class="radar-card {radar_class}">'
                 f'<div class="radar-symbol">'
                 f'{safe_text(row.get("symbol"))}'
                 f'</div>'
