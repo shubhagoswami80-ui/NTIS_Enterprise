@@ -573,9 +573,9 @@ table.queue td{
 }
 .trader-label{color:#a9bad0;font-size:10px!important;font-weight:950!important;letter-spacing:.08em}
 .trader-value{color:#f3f7fd;font-size:19px!important;font-weight:950!important;margin-top:6px;line-height:1.05}
-.trader-note{color:#8ea1ba;font-size:9px!important;margin-top:5px}
+.trader-note{color:#8ea1ba;font-size:10px!important;margin-top:5px}
 .interpretation{
-  padding:0 9px 9px;color:#aabbd0;font-size:9px!important;line-height:1.45;
+  padding:0 9px 9px;color:#aabbd0;font-size:10px!important;line-height:1.45;
 }
 .news-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:9px}
 .news-panel{
@@ -583,11 +583,29 @@ table.queue td{
   padding:8px;min-height:120px;
 }
 .news-item{
-  color:#dbe5f3;font-size:11px!important;line-height:1.4;
+  color:#dbe5f3;font-size:12px!important;line-height:1.4;
   padding:6px 0;border-bottom:1px solid #1b2c43;
 }
-.news-time{display:block;color:#8da1ba;font-size:9px!important;margin-top:4px}
-.news-empty{color:#8fa2bb;font-size:10px!important;padding:10px 0;line-height:1.45}
+.news-time{display:block;color:#8da1ba;font-size:10px!important;margin-top:4px}
+.news-empty{color:#8fa2bb;font-size:11px!important;padding:10px 0;line-height:1.45}
+
+.news-catalyst{
+  margin:0 9px 9px;padding:9px 10px;border:1px solid #29476e;border-radius:7px;
+  background:#0e1d31;
+}
+.news-catalyst.major-up{border-color:#0f7550;background:#073324}
+.news-catalyst.major-down{border-color:#a33b48;background:#35151c}
+.news-catalyst.mixed{border-color:#8b6114;background:#30230b}
+.catalyst-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.catalyst-title{color:#eef4fb;font-size:11px!important;font-weight:950!important;letter-spacing:.06em}
+.catalyst-star{font-size:18px!important;line-height:1;color:#ffcf33}
+.catalyst-bias-up{color:#18df82;font-weight:950!important}
+.catalyst-bias-down{color:#ff5960;font-weight:950!important}
+.catalyst-bias-neutral{color:#ffb21c;font-weight:950!important}
+.catalyst-body{color:#c7d5e6;font-size:11px!important;line-height:1.45;margin-top:4px}
+.catalyst-note{color:#8fa2bb;font-size:10px!important;margin-top:5px}
+.news-item.major-news{background:rgba(255,193,7,.045);border-left:3px solid #ffcf33;padding-left:8px}
+.news-scope{display:inline-block;margin-left:6px;color:#8fa2bb;font-size:9px!important}
 
 /* ---------- EXPANDERS / DATAFRAME ---------- */
 
@@ -648,12 +666,12 @@ div[data-testid="stExpander"] .trader-value{
   font-size:20px!important;
 }
 div[data-testid="stExpander"] .trader-note{
-  font-size:9px!important;
+  font-size:10px!important;
 }
 div[data-testid="stExpander"] .news-item{
-  font-size:11px!important;
+  font-size:12px!important;
 }
-div[data-testid="stExpander"] .news-time{font-size:9px!important}
+div[data-testid="stExpander"] .news-time{font-size:10px!important}
 div[data-testid="stExpander"] .snapshot-context-value{font-size:16px!important}
 
 div[data-testid="stExpander"]{
@@ -1743,12 +1761,17 @@ def render_stock_detail(
             f'<div class="interpretation">'
             f'<b>Futures OI interpretation:</b> '
             f'{safe_text(future_oi_interpretation(direction, fut))}<br>'
-            f'<b>Trader use:</b> derivative changes and '
-            f'support/resistance are context only; they do not '
+            f'<b>Trader use:</b> derivative changes, support/resistance and news '
+            f'catalyst analysis are context layers only; they do not '
             f'modify the frozen SDL decision score.'
             f'</div>',
             unsafe_allow_html=True,
         )
+
+        stock_news = live_nse_stock_news(selected)
+        market_news = live_nse_market_news()
+        news_analysis = analyze_news_catalyst(selected, row, stock_news, market_news)
+        st.markdown(catalyst_panel_html(news_analysis), unsafe_allow_html=True)
 
         left, right = st.columns(2)
 
@@ -1757,12 +1780,15 @@ def render_stock_detail(
                 f"STOCK-SPECIFIC NEWS · {selected}",
                 expanded=False,
             ):
-                stock_news = live_nse_stock_news(selected)
                 if stock_news:
+                    major_texts = {x.get("text") for x in news_analysis.get("major_items", [])}
                     for item in stock_news[:6]:
+                        is_major = item.get("text") in major_texts
+                        cls = "news-item major-news" if is_major else "news-item"
+                        star = "★ " if is_major else ""
                         st.markdown(
-                            f'<div class="news-item">'
-                            f'{safe_text(item["text"])}'
+                            f'<div class="{cls}">'
+                            f'{star}{safe_text(item["text"])}'
                             f'<span class="news-time">'
                             f'{safe_text(item["time"])} · '
                             f'{safe_text(impact_hint(item["text"]))}'
@@ -1783,12 +1809,15 @@ def render_stock_detail(
                 "MAJOR NSE / MARKET NEWS · TODAY / NEXT SESSION",
                 expanded=False,
             ):
-                market_news = live_nse_market_news()
                 if market_news:
+                    major_texts = {x.get("text") for x in news_analysis.get("major_items", [])}
                     for item in market_news[:6]:
+                        is_major = item.get("text") in major_texts
+                        cls = "news-item major-news" if is_major else "news-item"
+                        star = "★ " if is_major else ""
                         st.markdown(
-                            f'<div class="news-item">'
-                            f'<b>{safe_text(item["symbol"])}</b> · '
+                            f'<div class="{cls}">'
+                            f'{star}<b>{safe_text(item["symbol"])}</b> · '
                             f'{safe_text(item["text"])}'
                             f'<span class="news-time">'
                             f'{safe_text(item["time"])} · '
@@ -1843,6 +1872,177 @@ def impact_hint(subject: str) -> str:
         return "Capital/financing context — verify size and terms."
 
     return "Factual filing context only — no automatic trade signal."
+
+
+POSITIVE_NEWS_TERMS = (
+    "order", "contract", "award", "commission", "commissioned", "capacity",
+    "project", "investment", "acquisition", "partnership", "expansion",
+    "approval", "win", "growth", "profit", "earnings", "results",
+    "upgrade", "tariff", "renewable", "solar", "transmission", "record",
+)
+NEGATIVE_NEWS_TERMS = (
+    "loss", "decline", "downgrade", "penalty", "fine", "default", "fraud",
+    "litigation", "dispute", "investigation", "resignation", "delay", "cancel",
+    "cancellation", "cut", "weak", "miss", "warning", "regulatory action",
+)
+MAJOR_NEWS_TERMS = (
+    "order", "contract", "award", "commissioned", "capacity", "acquisition",
+    "fund raising", "fundraising", "capital", "results", "earnings", "profit",
+    "loss", "approval", "regulatory", "investigation", "penalty", "tariff",
+    "merger", "stake", "project", "investment", "guidance", "rating",
+)
+GLOBAL_NEWS_TERMS = (
+    "iran", "middle east", "oil", "crude", "brent", "fed", "federal reserve",
+    "us rates", "tariff", "china", "global", "geopolitical", "war", "monsoon",
+)
+SECTOR_NEWS_TERMS = (
+    "power", "utilities", "energy", "renewable", "solar", "wind", "grid",
+    "transmission", "banking", "pharma", "auto", "steel", "metal", "it sector",
+)
+
+
+def _news_terms(text: str, terms: tuple[str, ...]) -> int:
+    value = str(text or "").lower()
+    return sum(1 for term in terms if term in value)
+
+
+def _news_direction(text: str) -> int:
+    value = str(text or "").lower()
+    pos = _news_terms(value, POSITIVE_NEWS_TERMS)
+    neg = _news_terms(value, NEGATIVE_NEWS_TERMS)
+    if pos > neg:
+        return 1
+    if neg > pos:
+        return -1
+    return 0
+
+
+def _news_scope(text: str, company: bool = False) -> str:
+    value = str(text or "").lower()
+    if company:
+        return "COMPANY"
+    if _news_terms(value, GLOBAL_NEWS_TERMS):
+        return "GLOBAL / MACRO"
+    if _news_terms(value, SECTOR_NEWS_TERMS):
+        return "SECTOR / THEME"
+    return "MARKET / DOMESTIC"
+
+
+def analyze_news_catalyst(symbol: str, row: pd.Series, stock_news: list[dict], market_news: list[dict]) -> dict:
+    """Presentation-only news catalyst layer.
+
+    It does not alter SDL scoring or qualification. It compares available
+    announcement direction with today's frozen SDL direction/price context.
+    """
+    symbol = str(symbol or "").strip().upper()
+    direction = str(row.get("direction_label", "")).upper()
+    price_change = pd.to_numeric(row.get("Price Chg %"), errors="coerce")
+    if pd.isna(price_change):
+        price_change = pd.to_numeric(row.get("Price_Chg_Pct"), errors="coerce")
+    if pd.isna(price_change):
+        price_change = pd.to_numeric(row.get("price_chg_pct"), errors="coerce")
+
+    candidates = []
+    for item in stock_news or []:
+        text = str(item.get("text", "")).strip()
+        if text:
+            candidates.append((text, True, item.get("time", "NSE")))
+
+    for item in market_news or []:
+        text = str(item.get("text", "")).strip()
+        item_symbol = str(item.get("symbol", "")).strip().upper()
+        if not text:
+            continue
+        # Keep company-specific market feed items and broader sector/macro items.
+        if item_symbol == symbol or _news_terms(text, GLOBAL_NEWS_TERMS + SECTOR_NEWS_TERMS):
+            candidates.append((text, False, item.get("time", "NSE")))
+
+    scored = []
+    for text, company, stamp in candidates:
+        bias = _news_direction(text)
+        major_hits = _news_terms(text, MAJOR_NEWS_TERMS)
+        if bias == 0 and major_hits == 0:
+            continue
+        score = min(5, major_hits + (1 if bias else 0))
+        scored.append({
+            "text": text,
+            "bias": bias,
+            "score": score,
+            "major": score >= 3,
+            "scope": _news_scope(text, company),
+            "time": stamp,
+        })
+
+    scored.sort(key=lambda x: (x["major"], x["score"]), reverse=True)
+    major = [x for x in scored if x["major"]]
+    top = scored[:3]
+
+    news_bias = 0
+    for item in top:
+        news_bias += item["bias"] * max(1, item["score"])
+    news_bias = 1 if news_bias > 0 else -1 if news_bias < 0 else 0
+
+    market_direction = 1 if direction.startswith("BULL") else -1 if direction.startswith("BEAR") else 0
+    if pd.notna(price_change) and price_change != 0:
+        market_direction = 1 if float(price_change) > 0 else -1
+
+    if news_bias and market_direction:
+        alignment = "ALIGNED" if news_bias == market_direction else "CONTRARY"
+    else:
+        alignment = "NEUTRAL"
+
+    if news_bias > 0:
+        impact = "POSITIVE"
+    elif news_bias < 0:
+        impact = "NEGATIVE"
+    else:
+        impact = "NEUTRAL"
+
+    return {
+        "major": bool(major),
+        "impact": impact,
+        "alignment": alignment,
+        "items": top,
+        "major_items": major[:2],
+        "headline": major[0]["text"] if major else (top[0]["text"] if top else ""),
+    }
+
+
+def catalyst_badge(analysis: dict) -> str:
+    if not analysis.get("major"):
+        return ""
+    impact = analysis.get("impact")
+    alignment = analysis.get("alignment")
+    if impact == "POSITIVE":
+        return '<span class="catalyst-star" title="Major positive news catalyst">★</span>'
+    if impact == "NEGATIVE":
+        return '<span class="catalyst-star" title="Major negative news catalyst">★</span>'
+    return '<span class="catalyst-star" title="Major mixed/neutral news catalyst">★</span>'
+
+
+def catalyst_panel_html(analysis: dict) -> str:
+    if not analysis.get("major"):
+        return (
+            '<div class="news-catalyst">'
+            '<div class="catalyst-head"><div class="catalyst-title">NEWS CATALYST</div>'
+            '<div class="catalyst-bias-neutral">NO MATERIAL CATALYST DETECTED</div></div>'
+            '<div class="catalyst-body">No major available news item is strong enough to explain today\'s move. News absence is valid and does not change the SDL decision.</div>'
+            '<div class="catalyst-note">Presentation layer only · no SDL re-scoring</div>'
+            '</div>'
+        )
+    impact = analysis.get("impact", "NEUTRAL")
+    alignment = analysis.get("alignment", "NEUTRAL")
+    cls = "major-up" if impact == "POSITIVE" else "major-down" if impact == "NEGATIVE" else "mixed"
+    bias_cls = "catalyst-bias-up" if impact == "POSITIVE" else "catalyst-bias-down" if impact == "NEGATIVE" else "catalyst-bias-neutral"
+    scope = analysis.get("major_items", [{}])[0].get("scope", "NEWS") if analysis.get("major_items") else "NEWS"
+    return (
+        f'<div class="news-catalyst {cls}">'
+        f'<div class="catalyst-head"><div class="catalyst-title">★ MAJOR NEWS CATALYST · {safe_text(scope)}</div>'
+        f'<div class="{bias_cls}">{impact} · {alignment}</div></div>'
+        f'<div class="catalyst-body">{safe_text(analysis.get("headline", ""))}</div>'
+        '<div class="catalyst-note">Compared with today\'s price direction/SDL direction · does not modify the frozen decision score</div>'
+        '</div>'
+    )
 
 
 def live_nse_stock_news(symbol: str) -> list[dict]:
@@ -2243,28 +2443,57 @@ def latest_live() -> tuple[
         result = process_latest_snapshot_for_today()
 
         if not result or len(result) != 4:
+            result = None
+
+        if result is not None:
+            path, _events, df, message = result
+
+            if path is not None:
+                path = Path(path)
+                ts = observation_ts(path)
+                pred = candidates(df, snapshot_ts=ts)
+                return path, pred, ts, message
+
+            # Calendar-day rollover rule:
+            # Until the next trading day's first source snapshot arrives,
+            # keep the most recent completed session visible. This is a
+            # display-only fallback and must never process/write that prior
+            # session through the live pipeline again. Once today's source
+            # data exists, the normal current-day path above takes over.
+            available = snapshot_files()
+            available = [
+                path for path in available
+                if pd.notna(observation_ts(path))
+            ]
+
+            if available:
+                fallback_path = available[-1]
+                fallback_ts = observation_ts(fallback_path)
+                fallback_pred, _ = replay_snapshot_frame(fallback_path)
+                fallback_day = fallback_ts.strftime("%d %b %Y")
+                return (
+                    fallback_path,
+                    fallback_pred,
+                    fallback_ts,
+                    f"No Daywise snapshot found for today. "
+                    f"Showing last available session: {fallback_day}. "
+                    f"Live Queue and Replay remain preserved until new "
+                    f"today data arrives.",
+                )
+
             return (
                 None,
                 pd.DataFrame(),
                 pd.NaT,
-                "No current snapshot.",
+                message or "No current snapshot.",
             )
 
-        path, _events, df, message = result
-
-        if path is None:
-            return (
-                None,
-                pd.DataFrame(),
-                pd.NaT,
-                message,
-            )
-
-        path = Path(path)
-        ts = observation_ts(path)
-        pred = candidates(df, snapshot_ts=ts)
-
-        return path, pred, ts, message
+        return (
+            None,
+            pd.DataFrame(),
+            pd.NaT,
+            "No current snapshot.",
+        )
 
     except Exception as exc:
         return (
@@ -2302,16 +2531,38 @@ def render_live() -> None:
     # Source-path and input-filename details are intentionally hidden from
     # the Decision Board; the dashboard remains focused on trader-facing
     # live state and source observation time.
+    current_day = pd.Timestamp.now(tz=IST).date()
+    preserved_session = pd.notna(data_ts) and data_ts.date() != current_day
+    snapshot_label = (
+        "LAST AVAILABLE SESSION"
+        if preserved_session
+        else "LATEST SOURCE SNAPSHOT"
+    )
+    snapshot_note = (
+        "Preserved until today's first source snapshot arrives"
+        if preserved_session
+        else "Actual source observation time"
+    )
+    if preserved_session:
+        st.markdown(
+            '<div class="queue-header-note" style="margin:0 0 8px 0">'
+            '<b>PREVIOUS SESSION PRESERVED</b> · No Daywise snapshot is available for today yet. '
+            'Live Queue and Intraday Replay remain on the last completed session and will switch '
+            'to today automatically when the first new source snapshot arrives.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
     st.markdown(
         f"""
         <div class="utility-strip">
           <div style="display:grid;grid-template-columns:1.35fr 1fr 1fr">
             <div class="utility-cell">
-              <div class="utility-label">LATEST SOURCE SNAPSHOT</div>
+              <div class="utility-label">{snapshot_label}</div>
               <div class="utility-value cyan">
                 {safe_text(fmt_time(data_ts, True))}
               </div>
-              <div class="utility-note">Actual source observation time</div>
+              <div class="utility-note">{snapshot_note}</div>
             </div>
             <div class="utility-cell">
               <div class="utility-label">MARKET SESSION</div>
@@ -2320,7 +2571,9 @@ def render_live() -> None:
             </div>
             <div class="utility-cell">
               <div class="utility-label">DECISION MODE</div>
-              <div class="utility-value">FACTS ONLY</div>
+              <div class="utility-value">
+                {"PRESERVED SESSION" if preserved_session else "FACTS ONLY"}
+              </div>
               <div class="utility-note">No dashboard re-scoring</div>
             </div>
           </div>
@@ -2406,6 +2659,7 @@ def render_live() -> None:
 
     radar_count = len(radar)
     rcols = st.columns(radar_count) if radar_count else []
+    radar_market_news = live_nse_market_news()
 
     for col, (_, row) in zip(
         rcols,
@@ -2422,11 +2676,16 @@ def render_live() -> None:
                 else "radar-down" if direction_text.startswith("bear")
                 else ""
             )
+            radar_news = live_nse_stock_news(str(row.get("symbol", "")))
+            radar_catalyst = analyze_news_catalyst(
+                str(row.get("symbol", "")), row, radar_news, radar_market_news
+            )
+            radar_star = catalyst_badge(radar_catalyst)
 
             st.markdown(
                 f'<div class="radar-card {radar_class}">'
                 f'<div class="radar-symbol">'
-                f'{safe_text(row.get("symbol"))}'
+                f'{radar_star}{safe_text(row.get("symbol"))}'
                 f'</div>'
                 f'<div class="radar-meta">'
                 f'{safe_text(str(row.get("direction_label","")).title())}'
