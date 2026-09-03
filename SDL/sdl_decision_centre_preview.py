@@ -377,43 +377,27 @@ div[data-testid="stButton"] button{
   padding:9px 11px 10px;
   margin-bottom:8px;
 }
-/* Live Queue header: title row + one equal-width aligned filter row. */
-.live-queue-header-title{
-  display:flex;
-  align-items:center;
-  min-height:44px;
-  padding:7px 11px 6px;
-  background:#0e1d31;
-  border-bottom:1px solid #203653;
+/* Live Queue header: title/meta at left + four aligned native filter groups. */
+.live-queue-header-block{
+  min-height:66px;
+  padding:8px 4px 6px 1px;
 }
-.live-queue-header-title .panel-title{
+.live-queue-header-block .panel-title{
   font-size:14px!important;
   line-height:1.05;
 }
-.live-queue-header-title .panel-meta{
-  margin-top:4px;
+.live-queue-header-block .panel-meta{
+  margin-top:5px;
   font-size:9px!important;
+  line-height:1.35;
+  color:#9aaec6;
 }
-.live-queue-filter-row{
-  background:#091729;
-  border-bottom:1px solid #203653;
-  padding:7px 11px 8px;
-}
-.live-queue-filter-row > div[data-testid="stHorizontalBlock"]{
-  align-items:flex-start!important;
-}
-.live-queue-filter-row .filter-title{
-  min-height:15px;
+.live-inline-filter-title{
+  min-height:16px;
   margin-bottom:5px!important;
+  white-space:nowrap;
 }
-.live-queue-filter-row div[data-testid="stRadio"] [role="radiogroup"]{
-  align-content:flex-start!important;
-  min-height:30px;
-}
-.live-queue-filter-row div[data-testid="stRadio"] [role="radiogroup"] label{
-  padding:5px 9px!important;
-  min-height:30px!important;
-}
+.live-queue-header-block + div{}
 .filter-caption{color:#a7b7cc;font-size:11px!important;font-weight:750!important;margin-bottom:7px}
 .filter-group{padding:0 9px;border-right:1px solid #1c304a}
 .filter-group:first-child{padding-left:1px}
@@ -575,15 +559,21 @@ table.queue td{
 .detail-symbol{color:#f2f6fd;font-size:16px!important;font-weight:950!important}
 .detail-sub{color:#8fa2bb;font-size:9px!important;margin-top:4px}
 .trader-grid{
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:9px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:9px;
 }
+.snapshot-context-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;padding:0 9px 9px}
+.snapshot-context-card{background:#0b192b;border:1px solid #203653;border-radius:7px;padding:8px;min-height:58px}
+.snapshot-context-label{color:#8fa4bd;font-size:9px!important;font-weight:950!important;letter-spacing:.08em}
+.snapshot-context-value{color:#eef4fb;font-size:15px!important;font-weight:950!important;margin-top:5px}
+.snapshot-context-value.up{color:#18df82!important}
+.snapshot-context-value.down{color:#ff5960!important}
 .trader-card{
   min-height:64px;padding:8px;background:#0f1e33;
   border:1px solid #203a5b;border-radius:7px;
 }
-.trader-label{color:#9eb0c8;font-size:8px!important;font-weight:950!important;letter-spacing:.08em}
-.trader-value{color:#f3f7fd;font-size:16px!important;font-weight:950!important;margin-top:6px}
-.trader-note{color:#7e91aa;font-size:7px!important;margin-top:4px}
+.trader-label{color:#a9bad0;font-size:10px!important;font-weight:950!important;letter-spacing:.08em}
+.trader-value{color:#f3f7fd;font-size:19px!important;font-weight:950!important;margin-top:6px;line-height:1.05}
+.trader-note{color:#8ea1ba;font-size:9px!important;margin-top:5px}
 .interpretation{
   padding:0 9px 9px;color:#aabbd0;font-size:9px!important;line-height:1.45;
 }
@@ -593,11 +583,11 @@ table.queue td{
   padding:8px;min-height:120px;
 }
 .news-item{
-  color:#dbe5f3;font-size:9px!important;line-height:1.35;
+  color:#dbe5f3;font-size:11px!important;line-height:1.4;
   padding:6px 0;border-bottom:1px solid #1b2c43;
 }
-.news-time{display:block;color:#8095b0;font-size:7px!important;margin-top:3px}
-.news-empty{color:#7f92ab;font-size:8px!important;padding:8px 0;line-height:1.4}
+.news-time{display:block;color:#8da1ba;font-size:9px!important;margin-top:4px}
+.news-empty{color:#8fa2bb;font-size:10px!important;padding:10px 0;line-height:1.45}
 
 /* ---------- EXPANDERS / DATAFRAME ---------- */
 
@@ -661,8 +651,10 @@ div[data-testid="stExpander"] .trader-note{
   font-size:9px!important;
 }
 div[data-testid="stExpander"] .news-item{
-  font-size:10px!important;
+  font-size:11px!important;
 }
+div[data-testid="stExpander"] .news-time{font-size:9px!important}
+div[data-testid="stExpander"] .snapshot-context-value{font-size:16px!important}
 
 div[data-testid="stExpander"]{
   background:#091729!important;
@@ -1141,11 +1133,12 @@ def breakout_series(df: pd.DataFrame) -> pd.Series:
 # ============================================================================
 
 def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
-    """Render Live Queue title/meta and its four filters in one native row.
+    """Render the Live Queue title and its four filters as one aligned header.
 
-    Presentation-only relocation of the existing filter controls. The same
-    options and filtering semantics are retained; Replay continues to use
-    the independent render_filters() layout.
+    Presentation-only refinement from V24.  The existing filter options and
+    filtering semantics are unchanged.  The left title/meta block is given a
+    dedicated column and the four native filter groups occupy the remaining
+    header space.
     """
     if df is None or df.empty:
         return pd.DataFrame()
@@ -1158,31 +1151,29 @@ def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
         "75–<100% APPROACHING",
     ]
 
-    # Keep the queue title/meta on its own aligned header row.
-    # The four existing filters then share one equal-width control row.
-    # This is presentation-only; filter options and semantics are unchanged.
-    st.markdown(
-        '<div class="live-queue-header-title">'
-        '<div>'
-        '<div class="panel-title">LIVE QUEUE</div>'
-        f'<div class="panel-meta">Source snapshot {safe_text(fmt_time(data_ts, True))} · '
-        f'{len(df)} qualified · filters below control this queue only.</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-    cols = st.columns(4, gap="small")
+    # One five-part header: queue identity on the left, the four existing
+    # native filter controls on the right.  No filter option or semantics is
+    # changed by this layout.
+    cols = st.columns([1.18, 1.02, 0.82, 1.08, 1.42], gap="small")
     selections = {}
 
-    st.markdown('<div class="live-queue-filter-row">', unsafe_allow_html=True)
+    with cols[0]:
+        st.markdown(
+            '<div class="live-queue-header-block">'
+            '<div class="panel-title">LIVE QUEUE</div>'
+            f'<div class="panel-meta">Source snapshot {safe_text(fmt_time(data_ts, True))} · '
+            f'{len(df)} qualified · filters control this queue only.</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
     groups = [
-        (cols[0], "PROGRESS ⓘ", progress_opts, "progress"),
-        (cols[1], "DIRECTION ⓘ", direction_opts, "direction"),
-        (cols[2], "STRENGTH ⓘ", strength_opts, "strength"),
-        (cols[3], "STAGE ⓘ", stage_opts, "stage"),
+        (cols[1], "PROGRESS ⓘ", progress_opts, "progress"),
+        (cols[2], "DIRECTION ⓘ", direction_opts, "direction"),
+        (cols[3], "STRENGTH ⓘ", strength_opts, "strength"),
+        (cols[4], "STAGE ⓘ", stage_opts, "stage"),
     ]
+
     for col, title, options, key in groups:
         with col:
             st.markdown(
@@ -1193,8 +1184,6 @@ def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
                 title, options, horizontal=True,
                 key=f"live_{key}", label_visibility="collapsed",
             )
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
     out = df.copy()
     if selections["direction"] != "All":
@@ -1620,6 +1609,7 @@ def render_stock_detail(
                 "PCR Change",
                 "pcr_chg_pct",
                 "pcr_change_pct",
+                "PCR_Chg_Pct",
             ],
         )
         iv = metric(
@@ -1631,6 +1621,7 @@ def render_stock_detail(
                 "IV Δ %",
                 "iv_chg_pct",
                 "iv_change_pct",
+                "IV_Chg_Pct",
             ],
         )
         pe_ce = metric(
@@ -1645,6 +1636,7 @@ def render_stock_detail(
                 "Tot PE-CE OI Chg %",
                 "pe_minus_ce_oi_chg_pct",
                 "pe_ce_oi_chg_pct",
+                "PE_CE_OI_Chg",
                 "pe_minus_ce_oi",
             ],
         )
@@ -1655,6 +1647,8 @@ def render_stock_detail(
                 "Support",
                 "Support Level",
                 "support_level",
+                "Support Strike",
+                "S/R Support",
                 "S1",
             ],
         )
@@ -1664,6 +1658,8 @@ def render_stock_detail(
                 "Resistance",
                 "Resistance Level",
                 "resistance_level",
+                "Resistance Strike",
+                "S/R Resistance",
                 "R1",
             ],
         )
@@ -1688,6 +1684,26 @@ def render_stock_detail(
             unsafe_allow_html=True,
         )
 
+        snapshot_cards = [
+            ("CMP", metric(row, ["Close", "CMP", "Current Price", "close", "current_price"]), "price"),
+            ("PRICE CHG %", metric(row, ["Price Chg %", "Price Chg (%)", "Price_Chg_Pct", "price_chg_pct"]), "change"),
+            ("ATM STRADDLE %", metric(row, ["ATM Straddle %", "ATM_Straddle_Pct", "atm_straddle_pct"]), "neutral"),
+            ("OI CHG %", metric(row, ["OI Chg %", "OI Chg (%)", "OI_Chg_Pct", "oi_chg_pct"]), "change"),
+        ]
+        snapshot_html = []
+        for label, value, kind in snapshot_cards:
+            if value is None or pd.isna(value):
+                shown = "—"
+                cls = ""
+            else:
+                shown = f"{float(value):+.2f}%" if kind == "change" else f"{float(value):.2f}"
+                cls = "up" if kind == "change" and float(value) > 0 else "down" if kind == "change" and float(value) < 0 else ""
+            snapshot_html.append(
+                f'<div class="snapshot-context-card"><div class="snapshot-context-label">{label}</div>'
+                f'<div class="snapshot-context-value {cls}">{shown}</div></div>'
+            )
+        st.markdown(f'<div class="snapshot-context-grid">{"".join(snapshot_html)}</div>', unsafe_allow_html=True)
+
         cards = [
             ("FUTURES OI Δ", fut),
             ("PCR Δ", pcr),
@@ -1702,13 +1718,13 @@ def render_stock_detail(
         for label, value in cards:
             if value is None or pd.isna(value):
                 shown = "—"
-                note = "Feed/source unavailable"
+                note = "Not supplied by current primary snapshot"
             elif label in {"SUPPORT", "RESISTANCE"}:
                 shown = safe_text(value)
-                note = "Existing source field"
+                note = "Primary snapshot field"
             else:
                 shown = f"{float(value):+.2f}%"
-                note = "Existing snapshot field"
+                note = "Primary snapshot field"
 
             card_html.append(
                 f'<div class="trader-card">'
