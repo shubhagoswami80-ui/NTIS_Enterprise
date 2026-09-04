@@ -74,11 +74,48 @@ def parse_observation_timestamp(path: Path) -> datetime:
         return datetime.min
 
 
-def _discover_sources(trading_date: str, source_root: Path | None = None) -> list[Path]:
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_daywise_inventory(root_str: str) -> tuple[str, ...]:
+    """Scan the source tree once and cache the Daywise file inventory.
+
+    The previous implementation recursively scanned the entire source tree
+    once for every date on every Streamlit rerun. With a large intraday
+    archive this can make the dashboard appear hung before UI rendering.
+    This cache changes only discovery performance; source ordering and
+    timestamp semantics remain unchanged.
+    """
+    root = Path(root_str).expanduser()
+    if not root.exists() or not root.is_dir():
+        return ()
+
+    return tuple(
+        str(p)
+        for p in root.rglob("Daywise_*.xlsx")
+        if p.is_file() and not p.name.startswith("~$")
+    )
+
+
+def _inventory_paths(source_root: Path) -> list[Path]:
+    return [
+        Path(p)
+        for p in _cached_daywise_inventory(
+            str(Path(source_root).expanduser())
+        )
+    ]
+
+
+def _discover_sources(
+    trading_date: str,
+    source_root: Path | None = None,
+) -> list[Path]:
     root = Path(source_root or INTRADAY_SOURCE_ROOT).expanduser()
-    files = discover_daywise_files(root, trading_date)
+    files = [
+        p
+        for p in _inventory_paths(root)
+        if trading_date in p.name or trading_date in str(p.parent)
+    ]
     return sorted(
-        [Path(p) for p in files if Path(p).is_file()],
+        [p for p in files if p.is_file()],
         key=lambda p: (
             parse_observation_timestamp(p),
             p.stat().st_mtime,
@@ -88,28 +125,19 @@ def _discover_sources(trading_date: str, source_root: Path | None = None) -> lis
 
 
 def _available_trading_dates(source_root: Path) -> list[str]:
-    """Return dates for which the source layer has actual Daywise files."""
+    """Return dates from the cached Daywise inventory."""
     root = Path(source_root).expanduser()
     if not root.exists():
         return []
 
-    candidates: set[str] = set()
     pattern = re.compile(r"(?<!\d)(20\d{2}-\d{2}-\d{2})(?!\d)")
-    for item in root.rglob("*"):
-        if item.is_file():
-            match = pattern.search(str(item))
-            if match:
-                candidates.add(match.group(1))
+    candidates: set[str] = set()
+    for item in _inventory_paths(root):
+        match = pattern.search(str(item))
+        if match:
+            candidates.add(match.group(1))
 
-    valid: list[str] = []
-    for day in sorted(candidates):
-        try:
-            if _discover_sources(day, root):
-                valid.append(day)
-        except Exception:
-            continue
-    return valid
-
+    return sorted(candidates)
 
 def _read(path: Path) -> pd.DataFrame:
     df = read_source(path)
@@ -2554,6 +2582,7 @@ def _retracement_context(
         "carried_first_alert_timestamp": (
             carried_break.get("first_alert_timestamp", "") if carried_break else ""
         ),
+        "current_timestamp": current_ts.to_pydatetime(),
     }
 
 
@@ -3307,6 +3336,8 @@ def _render_retracement_lifecycle(
     result: pd.DataFrame,
     snapshot_results: dict[str, pd.DataFrame] | None = None,
     widget_key_prefix: str = "",
+    trading_date: str | None = None,
+    replay_mode: bool = False,
 ) -> None:
     """Render the second-opportunity lifecycle as an auditable dashboard view.
 
@@ -3317,41 +3348,34 @@ def _render_retracement_lifecycle(
         return
 
     # The dashboard date input may be a datetime.date rather than a string.
-    raw_date = st.session_state.get("ds_trading_date", "")
-    trading_date = (
-        raw_date.strftime("%Y-%m-%d")
-        if hasattr(raw_date, "strftime")
-        else str(raw_date).strip()[:10]
-    )
+    if trading_date:
+        trading_date = str(trading_date).strip()[:10]
+    else:
+        raw_date = st.session_state.get("ds_trading_date", "")
+        trading_date = (
+            raw_date.strftime("%Y-%m-%d")
+            if hasattr(raw_date, "strftime")
+            else str(raw_date).strip()[:10]
+        )
     try:
         day = load_state(STATE_JSON).get(STATE_KEY, {}).get(trading_date, {}) or {}
     except Exception:
         day = {}
 
-    watches = day.get("retracement_watches", {}) or {}
-    alerts = day.get("retracement_alerts", {}) or {}
-    breaks = day.get("structural_breaks", {}) or {}
+    # In replay mode the selected snapshot is the point-in-time truth. Do not
+    # read today's end-of-day retracement watch/alert/break ledgers because they
+    # can contain events that happened AFTER the selected historical snapshot.
+    # Prior-day structural-break provenance remains available through
+    # _retracement_context(), which reads the durable prior-day ledger only when
+    # the selected day's own replay history has no completed break.
+    watches = {} if replay_mode else (day.get("retracement_watches", {}) or {})
+    alerts = {} if replay_mode else (day.get("retracement_alerts", {}) or {})
+    breaks = {} if replay_mode else (day.get("structural_breaks", {}) or {})
     first_alerts = day.get("first_alerts", {}) or {}
 
-    # The retracement engine needs the COMPLETE chronological snapshot chain.
-    # LIVE can legitimately hold only the latest durable result after a restart,
-    # so the audit must repair an incomplete in-memory replay cache once. This
-    # is a cache/replay concern only; it never changes candidate selection.
-    if isinstance(snapshot_results, dict):
-        usable_count = sum(
-            1
-            for frame in snapshot_results.values()
-            if isinstance(frame, pd.DataFrame) and not frame.empty
-        )
-    else:
-        usable_count = 0
-
-    # NON-BLOCKING RULE:
-    # The Retracement Audit renderer must never trigger a full-day replay
-    # reconstruction. The normal LIVE processing path owns replay-cache
-    # hydration. If that cache is not ready, this section remains visible from
-    # durable lifecycle state and reports the currently available observation
-    # count instead of blocking the dashboard render.
+    # The audit renderer is strictly read-only and non-blocking.
+    # Replay history is hydrated by the LIVE processing path; this section only
+    # consumes the currently available cache/state.
     if isinstance(snapshot_results, dict):
         usable_count = sum(
             1
@@ -3391,8 +3415,10 @@ def _render_retracement_lifecycle(
             else ""
         )
 
-        # A row is relevant if the engine has a current structural break or
-        # durable prior-day break, or if the lifecycle state already exists.
+        # A row is relevant if the engine has a current structural break, a
+        # carried prior-day break, or a lifecycle state already exists. In
+        # replay mode the context must be calculated only from observations
+        # available at the selected snapshot time.
         direction = str(
             row.get("decision_direction", row.get("direction", ""))
         ).upper().strip()
@@ -3401,17 +3427,25 @@ def _render_retracement_lifecycle(
             (direction == "BULLISH" and sr == "RESISTANCE BROKEN")
             or (direction == "BEARISH" and sr == "SUPPORT BROKEN")
         )
-        relevant = bool(saved_break or saved_watch or saved_alert or current_break)
+        context_break = bool(ctx.get("break_timestamp") or ctx.get("break_level") is not None)
+        relevant = bool(saved_break or saved_watch or saved_alert or current_break or context_break)
         if not relevant:
             continue
 
-        status = str(
-            saved_alert.get("status", "")
-            if saved_alert
-            else saved_watch.get("status", "")
-            if saved_watch
-            else ctx.get("status", "")
-        ).upper().strip()
+        if replay_mode:
+            # Never inherit a future end-of-day alert/watch into an earlier
+            # replay point. The context is the sole lifecycle authority.
+            status = str(ctx.get("status", "")).upper().strip()
+            if status in {"NOT_ACTIVE", ""}:
+                continue
+        else:
+            status = str(
+                saved_alert.get("status", "")
+                if saved_alert
+                else saved_watch.get("status", "")
+                if saved_watch
+                else ctx.get("status", "")
+            ).upper().strip()
 
         # If the current context explicitly invalidated the lifecycle, show it
         # rather than silently retaining an old watch.
@@ -3443,8 +3477,18 @@ def _render_retracement_lifecycle(
             else saved_alert.get("entry_level")
         )
 
-        reentry_time = str(saved_alert.get("timestamp", "")).strip()
-        watch_time = str(saved_watch.get("updated_at", "")).strip()
+        if replay_mode:
+            replay_ts = ctx.get("current_timestamp")
+            replay_ts_text = (
+                replay_ts.isoformat()
+                if isinstance(replay_ts, (pd.Timestamp, datetime))
+                else str(replay_ts or "").strip()
+            )
+            reentry_time = replay_ts_text if status == "REENTRY ALERT" else ""
+            watch_time = replay_ts_text if status == "WATCH" else ""
+        else:
+            reentry_time = str(saved_alert.get("timestamp", "")).strip()
+            watch_time = str(saved_watch.get("updated_at", "")).strip()
 
         def _fmt_ts(value: Any) -> str:
             raw = str(value).strip()
@@ -3719,6 +3763,8 @@ def _render_current_result(
     snapshot_label: str,
     widget_key_prefix: str = "",
     snapshot_results: dict[str, pd.DataFrame] | None = None,
+    lifecycle_trading_date: str | None = None,
+    lifecycle_replay: bool = False,
 ) -> None:
     if result is None or not isinstance(result, pd.DataFrame) or result.empty:
         st.info("No decision result is available for this snapshot.")
@@ -3793,6 +3839,8 @@ def _render_current_result(
         result,
         snapshot_results=snapshot_results,
         widget_key_prefix=widget_key_prefix,
+        trading_date=lifecycle_trading_date,
+        replay_mode=lifecycle_replay,
     )
 
     # Intraday Stock Evolution is a focused, stock-wise progress view. It remains
@@ -4051,85 +4099,6 @@ def _restore_last_complete_state(
     return result, timeline, source_file, observation_timestamp
 
 
-def _hydrate_retracement_replay(
-    sources: list[Path],
-    trading_date: str,
-) -> tuple[dict[str, pd.DataFrame], int, int]:
-    """Incrementally hydrate historical replay observations for retracement.
-
-    This is separate from the LIVE checkpoint. It reconstructs only the
-    missing chronological replay prefix in small batches. The authoritative
-    LIVE checkpoint and primary candidate logic are never changed.
-    """
-    cache = _get_replay_cache(trading_date)
-    snapshots = cache.get("snapshots", {})
-    if not isinstance(snapshots, dict):
-        snapshots = {}
-
-    if not sources:
-        return snapshots, 0, 0
-
-    source_keys = [_source_key(p) for p in sources]
-    prefix = 0
-    while prefix < len(source_keys) and source_keys[prefix] in snapshots:
-        frame = snapshots.get(source_keys[prefix])
-        if not isinstance(frame, pd.DataFrame):
-            break
-        prefix += 1
-
-    if prefix >= len(sources):
-        return snapshots, prefix, len(sources)
-
-    init_key = f"_rt_hydration_initialized_{trading_date}"
-    initialized = bool(st.session_state.get(init_key, False))
-    batch_size = 2 if not initialized else 10
-    st.session_state[init_key] = True
-
-    start = prefix
-    end = min(len(sources), start + batch_size)
-
-    state = load_state(STATE_JSON)
-    day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
-    first_alerts = day.get("first_alerts", {}) or {}
-    first_range = _first_range_from_path(sources[0], trading_date)
-
-    if start == 0:
-        snapshots[source_keys[0]] = pd.DataFrame()
-        start = 1
-        if start >= end:
-            _store_replay_cache(
-                trading_date, snapshots, cache.get("timeline", pd.DataFrame())
-            )
-            return snapshots, 1, len(sources)
-
-    previous_raw = _snapshot_rows(_read(sources[start - 1]))
-
-    for path in sources[start:end]:
-        result = _process_snapshot(path, trading_date, previous_raw, first_range)
-        result = _attach_snapshot_metadata(result, path)
-        timestamp = parse_observation_timestamp(path)
-
-        if not result.empty:
-            result = _update_first_alerts(
-                state, trading_date, result, timestamp, first_alerts
-            )
-            snapshots[_source_key(path)] = result
-            result = _update_retracement_alerts(
-                state, trading_date, result, snapshots
-            )
-            snapshots[_source_key(path)] = result
-        else:
-            snapshots[_source_key(path)] = result
-
-        previous_raw = _snapshot_rows(_read(path))
-
-    save_state(state, STATE_JSON)
-    _store_replay_cache(
-        trading_date, snapshots, cache.get("timeline", pd.DataFrame())
-    )
-    return snapshots, end, len(sources)
-
-
 if hasattr(st, "fragment"):
     @st.fragment(run_every="300s")
     def _live_auto_panel(source_root: Path, trading_date: str, auto_update: bool, rollover_fallback: bool = False) -> None:
@@ -4140,10 +4109,6 @@ if hasattr(st, "fragment"):
             if not sources:
                 st.info("No intraday snapshots are currently available for this date.")
                 return
-
-            # Hydrate retracement history incrementally in the LIVE path.
-            # The audit renderer itself remains read-only and non-blocking.
-            _hydrate_retracement_replay(sources, trading_date)
 
             _, market_open = _market_session_status(trading_date)
             session_state = st.session_state.setdefault(_live_session_key(trading_date), {})
@@ -4285,6 +4250,143 @@ if hasattr(st, "fragment"):
             _render_current_result(latest, timeline, latest_time.strftime("%H:%M:%S"), "live_", _live_cache.get("snapshots", {}) if isinstance(_live_cache, dict) else {})
         except Exception as exc:
             st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
+
+
+def _replay_view_cache_key(trading_date: str) -> str:
+    return f"ds_replay_view_cache::{trading_date}"
+
+
+def _get_replay_view_cache(trading_date: str) -> dict[str, Any]:
+    value = st.session_state.get(_replay_view_cache_key(trading_date))
+    return value if isinstance(value, dict) else {}
+
+
+def _store_replay_view_cache(
+    trading_date: str,
+    snapshot_results: dict[str, pd.DataFrame],
+    timeline: pd.DataFrame,
+) -> None:
+    st.session_state[_replay_view_cache_key(trading_date)] = {
+        "snapshots": snapshot_results,
+        "timeline": timeline,
+    }
+
+
+def _build_replay_day_in_memory(
+    sources: list[Path],
+    trading_date: str,
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
+    """Build a complete replay chain without changing durable LIVE state.
+
+    Historical and snapshot replay must be an investigation operation: it may
+    read the same source files and decision engine, but it must not overwrite
+    processing_state.json, LIVE checkpoints, First Alert ledgers, or retracement
+    ledgers.  The chain is rebuilt chronologically with a fresh in-memory state.
+    """
+    ordered = sorted(
+        [Path(p) for p in sources if Path(p).is_file()],
+        key=lambda p: (
+            parse_observation_timestamp(p),
+            p.stat().st_mtime,
+            p.name.lower(),
+        ),
+    )
+    if not ordered:
+        return pd.DataFrame(), pd.DataFrame(), {}
+
+    replay_state: dict[str, Any] = {STATE_KEY: {trading_date: {}}}
+    previous: dict[str, dict] = {}
+    previous_state: dict[str, str] = {}
+    previous_direction: dict[str, str] = {}
+    first_alerts: dict[str, dict[str, Any]] = {}
+    timeline_rows: list[dict[str, Any]] = []
+    snapshots: dict[str, pd.DataFrame] = {}
+    latest_result = pd.DataFrame()
+    first_range = _first_range_from_path(ordered[0], trading_date)
+
+    for sequence, path in enumerate(ordered, start=1):
+        if sequence == 1:
+            previous = _snapshot_rows(_read(path))
+            continue
+
+        result = _process_snapshot(
+            path,
+            trading_date,
+            previous,
+            first_range,
+        )
+        result = _attach_snapshot_metadata(result, path)
+        timestamp = parse_observation_timestamp(path)
+
+        result = _update_first_alerts(
+            replay_state, trading_date, result, timestamp, first_alerts
+        )
+
+        if not result.empty:
+            snapshots[_source_key(path)] = result
+            result = _update_retracement_alerts(
+                replay_state, trading_date, result, snapshots
+            )
+            snapshots[_source_key(path)] = result
+
+        if result.empty:
+            snapshots[_source_key(path)] = result
+            previous = _snapshot_rows(_read(path))
+            continue
+
+        for row in result.to_dict(orient="records"):
+            symbol = str(row.get("symbol", "")).upper()
+            state_name = str(
+                row.get("decision_state", row.get("state", "WATCH"))
+            ).upper()
+            direction = str(
+                row.get("decision_direction", row.get("direction", "NEUTRAL"))
+            ).upper()
+            old_state = previous_state.get(symbol)
+            old_direction = previous_direction.get(symbol)
+            state_changed = state_name != old_state
+            direction_changed = (
+                old_direction is not None
+                and direction not in {"", "NEUTRAL"}
+                and old_direction not in {"", "NEUTRAL"}
+                and direction != old_direction
+            )
+            if (state_changed or direction_changed) and state_name in QUALIFIED_STATES:
+                timeline_rows.append({
+                    "Time": timestamp.strftime("%H:%M:%S"),
+                    "First Alert": _timeline_first_alert_value(row, timestamp),
+                    "Snapshot": sequence,
+                    "Symbol": symbol,
+                    "Decision": row.get("decision_state", "NO DECISION"),
+                    "Direction": direction,
+                    "Previous": old_direction if direction_changed else old_state or "—",
+                    "Evidence": row.get("decision_score", 0),
+                    "Strength": row.get("decision_strength", "—"),
+                    "S/R": row.get("sr_status", "—"),
+                })
+            previous_state[symbol] = state_name
+            previous_direction[symbol] = direction
+
+        previous = _snapshot_rows(_read(path))
+        latest_result = result
+
+    timeline = pd.DataFrame(timeline_rows)
+    _store_replay_view_cache(trading_date, snapshots, timeline)
+    return latest_result, timeline, snapshots
+
+
+def _get_point_in_time_timeline(
+    timeline: pd.DataFrame,
+    selected_index: int,
+) -> pd.DataFrame:
+    """Return replay evolution only through the selected source snapshot."""
+    if not isinstance(timeline, pd.DataFrame) or timeline.empty:
+        return timeline
+    out = timeline.copy()
+    if "Snapshot" not in out.columns:
+        return out
+    nums = pd.to_numeric(out["Snapshot"], errors="coerce")
+    return out.loc[nums.le(int(selected_index) + 1)].copy()
 
 
 def _load_day_for_snapshot_view(sources: list[Path], trading_date: str) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
@@ -4545,6 +4647,8 @@ def render() -> None:
                     _render_current_result(
                         latest, timeline, live_time.strftime("%H:%M:%S"), "live_",
                         _live_cache.get("snapshots", {}) if isinstance(_live_cache, dict) else {},
+                        lifecycle_trading_date=trading_date,
+                        lifecycle_replay=False,
                     )
 
 
@@ -4559,7 +4663,14 @@ def render() -> None:
                 if not isinstance(snapshots, dict) or not all(
                     _source_key(p) in snapshots for p in sources
                 ):
-                    _, timeline, snapshots = _load_day_for_snapshot_view(
+                    view_cache = _get_replay_view_cache(trading_date)
+                    snapshots = view_cache.get("snapshots", {})
+                    timeline = view_cache.get("timeline", pd.DataFrame())
+
+                if not isinstance(snapshots, dict) or not all(
+                    _source_key(p) in snapshots for p in sources
+                ):
+                    _, timeline, snapshots = _build_replay_day_in_memory(
                         sources,
                         trading_date,
                     )
@@ -4590,7 +4701,21 @@ def render() -> None:
                     "the opening reference and has no decision rows."
                 )
             else:
-                _render_current_result(result, timeline, labels[idx], "intraday_", snapshots)
+                # Replay must be point-in-time: do not let a selected early
+                # snapshot see later-day breaks, EMA/VWAP observations, or
+                # re-entry alerts. Keep only snapshots through the selected
+                # source in chronological order.
+                replay_snapshots = {
+                    _source_key(path): snapshots.get(_source_key(path), pd.DataFrame())
+                    for path in sources[: idx + 1]
+                    if _source_key(path) in snapshots
+                }
+                replay_timeline = _get_point_in_time_timeline(timeline, idx)
+                _render_current_result(
+                    result, replay_timeline, labels[idx], "intraday_", replay_snapshots,
+                    lifecycle_trading_date=trading_date,
+                    lifecycle_replay=True,
+                )
 
 
     else:  # HISTORICAL
@@ -4615,7 +4740,15 @@ def render() -> None:
                 return
 
             try:
-                _, timeline, snapshots = _load_day_for_snapshot_view(historical_sources, historical_date)
+                view_cache = _get_replay_view_cache(historical_date)
+                snapshots = view_cache.get("snapshots", {})
+                timeline = view_cache.get("timeline", pd.DataFrame())
+                if not isinstance(snapshots, dict) or not all(
+                    _source_key(p) in snapshots for p in historical_sources
+                ):
+                    _, timeline, snapshots = _build_replay_day_in_memory(
+                        historical_sources, historical_date
+                    )
             except Exception as exc:
                 st.error(f"Historical replay preparation failed: {type(exc).__name__}: {exc}")
                 return
@@ -4632,7 +4765,23 @@ def render() -> None:
                 st.info("The selected historical snapshot is BASE ONLY.")
                 return
             result = snapshots.get(_source_key(selected_path), pd.DataFrame())
-            _render_current_result(result, timeline, parse_observation_timestamp(selected_path).strftime("%H:%M:%S"), "historical_", snapshots)
+            # Historical replay is strictly point-in-time. The lifecycle sees
+            # only the selected date's snapshots up to the chosen timestamp;
+            # future same-day events from the fully built replay cache are
+            # intentionally excluded.
+            replay_snapshots = {
+                _source_key(path): snapshots.get(_source_key(path), pd.DataFrame())
+                for path in historical_sources[: idx + 1]
+                if _source_key(path) in snapshots
+            }
+            replay_timeline = _get_point_in_time_timeline(timeline, idx)
+            _render_current_result(
+                result, replay_timeline,
+                parse_observation_timestamp(selected_path).strftime("%H:%M:%S"),
+                "historical_", replay_snapshots,
+                lifecycle_trading_date=historical_date,
+                lifecycle_replay=True,
+            )
 
 
 if __name__ == "__main__":
