@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import html
 import time
 from pathlib import Path
 from typing import Any
+import re
 
 import pandas as pd
 import streamlit as st
@@ -64,6 +66,14 @@ def _live_session_key(trading_date: str) -> str:
 # Source / replay layer
 # ---------------------------------------------------------------------------
 
+def parse_observation_timestamp(path: Path) -> datetime:
+    """Return the authoritative Windows source arrival/creation timestamp."""
+    try:
+        return datetime.fromtimestamp(path.stat().st_ctime)
+    except (OSError, ValueError, OverflowError):
+        return datetime.min
+
+
 def _discover_sources(trading_date: str, source_root: Path | None = None) -> list[Path]:
     root = Path(source_root or INTRADAY_SOURCE_ROOT).expanduser()
     files = discover_daywise_files(root, trading_date)
@@ -75,6 +85,30 @@ def _discover_sources(trading_date: str, source_root: Path | None = None) -> lis
             p.name.lower(),
         ),
     )
+
+
+def _available_trading_dates(source_root: Path) -> list[str]:
+    """Return dates for which the source layer has actual Daywise files."""
+    root = Path(source_root).expanduser()
+    if not root.exists():
+        return []
+
+    candidates: set[str] = set()
+    pattern = re.compile(r"(?<!\d)(20\d{2}-\d{2}-\d{2})(?!\d)")
+    for item in root.rglob("*"):
+        if item.is_file():
+            match = pattern.search(str(item))
+            if match:
+                candidates.add(match.group(1))
+
+    valid: list[str] = []
+    for day in sorted(candidates):
+        try:
+            if _discover_sources(day, root):
+                valid.append(day)
+        except Exception:
+            continue
+    return valid
 
 
 def _read(path: Path) -> pd.DataFrame:
@@ -189,6 +223,9 @@ def _process_snapshot(
             continue
 
         signal = build_signal(record, previous.get(symbol))
+        # The source Symbol field is the identity key used throughout the
+        # intraday chain. Normalize once and carry that identity forward.
+        signal["symbol"] = symbol
         signal["source_evidence"] = source_map
         rows.append(
             enrich_decision(
@@ -211,6 +248,20 @@ def _attach_snapshot_metadata(result: pd.DataFrame, path: Path) -> pd.DataFrame:
     out["source_timestamp"] = observed
     out["source_file"] = path.name
     return out
+
+
+def _timeline_first_alert_value(
+    row: dict[str, Any],
+    event_timestamp: datetime,
+) -> str:
+    value = str(row.get("first_alert_timestamp", "")).strip()
+    if not value:
+        return "—"
+    try:
+        first_dt = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return "—"
+    return first_dt.isoformat() if first_dt == event_timestamp else "—"
 
 
 def _update_first_alerts(
@@ -402,7 +453,7 @@ def process_all_sources(
                 timeline_rows.append(
                     {
                         "Time": timestamp.strftime("%H:%M:%S"),
-                        "First Alert": timestamp.isoformat(),
+                        "First Alert": _timeline_first_alert_value(row, timestamp),
                         "Snapshot": sequence,
                         "Symbol": symbol,
                         "Decision": row.get(
@@ -526,37 +577,82 @@ def _auto_process_new_snapshots(
     sources: list[Path],
     trading_date: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame, bool]:
-    """Process only snapshots not already consumed by the live session/state.
+    """Return LIVE at the latest successfully processed source.
 
-    The first live load establishes the BASE + chronological chain once.
-    Subsequent live updates consume only newly arrived files, preserving the
-    existing previous-snapshot state and decision evidence.
+    The durable state source is the authoritative processing checkpoint.
+    On every live cycle, any source chronologically newer than that checkpoint
+    is processed in order. This prevents a stale in-memory replay cache from
+    making LIVE stop at an older snapshot after a restart/day rollover.
     """
+    if not sources:
+        return pd.DataFrame(), pd.DataFrame(), False
+
+    state = load_state(STATE_JSON)
+    day = state.get(STATE_KEY, {}).get(trading_date, {}) or {}
+    saved = day.get("last_complete_state", {}) or {}
+    checkpoint_file = str(
+        day.get("source_file")
+        or saved.get("source_file")
+        or ""
+    ).strip()
+
+    # Establish the authoritative checkpoint index from durable state.
+    checkpoint_key = _source_key(Path(checkpoint_file)) if checkpoint_file else ""
+    checkpoint_idx = -1
+    if checkpoint_key:
+        for i, path in enumerate(sources):
+            if _source_key(path) == checkpoint_key:
+                checkpoint_idx = i
+                break
+
+    # If durable state is absent, restore it from the last complete record.
+    if checkpoint_idx < 0 and saved.get("source_file"):
+        restored_path = Path(str(saved["source_file"]))
+        restored_key = _source_key(restored_path)
+        for i, path in enumerate(sources):
+            if _source_key(path) == restored_key:
+                checkpoint_idx = i
+                checkpoint_key = restored_key
+                break
+
     cache = _get_replay_cache(trading_date)
     cached_snapshots = cache.get("snapshots", {})
     if not isinstance(cached_snapshots, dict):
         cached_snapshots = {}
 
-    known = set(cached_snapshots.keys())
-    source_keys = {_source_key(p) for p in sources}
-
-    # If the session has no cache, initialize the complete currently available
-    # chain once. This is required to establish the BASE snapshot correctly.
-    if not known or not known.intersection(source_keys):
-        latest, timeline, _ = _process_and_cache_day(sources, trading_date)
+    # Genuinely new day/state: process the complete chronological chain once.
+    if checkpoint_idx < 0:
+        latest, timeline, snapshots = _process_and_cache_day(
+            sources, trading_date
+        )
         return latest, timeline, True
 
-    new_paths = [p for p in sources if _source_key(p) not in known]
-    if not new_paths:
-        latest_key = _source_key(sources[-1]) if sources else ""
-        latest = cached_snapshots.get(latest_key, pd.DataFrame())
-        return latest, cache.get("timeline", pd.DataFrame()), False
+    # Reuse the durable result at the checkpoint as the starting LIVE result.
+    restored = _restore_last_complete_state(trading_date)
+    if restored is not None:
+        latest_result, restored_timeline, _, _ = restored
+    else:
+        latest_result = cached_snapshots.get(checkpoint_key, pd.DataFrame())
+        restored_timeline = cache.get("timeline", pd.DataFrame())
 
-    # Process only the new tail, in chronological order. The processing-state
-    # file already contains the previous raw snapshot and current decision
-    # snapshot needed to continue the chain.
-    state = load_state(STATE_JSON)
-    day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
+    if not isinstance(restored_timeline, pd.DataFrame):
+        restored_timeline = pd.DataFrame()
+
+    # IMPORTANT: the durable checkpoint, not cache membership, determines what
+    # still needs processing. Process only a small chronological batch per
+    # fragment so the UI remains responsive while LIVE catches up.
+    all_new_paths = sources[checkpoint_idx + 1 :]
+    new_paths = all_new_paths[:3]
+
+    if not new_paths:
+        # Ensure the cache is synchronized to the known checkpoint.
+        if isinstance(latest_result, pd.DataFrame) and not latest_result.empty:
+            cached_snapshots[checkpoint_key] = latest_result
+            _store_replay_cache(
+                trading_date, cached_snapshots, restored_timeline
+            )
+        return latest_result, restored_timeline, False
+
     previous = day.get("previous_snapshot", {}) or {}
     previous_state = {
         str(k).upper(): str(v.get("decision_state", "")).upper()
@@ -570,31 +666,36 @@ def _auto_process_new_snapshots(
         for k, v in (day.get("decision_snapshot", {}) or {}).items()
         if isinstance(v, dict)
     }
-    first_alerts: dict[str, dict[str, Any]] = (
-        day.get("first_alerts", {}) or {}
-    )
+    first_alerts = day.get("first_alerts", {}) or {}
+    first_range = _first_range_from_path(sources[0], trading_date)
 
-    first_range = _first_range_from_path(sources[0], trading_date) if sources else {}
-    timeline_rows = cache.get("timeline", pd.DataFrame()).to_dict(orient="records") if isinstance(cache.get("timeline"), pd.DataFrame) else []
-    latest_result = pd.DataFrame()
+    timeline_rows = restored_timeline.to_dict(orient="records")
+    state_changed_any = False
 
     for path in new_paths:
         result = _process_snapshot(path, trading_date, previous, first_range)
         result = _attach_snapshot_metadata(result, path)
         timestamp = parse_observation_timestamp(path)
+
         result = _update_first_alerts(
             state, trading_date, result, timestamp, first_alerts
         )
+
         if result.empty:
             previous = _snapshot_rows(_read(path))
             continue
 
         for row in result.to_dict(orient="records"):
             symbol = str(row.get("symbol", "")).upper()
-            state_name = str(row.get("decision_state", row.get("state", "WATCH"))).upper()
-            direction = str(row.get("decision_direction", row.get("direction", "NEUTRAL"))).upper()
+            state_name = str(
+                row.get("decision_state", row.get("state", "WATCH"))
+            ).upper()
+            direction = str(
+                row.get("decision_direction", row.get("direction", "NEUTRAL"))
+            ).upper()
             old_state = previous_state.get(symbol)
             old_direction = previous_direction.get(symbol)
+
             state_changed = state_name != old_state
             direction_changed = (
                 old_direction is not None
@@ -602,25 +703,35 @@ def _auto_process_new_snapshots(
                 and old_direction not in {"", "NEUTRAL"}
                 and direction != old_direction
             )
-            if (state_changed or direction_changed) and state_name in QUALIFIED_STATES:
+
+            if (
+                (state_changed or direction_changed)
+                and state_name in QUALIFIED_STATES
+            ):
                 timeline_rows.append({
                     "Time": timestamp.strftime("%H:%M:%S"),
-                    "First Alert": timestamp.isoformat(),
+                    "First Alert": _timeline_first_alert_value(row, timestamp),
                     "Snapshot": len(cached_snapshots) + 1,
                     "Symbol": symbol,
                     "Decision": row.get("decision_state", "NO DECISION"),
                     "Direction": direction,
-                    "Previous": old_direction if direction_changed else old_state or "—",
+                    "Previous": (
+                        old_direction
+                        if direction_changed
+                        else old_state or "—"
+                    ),
                     "Evidence": row.get("decision_score", 0),
                     "Strength": row.get("decision_strength", "—"),
                     "S/R": row.get("sr_status", "—"),
                 })
+
             previous_state[symbol] = state_name
             previous_direction[symbol] = direction
 
         previous = _snapshot_rows(_read(path))
         latest_result = result
         cached_snapshots[_source_key(path)] = result
+
         day["previous_snapshot"] = previous
         day["decision_snapshot"] = {
             str(row.get("symbol", "")).upper(): row
@@ -631,16 +742,29 @@ def _auto_process_new_snapshots(
         day["processed_at"] = datetime.now().isoformat()
         state.setdefault(STATE_KEY, {})[trading_date] = day
         save_state(state, STATE_JSON)
+
+        # Persist after EACH successfully processed snapshot. A restart can
+        # therefore resume exactly at the last completed point.
+        timeline_now = pd.DataFrame(timeline_rows)
         _persist_last_complete_state(
             trading_date,
             latest_result,
-            pd.DataFrame(timeline_rows),
+            timeline_now,
             path,
         )
+        state_changed_any = True
 
     timeline = pd.DataFrame(timeline_rows)
     _store_replay_cache(trading_date, cached_snapshots, timeline)
-    return latest_result, timeline, True
+
+    if latest_result is None or latest_result.empty:
+        latest_result = cached_snapshots.get(
+            _source_key(sources[-1]),
+            latest_result if isinstance(latest_result, pd.DataFrame)
+            else pd.DataFrame(),
+        )
+
+    return latest_result, timeline, state_changed_any
 
 
 # ---------------------------------------------------------------------------
@@ -756,40 +880,44 @@ def _candidate_mask(result: pd.DataFrame) -> pd.Series:
         errors="coerce",
     ).fillna(0)
 
-    # HARD PRIMARY GATE. No developing/wait/actionable state may bypass it.
     gate = result.get(
         "gate_passed",
         pd.Series(False, index=result.index),
     ).map(_bool).fillna(False)
 
-    # Preserve the existing actionable rule: direction must agree with the
-    # +/-0.75% move and material conflicts do not enter the primary board.
-    confirmed = (
-        (
-            (direction == "BULLISH") & (price >= 0.75)
-        )
-        | (
-            (direction == "BEARISH") & (price <= -0.75)
-        )
-    )
+    # HARD PRIMARY GATE. No developing/wait/actionable state may bypass it.
+    gate_mask = gate.copy()
 
-    actionable = state.isin({
+    strong_or_active = state.isin({
         "STRONG_BULLISH",
         "STRONG_BEARISH",
         "ACTIVE_BULLISH",
         "ACTIVE_BEARISH",
-    }) & confirmed & (conflicts == 0)
+    })
+
+    confirmed = (
+        (
+            (direction == "BULLISH")
+            & (price >= 0.75)
+        )
+        | (
+            (direction == "BEARISH")
+            & (price <= -0.75)
+        )
+    )
+
+    actionable = strong_or_active & confirmed & (conflicts == 0)
 
     # These states are already produced by the underlying evidence engine.
-    # Their state classification is the evidence/relevance decision; do not
-    # add an artificial confirmation-count floor at dashboard level.
+    # Do not impose a new score/confirmation threshold at dashboard level.
     developing = state.isin(DEVELOPING_STATES)
     wait_break = state.eq("WAIT_BREAK_CONFIRMATION")
 
     relevant = actionable | developing | wait_break
 
-    # Absolute gate is applied to ALL three branches.
-    return gate & relevant & (conflicts <= 1)
+    # Absolute gate is applied to every branch; material conflicts are kept
+    # out of the primary decision pool.
+    return gate_mask & relevant & (conflicts <= 1)
 
 def _rank(result: pd.DataFrame) -> pd.DataFrame:
     if result.empty:
@@ -949,9 +1077,16 @@ def _css() -> None:
     st.markdown(
         """
 <style>
-.block-container{max-width:1500px;padding-top:1rem;padding-bottom:2rem}
+/* TOP deployment: hide Streamlit chrome only; dashboard background is untouched. */
+header[data-testid="stHeader"],
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"],
+[data-testid="stAppDeployButton"],
+#MainMenu{display:none !important}
+.block-container{max-width:1500px;padding-top:.55rem;padding-bottom:2rem}
 .hero{
-    padding:20px 26px;
+    padding:17px 26px;
     border-radius:14px;
     background:#172554;
     color:#fff;
@@ -988,6 +1123,147 @@ def _css() -> None:
     padding:8px 12px;
     border-radius:8px;
     margin-bottom:12px
+}
+.top-status{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin:2px 0 16px 0;
+}
+.top-status-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    border:1px solid #e2e8f0;
+    border-radius:999px;
+    padding:8px 12px;
+    background:#ffffff;
+    color:#334155;
+    font-size:11.5px;
+    font-weight:700;
+}
+.top-status-dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#64748b;
+    flex:0 0 auto;
+}
+.top-status-ready .top-status-dot{background:#16a34a}
+.top-status-live .top-status-dot{background:#2563eb}
+.top-status-closed .top-status-dot{background:#64748b}
+.top-status-armed .top-status-dot{background:#2563eb}
+.top-status-active .top-status-dot{background:#16a34a}
+
+/* SECTION 3 — Current Decision Opportunities */
+.opportunity-grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:10px;
+    margin:10px 0 12px 0;
+}
+.opportunity-card{
+    border:1px solid var(--card-border,#dbe4ef);
+    border-left:5px solid var(--card-accent,#64748b);
+    border-radius:10px;
+    padding:11px 12px;
+    background:var(--card-bg,#f8fafc);
+    box-sizing:border-box;
+    min-height:154px;
+}
+
+.opportunity-card.compact{min-height:116px;padding:8px 9px;border-radius:8px}
+.compact-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:7px 0 9px}
+.opportunity-card.compact .opportunity-stock{font-size:13px;font-weight:950}.opportunity-card.compact .opportunity-rank{font-size:7px}.opportunity-card.compact .opportunity-state{font-size:8px;margin-top:2px;font-weight:800}
+.opportunity-move-large{font-size:18px;font-weight:950;line-height:1.0;margin-top:4px;color:var(--card-accent,#0f172a)}
+.opportunity-card.compact .opportunity-sr{font-size:7.5px;margin-top:2px;display:block;font-weight:750}.quality-row{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:7px;font-weight:900;color:#334155}.quality-meter{height:5px;border-radius:999px;background:rgba(100,116,139,.16);overflow:hidden;margin-top:3px}.quality-meter span{display:block;height:100%;border-radius:999px;background:var(--card-accent,#64748b)}.quality-caption{font-size:6.5px;line-height:1.15;margin-top:2px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.compact-metrics{gap:3px;margin-top:5px}.opportunity-card.compact .opportunity-metric{padding:3px;border-radius:5px}.opportunity-card.compact .opportunity-metric-label{font-size:6px;font-weight:900}.opportunity-card.compact .opportunity-metric-value{font-size:8.5px;font-weight:900}.opportunity-card.compact .opportunity-reason{font-size:6.5px;margin-top:3px;color:#334155}
+.live-queue-panel{margin-top:10px;border-radius:10px;padding:9px 10px;background:#0b1d33;border:1px solid #1d3858}.live-queue-title{font-size:12px;font-weight:900;color:#f8fafc}.live-queue-sub{font-size:8px;color:#9fb1c7;margin-top:2px}.live-queue-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:7px}.live-queue-tile{min-width:0;border:1px solid var(--queue-accent,#64748b);border-radius:7px;padding:7px;background:linear-gradient(135deg,rgba(255,255,255,.04),var(--queue-bg,#172033))}.queue-head{display:flex;justify-content:space-between;gap:4px;font-size:8px;color:#f8fafc}.queue-head span{color:var(--queue-accent,#cbd5e1);font-weight:900;font-size:7px}.queue-state{font-size:7px;color:#cbd5e1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.queue-move{font-size:14px;font-weight:950;color:#fbbf24;margin-top:4px}.queue-quality{height:4px;border-radius:999px;background:rgba(255,255,255,.10);overflow:hidden;margin-top:4px}.queue-quality span{display:block;height:100%;background:var(--queue-accent,#94a3b8)}.queue-foot{display:flex;justify-content:space-between;gap:3px;color:#aab9ca;font-size:6.5px;margin-top:4px}
+@media(max-width:1200px){.compact-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.live-queue-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:900px){.compact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.live-queue-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.opportunity-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:8px;
+}
+.opportunity-rank{
+    font-size:9px;
+    font-weight:800;
+    color:#64748b;
+}
+.opportunity-stock{
+    font-size:16px;
+    font-weight:900;
+    color:var(--card-text,#0f172a);
+}
+.opportunity-direction{
+    font-size:10px;
+    font-weight:900;
+    color:var(--card-accent,#475569);
+}
+.opportunity-state{
+    margin-top:4px;
+    font-size:10px;
+    font-weight:800;
+    color:var(--card-text,#334155);
+}
+.opportunity-metrics{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:5px;
+    margin-top:10px;
+}
+.opportunity-metric{
+    border:1px solid rgba(100,116,139,.16);
+    border-radius:7px;
+    padding:5px 5px;
+    background:rgba(255,255,255,.58);
+}
+.opportunity-metric-label{
+    display:block;
+    font-size:7.5px;
+    color:#64748b;
+    text-transform:uppercase;
+}
+.opportunity-metric-value{
+    display:block;
+    margin-top:2px;
+    font-size:10.5px;
+    font-weight:900;
+    color:var(--card-text,#0f172a);
+}
+.opportunity-bottom{
+    margin-top:8px;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    font-size:9px;
+    color:#475569;
+}
+.opportunity-sr{
+    font-weight:800;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.opportunity-move{
+    font-weight:900;
+    white-space:nowrap;
+}
+.opportunity-reason{
+    margin-top:6px;
+    font-size:9px;
+    line-height:1.25;
+    color:#475569;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+@media(max-width:1050px){
+    .opportunity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+    .opportunity-grid{grid-template-columns:1fr}
 }
 
 .badge{
@@ -1464,12 +1740,389 @@ def _render_timeline(timeline: pd.DataFrame) -> None:
         )
 
 
+
+def _symbol_snapshot_history(snapshot_results: dict[str, pd.DataFrame] | None, symbol: str) -> list[pd.Series]:
+    'Return chronological observations for one symbol; diagnostic only.'
+    if not isinstance(snapshot_results, dict):
+        return []
+    target = str(symbol).strip().upper()
+    observations = []
+    for frame in snapshot_results.values():
+        if not isinstance(frame, pd.DataFrame) or frame.empty or 'symbol' not in frame.columns:
+            continue
+        matches = frame.loc[frame['symbol'].astype(str).str.upper().str.strip().eq(target)]
+        for _, row in matches.iterrows():
+            ts = pd.to_datetime(row.get('source_timestamp', row.get('observation_timestamp', '')), errors='coerce')
+            if pd.notna(ts):
+                observations.append((ts.to_pydatetime(), row))
+    observations.sort(key=lambda item: item[0])
+    return [row for _, row in observations]
+
+
+def _directional_alignment(row: pd.Series) -> tuple[str, int, int]:
+    'Summarise explicit directional language already produced by the engine.'
+    direction = str(row.get('decision_direction', row.get('direction', 'NEUTRAL'))).upper()
+    fields = ('directional_interpretation','futures_interpretation','options_interpretation','pcr_interpretation','iv_interpretation','volume_interpretation','oi_interpretation')
+    supportive = contradictory = 0
+    bullish_terms = ('BULLISH','POSITIVE','LONG BUILDUP','SHORT COVERING')
+    bearish_terms = ('BEARISH','NEGATIVE','SHORT BUILDUP','LONG UNWINDING')
+    for field in fields:
+        text = str(row.get(field, '')).upper()
+        if not text or text in {'NAN','NONE','—'}:
+            continue
+        if direction == 'BULLISH':
+            supportive += int(any(token in text for token in bullish_terms))
+            contradictory += int(any(token in text for token in bearish_terms))
+        elif direction == 'BEARISH':
+            supportive += int(any(token in text for token in bearish_terms))
+            contradictory += int(any(token in text for token in bullish_terms))
+    if supportive >= 5 and contradictory == 0:
+        label = 'STRONG ALIGNMENT'
+    elif supportive >= 3 and contradictory <= 1:
+        label = 'ALIGNED'
+    elif supportive > contradictory and supportive >= 1:
+        label = 'PARTIAL ALIGNMENT'
+    elif contradictory > supportive:
+        label = 'CONFLICTING'
+    else:
+        label = 'INSUFFICIENT'
+    return label, supportive, contradictory
+
+
+def _break_quality_diagnostic(row: pd.Series, snapshot_results: dict[str, pd.DataFrame] | None = None) -> dict[str, Any]:
+    'Diagnostic break-quality view; never feeds candidate selection or score.'
+    sr = _sr_text(row).upper()
+    direction = str(row.get('decision_direction', row.get('direction', 'NEUTRAL'))).upper()
+    symbol = str(row.get('symbol', '')).upper().strip()
+    history = _symbol_snapshot_history(snapshot_results, symbol)
+    broken_status = 'RESISTANCE BROKEN' if direction == 'BULLISH' else 'SUPPORT BROKEN' if direction == 'BEARISH' else ''
+    sustain_label = 'NOT A STRUCTURAL BREAK'
+    sustain_points = 0
+    if broken_status and sr == broken_status:
+        first_idx = next((i for i, obs in enumerate(history) if _sr_text(obs).upper() == broken_status), None)
+        if first_idx is None:
+            sustain_label, sustain_points = 'BREAK PRESENT · HISTORY UNAVAILABLE', 8
+        else:
+            tail = history[first_idx:]
+            checks_after = max(0, len(tail) - 1)
+            statuses = [_sr_text(obs).upper() for obs in tail]
+            if checks_after == 0:
+                sustain_label, sustain_points = 'NEW BREAK · NOT YET TESTED', 10
+            elif all(value == broken_status for value in statuses):
+                sustain_label, sustain_points = f'SUSTAINED · {checks_after} FOLLOW-UP CHECKS', (25 if checks_after >= 2 else 18)
+            elif statuses[-1] == broken_status:
+                sustain_label, sustain_points = 'RECLAIMED · BREAK RE-ESTABLISHED', 15
+            else:
+                sustain_label, sustain_points = 'BREAK WEAKENED / RETESTED', 5
+    alignment, supportive, contradictory = _directional_alignment(row)
+    conflict = int(_num(row.get('conflict_count')) or 0)
+    structural_points = 30 if sr == broken_status and broken_status else 0
+    alignment_points = min(25, supportive * 4) if alignment != 'INSUFFICIENT' else 0
+    conflict_points = 20 if conflict == 0 else 10 if conflict == 1 else 0
+    quality = max(0, min(100, structural_points + sustain_points + alignment_points + conflict_points))
+    if quality >= 80 and alignment in {'STRONG ALIGNMENT','ALIGNED'}:
+        quality_label = 'STRONG DATA'
+    elif quality >= 60:
+        quality_label = 'GOOD DATA'
+    elif quality >= 40:
+        quality_label = 'MIXED DATA'
+    else:
+        quality_label = 'INSUFFICIENT DATA'
+    reasons = []
+    if broken_status and sr == broken_status:
+        reasons.append('level break detected')
+    if sustain_label.startswith('SUSTAINED'):
+        reasons.append(sustain_label.lower())
+    elif sustain_label.startswith('NEW BREAK'):
+        reasons.append('sustainability not yet proven')
+    elif 'RETESTED' in sustain_label:
+        reasons.append('break has been retested')
+    elif 'RECLAIMED' in sustain_label:
+        reasons.append('break re-established after a pullback')
+    if alignment == 'STRONG ALIGNMENT': reasons.append(f'{supportive} derivative/participation inputs aligned')
+    elif alignment == 'ALIGNED': reasons.append(f'{supportive} supporting inputs aligned')
+    elif alignment == 'CONFLICTING': reasons.append(f'{contradictory} conflicting inputs')
+    elif alignment == 'INSUFFICIENT': reasons.append('limited supporting data')
+    if conflict == 0: reasons.append('no recorded conflicts')
+    elif conflict > 0: reasons.append(f'{conflict} conflict{"s" if conflict != 1 else ""}')
+    return {'quality': quality, 'quality_label': quality_label, 'sustain_label': sustain_label, 'alignment': alignment, 'supportive': supportive, 'contradictory': contradictory, 'reason': ' · '.join(reasons) if reasons else 'Existing engine evidence only'}
+
+def _opportunity_palette(row: pd.Series) -> tuple[str, str, str]:
+    """Continuous visual grading using existing decision score/strength only."""
+    direction = str(
+        row.get("decision_direction", row.get("direction", "NEUTRAL"))
+    ).upper()
+    state = str(row.get("decision_state", "")).upper()
+
+    score = pd.to_numeric(row.get("decision_score", 0), errors="coerce")
+    score = 0.0 if pd.isna(score) else max(0.0, min(100.0, float(score)))
+
+    strength = str(row.get("decision_strength", "")).upper()
+    strength_bonus = next(
+        (
+            value for key, value in {
+                "VERY_STRONG": 4.0,
+                "STRONG": 2.5,
+                "ACTIVE": 1.5,
+                "DEVELOPING": 0.5,
+            }.items()
+            if key in strength or key in state
+        ),
+        0.0,
+    )
+    grade = max(0.0, min(100.0, score * 0.94 + strength_bonus))
+    ratio = (grade / 100.0) * 0.72
+
+    if direction == "BULLISH":
+        light, dark, accent = (236, 253, 245), (20, 83, 45), (22, 163, 74)
+    elif direction == "BEARISH":
+        light, dark, accent = (254, 242, 242), (127, 29, 29), (220, 38, 38)
+    else:
+        light, dark, accent = (248, 250, 252), (51, 65, 85), (79, 70, 229)
+
+    bg = tuple(round(light[i] + (dark[i] - light[i]) * ratio) for i in range(3))
+    return (
+        "#{:02x}{:02x}{:02x}".format(*bg),
+        "#{:02x}{:02x}{:02x}".format(*accent),
+        "#ffffff" if grade >= 78 else "#0f172a",
+    )
+
+
+
+def _render_opportunity_cards(
+    candidates: pd.DataFrame,
+    limit: int = 10,
+    snapshot_results: dict[str, pd.DataFrame] | None = None,
+) -> None:
+    'Compact ranked cards with direction colour and diagnostic quality.'
+    if candidates.empty:
+        st.info('No stock currently meets the primary decision-visibility criteria.')
+        return
+    cards=[]
+    for rank, (_, row) in enumerate(candidates.head(limit).iterrows(), start=1):
+        bg, accent, text_color = _opportunity_palette(row)
+        symbol=html.escape(str(row.get('symbol','—')).upper())
+        direction=str(row.get('decision_direction',row.get('direction','NEUTRAL'))).upper()
+        state=str(row.get('decision_state','—')).replace('_',' ')
+        strength=str(row.get('decision_strength','—')).replace('_',' ')
+        evidence=pd.to_numeric(row.get('decision_score',0),errors='coerce')
+        confirm=pd.to_numeric(row.get('confirmation_count',0),errors='coerce')
+        conflict=pd.to_numeric(row.get('conflict_count',0),errors='coerce')
+        move=pd.to_numeric(row.get('price_change_pct',row.get('move_pct',0)),errors='coerce')
+        first_raw=str(row.get('first_alert_timestamp','')).strip()
+        first=first_raw.replace('T',' ')[11:19] if first_raw else '—'
+        sr=_sr_text(row)
+        diag=_break_quality_diagnostic(row,snapshot_results)
+        quality=int(diag['quality'])
+        reason=html.escape(diag['reason'])
+        move_text='—' if pd.isna(move) else f'{float(move):+.2f}%'
+        evidence_text='—' if pd.isna(evidence) else f'{float(evidence):.0f}'
+        confirm_text='—' if pd.isna(confirm) else f'{float(confirm):.0f}'
+        conflict_text='—' if pd.isna(conflict) else f'{float(conflict):.0f}'
+        cards.append(f'''<div class="opportunity-card compact" style="--card-bg:{bg};--card-accent:{accent};--card-text:{text_color};">
+<div class="opportunity-top"><div><div class="opportunity-rank">RANK {rank}</div><div class="opportunity-stock">{symbol}</div></div><div class="opportunity-direction">{direction}</div></div>
+<div class="opportunity-state">{state} · {strength}</div><div class="opportunity-move-large">{move_text}</div>
+<div class="opportunity-sr">S/R: {html.escape(sr)}</div>
+<div class="quality-row"><span>EVIDENCE QUALITY</span><b>{quality}%</b></div><div class="quality-meter"><span style="width:{quality}%"></span></div>
+<div class="quality-caption">{html.escape(diag['quality_label'])} · {html.escape(diag['sustain_label'])} · {html.escape(diag['alignment'])}</div>
+<div class="opportunity-metrics compact-metrics"><div class="opportunity-metric"><span class="opportunity-metric-label">Evidence</span><span class="opportunity-metric-value">{evidence_text}</span></div><div class="opportunity-metric"><span class="opportunity-metric-label">Confirm</span><span class="opportunity-metric-value">{confirm_text}</span></div><div class="opportunity-metric"><span class="opportunity-metric-label">Conflict</span><span class="opportunity-metric-value">{conflict_text}</span></div><div class="opportunity-metric"><span class="opportunity-metric-label">First Alert</span><span class="opportunity-metric-value">{first}</span></div></div>
+<div class="opportunity-reason" title="{reason}">{reason}</div></div>''')
+    st.markdown('<div class="opportunity-grid compact-grid">'+''.join(cards)+'</div>',unsafe_allow_html=True)
+
+
+def _render_live_queue(candidates: pd.DataFrame, snapshot_results: dict[str, pd.DataFrame] | None = None) -> None:
+    'Recent first-alert queue; presentation only.'
+    if candidates is None or candidates.empty or 'first_alert_timestamp' not in candidates.columns:
+        return
+    work=candidates.copy(); work['_first']=pd.to_datetime(work['first_alert_timestamp'],errors='coerce')
+    work=work.dropna(subset=['_first']).sort_values('_first',ascending=False).head(8)
+    if work.empty: return
+    tiles=[]
+    for _,row in work.iterrows():
+        bg,accent,_=_opportunity_palette(row)
+        symbol=html.escape(str(row.get('symbol','—')).upper())
+        direction=str(row.get('decision_direction',row.get('direction','NEUTRAL'))).upper()
+        strength=str(row.get('decision_strength',row.get('decision_state','—'))).replace('_',' ')
+        move=pd.to_numeric(row.get('price_change_pct',0),errors='coerce')
+        move_text='—' if pd.isna(move) else f'{float(move):+.2f}%'
+        quality=int(_break_quality_diagnostic(row,snapshot_results)['quality'])
+        tiles.append(f'''<div class="live-queue-tile" style="--queue-bg:{bg};--queue-accent:{accent};"><div class="queue-head"><b>{symbol}</b><span>{direction}</span></div><div class="queue-state">{html.escape(strength.title())}</div><div class="queue-move">{move_text}</div><div class="queue-quality"><span style="width:{quality}%"></span></div><div class="queue-foot"><span>Quality {quality}%</span><span>First {row['_first'].strftime('%H:%M:%S')}</span></div></div>''')
+    st.markdown('<div class="live-queue-panel"><div class="live-queue-title">LIVE QUEUE · RECENT FIRST ALERTS</div><div class="live-queue-sub">Direction + strength colour coded · diagnostic quality only · existing selection unchanged</div><div class="live-queue-grid">'+''.join(tiles)+'</div></div>',unsafe_allow_html=True)
+
+
+def _render_processing_output(
+    result: pd.DataFrame,
+    processed_time: datetime,
+    source_path: Path,
+) -> None:
+    """Show the actual output produced from the latest processed snapshot.
+
+    This is an audit/processing view, not a second decision engine. It exposes
+    the rows returned by the existing processing pipeline while keeping the
+    decision board itself unchanged.
+    """
+    if result is None or not isinstance(result, pd.DataFrame) or result.empty:
+        return
+
+    candidates = _rank(result)
+    gate_passed = int(
+        result.get(
+            "gate_passed",
+            pd.Series(False, index=result.index),
+        ).map(_bool).sum()
+    )
+
+    with st.expander(
+        f"Processing Output • {processed_time:%H:%M:%S} • latest processed snapshot",
+        expanded=False,
+    ):
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Processed rows", len(result))
+        c2.metric("Primary gate passed", gate_passed)
+        c3.metric("Decision candidates", len(candidates))
+        c4.metric("Processing status", "COMPLETE")
+
+        st.caption(
+            "Dashboard decision output is filtered by the existing SDL selection logic; "
+            "the underlying engine result is unchanged."
+        )
+        st.caption(f"Source: {source_path.name}")
+
+        preferred = [
+            'observation_timestamp', 'first_alert_timestamp', 'symbol',
+            'price_change_pct', 'decision_direction', 'decision_state',
+            'decision_score', 'decision_strength', 'confirmation_count',
+            'conflict_count', 'sr_status', 'gate_passed', '_diagnostic_quality',
+        ]
+        display_source = candidates.copy()
+        display_source['_diagnostic_quality'] = display_source.apply(
+            lambda row: _break_quality_diagnostic(row, None).get('quality', 0),
+            axis=1,
+        )
+        columns = [c for c in preferred if c in display_source.columns]
+        if columns:
+            # IMPORTANT: Processing Output is a dashboard presentation surface.
+            # The engine still processes every evaluated symbol, but the primary
+            # table shown here must use the SAME established candidate pool as
+            # Current Decision Opportunities.  No second filter is created.
+            output_source = display_source.copy()
+            output = output_source.loc[:, columns].copy()
+            rename = {
+                "observation_timestamp": "Time",
+                "first_alert_timestamp": "First Alert",
+                "symbol": "Stock",
+                "price_change_pct": "Move %",
+                "decision_direction": "Direction",
+                "decision_state": "Decision",
+                "decision_score": "Evidence",
+                "decision_strength": "Strength",
+                "confirmation_count": "Confirm",
+                "conflict_count": "Conflict",
+                "sr_status": "S/R",
+                "gate_passed": "Gate",
+                "_diagnostic_quality": "Break Quality",
+            }
+            output = output.rename(columns=rename)
+            output["Reason"] = output_source.apply(lambda row: _break_quality_diagnostic(row, None).get("reason", "Existing engine evidence only"), axis=1).values
+            for timestamp_col in ["Time", "First Alert"]:
+                if timestamp_col in output.columns:
+                    output[timestamp_col] = (
+                        pd.to_datetime(
+                            output[timestamp_col],
+                            errors="coerce",
+                        )
+                        .dt.strftime("%H:%M:%S")
+                        .fillna("—")
+                    )
+            def _style_live_output(data: pd.DataFrame) -> pd.io.formats.style.Styler:
+                def _row_style(row: pd.Series) -> list[str]:
+                    direction = str(row.get("Direction", "")).upper()
+                    try:
+                        quality = float(row.get("Break Quality", 0))
+                    except (TypeError, ValueError):
+                        quality = 0.0
+                    quality = max(0.0, min(100.0, quality))
+                    if direction == "BULLISH":
+                        base = (240, 253, 244)
+                        hi = (187, 247, 208)
+                        accent = "#15803d"
+                    elif direction == "BEARISH":
+                        base = (255, 245, 245)
+                        hi = (254, 202, 202)
+                        accent = "#dc2626"
+                    else:
+                        base = (248, 250, 252)
+                        hi = (226, 232, 240)
+                        accent = "#475569"
+                    ratio = quality / 100.0 * 0.72
+                    bg = "#{:02x}{:02x}{:02x}".format(*tuple(round(base[i] + (hi[i] - base[i]) * ratio) for i in range(3)))
+                    styles = [f"background-color:{bg};color:#0f172a;font-weight:650"] * len(row)
+                    for col in ["Direction", "Decision", "S/R", "Move %", "Break Quality"]:
+                        if col in row.index:
+                            styles[row.index.get_loc(col)] = f"background-color:{bg};color:{accent};font-weight:900"
+                    if "Gate" in row.index:
+                        gate = str(row.get("Gate", "")).lower()
+                        styles[row.index.get_loc("Gate")] = (
+                            "background-color:#dcfce7;color:#15803d;font-weight:950;text-align:center"
+                            if gate in {"true", "1", "yes"} else
+                            "background-color:#fee2e2;color:#b91c1c;font-weight:900;text-align:center"
+                        )
+                    return styles
+                return data.style.apply(_row_style, axis=1).set_properties(**{"font-size":"11px"})
+
+            st.dataframe(
+                _style_live_output(output),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            with st.expander(
+                f"Full engine evaluation audit • {len(result)} rows",
+                expanded=False,
+            ):
+                st.caption(
+                    "Audit only. These are all rows processed by the existing SDL engine; "
+                    "they are not the dashboard decision pool."
+                )
+                # Build the audit view from the full engine result.  The
+                # diagnostic column exists only on the dashboard display copy,
+                # so add it explicitly before selecting audit columns.
+                audit_source = result.copy()
+                audit_source['_diagnostic_quality'] = audit_source.apply(
+                    lambda row: _break_quality_diagnostic(row, None).get('quality', 0),
+                    axis=1,
+                )
+                audit_columns = [c for c in columns if c in audit_source.columns]
+                if 'decision_reason' in result.columns and 'decision_reason' not in audit_columns:
+                    audit_columns.append('decision_reason')
+                audit = audit_source.loc[:, audit_columns].copy()
+                audit = audit.rename(columns=rename)
+                for timestamp_col in ["Time", "First Alert"]:
+                    if timestamp_col in audit.columns:
+                        audit[timestamp_col] = (
+                            pd.to_datetime(audit[timestamp_col], errors="coerce")
+                            .dt.strftime("%H:%M:%S")
+                            .fillna("—")
+                        )
+                st.dataframe(
+                    audit,
+                    use_container_width=True,
+                    hide_index=True,
+                )
+        else:
+            st.dataframe(
+                candidates,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+
 def _render_current_result(
     result: pd.DataFrame,
     timeline: pd.DataFrame,
     snapshot_label: str,
     widget_key_prefix: str = "",
-    show_opportunity_heading: bool = True,
+    snapshot_results: dict[str, pd.DataFrame] | None = None,
 ) -> None:
     if result is None or not isinstance(result, pd.DataFrame) or result.empty:
         st.info("No decision result is available for this snapshot.")
@@ -1489,181 +2142,186 @@ def _render_current_result(
     )
 
     _render_summary(result, candidates)
-    if show_opportunity_heading:
-        st.markdown('<div class="section">Current Decision Opportunities</div>', unsafe_allow_html=True)
 
-    direction = candidates.get("decision_direction", pd.Series("", index=candidates.index)).astype(str).str.upper()
-    state = candidates.get("decision_state", pd.Series("", index=candidates.index)).astype(str).str.upper()
-    bullish_view = candidates.loc[direction.eq("BULLISH")].copy()
-    bearish_view = candidates.loc[direction.eq("BEARISH")].copy()
-    developing_view = candidates.loc[state.str.startswith("DEVELOPING")].copy()
+    with st.expander("Current Decision Opportunities • Top candidates", expanded=True):
+        direction = candidates.get("decision_direction", pd.Series("", index=candidates.index)).astype(str).str.upper()
+        state = candidates.get("decision_state", pd.Series("", index=candidates.index)).astype(str).str.upper()
+        bullish_view = candidates.loc[direction.eq("BULLISH")].copy()
+        bearish_view = candidates.loc[direction.eq("BEARISH")].copy()
+        developing_view = candidates.loc[state.str.startswith("DEVELOPING")].copy()
 
-    # WAIT BREAK is a state inside Bullish/Bearish. It is deliberately not a
-    # separate current queue, preventing the same stock from being displayed
-    # in multiple places.
-    filter_value = st.radio(
-        "Show",
-        ["All", "Bullish", "Bearish", "Developing"],
-        horizontal=True,
-        key=f"{widget_key_prefix}ds_decision_filter",
-    )
-    if filter_value == "Bullish":
-        filtered = bullish_view
-    elif filter_value == "Bearish":
-        filtered = bearish_view
-    elif filter_value == "Developing":
-        filtered = developing_view
-    else:
-        filtered = candidates.copy()
-
-    _render_table(filtered)
-    if not filtered.empty:
-        symbol = st.selectbox(
-            "Inspect one decision",
-            filtered["symbol"].astype(str).tolist(),
-            key=f"{widget_key_prefix}ds_inspect_stock",
+        # WAIT BREAK is a state inside Bullish/Bearish. It is deliberately not a
+        # separate current queue, preventing the same stock from being displayed
+        # in multiple places.
+        filter_value = st.radio(
+            "Show",
+            ["All", "Bullish", "Bearish", "Developing"],
+            horizontal=True,
+            key=f"{widget_key_prefix}ds_decision_filter",
         )
-        selected = filtered.loc[filtered["symbol"].astype(str).eq(symbol)].iloc[0]
-        _render_evidence(selected)
-
-    no_decision_count = int(
-        result.get("decision_state", pd.Series("", index=result.index)).astype(str).str.upper().eq("NO DECISION").sum()
-    )
-    weak_excluded = len(result) - len(candidates) - no_decision_count
-    st.markdown(
-        f'<div class="note">Coverage: {len(result)} evaluated. '
-        f'NO DECISION hidden: {no_decision_count}. '
-        f'Weak/conflicted rows hidden: {max(0, weak_excluded)}.</div>',
-        unsafe_allow_html=True,
-    )
-
-
-
-
-def _render_intraday_stock_evolution(timeline: pd.DataFrame, widget_key_prefix: str = "intraday_") -> None:
-    """Render one shared current-day stock evolution table.
-
-    Presentation only: this uses the existing timeline and first-alert state
-    and never creates a new decision rule.
-    """
-    if isinstance(timeline, pd.DataFrame) and not timeline.empty:
-        st.subheader("Intraday Stock Evolution")
-        evo = timeline.copy()
-        for col in [
-            "Time", "Symbol", "Decision", "Previous", "Direction",
-            "Evidence", "Strength", "S/R", "First Alert",
-        ]:
-            if col not in evo.columns:
-                evo[col] = "—"
-
-        evo["Time"] = evo["Time"].astype(str)
-        evo["Symbol"] = evo["Symbol"].astype(str).str.upper().str.strip()
-        evo["Decision"] = evo["Decision"].astype(str).str.upper().str.strip()
-        evo["Previous"] = evo["Previous"].astype(str).str.upper().str.strip()
-        evo["Direction"] = evo["Direction"].astype(str).str.upper().str.strip()
-
-        # Attach the durable first-alert timestamp when the timeline predates
-        # this field. The state file is the source of truth.
-        try:
-            day_state = load_state(STATE_JSON).get(STATE_KEY, {}).get(
-                st.session_state.get("ds_trading_date", ""), {}
-            ) or {}
-            first_alerts = day_state.get("first_alerts", {}) or {}
-        except Exception:
-            first_alerts = {}
-        evo["First Alert"] = evo.apply(
-            lambda r: str(
-                first_alerts.get(str(r["Symbol"]).upper().strip(), {}).get(
-                    "timestamp", r.get("First Alert", "")
-                )
-            ),
-            axis=1,
-        )
-        evo["First Alert"] = (
-            evo["First Alert"].astype(str).str.replace("T", " ", regex=False).str.slice(11, 19)
-        )
-
-        def _evolution_event(row: pd.Series) -> str:
-            previous = str(row.get("Previous", "")).upper()
-            direction = str(row.get("Direction", "")).upper()
-            decision = str(row.get("Decision", "")).upper()
-            if previous in {"", "—", "NONE", "NAN", "NO DECISION"}:
-                return "NEW ALERT"
-            if previous in {"BULLISH", "BEARISH"} and direction in {"BULLISH", "BEARISH"} and previous != direction:
-                return "REVERSAL"
-            if decision.startswith("DEVELOPING"):
-                return "DEVELOPING"
-            if decision == "WAIT_BREAK_CONFIRMATION":
-                return "WAIT BREAK"
-            if decision.startswith("ACTIVE"):
-                return "ACTIVE"
-            if decision.startswith("STRONG"):
-                return "STRONG"
-            return "STATE CHANGE"
-
-        evo["Event"] = evo.apply(_evolution_event, axis=1)
-        symbols = sorted(evo["Symbol"].dropna().unique().tolist())
-        f1, f2 = st.columns([2, 1])
-        with f1:
-            selected_stock = st.selectbox(
-                "Stock",
-                ["All stocks"] + symbols,
-                key=f"{widget_key_prefix}evolution_stock",
-            )
-        with f2:
-            selected_event = st.selectbox(
-                "Progress",
-                ["All", "NEW ALERT", "DEVELOPING", "WAIT BREAK", "ACTIVE", "STRONG", "REVERSAL", "STATE CHANGE"],
-                key=f"{widget_key_prefix}evolution_event",
-            )
-
-        filtered_evo = evo.copy()
-        if selected_stock != "All stocks":
-            filtered_evo = filtered_evo.loc[filtered_evo["Symbol"].eq(selected_stock)].copy()
-        if selected_event != "All":
-            filtered_evo = filtered_evo.loc[filtered_evo["Event"].eq(selected_event)].copy()
-
-        if selected_stock == "All stocks":
-            filtered_evo = filtered_evo.tail(30)
+        if filter_value == "Bullish":
+            filtered = bullish_view
+        elif filter_value == "Bearish":
+            filtered = bearish_view
+        elif filter_value == "Developing":
+            filtered = developing_view
         else:
-            filtered_evo = filtered_evo.tail(60)
+            filtered = candidates.copy()
 
-        display_cols = [
-            "Time", "Symbol", "First Alert", "Event", "Decision",
-            "Previous", "Direction", "Evidence", "Strength", "S/R",
-        ]
-        display_cols = [c for c in display_cols if c in filtered_evo.columns]
+        _render_opportunity_cards(filtered, limit=10, snapshot_results=snapshot_results)
+        _render_live_queue(filtered, snapshot_results=snapshot_results)
+        if not filtered.empty:
+            symbol = st.selectbox(
+                "Inspect one decision",
+                filtered["symbol"].astype(str).tolist(),
+                key=f"{widget_key_prefix}ds_inspect_stock",
+            )
+            selected = filtered.loc[filtered["symbol"].astype(str).eq(symbol)].iloc[0]
+            _render_evidence(selected)
 
-        def _evo_style(row: pd.Series) -> list[str]:
-            event = str(row.get("Event", ""))
-            decision = str(row.get("Decision", "")).upper()
-            direction = str(row.get("Direction", "")).upper()
-            if event == "NEW ALERT":
-                return ["background-color:#ecfdf5;color:#166534;font-weight:700"] * len(row)
-            if event == "REVERSAL":
-                return ["background-color:#fff1f2;color:#9f1239;font-weight:700"] * len(row)
-            if decision.startswith("STRONG"):
-                return ["background-color:#dcfce7;color:#166534"] * len(row)
-            if decision.startswith("ACTIVE"):
-                return ["background-color:#f0fdf4;color:#15803d"] * len(row)
-            if event == "WAIT BREAK":
-                return ["background-color:#eef2ff;color:#3730a3"] * len(row)
-            if decision.startswith("DEVELOPING"):
-                return ["background-color:#fffbeb;color:#92400e"] * len(row)
-            if direction == "BEARISH":
-                return ["background-color:#fff7f7;color:#991b1b"] * len(row)
-            return ["background-color:#f8fafc;color:#334155"] * len(row)
+        with st.expander("Full qualified decision table • audit view", expanded=False):
+            _render_table(filtered)
 
-        st.dataframe(
-            filtered_evo[display_cols].style.apply(_evo_style, axis=1),
-            use_container_width=True,
-            hide_index=True,
+        no_decision_count = int(
+            result.get("decision_state", pd.Series("", index=result.index)).astype(str).str.upper().eq("NO DECISION").sum()
         )
-        st.caption(
-            "Progress colours: green = strengthening/strong, amber = developing, "
-            "indigo = wait-break, red/pink = reversal. First Alert is the first time "
-            "the stock entered the existing decision table."
+        weak_excluded = len(result) - len(candidates) - no_decision_count
+        st.markdown(
+            f'<div class="note">Coverage: {len(result)} evaluated. '
+            f'NO DECISION hidden: {no_decision_count}. '
+            f'Weak/conflicted rows hidden: {max(0, weak_excluded)}.</div>',
+            unsafe_allow_html=True,
         )
+    # Intraday Stock Evolution is a focused, stock-wise progress view. It remains
+    # derived only from the existing timeline events and never creates a new
+    # decision rule.
+    if isinstance(timeline, pd.DataFrame) and not timeline.empty:
+        with st.expander("Intraday Stock Evolution • meaningful changes", expanded=False):
+            evo = timeline.copy()
+            for col in [
+                "Time", "Symbol", "Decision", "Previous", "Direction",
+                "Evidence", "Strength", "S/R", "First Alert",
+            ]:
+                if col not in evo.columns:
+                    evo[col] = "—"
+
+            evo["Time"] = evo["Time"].astype(str)
+            evo["Symbol"] = evo["Symbol"].astype(str).str.upper().str.strip()
+            evo["Decision"] = evo["Decision"].astype(str).str.upper().str.strip()
+            evo["Previous"] = evo["Previous"].astype(str).str.upper().str.strip()
+            evo["Direction"] = evo["Direction"].astype(str).str.upper().str.strip()
+
+            # Attach the durable first-alert timestamp when the timeline predates
+            # this field. The state file is the source of truth.
+            try:
+                day_state = load_state(STATE_JSON).get(STATE_KEY, {}).get(
+                    st.session_state.get("ds_trading_date", ""), {}
+                ) or {}
+                first_alerts = day_state.get("first_alerts", {}) or {}
+            except Exception:
+                first_alerts = {}
+            def _display_first_alert(row: pd.Series) -> str:
+                alert = str(
+                    first_alerts.get(
+                        str(row["Symbol"]).upper().strip(), {}
+                    ).get("timestamp", "")
+                ).strip()
+                event_time = str(row.get("Time", "")).strip()[:8]
+                if not alert:
+                    return "—"
+                try:
+                    alert_time = datetime.fromisoformat(alert).strftime("%H:%M:%S")
+                except (TypeError, ValueError):
+                    return "—"
+                return alert_time if alert_time == event_time else "—"
+
+            evo["First Alert"] = evo.apply(
+                _display_first_alert,
+                axis=1,
+            )
+
+            def _evolution_event(row: pd.Series) -> str:
+                previous = str(row.get("Previous", "")).upper()
+                direction = str(row.get("Direction", "")).upper()
+                decision = str(row.get("Decision", "")).upper()
+                if previous in {"", "—", "NONE", "NAN", "NO DECISION"}:
+                    return "NEW ALERT"
+                if previous in {"BULLISH", "BEARISH"} and direction in {"BULLISH", "BEARISH"} and previous != direction:
+                    return "REVERSAL"
+                if decision.startswith("DEVELOPING"):
+                    return "DEVELOPING"
+                if decision == "WAIT_BREAK_CONFIRMATION":
+                    return "WAIT BREAK"
+                if decision.startswith("ACTIVE"):
+                    return "ACTIVE"
+                if decision.startswith("STRONG"):
+                    return "STRONG"
+                return "STATE CHANGE"
+
+            evo["Event"] = evo.apply(_evolution_event, axis=1)
+            symbols = sorted(evo["Symbol"].dropna().unique().tolist())
+            f1, f2 = st.columns([2, 1])
+            with f1:
+                selected_stock = st.selectbox(
+                    "Stock",
+                    ["All stocks"] + symbols,
+                    key=f"{widget_key_prefix}evolution_stock",
+                )
+            with f2:
+                selected_event = st.selectbox(
+                    "Progress",
+                    ["All", "NEW ALERT", "DEVELOPING", "WAIT BREAK", "ACTIVE", "STRONG", "REVERSAL", "STATE CHANGE"],
+                    key=f"{widget_key_prefix}evolution_event",
+                )
+
+            filtered_evo = evo.copy()
+            if selected_stock != "All stocks":
+                filtered_evo = filtered_evo.loc[filtered_evo["Symbol"].eq(selected_stock)].copy()
+            if selected_event != "All":
+                filtered_evo = filtered_evo.loc[filtered_evo["Event"].eq(selected_event)].copy()
+
+            if selected_stock == "All stocks":
+                filtered_evo = filtered_evo.tail(30)
+            else:
+                filtered_evo = filtered_evo.tail(60)
+
+            display_cols = [
+                "Time", "Symbol", "First Alert", "Event", "Decision",
+                "Previous", "Direction", "Evidence", "Strength", "S/R",
+            ]
+            display_cols = [c for c in display_cols if c in filtered_evo.columns]
+
+            def _evo_style(row: pd.Series) -> list[str]:
+                event = str(row.get("Event", ""))
+                decision = str(row.get("Decision", "")).upper()
+                direction = str(row.get("Direction", "")).upper()
+                if event == "NEW ALERT":
+                    return ["background-color:#ecfdf5;color:#166534;font-weight:700"] * len(row)
+                if event == "REVERSAL":
+                    return ["background-color:#fff1f2;color:#9f1239;font-weight:700"] * len(row)
+                if decision.startswith("STRONG"):
+                    return ["background-color:#dcfce7;color:#166534"] * len(row)
+                if decision.startswith("ACTIVE"):
+                    return ["background-color:#f0fdf4;color:#15803d"] * len(row)
+                if event == "WAIT BREAK":
+                    return ["background-color:#eef2ff;color:#3730a3"] * len(row)
+                if decision.startswith("DEVELOPING"):
+                    return ["background-color:#fffbeb;color:#92400e"] * len(row)
+                if direction == "BEARISH":
+                    return ["background-color:#fff7f7;color:#991b1b"] * len(row)
+                return ["background-color:#f8fafc;color:#334155"] * len(row)
+
+            st.dataframe(
+                filtered_evo[display_cols].style.apply(_evo_style, axis=1),
+                use_container_width=True,
+                hide_index=True,
+            )
+            st.caption(
+                "Progress colours: green = strengthening/strong, amber = developing, "
+                "indigo = wait-break, red/pink = reversal. First Alert is the first time "
+                "the stock entered the existing decision table."
+            )
+
 
 
 def _persist_last_complete_state(
@@ -1708,6 +2366,31 @@ def _restore_last_complete_state(
         return None
 
     result = pd.DataFrame(rows)
+
+    # First Alert is durable provenance. Older persisted results may not carry
+    # the column, so recover it from the established first_alerts map.
+    first_alerts = day.get("first_alerts", {}) or {}
+    if not result.empty and "symbol" in result.columns:
+        result["first_alert_timestamp"] = result["symbol"].map(
+            lambda value: str(
+                first_alerts.get(
+                    str(value).strip().upper(), {}
+                ).get("timestamp", "")
+            )
+        )
+
+    # Backfill provenance from the durable first_alerts map when an older
+    # persisted result does not contain the first_alert_timestamp column.
+    day_first_alerts = day.get("first_alerts", {}) or {}
+    if not result.empty and "symbol" in result.columns:
+        result["first_alert_timestamp"] = result["symbol"].map(
+            lambda value: str(
+                day_first_alerts.get(
+                    str(value).strip().upper(), {}
+                ).get("timestamp", "")
+            )
+        )
+
     timeline_rows = saved.get("timeline", [])
     timeline = (
         pd.DataFrame(timeline_rows)
@@ -1720,8 +2403,8 @@ def _restore_last_complete_state(
 
 
 if hasattr(st, "fragment"):
-    @st.fragment(run_every="10s")
-    def _live_auto_panel(source_root: Path, trading_date: str, auto_update: bool) -> None:
+    @st.fragment(run_every="300s")
+    def _live_auto_panel(source_root: Path, trading_date: str, auto_update: bool, rollover_fallback: bool = False) -> None:
         # Re-discover on every live fragment cycle so newly-arrived snapshots
         # become visible without requiring a manual full-page refresh.
         try:
@@ -1734,60 +2417,117 @@ if hasattr(st, "fragment"):
             session_state = st.session_state.setdefault(_live_session_key(trading_date), {})
             session_state["last_source_key"] = _source_key(sources[-1])
 
-            if market_open and auto_update:
-                latest, timeline, _changed = _auto_process_new_snapshots(sources, trading_date)
-                session_state["finalized"] = False
-            else:
-                # Outside market hours, restore durable final state first.
-                # Do not replay the whole day merely because Streamlit state
-                # was lost.
+            # LIVE FEED always resolves to the chronologically latest available
+            # source snapshot. When Auto-Live is ON, newly arriving source files
+            # are processed incrementally on each fragment cycle, regardless of
+            # whether the market is currently open. Market status never hides the
+            # latest available snapshot.
+            # On a calendar rollover, CURRENT DAY is intentionally displaying
+            # the previous trading day's last completed result. Restore that
+            # durable result directly instead of replaying all snapshots merely
+            # to reconstruct an already-processed day.
+            if rollover_fallback:
                 restored = _restore_last_complete_state(trading_date)
                 if restored is not None:
                     latest, timeline, persisted_source, persisted_timestamp = restored
-                    session_state["finalized"] = True
-                    session_state["final_snapshot_key"] = (
-                        persisted_source or _source_key(sources[-1])
+                elif auto_update:
+                    latest, timeline, _changed = _auto_process_new_snapshots(
+                        sources, trading_date
                     )
-                    session_state["finalized_at"] = datetime.now().isoformat()
+                    persisted_source = ""
+                    persisted_timestamp = ""
                 else:
                     latest, timeline, _ = _load_day_for_snapshot_view(
                         sources, trading_date
                     )
                     persisted_source = ""
                     persisted_timestamp = ""
-                    if latest is not None and not latest.empty:
-                        session_state["finalized"] = True
-                        session_state["final_snapshot_key"] = _source_key(sources[-1])
-                        session_state["finalized_at"] = datetime.now().isoformat()
+            elif auto_update:
+                latest, timeline, _changed = _auto_process_new_snapshots(
+                    sources, trading_date
+                )
+                persisted_source = ""
+                persisted_timestamp = ""
+            else:
+                latest, timeline, _ = _load_day_for_snapshot_view(
+                    sources, trading_date
+                )
+                persisted_source = ""
+                persisted_timestamp = ""
+            session_state["finalized"] = not market_open
 
             if latest is None or latest.empty:
                 st.info("The first snapshot is BASE ONLY. Waiting for the first decision-bearing snapshot.")
                 return
 
-            if not market_open and persisted_source:
-                latest_path = Path(persisted_source)
-                try:
+            latest_path = sources[-1]
+            latest_time = parse_observation_timestamp(latest_path)
+            if persisted_source:
+                candidate_path = Path(persisted_source)
+                if candidate_path.is_file():
+                    latest_path = candidate_path
                     latest_time = (
                         datetime.fromisoformat(persisted_timestamp)
                         if persisted_timestamp
-                        else parse_observation_timestamp(latest_path)
+                        else parse_observation_timestamp(candidate_path)
                     )
-                except (TypeError, ValueError):
-                    latest_time = parse_observation_timestamp(latest_path)
-            else:
-                latest_path = sources[-1]
-                latest_time = parse_observation_timestamp(latest_path)
-            if market_open:
-                status = "LIVE • market open"
-                if auto_update:
-                    status += " • Auto-update ON"
+            if isinstance(latest, pd.DataFrame) and not latest.empty:
+                if "source_file" in latest.columns:
+                    source_values = latest["source_file"].dropna().astype(str)
+                    if not source_values.empty:
+                        candidate = Path(source_values.iloc[-1])
+                        if candidate.is_file():
+                            latest_path = candidate
+                if "source_timestamp" in latest.columns:
+                    processed_times = pd.to_datetime(
+                        latest["source_timestamp"], errors="coerce"
+                    ).dropna()
+                    if not processed_times.empty:
+                        latest_time = processed_times.max().to_pydatetime()
+                elif "observation_timestamp" in latest.columns:
+                    processed_times = pd.to_datetime(
+                        latest["observation_timestamp"], errors="coerce"
+                    ).dropna()
+                    if not processed_times.empty:
+                        latest_time = processed_times.max().to_pydatetime()
+            source_latest_time = parse_observation_timestamp(sources[-1])
+            if auto_update:
+                if latest_time < source_latest_time:
+                    status = (
+                        "LIVE FEED • processing catch-up • "
+                        "chronologically monitored"
+                    )
                 else:
-                    status += " • Auto-update OFF"
+                    status = (
+                        "LIVE FEED • last available snapshot • "
+                        "chronologically monitored"
+                    )
             else:
-                status = "FINAL SESSION STATE • market closed • preserved from last complete snapshot"
+                status = "LIVE FEED • last processed snapshot • Auto-update OFF"
+            if not market_open:
+                status += " • market closed"
 
-            st.caption(f"{status} • {latest_time:%H:%M:%S} • {latest_path.name}")
-            _render_current_result(latest, timeline, latest_time.strftime("%H:%M:%S"), "live_")
+            if latest_time < source_latest_time:
+                st.caption(
+                    f"{status} • processed {latest_time:%H:%M:%S} / "
+                    f"source latest {source_latest_time:%H:%M:%S} • {latest_path.name}"
+                )
+            else:
+                st.caption(
+                    f"{status} • {latest_time:%H:%M:%S} • {latest_path.name}"
+                )
+
+            # The LIVE result is the output of the existing processing pipeline
+            # applied to the data available through this processed timestamp.
+            # Keep the row-level output collapsed so it does not compete with
+            # the decision-first board.
+            _render_processing_output(
+                latest,
+                latest_time,
+                latest_path,
+            )
+            _live_cache = _get_replay_cache(trading_date)
+            _render_current_result(latest, timeline, latest_time.strftime("%H:%M:%S"), "live_", _live_cache.get("snapshots", {}) if isinstance(_live_cache, dict) else {})
         except Exception as exc:
             st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
 
@@ -1861,13 +2601,49 @@ def render() -> None:
         ).strftime("%Y-%m-%d")
 
     source_root = Path(st.session_state.get("ds_source_root_override", default_source_root)).expanduser()
-    try:
-        sources = _discover_sources(trading_date, source_root)
-    except Exception as exc:
-        st.error(f"Source discovery failed: {type(exc).__name__}: {exc}")
-        return
+    # A calendar-day rollover must not blank the decision center. CURRENT DAY
+    # uses today's snapshots when present; otherwise it retains the most recent
+    # available trading-day result until a new current-day source arrives.
+    selected_calendar_date = trading_date
+    available_dates = _available_trading_dates(source_root)
+
+    if view_mode == "CURRENT DAY":
+        try:
+            sources = _discover_sources(selected_calendar_date, source_root)
+        except Exception as exc:
+            st.error(f"Source discovery failed: {type(exc).__name__}: {exc}")
+            return
+
+        data_trading_date = selected_calendar_date
+        if not sources:
+            prior_dates = [
+                d for d in available_dates if d <= selected_calendar_date
+            ]
+            if prior_dates:
+                data_trading_date = prior_dates[-1]
+                sources = _discover_sources(data_trading_date, source_root)
+                if data_trading_date != selected_calendar_date:
+                    st.info(
+                        f"No snapshots yet for {selected_calendar_date}. "
+                        f"Showing latest available trading day: {data_trading_date}."
+                    )
+            else:
+                st.warning("No Daywise snapshots are available yet.")
+                return
+        trading_date = data_trading_date
+    else:
+        # Historical mode has its own date selector and source discovery below.
+        # Use the latest available day only for the compact top strip.
+        data_trading_date = (
+            available_dates[-1] if available_dates else selected_calendar_date
+        )
+        sources = (
+            _discover_sources(data_trading_date, source_root)
+            if available_dates else []
+        )
+
     if not sources:
-        st.warning("No Daywise snapshots found for the selected date.")
+        st.warning("No Daywise snapshots are available yet.")
         return
 
     latest_path = sources[-1]
@@ -1879,6 +2655,43 @@ def render() -> None:
         unsafe_allow_html=True,
     )
 
+    # TOP deployment: compact operational status only. No decision or
+    # processing logic is changed here.
+    _, market_open = _market_session_status(trading_date)
+    session_class = "top-status-live" if market_open else "top-status-closed"
+    session_label = "MARKET OPEN" if market_open else "MARKET CLOSED"
+
+    # LIVE FEED is the chronologically latest available snapshot.
+    # Market status is separate: after hours, the last available snapshot
+    # remains the live dashboard result until a newer source file arrives.
+    auto_live_enabled = st.session_state.get("ds_auto_update", True)
+    if auto_live_enabled:
+        live_feed_class = "top-status-active"
+        live_feed_label = "LIVE FEED • LAST AVAILABLE"
+    else:
+        live_feed_class = "top-status-closed"
+        live_feed_label = "LIVE FEED • PAUSED"
+
+    st.markdown(
+        f'''
+<div class="top-status">
+  <div class="top-status-chip top-status-ready">
+    <span class="top-status-dot"></span>DATA READY
+  </div>
+  <div class="top-status-chip {live_feed_class}">
+    <span class="top-status-dot"></span>{live_feed_label}
+  </div>
+  <div class="top-status-chip {session_class}">
+    <span class="top-status-dot"></span>{session_label}
+  </div>
+  <div class="top-status-chip">
+    <span class="top-status-dot"></span>LAST {latest_time:%H:%M:%S}
+  </div>
+</div>
+''',
+        unsafe_allow_html=True,
+    )
+
     if view_mode == "CURRENT DAY":
         # CURRENT DAY intentionally renders LIVE and INTRADAY SNAPSHOT together.
         # LIVE owns the live-processing path; the snapshot section only reads
@@ -1886,187 +2699,180 @@ def render() -> None:
         # needed for snapshot inspection). The two views use independent
         # Streamlit widget keys so changing the snapshot selector cannot alter
         # LIVE state.
-        st.markdown(
-            '<div class="section">LIVE</div>',
-            unsafe_allow_html=True,
-        )
+        with st.expander("LIVE • Feed & Session", expanded=True):
+            a1, a2 = st.columns([2, 1])
+            with a1:
+                auto_update = st.checkbox(
+                    "Auto-update live feed (5 min)",
+                    value=True,
+                    key="ds_auto_update",
+                )
+            with a2:
+                refresh = st.button(
+                    "↻ Refresh",
+                    use_container_width=True,
+                    key="ds_live_refresh",
+                )
 
-        a1, a2 = st.columns([2, 1])
-        with a1:
-            auto_update = st.checkbox(
-                "Auto-update live feed",
-                value=True,
-                key="ds_auto_update",
-            )
-        with a2:
-            refresh = st.button(
-                "↻ Refresh",
-                use_container_width=True,
-                key="ds_live_refresh",
-            )
+            if refresh:
+                st.session_state.pop(_cache_key(trading_date), None)
+                st.rerun()
 
-        if refresh:
-            st.session_state.pop(_cache_key(trading_date), None)
-            st.rerun()
-
-        # Auto-update remains the existing live function and is not duplicated.
-        if hasattr(st, "fragment"):
-            _live_auto_panel(source_root, trading_date, auto_update)
-        else:
-            try:
-                live_sources = _discover_sources(trading_date, source_root)
-                _, market_open = _market_session_status(trading_date)
-                if market_open and auto_update:
-                    latest, timeline, _changed = _auto_process_new_snapshots(
-                        live_sources, trading_date
-                    )
-                    persisted_source = ""
-                    persisted_timestamp = ""
-                else:
-                    restored = _restore_last_complete_state(trading_date)
-                    if restored is not None:
-                        latest, timeline, persisted_source, persisted_timestamp = restored
-                    else:
-                        latest, timeline, _ = _load_day_for_snapshot_view(
+            # Auto-update remains the existing live function and is not duplicated.
+            if hasattr(st, "fragment"):
+                _live_auto_panel(
+                    source_root,
+                    trading_date,
+                    auto_update,
+                    rollover_fallback=(trading_date != selected_calendar_date),
+                )
+            else:
+                try:
+                    live_sources = _discover_sources(trading_date, source_root)
+                    _, market_open = _market_session_status(trading_date)
+                    if market_open and auto_update:
+                        latest, timeline, _changed = _auto_process_new_snapshots(
                             live_sources, trading_date
                         )
                         persisted_source = ""
                         persisted_timestamp = ""
+                    else:
+                        restored = _restore_last_complete_state(trading_date)
+                        if restored is not None:
+                            latest, timeline, persisted_source, persisted_timestamp = restored
+                        else:
+                            latest, timeline, _ = _load_day_for_snapshot_view(
+                                live_sources, trading_date
+                            )
+                            persisted_source = ""
+                            persisted_timestamp = ""
+                except Exception as exc:
+                    st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
+                    return
+
+                if latest is None or latest.empty:
+                    st.info(
+                        "The first snapshot is BASE ONLY. Waiting for the first "
+                        "decision-bearing snapshot."
+                    )
+                else:
+                    if not market_open and persisted_source:
+                        live_path = Path(persisted_source)
+                        try:
+                            live_time = (
+                                datetime.fromisoformat(persisted_timestamp)
+                                if persisted_timestamp
+                                else parse_observation_timestamp(live_path)
+                            )
+                        except (TypeError, ValueError):
+                            live_time = parse_observation_timestamp(live_path)
+                    else:
+                        live_path = live_sources[-1]
+                        live_time = parse_observation_timestamp(live_path)
+
+                    status = (
+                        "LIVE FEED • last available snapshot • chronologically monitored"
+                        if auto_update
+                        else "LIVE FEED • last available snapshot • Auto-update OFF"
+                    )
+                    if not market_open:
+                        status += " • market closed"
+
+                    st.caption(
+                        f"{status} • {live_time:%H:%M:%S} • {live_path.name}"
+                    )
+                    _live_cache = _get_replay_cache(trading_date)
+                    _render_current_result(
+                        latest, timeline, live_time.strftime("%H:%M:%S"), "live_",
+                        _live_cache.get("snapshots", {}) if isinstance(_live_cache, dict) else {},
+                    )
+
+
+        with st.expander("INTRADAY SNAPSHOT / REPLAY", expanded=False):
+            # Snapshot inspection is independent from LIVE. It uses the existing
+            # replay cache and does not change the live session state.
+            try:
+                replay_cache = _get_replay_cache(trading_date)
+                snapshots = replay_cache.get("snapshots", {})
+                timeline = replay_cache.get("timeline", pd.DataFrame())
+
+                if not isinstance(snapshots, dict) or not all(
+                    _source_key(p) in snapshots for p in sources
+                ):
+                    _, timeline, snapshots = _load_day_for_snapshot_view(
+                        sources,
+                        trading_date,
+                    )
             except Exception as exc:
-                st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
+                st.error(
+                    f"Intraday replay preparation failed: {type(exc).__name__}: {exc}"
+                )
                 return
 
-            if latest is None or latest.empty:
+            labels = [
+                parse_observation_timestamp(p).strftime("%H:%M:%S")
+                for p in sources
+            ]
+            idx = st.selectbox(
+                "Snapshot time",
+                list(range(len(sources))),
+                index=len(sources) - 1,
+                format_func=lambda i: labels[i],
+                key="ds_intraday_snapshot",
+            )
+            selected_path = sources[idx]
+            selected_key = _source_key(selected_path)
+            result = snapshots.get(selected_key, pd.DataFrame())
+
+            if idx == 0:
                 st.info(
-                    "The first snapshot is BASE ONLY. Waiting for the first "
-                    "decision-bearing snapshot."
+                    f"{labels[idx]} is the BASE snapshot only; it establishes "
+                    "the opening reference and has no decision rows."
                 )
             else:
-                if not market_open and persisted_source:
-                    live_path = Path(persisted_source)
-                    try:
-                        live_time = (
-                            datetime.fromisoformat(persisted_timestamp)
-                            if persisted_timestamp
-                            else parse_observation_timestamp(live_path)
-                        )
-                    except (TypeError, ValueError):
-                        live_time = parse_observation_timestamp(live_path)
-                else:
-                    live_path = live_sources[-1]
-                    live_time = parse_observation_timestamp(live_path)
+                _render_current_result(result, timeline, labels[idx], "intraday_", snapshots)
 
-                if market_open:
-                    status = "LIVE • market open" + (
-                        " • Auto-update ON" if auto_update else " • Auto-update OFF"
-                    )
-                else:
-                    status = (
-                        "FINAL SESSION STATE • market closed • preserved from "
-                        "last complete snapshot"
-                    )
-
-                st.caption(
-                    f"{status} • {live_time:%H:%M:%S} • {live_path.name}"
-                )
-                _render_current_result(
-                    latest,
-                    timeline,
-                    live_time.strftime("%H:%M:%S"),
-                    "live_",
-                )
-
-        st.markdown(
-            '<div class="section">INTRADAY SNAPSHOT</div>',
-            unsafe_allow_html=True,
-        )
-
-        # Snapshot inspection is independent from LIVE. It uses the existing
-        # replay cache and does not change the live session state.
-        try:
-            replay_cache = _get_replay_cache(trading_date)
-            snapshots = replay_cache.get("snapshots", {})
-            timeline = replay_cache.get("timeline", pd.DataFrame())
-
-            if not isinstance(snapshots, dict) or not all(
-                _source_key(p) in snapshots for p in sources
-            ):
-                _, timeline, snapshots = _load_day_for_snapshot_view(
-                    sources,
-                    trading_date,
-                )
-        except Exception as exc:
-            st.error(
-                f"Intraday replay preparation failed: {type(exc).__name__}: {exc}"
-            )
-            return
-
-        labels = [
-            parse_observation_timestamp(p).strftime("%H:%M:%S")
-            for p in sources
-        ]
-        idx = st.selectbox(
-            "Snapshot time",
-            list(range(len(sources))),
-            index=len(sources) - 1,
-            format_func=lambda i: labels[i],
-            key="ds_intraday_snapshot",
-        )
-        selected_path = sources[idx]
-        selected_key = _source_key(selected_path)
-        result = snapshots.get(selected_key, pd.DataFrame())
-
-        if idx == 0:
-            st.info(
-                f"{labels[idx]} is the BASE snapshot only; it establishes "
-                "the opening reference and has no decision rows."
-            )
-        else:
-            _render_current_result(
-                result,
-                timeline,
-                labels[idx],
-                "intraday_",
-                show_opportunity_heading=False,
-            )
-
-        # One shared evolution view for CURRENT DAY. LIVE and INTRADAY
-        # SNAPSHOT intentionally do not render separate copies.
-        shared_timeline = _get_replay_cache(trading_date).get(
-            "timeline", pd.DataFrame()
-        )
-        _render_intraday_stock_evolution(shared_timeline)
 
     else:  # HISTORICAL
-        historical_date = st.date_input("Historical trading date", value=date.today(), key="ds_historical_date").strftime("%Y-%m-%d")
-        try:
-            historical_sources = _discover_sources(historical_date, source_root)
-        except Exception as exc:
-            st.error(f"Historical source discovery failed: {type(exc).__name__}: {exc}")
-            return
-        if not historical_sources:
-            st.info("No snapshots found for the selected historical day.")
-            return
+        with st.expander("HISTORICAL REPLAY", expanded=False):
+            historical_default = (
+                available_dates[-1]
+                if available_dates
+                else date.today().strftime("%Y-%m-%d")
+            )
+            historical_date = st.date_input(
+                "Historical trading date",
+                value=datetime.strptime(historical_default, "%Y-%m-%d").date(),
+                key="ds_historical_date",
+            ).strftime("%Y-%m-%d")
+            try:
+                historical_sources = _discover_sources(historical_date, source_root)
+            except Exception as exc:
+                st.error(f"Historical source discovery failed: {type(exc).__name__}: {exc}")
+                return
+            if not historical_sources:
+                st.info("No snapshots found for the selected historical day.")
+                return
 
-        try:
-            _, timeline, snapshots = _load_day_for_snapshot_view(historical_sources, historical_date)
-        except Exception as exc:
-            st.error(f"Historical replay preparation failed: {type(exc).__name__}: {exc}")
-            return
+            try:
+                _, timeline, snapshots = _load_day_for_snapshot_view(historical_sources, historical_date)
+            except Exception as exc:
+                st.error(f"Historical replay preparation failed: {type(exc).__name__}: {exc}")
+                return
 
-        idx = st.selectbox(
-            "Historical snapshot time",
-            list(range(len(historical_sources))),
-            index=len(historical_sources)-1,
-            format_func=lambda i: parse_observation_timestamp(historical_sources[i]).strftime("%H:%M:%S"),
-            key="ds_historical_snapshot",
-        )
-        selected_path = historical_sources[idx]
-        if idx == 0:
-            st.info("The selected historical snapshot is BASE ONLY.")
-            return
-        result = snapshots.get(_source_key(selected_path), pd.DataFrame())
-        _render_current_result(result, timeline, parse_observation_timestamp(selected_path).strftime("%H:%M:%S"), "historical_")
+            idx = st.selectbox(
+                "Historical snapshot time",
+                list(range(len(historical_sources))),
+                index=len(historical_sources)-1,
+                format_func=lambda i: parse_observation_timestamp(historical_sources[i]).strftime("%H:%M:%S"),
+                key="ds_historical_snapshot",
+            )
+            selected_path = historical_sources[idx]
+            if idx == 0:
+                st.info("The selected historical snapshot is BASE ONLY.")
+                return
+            result = snapshots.get(_source_key(selected_path), pd.DataFrame())
+            _render_current_result(result, timeline, parse_observation_timestamp(selected_path).strftime("%H:%M:%S"), "historical_", snapshots)
 
 
 if __name__ == "__main__":

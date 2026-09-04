@@ -24,6 +24,9 @@ from prediction_engine import build_current_predictions
 from source_loader import load_primary_snapshot, parse_observation_timestamp
 from storage import load_events, load_state
 
+# ADDITIVE ONLY: isolated Sector Analysis page. Existing SDL logic is untouched.
+from Sector_Analysis.sector_page import render_sector_analysis_page
+
 IST = "Asia/Kolkata"
 
 
@@ -2731,6 +2734,35 @@ def render_live() -> None:
 
 
 # ============================================================================
+# SECTOR ANALYSIS — EXISTING NEWS FEED ADAPTER (PRESENTATION ONLY)
+# ============================================================================
+
+def sector_analysis_news_provider() -> list[dict]:
+    """Reuse the dashboard's existing NSE market-news feed for Sector Analysis.
+
+    No new provider, scoring path, source workbook, or SDL decision dependency
+    is introduced here. Sector Analysis consumes this as contextual evidence.
+    """
+    try:
+        items = live_nse_market_news()
+    except Exception:
+        return []
+
+    return [
+        {
+            "title": (
+                f"{str(item.get('symbol', '')).strip().upper()} · "
+                f"{str(item.get('text', '')).strip()}"
+            ).strip(" ·"),
+            "timestamp": item.get("time"),
+            "source": "NSE Corporate Announcements",
+        }
+        for item in items
+        if str(item.get("text", "")).strip()
+    ]
+
+
+# ============================================================================
 # HEADER / NAVIGATION
 # ============================================================================
 
@@ -2738,7 +2770,7 @@ if "page" not in st.session_state:
     st.session_state.page = "decision"
 
 header_cols = st.columns(
-    [1.35, 1.05, 1.05, .85, .42, .62, .58, .78, .52]
+    [1.35, 1.00, 1.00, 1.00, .80, .42, .62, .58, .78, .52]
 )
 
 with header_cols[0]:
@@ -2771,6 +2803,22 @@ with header_cols[1]:
 with header_cols[2]:
     st.markdown('<div class="header-nav">', unsafe_allow_html=True)
     if st.button(
+        "▦ Sector Analysis",
+        type=(
+            "primary"
+            if st.session_state.page == "sector"
+            else "secondary"
+        ),
+        use_container_width=True,
+        key="nav_sector",
+    ):
+        st.session_state.page = "sector"
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with header_cols[3]:
+    st.markdown('<div class="header-nav">', unsafe_allow_html=True)
+    if st.button(
         "▤ Historical Evidence",
         type=(
             "primary"
@@ -2784,7 +2832,7 @@ with header_cols[2]:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-with header_cols[3]:
+with header_cols[4]:
     st.markdown('<div class="header-nav">', unsafe_allow_html=True)
     if st.button(
         "⚙ Settings",
@@ -2800,7 +2848,7 @@ with header_cols[3]:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-with header_cols[4]:
+with header_cols[5]:
     st.markdown(
         '<div class="header-control">'
         '<div class="live-pill"><i></i> LIVE</div>'
@@ -2808,7 +2856,7 @@ with header_cols[4]:
         unsafe_allow_html=True,
     )
 
-with header_cols[5]:
+with header_cols[6]:
     now = datetime.now()
     st.markdown(
         f'<div class="clock-box">'
@@ -2818,7 +2866,7 @@ with header_cols[5]:
         unsafe_allow_html=True,
     )
 
-with header_cols[6]:
+with header_cols[7]:
     st.markdown('<div class="header-control">', unsafe_allow_html=True)
     if st.button(
         "↻ Refresh",
@@ -2828,7 +2876,7 @@ with header_cols[6]:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-with header_cols[7]:
+with header_cols[8]:
     st.markdown('<div class="header-control">', unsafe_allow_html=True)
     auto = st.checkbox(
         "Auto Refresh",
@@ -2837,7 +2885,7 @@ with header_cols[7]:
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
-with header_cols[8]:
+with header_cols[9]:
     st.markdown('<div class="header-control">', unsafe_allow_html=True)
     interval = st.selectbox(
         "Refresh interval",
@@ -2940,6 +2988,16 @@ if st.session_state.page == "settings":
         'SDL scoring or qualification.'
         '</div>',
         unsafe_allow_html=True,
+    )
+
+elif st.session_state.page == "sector":
+    render_sector_analysis_page(
+        getattr(
+            sdl_pipeline,
+            "INTRADAY_SOURCE_ROOT",
+            sdl_config.INTRADAY_SOURCE_ROOT,
+        ),
+        news_provider=sector_analysis_news_provider,
     )
 
 elif st.session_state.page == "historical":
