@@ -228,13 +228,48 @@ def _process_snapshot(
         # intraday chain. Normalize once and carry that identity forward.
         signal["symbol"] = symbol
         signal["source_evidence"] = source_map
-        rows.append(
-            enrich_decision(
-                signal,
-                record,
-                context=first_range or {},
-            )
+
+        enriched = enrich_decision(
+            signal,
+            record,
+            context=first_range or {},
         )
+
+        # Retracement needs the actual price/HL/volume observations from the
+        # source snapshot. enrich_decision intentionally returns the decision
+        # schema, so preserve these raw market fields alongside it for the
+        # diagnostic lifecycle. This does not participate in SDL scoring,
+        # candidate selection, or ranking.
+        for raw_key in (
+            "Open", "open",
+            "High", "high",
+            "Low", "low",
+            "Close", "close",
+            "Volume", "volume",
+            "Total Volume", "total_volume",
+            "Price", "price",
+            "CMP", "cmp",
+            "Support", "support",
+            "Resistance", "resistance",
+        ):
+            if raw_key in record and (
+                raw_key not in enriched
+                or pd.isna(enriched.get(raw_key))
+            ):
+                enriched[raw_key] = record.get(raw_key)
+
+        if enriched.get("reference_price") is None:
+            for price_key in (
+                "Close", "close", "Price", "price", "CMP", "cmp"
+            ):
+                price_value = pd.to_numeric(
+                    record.get(price_key), errors="coerce"
+                )
+                if pd.notna(price_value) and float(price_value) > 0:
+                    enriched["reference_price"] = float(price_value)
+                    break
+
+        rows.append(enriched)
 
     return pd.DataFrame(rows)
 
@@ -414,6 +449,29 @@ def _update_retracement_alerts(
                     "date": trading_date,
                     "direction": direction,
                     "break_timestamp": current_ts.isoformat(),
+                    "break_level": (
+                        float(pd.to_numeric(
+                            row.get("Resistance", row.get("resistance")),
+                            errors="coerce"
+                        ))
+                        if direction == "BULLISH"
+                        and pd.notna(pd.to_numeric(
+                            row.get("Resistance", row.get("resistance")),
+                            errors="coerce"
+                        ))
+                        else (
+                            float(pd.to_numeric(
+                                row.get("Support", row.get("support")),
+                                errors="coerce"
+                            ))
+                            if direction == "BEARISH"
+                            and pd.notna(pd.to_numeric(
+                                row.get("Support", row.get("support")),
+                                errors="coerce"
+                            ))
+                            else None
+                        )
+                    ),
                     "first_alert_timestamp": str(
                         first_alerts.get(symbol, {}).get("timestamp", "")
                     ),
@@ -520,6 +578,13 @@ def process_all_sources(
         result = _attach_snapshot_metadata(result, path)
         timestamp = parse_observation_timestamp(path)
 
+        # Preserve the first timestamp at which each stock entered the existing
+        # visible decision table BEFORE lifecycle processing records provenance.
+        # This is provenance only; _rank remains the authority for visibility.
+        result = _update_first_alerts(
+            state, trading_date, result, timestamp, first_alerts
+        )
+
         # Build retracement state from the chronological chain only. This
         # cannot modify the frozen candidate pool.
         if capture_snapshots:
@@ -527,13 +592,6 @@ def process_all_sources(
             result = _update_retracement_alerts(
                 state, trading_date, result, snapshot_results
             )
-
-        # Preserve the first timestamp at which each stock entered the existing
-        # visible decision table. This is provenance only; _rank remains the
-        # authority for visibility.
-        result = _update_first_alerts(
-            state, trading_date, result, timestamp, first_alerts
-        )
 
         # A malformed/temporarily incomplete snapshot must not erase the
         # last valid decision result. It is still part of the chronological
@@ -803,6 +861,15 @@ def _auto_process_new_snapshots(
         if result.empty:
             previous = _snapshot_rows(_read(path))
             continue
+
+        # Keep the chronological snapshot cache synchronized BEFORE evaluating
+        # the retracement lifecycle. The lifecycle needs the complete chain,
+        # not only the latest LIVE result.
+        cached_snapshots[_source_key(path)] = result
+        result = _update_retracement_alerts(
+            state, trading_date, result, cached_snapshots
+        )
+        cached_snapshots[_source_key(path)] = result
 
         for row in result.to_dict(orient="records"):
             symbol = str(row.get("symbol", "")).upper()
@@ -1305,7 +1372,7 @@ header[data-testid="stHeader"],
 .opportunity-card .metric.first-alert b{font-size:10px;letter-spacing:.1px;}
 .opportunity-card .opportunity-reason{font-size:9px;line-height:1.2;margin-top:5px;opacity:.96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .setup-outlook{font-size:11px;line-height:1.35;margin-top:5px;color:var(--card-text);}.data-confidence{font-size:10px;line-height:1.25;margin-top:4px;opacity:.96;color:var(--card-text);}.data-confidence b{font-size:11px;}.opportunity-reason{font-size:6.5px;margin-top:3px;color:#334155}
-.live-queue-panel{margin-top:10px;border-radius:10px;padding:9px 10px;background:#0b1d33;border:1px solid #1d3858}.live-queue-title{font-size:12px;font-weight:900;color:#f8fafc}.live-queue-sub{font-size:8px;color:#9fb1c7;margin-top:2px}.live-queue-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:7px}.live-queue-tile{min-width:0;border:1px solid var(--queue-accent,#64748b);border-radius:7px;padding:7px;background:linear-gradient(135deg,rgba(255,255,255,.04),var(--queue-bg,#172033))}.queue-head{display:flex;justify-content:space-between;gap:4px;font-size:8px;color:#f8fafc}.queue-head span{color:var(--queue-accent,#cbd5e1);font-weight:900;font-size:7px}.queue-state{font-size:7px;color:#cbd5e1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.queue-move{font-size:14px;font-weight:950;color:#fbbf24;margin-top:4px}.queue-quality{height:4px;border-radius:999px;background:rgba(255,255,255,.10);overflow:hidden;margin-top:4px}.queue-quality span{display:block;height:100%;background:var(--queue-accent,#94a3b8)}.queue-foot{display:flex;justify-content:space-between;gap:3px;color:#aab9ca;font-size:6.5px;margin-top:4px}
+.live-queue-panel{margin-top:10px;border-radius:10px;padding:9px 10px;background:#0b1d33;border:1px solid #1d3858}.live-queue-title{font-size:12px;font-weight:900;color:#f8fafc}.live-queue-sub{font-size:8px;color:#9fb1c7;margin-top:2px}.live-queue-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:7px}.live-queue-tile{min-width:0;border:1px solid var(--queue-accent,#64748b);border-radius:7px;padding:7px;background:linear-gradient(135deg,rgba(255,255,255,.04),var(--queue-bg,#172033))}.queue-head{display:flex;justify-content:space-between;gap:4px;font-size:9.5px;color:#f8fafc}.queue-head span{color:var(--queue-accent,#cbd5e1);font-weight:900;font-size:8.5px}.queue-state{font-size:8.5px;color:#cbd5e1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.queue-move{font-size:15px;font-weight:950;color:#fbbf24;margin-top:4px}.queue-quality{height:4px;border-radius:999px;background:rgba(255,255,255,.10);overflow:hidden;margin-top:4px}.queue-quality span{display:block;height:100%;background:var(--queue-accent,#94a3b8)}.queue-foot{display:flex;justify-content:space-between;gap:3px;color:#aab9ca;font-size:8px;margin-top:4px}
 @media(max-width:1200px){.compact-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.live-queue-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:900px){.compact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.live-queue-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .opportunity-top{
@@ -2188,6 +2255,7 @@ def _prior_day_structural_break(
                     "date": prior_day,
                     "direction": direction,
                     "break_timestamp": str(entry.get("break_timestamp", "")).strip(),
+                    "break_level": entry.get("break_level"),
                     "first_alert_timestamp": str(
                         entry.get("first_alert_timestamp", "")
                     ).strip(),
@@ -2225,10 +2293,20 @@ def _prior_day_structural_break(
                         .get(symbol, {})
                         .get("timestamp", "")
                     ).strip()
+                    legacy_level = (
+                        saved_row.get("Resistance")
+                        if direction == "BULLISH"
+                        else saved_row.get("Support")
+                    )
+                    try:
+                        legacy_level = float(legacy_level)
+                    except (TypeError, ValueError):
+                        legacy_level = None
                     return {
                         "date": prior_day,
                         "direction": direction,
                         "break_timestamp": "",
+                        "break_level": legacy_level,
                         "first_alert_timestamp": first_alert,
                         "source": "PRIOR DAY BROKEN STRUCTURE · BREAK TIME UNKNOWN",
                     }
@@ -2243,49 +2321,70 @@ def _retracement_context(
     row: pd.Series,
     snapshot_results: dict[str, pd.DataFrame] | None = None,
 ) -> dict[str, Any]:
-    """Dashboard-only second-entry lifecycle diagnostic.
+    """Evaluate a second-opportunity retracement without changing SDL selection.
 
-    The original SDL candidate pool remains authoritative. This layer only
-    follows a completed primary break and looks for a later retracement to a
-    15-minute 20 EMA or VWAP. A directional change invalidates the watch.
+    Primary direction and structural break remain authoritative. A retest can
+    occur while the current S/R label changes from BROKEN to TEST/APPROACHING;
+    requiring the label to remain BROKEN would make a real retest impossible.
     """
     symbol = str(row.get("symbol", "")).strip().upper()
     direction = str(
         row.get("decision_direction", row.get("direction", "NEUTRAL"))
     ).upper().strip()
     history = _symbol_snapshot_history(snapshot_results, symbol)
-    if direction not in {"BULLISH", "BEARISH"} or not history:
-        return {"status": "UNAVAILABLE", "reason": "insufficient intraday history"}
+    if direction not in {"BULLISH", "BEARISH"}:
+        return {"status": "UNAVAILABLE", "reason": "missing primary direction"}
 
     current_ts = pd.to_datetime(
         row.get("source_timestamp", row.get("observation_timestamp", "")),
         errors="coerce",
     )
     current_price = _retracement_price(row)
+    high, low = _retracement_hl(row)
     if pd.isna(current_ts) or current_price is None:
         return {"status": "UNAVAILABLE", "reason": "missing price/time"}
 
-    # Lock the primary move to the first matching structural break.
+    # Find the first qualifying break in the current-day chain.
     break_ts = None
+    break_level = None
     break_origin = "CURRENT DAY"
     carried_break = None
+
     for obs in history:
         obs_dir = str(
             obs.get("decision_direction", obs.get("direction", "NEUTRAL"))
         ).upper().strip()
         sr = _sr_text(obs).upper().strip()
-        if obs_dir == direction and (
+        if obs_dir != direction:
+            continue
+
+        is_break = (
             (direction == "BULLISH" and sr == "RESISTANCE BROKEN")
             or (direction == "BEARISH" and sr == "SUPPORT BROKEN")
-        ):
-            ts = pd.to_datetime(
-                obs.get("source_timestamp", obs.get("observation_timestamp", "")),
+        )
+        if not is_break:
+            continue
+
+        ts = pd.to_datetime(
+            obs.get("source_timestamp", obs.get("observation_timestamp", "")),
+            errors="coerce",
+        )
+        if pd.isna(ts):
+            continue
+
+        break_ts = ts
+        if direction == "BULLISH":
+            break_level = pd.to_numeric(
+                obs.get("Resistance", obs.get("resistance")),
                 errors="coerce",
             )
-            if pd.notna(ts):
-                break_ts = ts
-                break
-
+        else:
+            break_level = pd.to_numeric(
+                obs.get("Support", obs.get("support")),
+                errors="coerce",
+            )
+        break_level = float(break_level) if pd.notna(break_level) else None
+        break
     if break_ts is None:
         carried_break = _prior_day_structural_break(
             load_state(STATE_JSON),
@@ -2295,23 +2394,26 @@ def _retracement_context(
         )
         if carried_break:
             raw_break = carried_break.get("break_timestamp", "")
-            parsed_break = pd.to_datetime(raw_break, errors="coerce")
-            if pd.notna(parsed_break):
-                break_ts = parsed_break
+            parsed = pd.to_datetime(raw_break, errors="coerce")
+            if pd.notna(parsed):
+                break_ts = parsed
             else:
-                # The structure is valid historically but its exact break time
-                # is unknown in legacy state. Use current-day history only for
-                # reversal checking and retain the original alert separately.
+                # Legacy state may know the day but not the exact break time.
+                # Do not fabricate a historical clock time.
                 break_ts = pd.Timestamp(current_ts.normalize())
             break_origin = str(
                 carried_break.get("source", "PRIOR DAY STRUCTURAL BREAK")
             )
+            carried_level = carried_break.get("break_level")
+            try:
+                break_level = float(carried_level) if carried_level not in ("", None) else None
+            except (TypeError, ValueError):
+                break_level = None
 
     if break_ts is None or current_ts <= break_ts:
         return {"status": "NOT_ACTIVE", "reason": "no completed primary break"}
 
-    # Any real directional reversal after the primary break cancels the
-    # retracement idea. Neutral observations do not create a reversal.
+    # Directional reversal after the primary break invalidates the watch.
     for obs in history:
         ts = pd.to_datetime(
             obs.get("source_timestamp", obs.get("observation_timestamp", "")),
@@ -2329,6 +2431,8 @@ def _retracement_context(
                 "primary_direction": direction,
             }
 
+    # Today's observations only for 15-minute EMA20 and session VWAP.
+    today = current_ts.date()
     observations = []
     for obs in history:
         ts = pd.to_datetime(
@@ -2336,88 +2440,99 @@ def _retracement_context(
             errors="coerce",
         )
         price = _retracement_price(obs)
-        if pd.isna(ts) or price is None or ts > current_ts:
+        if pd.isna(ts) or price is None or ts.date() != today or ts > current_ts:
             continue
         observations.append((ts, obs, price))
-    if len(observations) < 2:
-        return {"status": "UNAVAILABLE", "reason": "insufficient price history"}
 
-    # 15-minute closes. Each bucket uses the latest observed value.
-    bars = {}
+    # One close per completed 15-minute bucket, using the latest observation.
+    bars: dict[pd.Timestamp, tuple[pd.Timestamp, pd.Series, float]] = {}
     for ts, obs, price in observations:
         bars[ts.floor("15min")] = (ts, obs, price)
-    bar_items = sorted(bars.items(), key=lambda x: x[0])
+
+    bar_items = sorted(bars.items(), key=lambda item: item[0])
     closes = pd.Series(
         [item[1][2] for item in bar_items],
         index=pd.DatetimeIndex([item[0] for item in bar_items]),
         dtype="float64",
     )
-    ema20 = float(closes.ewm(span=20, adjust=False, min_periods=1).mean().iloc[-1])
 
-    # Session VWAP is calculated only when the source actually supplies an
-    # absolute volume field. Cumulative volume is converted to increments.
+    ema20 = None
+    ema_ready = len(closes) >= 20
+    if ema_ready:
+        ema20 = float(
+            closes.ewm(span=20, adjust=False, min_periods=20).mean().iloc[-1]
+        )
+
+    # Session VWAP: use only today's source rows and convert cumulative volume
+    # to increments when the input is cumulative.
     vwap = None
-    volume_rows = [(ts, obs, price) for ts, obs, price in observations]
-    volumes = [_retracement_volume(obs) for _, obs, _ in volume_rows]
+    volumes = [_retracement_volume(obs) for _, obs, _ in observations]
     if volumes and all(v is not None for v in volumes):
         vals = [float(v) for v in volumes]
         cumulative = all(vals[i] >= vals[i - 1] for i in range(1, len(vals)))
-        if cumulative:
-            effective = [vals[0]] + [
-                max(0.0, vals[i] - vals[i - 1]) for i in range(1, len(vals))
-            ]
-        else:
-            effective = [max(0.0, v) for v in vals]
+        effective = (
+            [vals[0]] + [max(0.0, vals[i] - vals[i - 1]) for i in range(1, len(vals))]
+            if cumulative
+            else [max(0.0, v) for v in vals]
+        )
         total = sum(effective)
         if total > 0:
             weighted = 0.0
-            for (_, obs, price), vol in zip(volume_rows, effective):
-                high = pd.to_numeric(obs.get("High", obs.get("high")), errors="coerce")
-                low = pd.to_numeric(obs.get("Low", obs.get("low")), errors="coerce")
-                typical = (
-                    float((high + low + price) / 3)
-                    if pd.notna(high) and pd.notna(low)
-                    else price
-                )
+            for (_, obs, price), vol in zip(observations, effective):
+                h = pd.to_numeric(obs.get("High", obs.get("high")), errors="coerce")
+                l = pd.to_numeric(obs.get("Low", obs.get("low")), errors="coerce")
+                typical = float((h + l + price) / 3) if pd.notna(h) and pd.notna(l) else price
                 weighted += typical * vol
             vwap = weighted / total
 
-    levels = [("15m 20 EMA", ema20)]
+    levels: list[tuple[str, float]] = []
+    if ema20 is not None:
+        levels.append(("15m 20 EMA", ema20))
     if vwap is not None:
         levels.append(("VWAP", float(vwap)))
+    if break_level is not None:
+        levels.append(("BROKEN S/R", break_level))
 
-    entry_name, entry_level = min(levels, key=lambda x: abs(current_price - x[1]))
-    high, low = _retracement_hl(row)
-    touched = high is not None and low is not None and low <= entry_level <= high
-
-    # The current structure must still be the primary broken structure.
-    sr = _sr_text(row).upper().strip()
-    primary_break = (
-        direction == "BULLISH" and sr == "RESISTANCE BROKEN"
-    ) or (
-        direction == "BEARISH" and sr == "SUPPORT BROKEN"
-    )
-    if not primary_break:
+    if not levels:
         return {
-            "status": "WATCH",
-            "reason": "primary direction retained; waiting for retest",
-            "primary_direction": direction,
-            "entry_name": entry_name,
-            "entry_level": float(entry_level),
-            "ema20": ema20,
-            "vwap": vwap,
+            "status": "UNAVAILABLE",
+            "reason": (
+                "no usable retracement reference yet; "
+                "15m EMA20 warming up and session VWAP unavailable"
+            ),
+            "ema_ready": ema_ready,
+            "bar_count": len(closes),
             "break_origin": break_origin,
-            "carried_break_date": (
-                carried_break.get("date", "") if carried_break else ""
-            ),
-            "carried_first_alert_timestamp": (
-                carried_break.get("first_alert_timestamp", "")
-                if carried_break else ""
-            ),
+            "break_timestamp": break_ts.to_pydatetime() if break_ts is not None else None,
+            "break_level": break_level,
+            "primary_direction": direction,
         }
 
+    # Prefer the closest valid retest reference that is on the retracement side
+    # of current price. This avoids selecting a level that is already behind the
+    # move in the wrong direction.
+    if direction == "BULLISH":
+        valid = [(name, level) for name, level in levels if level <= current_price]
+    else:
+        valid = [(name, level) for name, level in levels if level >= current_price]
+    candidate_levels = valid or levels
+    entry_name, entry_level = min(
+        candidate_levels, key=lambda item: abs(current_price - item[1])
+    )
+
+    touched = (
+        high is not None
+        and low is not None
+        and low <= entry_level <= high
+    )
+
+    # For a retracement, the current S/R label may legitimately be TEST,
+    # APPROACHING, or another non-broken state. What matters is that the
+    # primary direction has not reversed and the historical break exists.
+    status = "REENTRY ALERT" if touched else "WATCH"
+
     return {
-        "status": "REENTRY ALERT" if touched else "WATCH",
+        "status": status,
         "reason": (
             f"{entry_name} retest reached with {direction.lower()} bias intact"
             if touched
@@ -2427,24 +2542,19 @@ def _retracement_context(
         "entry_name": entry_name,
         "entry_level": float(entry_level),
         "ema20": ema20,
+        "ema_ready": ema_ready,
+        "bar_count": len(closes),
         "vwap": vwap,
         "touched": bool(touched),
         "current_price": current_price,
-        "break_timestamp": (
-            break_ts.to_pydatetime()
-            if pd.notna(break_ts)
-            else None
-        ),
+        "break_timestamp": break_ts.to_pydatetime(),
+        "break_level": break_level,
         "break_origin": break_origin,
-        "carried_break_date": (
-            carried_break.get("date", "") if carried_break else ""
-        ),
+        "carried_break_date": carried_break.get("date", "") if carried_break else "",
         "carried_first_alert_timestamp": (
-            carried_break.get("first_alert_timestamp", "")
-            if carried_break else ""
+            carried_break.get("first_alert_timestamp", "") if carried_break else ""
         ),
     }
-
 
 
 def _setup_readiness_diagnostic(
@@ -3192,6 +3302,417 @@ def _render_processing_output(
             )
 
 
+
+def _render_retracement_lifecycle(
+    result: pd.DataFrame,
+    snapshot_results: dict[str, pd.DataFrame] | None = None,
+    widget_key_prefix: str = "",
+) -> None:
+    """Render the second-opportunity lifecycle as an auditable dashboard view.
+
+    This view is diagnostic/operational visibility only. It never changes the
+    frozen SDL candidate selection or ranking.
+    """
+    if result is None or not isinstance(result, pd.DataFrame) or result.empty:
+        return
+
+    # The dashboard date input may be a datetime.date rather than a string.
+    raw_date = st.session_state.get("ds_trading_date", "")
+    trading_date = (
+        raw_date.strftime("%Y-%m-%d")
+        if hasattr(raw_date, "strftime")
+        else str(raw_date).strip()[:10]
+    )
+    try:
+        day = load_state(STATE_JSON).get(STATE_KEY, {}).get(trading_date, {}) or {}
+    except Exception:
+        day = {}
+
+    watches = day.get("retracement_watches", {}) or {}
+    alerts = day.get("retracement_alerts", {}) or {}
+    breaks = day.get("structural_breaks", {}) or {}
+    first_alerts = day.get("first_alerts", {}) or {}
+
+    # The retracement engine needs the COMPLETE chronological snapshot chain.
+    # LIVE can legitimately hold only the latest durable result after a restart,
+    # so the audit must repair an incomplete in-memory replay cache once. This
+    # is a cache/replay concern only; it never changes candidate selection.
+    if isinstance(snapshot_results, dict):
+        usable_count = sum(
+            1
+            for frame in snapshot_results.values()
+            if isinstance(frame, pd.DataFrame) and not frame.empty
+        )
+    else:
+        usable_count = 0
+
+    # NON-BLOCKING RULE:
+    # The Retracement Audit renderer must never trigger a full-day replay
+    # reconstruction. The normal LIVE processing path owns replay-cache
+    # hydration. If that cache is not ready, this section remains visible from
+    # durable lifecycle state and reports the currently available observation
+    # count instead of blocking the dashboard render.
+    if isinstance(snapshot_results, dict):
+        usable_count = sum(
+            1
+            for frame in snapshot_results.values()
+            if isinstance(frame, pd.DataFrame) and not frame.empty
+        )
+    else:
+        usable_count = 0
+
+    # IMPORTANT SCOPE RULE:
+    # The retracement audit is NOT an all-219-symbol queue. It must only show
+    # stocks that are already fully qualified by the existing frozen dashboard
+    # candidate path. _rank() remains the sole authority for that qualification.
+    qualified_result = _rank(result)
+    if qualified_result is None or qualified_result.empty:
+        return
+
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    # Evaluate only the existing qualified opportunity pool so a prior-day
+    # structural break can be carried into today's retracement context without
+    # presenting non-qualified evaluated stocks as opportunities.
+    for _, row in qualified_result.iterrows():
+        symbol = str(row.get("symbol", "")).strip().upper()
+        if not symbol or symbol in seen:
+            continue
+        seen.add(symbol)
+
+        ctx = _retracement_context(row, snapshot_results)
+        saved_watch = watches.get(symbol, {}) or {}
+        saved_alert = alerts.get(symbol, {}) or {}
+        saved_break = breaks.get(symbol, {}) or {}
+        first = (
+            str(first_alerts.get(symbol, {}).get("timestamp", "")).strip()
+            if isinstance(first_alerts.get(symbol, {}), dict)
+            else ""
+        )
+
+        # A row is relevant if the engine has a current structural break or
+        # durable prior-day break, or if the lifecycle state already exists.
+        direction = str(
+            row.get("decision_direction", row.get("direction", ""))
+        ).upper().strip()
+        sr = _sr_text(row).upper().strip()
+        current_break = (
+            (direction == "BULLISH" and sr == "RESISTANCE BROKEN")
+            or (direction == "BEARISH" and sr == "SUPPORT BROKEN")
+        )
+        relevant = bool(saved_break or saved_watch or saved_alert or current_break)
+        if not relevant:
+            continue
+
+        status = str(
+            saved_alert.get("status", "")
+            if saved_alert
+            else saved_watch.get("status", "")
+            if saved_watch
+            else ctx.get("status", "")
+        ).upper().strip()
+
+        # If the current context explicitly invalidated the lifecycle, show it
+        # rather than silently retaining an old watch.
+        if ctx.get("status") == "INVALIDATED":
+            status = "INVALIDATED"
+
+        break_origin = (
+            str(ctx.get("break_origin", "")).strip()
+            or str(saved_watch.get("break_origin", "")).strip()
+            or ("CURRENT DAY" if current_break else "PRIOR DAY")
+        )
+        break_ts = ctx.get("break_timestamp")
+        if not break_ts:
+            break_ts = saved_break.get("break_timestamp", "") or saved_watch.get(
+                "break_timestamp", ""
+            )
+
+        entry_name = (
+            str(ctx.get("entry_name", "")).strip()
+            or str(saved_watch.get("entry_name", "")).strip()
+            or str(saved_alert.get("entry_name", "")).strip()
+            or "—"
+        )
+        entry_level = (
+            ctx.get("entry_level")
+            if ctx.get("entry_level") is not None
+            else saved_watch.get("entry_level")
+            if saved_watch.get("entry_level") is not None
+            else saved_alert.get("entry_level")
+        )
+
+        reentry_time = str(saved_alert.get("timestamp", "")).strip()
+        watch_time = str(saved_watch.get("updated_at", "")).strip()
+
+        def _fmt_ts(value: Any) -> str:
+            raw = str(value).strip()
+            if not raw:
+                return "—"
+            try:
+                return datetime.fromisoformat(raw).strftime("%H:%M:%S")
+            except (TypeError, ValueError):
+                try:
+                    return pd.to_datetime(raw).strftime("%H:%M:%S")
+                except Exception:
+                    return "—"
+
+        rows.append(
+            {
+                "Stock": symbol,
+                "Direction": direction or "—",
+                "Original Alert": _fmt_ts(
+                    first
+                    or saved_alert.get("original_first_alert_timestamp", "")
+                    or saved_watch.get("original_first_alert_timestamp", "")
+                ),
+                "Break Origin": break_origin,
+                "Break Time": _fmt_ts(break_ts),
+                "Status": status or "WATCH",
+                "Reference": entry_name,
+                "Level": (
+                    f"{float(entry_level):.2f}"
+                    if entry_level is not None
+                    and pd.notna(pd.to_numeric(entry_level, errors="coerce"))
+                    else "—"
+                ),
+                "Watch/Event": _fmt_ts(reentry_time or watch_time),
+                "Re-entry Alert": _fmt_ts(reentry_time),
+                "Reason": str(
+                    saved_alert.get("reason", "")
+                    or ctx.get("reason", "")
+                    or saved_watch.get("reason", "")
+                    or "—"
+                ),
+                "_bar_count": ctx.get("bar_count"),
+                "_ema_ready": ctx.get("ema_ready"),
+                "_ema20": ctx.get("ema20"),
+                "_vwap": ctx.get("vwap"),
+            }
+        )
+
+    with st.expander(
+        "Retracement / Re-entry Opportunities • lifecycle audit",
+        expanded=False,
+    ):
+        if not rows:
+            st.info(
+                "No current or carried structural-break retracement lifecycle is "
+                "available for this session."
+            )
+            return
+
+        table = pd.DataFrame(rows)
+        st.caption(
+            f"Qualified opportunity pool: {len(qualified_result)} stocks. "
+            "This audit uses the existing SDL gate, candidate filter and ranking; "
+            "the full evaluated universe is intentionally excluded. "
+            f"Replay observations available: {usable_count if isinstance(snapshot_results, dict) else 0}."
+        )
+        # Prioritize actionable lifecycle states, then strongest/more recent
+        # evidence without altering primary stock ranking.
+        order = {
+            "REENTRY ALERT": 0,
+            "WATCH": 1,
+            "INVALIDATED": 2,
+            "UNAVAILABLE": 3,
+            "NOT_ACTIVE": 4,
+        }
+        table["_order"] = table["Status"].map(order).fillna(9)
+        table = table.sort_values(
+            ["_order", "Direction", "Stock"], kind="stable"
+        ).drop(columns=["_order"])
+
+        # Accepted visual target: clean, spacious audit table with readable
+        # typography and compact status badges. This CSS is scoped to this
+        # section only; no other dashboard surface is modified.
+        def _html(value: Any) -> str:
+            import html
+            return html.escape(str(value if value is not None else "—"))
+
+        def _status_badge(status: str) -> str:
+            s = str(status).upper().strip()
+            cls = {
+                "REENTRY ALERT": "reentry",
+                "WATCH": "watch",
+                "WARMING UP": "warming",
+                "UNAVAILABLE": "unavailable",
+                "INVALIDATED": "invalidated",
+                "NOT_ACTIVE": "inactive",
+            }.get(s, "inactive")
+            return f'<span class="rt-status {cls}">{_html(s or "—")}</span>'
+
+        def _direction_html(direction: str) -> str:
+            d = str(direction).upper().strip()
+            cls = "bullish" if d == "BULLISH" else "bearish" if d == "BEARISH" else "neutral"
+            return f'<span class="rt-direction {cls}">{_html(d or "—")}</span>'
+
+        headers = [
+            "Stock", "Direction", "Original Alert", "Break Origin",
+            "Break Time", "Status", "Reference", "Level",
+            "Watch/Event", "Re-entry Alert", "Reason",
+        ]
+        body = []
+        for _, item in table.iterrows():
+            body.append(
+                "<tr>"
+                f"<td class='rt-stock'>{_html(item['Stock'])}</td>"
+                f"<td>{_direction_html(item['Direction'])}</td>"
+                f"<td>{_html(item['Original Alert'])}</td>"
+                f"<td>{_html(item['Break Origin'])}</td>"
+                f"<td>{_html(item['Break Time'])}</td>"
+                f"<td>{_status_badge(item['Status'])}</td>"
+                f"<td>{_html(item['Reference'])}</td>"
+                f"<td>{_html(item['Level'])}</td>"
+                f"<td>{_html(item['Watch/Event'])}</td>"
+                f"<td>{_html(item['Re-entry Alert'])}</td>"
+                f"<td class='rt-reason'>{_html(item['Reason'])}</td>"
+                "</tr>"
+            )
+
+        st.markdown(
+            """
+            <style>
+            .rt-audit-wrap{
+                width:100%;
+                overflow-x:auto;
+                border:1px solid #e3e8ef;
+                border-radius:10px;
+                background:#fff;
+            }
+            .rt-audit-table{
+                width:100%;
+                border-collapse:separate;
+                border-spacing:0;
+                font-size:13px;
+                color:#273449;
+                white-space:nowrap;
+            }
+            .rt-audit-table th{
+                background:#f7f8fa;
+                color:#667085;
+                font-weight:600;
+                text-align:left;
+                padding:10px 12px;
+                border-bottom:1px solid #dfe4ea;
+                border-right:1px solid #e9edf2;
+            }
+            .rt-audit-table td{
+                padding:9px 12px;
+                border-bottom:1px solid #e9edf2;
+                border-right:1px solid #eef1f4;
+                vertical-align:middle;
+            }
+            .rt-audit-table tr:last-child td{border-bottom:0}
+            .rt-audit-table th:last-child,
+            .rt-audit-table td:last-child{border-right:0}
+            .rt-stock{
+                font-weight:600;
+                color:#273449;
+            }
+            .rt-reason{
+                min-width:230px;
+                white-space:normal;
+                line-height:1.35;
+            }
+            .rt-direction{
+                font-weight:700;
+                letter-spacing:.02em;
+            }
+            .rt-direction.bullish{color:#159447}
+            .rt-direction.bearish{color:#e3262e}
+            .rt-direction.neutral{color:#667085}
+            .rt-status{
+                display:inline-block;
+                padding:4px 9px;
+                border-radius:6px;
+                font-size:12px;
+                font-weight:700;
+                letter-spacing:.01em;
+            }
+            .rt-status.reentry{
+                background:#e9f8ef;
+                color:#159447;
+                border:1px solid #9fe0b8;
+            }
+            .rt-status.watch{
+                background:#fff0f1;
+                color:#e3262e;
+                border:1px solid #ffb8bd;
+            }
+            .rt-status.warming{
+                background:#fff5df;
+                color:#9a6500;
+                border:1px solid #f2cf8a;
+            }
+            .rt-status.unavailable{
+                background:#eef2f7;
+                color:#344b6b;
+                border:1px solid #b8c5d6;
+            }
+            .rt-status.invalidated,
+            .rt-status.inactive{
+                background:#f2f4f7;
+                color:#667085;
+                border:1px solid #d0d5dd;
+            }
+            </style>
+            <div class="rt-audit-wrap">
+              <table class="rt-audit-table">
+                <thead><tr>
+                  {headers}
+                </tr></thead>
+                <tbody>{body}</tbody>
+              </table>
+            </div>
+            """.replace(
+                "{headers}",
+                "".join(f"<th>{_html(h)}</th>" for h in headers),
+            ).replace(
+                "{body}",
+                "".join(body),
+            ),
+            unsafe_allow_html=True,
+        )
+
+        # Indicator readiness is deliberately visible so "no alert" can be
+        # distinguished from an indicator that is still warming up.
+        readiness_rows = []
+        for item in rows:
+            if item.get("_ema_ready") is not None or item.get("_vwap") is not None:
+                readiness_rows.append(
+                    {
+                        "Stock": item["Stock"],
+                        "15m EMA20": (
+                            f"{float(item['_ema20']):.2f}"
+                            if item.get("_ema20") is not None
+                            else f"WARMING UP ({item.get('_bar_count', 0)}/20)"
+                        ),
+                        "Session VWAP": (
+                            f"{float(item['_vwap']):.2f}"
+                            if item.get("_vwap") is not None
+                            else "UNAVAILABLE",
+                        ),
+                    }
+                )
+        if readiness_rows:
+            st.caption(
+                "Retracement references use today's session data only. "
+                "15m EMA20 requires 20 completed 15-minute buckets; "
+                "VWAP requires usable session volume."
+            )
+            st.dataframe(
+                pd.DataFrame(readiness_rows),
+                use_container_width=True,
+                hide_index=True,
+            )
+        st.caption(
+            "Original Alert, Break Time, Watch/Event, and Re-entry Alert are "
+            "separate timestamps. This layer is diagnostic and does not change "
+            "the existing SDL selection or ranking."
+        )
+
 def _render_current_result(
     result: pd.DataFrame,
     timeline: pd.DataFrame,
@@ -3267,6 +3788,13 @@ def _render_current_result(
             f'Weak/conflicted rows hidden: {max(0, weak_excluded)}.</div>',
             unsafe_allow_html=True,
         )
+
+    _render_retracement_lifecycle(
+        result,
+        snapshot_results=snapshot_results,
+        widget_key_prefix=widget_key_prefix,
+    )
+
     # Intraday Stock Evolution is a focused, stock-wise progress view. It remains
     # derived only from the existing timeline events and never creates a new
     # decision rule.
@@ -3523,6 +4051,85 @@ def _restore_last_complete_state(
     return result, timeline, source_file, observation_timestamp
 
 
+def _hydrate_retracement_replay(
+    sources: list[Path],
+    trading_date: str,
+) -> tuple[dict[str, pd.DataFrame], int, int]:
+    """Incrementally hydrate historical replay observations for retracement.
+
+    This is separate from the LIVE checkpoint. It reconstructs only the
+    missing chronological replay prefix in small batches. The authoritative
+    LIVE checkpoint and primary candidate logic are never changed.
+    """
+    cache = _get_replay_cache(trading_date)
+    snapshots = cache.get("snapshots", {})
+    if not isinstance(snapshots, dict):
+        snapshots = {}
+
+    if not sources:
+        return snapshots, 0, 0
+
+    source_keys = [_source_key(p) for p in sources]
+    prefix = 0
+    while prefix < len(source_keys) and source_keys[prefix] in snapshots:
+        frame = snapshots.get(source_keys[prefix])
+        if not isinstance(frame, pd.DataFrame):
+            break
+        prefix += 1
+
+    if prefix >= len(sources):
+        return snapshots, prefix, len(sources)
+
+    init_key = f"_rt_hydration_initialized_{trading_date}"
+    initialized = bool(st.session_state.get(init_key, False))
+    batch_size = 2 if not initialized else 10
+    st.session_state[init_key] = True
+
+    start = prefix
+    end = min(len(sources), start + batch_size)
+
+    state = load_state(STATE_JSON)
+    day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
+    first_alerts = day.get("first_alerts", {}) or {}
+    first_range = _first_range_from_path(sources[0], trading_date)
+
+    if start == 0:
+        snapshots[source_keys[0]] = pd.DataFrame()
+        start = 1
+        if start >= end:
+            _store_replay_cache(
+                trading_date, snapshots, cache.get("timeline", pd.DataFrame())
+            )
+            return snapshots, 1, len(sources)
+
+    previous_raw = _snapshot_rows(_read(sources[start - 1]))
+
+    for path in sources[start:end]:
+        result = _process_snapshot(path, trading_date, previous_raw, first_range)
+        result = _attach_snapshot_metadata(result, path)
+        timestamp = parse_observation_timestamp(path)
+
+        if not result.empty:
+            result = _update_first_alerts(
+                state, trading_date, result, timestamp, first_alerts
+            )
+            snapshots[_source_key(path)] = result
+            result = _update_retracement_alerts(
+                state, trading_date, result, snapshots
+            )
+            snapshots[_source_key(path)] = result
+        else:
+            snapshots[_source_key(path)] = result
+
+        previous_raw = _snapshot_rows(_read(path))
+
+    save_state(state, STATE_JSON)
+    _store_replay_cache(
+        trading_date, snapshots, cache.get("timeline", pd.DataFrame())
+    )
+    return snapshots, end, len(sources)
+
+
 if hasattr(st, "fragment"):
     @st.fragment(run_every="300s")
     def _live_auto_panel(source_root: Path, trading_date: str, auto_update: bool, rollover_fallback: bool = False) -> None:
@@ -3533,6 +4140,10 @@ if hasattr(st, "fragment"):
             if not sources:
                 st.info("No intraday snapshots are currently available for this date.")
                 return
+
+            # Hydrate retracement history incrementally in the LIVE path.
+            # The audit renderer itself remains read-only and non-blocking.
+            _hydrate_retracement_replay(sources, trading_date)
 
             _, market_open = _market_session_status(trading_date)
             session_state = st.session_state.setdefault(_live_session_key(trading_date), {})

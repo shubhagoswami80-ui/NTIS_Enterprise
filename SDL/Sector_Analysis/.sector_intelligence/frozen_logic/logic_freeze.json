@@ -1,0 +1,63 @@
+{
+  "logic_version": "FINAL-1.0",
+  "created_at": "2026-09-04T16:08:58",
+  "method": "historical reverse-footprint evidence",
+  "input": "E:\\NSE_Daily_Analysis\\SDL\\data\\output\\early_prediction_futures_oi_v4_2_controlled\\first_22_point_in_time_controlled.csv",
+  "events": 160,
+  "outcome": "target_50_reached",
+  "minimum_observations": 30,
+  "minimum_successes": 8,
+  "minimum_lift": 1.1,
+  "frozen_features": [
+    {
+      "feature": "ce_oi",
+      "field": "ce_oi_chg",
+      "direction": "UP",
+      "target": "target_50_reached",
+      "n_valid": 51,
+      "support_n": 19,
+      "success_n": 14,
+      "support_success_n": 8,
+      "baseline_rate": 0.27450980392156865,
+      "support_rate": 0.42105263157894735,
+      "lift": 1.533834586466165,
+      "status": "FREEZE_CANDIDATE"
+    },
+    {
+      "feature": "pe_oi",
+      "field": "pe_oi_chg",
+      "direction": "UP",
+      "target": "target_50_reached",
+      "n_valid": 51,
+      "support_n": 39,
+      "success_n": 14,
+      "support_success_n": 13,
+      "baseline_rate": 0.27450980392156865,
+      "support_rate": 0.3333333333333333,
+      "lift": 1.2142857142857142,
+      "status": "FREEZE_CANDIDATE"
+    },
+    {
+      "feature": "pe_ce",
+      "field": "pe_minus_ce_oi_chg",
+      "direction": "DOWN",
+      "target": "target_50_reached",
+      "n_valid": 107,
+      "support_n": 62,
+      "success_n": 31,
+      "support_success_n": 22,
+      "baseline_rate": 0.2897196261682243,
+      "support_rate": 0.3548387096774194,
+      "lift": 1.2247658688865766,
+      "status": "FREEZE_CANDIDATE"
+    }
+  ],
+  "rules": [
+    "Use only information available at the observation boundary.",
+    "Missing evidence is UNAVAILABLE, never zero.",
+    "Do not create a composite score from unvalidated weights.",
+    "Do not display a probability unless separately validated.",
+    "A frozen feature is evidence support, not a trade guarantee.",
+    "SDL stock qualification remains the final stock-level gate."
+  ]
+}

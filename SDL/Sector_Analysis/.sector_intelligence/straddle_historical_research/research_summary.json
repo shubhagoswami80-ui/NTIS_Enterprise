@@ -1,0 +1,14 @@
+{
+  "raw_root": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot",
+  "raw_files_discovered": 4634,
+  "readable_tables": 4634,
+  "symbol_bearing_tables": 3170,
+  "pre_breakout_trace_rows": 0,
+  "recursive_all_months": true,
+  "partial_days_retained": true,
+  "parallel_workers": 4,
+  "research_only": true,
+  "production_modified": false,
+  "lookahead_policy": "Only strictly earlier timestamps are eligible.",
+  "missing_data_policy": "Missing remains missing; never zero-filled."
+}
