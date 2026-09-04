@@ -500,6 +500,90 @@ def _materiality(state: str, direction: str, relative_score: float, slope: float
     return material, watch
 
 
+def rank_stock_opportunities(stocks: list[dict[str, Any]], sector_direction: str,
+                             horizon: str = "INTRADAY") -> list[dict[str, Any]]:
+    """Rank already-qualified/selected SDL stock rows for sector attention.
+
+    This is an attention ordering layer, not a replacement for SDL qualification.
+    SMC is reported only when observable stock fields exist; no synthetic SMC score
+    or institutional-intent claim is created.
+    """
+    direction = str(sector_direction or "NEUTRAL").upper()
+    horizon = str(horizon or "INTRADAY").upper()
+
+    def text(row, *keys):
+        for k in keys:
+            v = row.get(k)
+            if v is not None and str(v).strip() and str(v).strip().lower() != "nan":
+                return str(v).strip()
+        return ""
+
+    def num(row, *keys):
+        for k in keys:
+            try:
+                v = float(row.get(k))
+                if math.isfinite(v):
+                    return v
+            except Exception:
+                pass
+        return None
+
+    def smc_read(row):
+        # Accept only observable fields if supplied by an existing stock source.
+        structure = text(row, "smc_structure", "market_structure", "structure", "structure_state")
+        bos = text(row, "bos", "break_of_structure", "breakout_structure")
+        choch = text(row, "choch", "change_of_character", "change_character")
+        sweep = text(row, "liquidity_sweep", "liquidity", "sweep")
+        ob = text(row, "order_block", "ob")
+        fvg = text(row, "fair_value_gap", "fvg")
+        parts = [x for x in (structure, bos, choch, sweep, ob, fvg) if x]
+        if not parts:
+            return "NOT AVAILABLE", 0, "No observable SMC fields are supplied by the approved stock source."
+        joined = " · ".join(parts)
+        positive = any(w in joined.upper() for w in (
+            "BOS", "CHOCH", "BULL", "BEAR", "BREAK", "CONFIRMED", "SWEEP", "ORDER BLOCK", "FVG"
+        ))
+        return ("OBSERVABLE STRUCTURE" if positive else "OBSERVABLE", 1 if positive else 0, joined)
+
+    result = []
+    for row in stocks:
+        symbol = text(row, "symbol", "stock", "ticker", "security").upper()
+        if not symbol:
+            continue
+        stock_direction = text(row, "direction", "signal", "action", "validation_signal").upper()
+        signal = text(row, "signal", "setup", "pattern", "trade_pattern")
+        strength = text(row, "strength", "evidence_tier", "stage")
+        score = num(row, "decision_score", "score", "confidence", "rank")
+        smc_state, smc_rank, smc_detail = smc_read(row)
+
+        dir_match = (
+            2 if direction == "NEUTRAL" else
+            2 if (direction == "INTO" and any(x in stock_direction for x in ("BULL", "LONG", "BUY", "CALL"))) else
+            2 if (direction == "OUT" and any(x in stock_direction for x in ("BEAR", "SHORT", "SELL", "PUT"))) else
+            1 if not stock_direction else 0
+        )
+        # Existing SDL candidate evidence remains the primary stock gate.
+        strength_rank = 2 if any(x in strength.upper() for x in ("VERY STRONG", "STRONG", "HIGH")) else 1 if strength else 0
+        smc_rank_value = smc_rank
+
+        result.append({
+            **row,
+            "symbol": symbol,
+            "stock_direction": stock_direction or "—",
+            "stock_signal": signal or "SDL TRADE CANDIDATE",
+            "stock_strength": strength or "—",
+            "stock_score": score,
+            "smc_state": smc_state,
+            "smc_detail": smc_detail,
+            "_attention_rank": (dir_match, strength_rank, smc_rank_value, score if score is not None else -float("inf")),
+        })
+
+    result.sort(key=lambda x: x["_attention_rank"], reverse=True)
+    for i, row in enumerate(result, 1):
+        row["attention_rank"] = i
+        row.pop("_attention_rank", None)
+    return result
+
 def build_sector_intelligence(history: pd.DataFrame) -> dict[str, Any]:
     if history.empty or "sector" not in history.columns:
         return {"generated": True, "focus": [], "watch": [], "ignored": [], "reason": "No usable Sector Summary history."}

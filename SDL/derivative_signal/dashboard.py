@@ -131,6 +131,7 @@ def _snapshot_rows(df: pd.DataFrame) -> dict[str, dict]:
         "Symbol", "symbol",
         "Open", "open", "High", "high", "Low", "low",
         "Close", "close",
+        "Volume", "volume", "Total Volume", "total_volume",
         "Price Chg %", "price_chg_pct",
         "OI Chg %", "oi_chg_pct",
         "Tot PE-CE OI Chg", "pe_ce_oi_chg",
@@ -254,14 +255,14 @@ def _timeline_first_alert_value(
     row: dict[str, Any],
     event_timestamp: datetime,
 ) -> str:
+    """Return immutable First Alert provenance for every timeline event."""
     value = str(row.get("first_alert_timestamp", "")).strip()
     if not value:
         return "—"
     try:
-        first_dt = datetime.fromisoformat(value)
+        return datetime.fromisoformat(value).isoformat()
     except (TypeError, ValueError):
         return "—"
-    return first_dt.isoformat() if first_dt == event_timestamp else "—"
 
 
 def _update_first_alerts(
@@ -363,6 +364,116 @@ def process_selected_source(path: Path, trading_date: str) -> pd.DataFrame:
     return result
 
 
+
+def _update_retracement_alerts(
+    state: dict[str, Any],
+    trading_date: str,
+    result: pd.DataFrame,
+    snapshot_results: dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    """Persist structural-break provenance and one-shot retracement alerts."""
+    if result is None or result.empty:
+        return result
+
+    day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
+    watches = day.get("retracement_watches", {}) or {}
+    alerts = day.get("retracement_alerts", {}) or {}
+    structural_breaks = day.get("structural_breaks", {}) or {}
+    first_alerts = day.get("first_alerts", {}) or {}
+
+    for _, row in result.iterrows():
+        symbol = str(row.get("symbol", "")).strip().upper()
+        if not symbol:
+            continue
+
+        direction = str(
+            row.get("decision_direction", row.get("direction", "NEUTRAL"))
+        ).upper().strip()
+        sr = _sr_text(row).upper().strip()
+        current_ts = pd.to_datetime(
+            row.get("source_timestamp", row.get("observation_timestamp", "")),
+            errors="coerce",
+        )
+
+        is_break = (
+            direction == "BULLISH" and sr == "RESISTANCE BROKEN"
+        ) or (
+            direction == "BEARISH" and sr == "SUPPORT BROKEN"
+        )
+
+        # Record the FIRST structural break for this direction. This is
+        # separate from First Alert and is never overwritten by later snapshots.
+        if is_break and pd.notna(current_ts):
+            existing = structural_breaks.get(symbol)
+            existing_direction = (
+                str(existing.get("direction", "")).upper()
+                if isinstance(existing, dict) else ""
+            )
+            if not isinstance(existing, dict) or existing_direction != direction:
+                structural_breaks[symbol] = {
+                    "date": trading_date,
+                    "direction": direction,
+                    "break_timestamp": current_ts.isoformat(),
+                    "first_alert_timestamp": str(
+                        first_alerts.get(symbol, {}).get("timestamp", "")
+                    ),
+                    "source_file": str(row.get("source_file", "")),
+                }
+
+        ctx = _retracement_context(row, snapshot_results)
+        if ctx.get("status") == "INVALIDATED":
+            watches.pop(symbol, None)
+            continue
+        if ctx.get("status") not in {"WATCH", "REENTRY ALERT"}:
+            continue
+
+        watches[symbol] = {
+            "direction": ctx.get("primary_direction", ""),
+            "entry_name": ctx.get("entry_name", ""),
+            "entry_level": ctx.get("entry_level"),
+            "status": ctx.get("status"),
+            "break_timestamp": (
+                ctx["break_timestamp"].isoformat()
+                if ctx.get("break_timestamp") else ""
+            ),
+            "break_origin": ctx.get("break_origin", ""),
+            "carried_break_date": ctx.get("carried_break_date", ""),
+            "original_first_alert_timestamp": (
+                ctx.get("carried_first_alert_timestamp", "")
+                or str(first_alerts.get(symbol, {}).get("timestamp", ""))
+            ),
+            "updated_at": (
+                current_ts.isoformat() if pd.notna(current_ts) else ""
+            ),
+        }
+
+        # One-shot re-entry alert. It is deliberately stored separately from
+        # the immutable original First Alert.
+        if ctx.get("status") == "REENTRY ALERT" and symbol not in alerts:
+            if pd.notna(current_ts):
+                alerts[symbol] = {
+                    "timestamp": current_ts.isoformat(),
+                    "direction": ctx.get("primary_direction", ""),
+                    "entry_name": ctx.get("entry_name", ""),
+                    "entry_level": ctx.get("entry_level"),
+                    "reason": ctx.get("reason", ""),
+                    "original_first_alert_timestamp": (
+                        ctx.get("carried_first_alert_timestamp", "")
+                        or str(first_alerts.get(symbol, {}).get("timestamp", ""))
+                    ),
+                    "break_timestamp": (
+                        ctx["break_timestamp"].isoformat()
+                        if ctx.get("break_timestamp") else ""
+                    ),
+                    "break_origin": ctx.get("break_origin", ""),
+                }
+
+    day["structural_breaks"] = structural_breaks
+    day["retracement_watches"] = watches
+    day["retracement_alerts"] = alerts
+    return result
+
+
 def process_all_sources(
     paths: list[Path],
     trading_date: str,
@@ -408,6 +519,14 @@ def process_all_sources(
         )
         result = _attach_snapshot_metadata(result, path)
         timestamp = parse_observation_timestamp(path)
+
+        # Build retracement state from the chronological chain only. This
+        # cannot modify the frozen candidate pool.
+        if capture_snapshots:
+            snapshot_results[_source_key(path)] = result
+            result = _update_retracement_alerts(
+                state, trading_date, result, snapshot_results
+            )
 
         # Preserve the first timestamp at which each stock entered the existing
         # visible decision table. This is provenance only; _rank remains the
@@ -1162,21 +1281,30 @@ header[data-testid="stHeader"],
     gap:10px;
     margin:10px 0 12px 0;
 }
-.opportunity-card{
-    border:1px solid var(--card-border,#dbe4ef);
-    border-left:5px solid var(--card-accent,#64748b);
-    border-radius:10px;
-    padding:11px 12px;
-    background:var(--card-bg,#f8fafc);
-    box-sizing:border-box;
-    min-height:154px;
-}
-
-.opportunity-card.compact{min-height:116px;padding:8px 9px;border-radius:8px}
-.compact-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:7px 0 9px}
-.opportunity-card.compact .opportunity-stock{font-size:13px;font-weight:950}.opportunity-card.compact .opportunity-rank{font-size:7px}.opportunity-card.compact .opportunity-state{font-size:8px;margin-top:2px;font-weight:800}
-.opportunity-move-large{font-size:18px;font-weight:950;line-height:1.0;margin-top:4px;color:var(--card-accent,#0f172a)}
-.opportunity-card.compact .opportunity-sr{font-size:7.5px;margin-top:2px;display:block;font-weight:750}.quality-row{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:7px;font-weight:900;color:#334155}.quality-meter{height:5px;border-radius:999px;background:rgba(100,116,139,.16);overflow:hidden;margin-top:3px}.quality-meter span{display:block;height:100%;border-radius:999px;background:var(--card-accent,#64748b)}.quality-caption{font-size:6.5px;line-height:1.15;margin-top:2px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.compact-metrics{gap:3px;margin-top:5px}.opportunity-card.compact .opportunity-metric{padding:3px;border-radius:5px}.opportunity-card.compact .opportunity-metric-label{font-size:6px;font-weight:900}.opportunity-card.compact .opportunity-metric-value{font-size:8.5px;font-weight:900}.opportunity-card.compact .opportunity-reason{font-size:6.5px;margin-top:3px;color:#334155}
+.opportunity-card{padding:11px 12px 10px;border-radius:9px;min-height:0;overflow:hidden;color:var(--card-text);}
+.opportunity-card .card-top{display:flex;justify-content:space-between;align-items:center;font-size:10px;line-height:1;margin-bottom:5px;}
+.opportunity-card .rank{opacity:.72;letter-spacing:.4px;}
+.opportunity-card .direction{font-weight:800;font-size:10px;letter-spacing:.3px;}
+.opportunity-card .symbol{font-size:18px;font-weight:850;line-height:1.05;margin:2px 0 5px;letter-spacing:.2px;}
+.opportunity-card .move-line{display:flex;align-items:baseline;gap:9px;margin-bottom:3px;}
+.opportunity-card .move{font-size:22px;font-weight:900;line-height:1;}
+.opportunity-card .strength{font-size:11px;font-weight:800;letter-spacing:.2px;}
+.opportunity-card .state{font-size:10px;font-weight:800;line-height:1.15;margin-bottom:5px;opacity:.98;}
+.opportunity-card .quality-row{font-size:9px;line-height:1.15;margin-top:4px;}
+.opportunity-card .quality-meter{height:7px;margin:3px 0 4px;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.30);}
+.opportunity-card .quality-caption{font-size:9px;line-height:1.15;margin-bottom:4px;}
+.opportunity-card .setup-outlook{font-size:11px;line-height:1.2;margin-top:5px;font-weight:850;}
+.opportunity-card .setup-caution{font-size:10px;line-height:1.25;margin-top:2px;opacity:.95;}
+.opportunity-card .data-confidence{display:flex;justify-content:space-between;align-items:center;font-size:9px;line-height:1.15;margin-top:5px;font-weight:700;}
+.opportunity-card .data-confidence b{font-size:12px;font-weight:900;}
+.opportunity-card .break-caption{font-size:9px;line-height:1.15;margin-top:4px;font-weight:800;}
+.opportunity-card .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:7px;}
+.opportunity-card .metric{padding:6px 5px;border-radius:5px;background:rgba(255,255,255,.72);color:#182033;min-width:0;}
+.opportunity-card .metric span{display:block;font-size:7px;font-weight:800;letter-spacing:.3px;opacity:.82;line-height:1.05;}
+.opportunity-card .metric b{display:block;font-size:11px;font-weight:900;line-height:1.1;margin-top:3px;white-space:nowrap;}
+.opportunity-card .metric.first-alert b{font-size:10px;letter-spacing:.1px;}
+.opportunity-card .opportunity-reason{font-size:9px;line-height:1.2;margin-top:5px;opacity:.96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.setup-outlook{font-size:11px;line-height:1.35;margin-top:5px;color:var(--card-text);}.data-confidence{font-size:10px;line-height:1.25;margin-top:4px;opacity:.96;color:var(--card-text);}.data-confidence b{font-size:11px;}.opportunity-reason{font-size:6.5px;margin-top:3px;color:#334155}
 .live-queue-panel{margin-top:10px;border-radius:10px;padding:9px 10px;background:#0b1d33;border:1px solid #1d3858}.live-queue-title{font-size:12px;font-weight:900;color:#f8fafc}.live-queue-sub{font-size:8px;color:#9fb1c7;margin-top:2px}.live-queue-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:7px}.live-queue-tile{min-width:0;border:1px solid var(--queue-accent,#64748b);border-radius:7px;padding:7px;background:linear-gradient(135deg,rgba(255,255,255,.04),var(--queue-bg,#172033))}.queue-head{display:flex;justify-content:space-between;gap:4px;font-size:8px;color:#f8fafc}.queue-head span{color:var(--queue-accent,#cbd5e1);font-weight:900;font-size:7px}.queue-state{font-size:7px;color:#cbd5e1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.queue-move{font-size:14px;font-weight:950;color:#fbbf24;margin-top:4px}.queue-quality{height:4px;border-radius:999px;background:rgba(255,255,255,.10);overflow:hidden;margin-top:4px}.queue-quality span{display:block;height:100%;background:var(--queue-accent,#94a3b8)}.queue-foot{display:flex;justify-content:space-between;gap:3px;color:#aab9ca;font-size:6.5px;margin-top:4px}
 @media(max-width:1200px){.compact-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.live-queue-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:900px){.compact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.live-queue-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
@@ -1296,6 +1424,222 @@ header[data-testid="stHeader"],
 .inspect-cell{min-width:0}
 .inspect-label{font-size:9px;color:#64748b;text-transform:uppercase}
 .inspect-value{font-size:12px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Deployment 28: opportunity-card renderer-aligned visual polish */
+.opportunity-grid.compact-grid{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:7px;
+    margin:8px 0 10px;
+}
+.opportunity-card.compact{
+    display:block;
+    box-sizing:border-box;
+    min-width:0;
+    min-height:158px;
+    padding:9px 10px 8px;
+    border:1px solid var(--card-accent,#64748b);
+    border-left:5px solid var(--card-accent,#64748b);
+    border-radius:8px;
+    background:var(--card-bg,#f8fafc);
+    color:var(--card-text,#172033);
+    overflow:hidden;
+}
+.opportunity-card.compact .opportunity-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:6px;
+}
+.opportunity-card.compact .opportunity-rank{
+    font-size:7px;
+    line-height:1;
+    font-weight:800;
+    opacity:.72;
+}
+.opportunity-card.compact .opportunity-stock{
+    font-size:15px;
+    line-height:1.05;
+    font-weight:950;
+    margin-top:3px;
+    color:var(--card-text,#172033);
+}
+.opportunity-card.compact .opportunity-direction{
+    font-size:9px;
+    line-height:1;
+    font-weight:950;
+    color:var(--card-accent,#475569);
+}
+.opportunity-card.compact .opportunity-state{
+    margin-top:4px;
+    font-size:8px;
+    line-height:1.1;
+    font-weight:850;
+    color:var(--card-text,#172033);
+}
+.opportunity-card.compact .opportunity-move-large{
+    margin-top:4px;
+    font-size:20px;
+    line-height:1;
+    font-weight:950;
+    color:var(--card-accent,#172033);
+}
+.opportunity-card.compact .opportunity-sr{
+    margin-top:4px;
+    font-size:8px;
+    line-height:1.1;
+    font-weight:850;
+    color:var(--card-text,#172033);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.opportunity-card.compact .quality-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:5px;
+    font-size:7px;
+    line-height:1;
+    font-weight:900;
+    color:var(--card-text,#334155);
+}
+.opportunity-card.compact .quality-meter{
+    height:5px;
+    margin-top:3px;
+    border-radius:999px;
+    background:rgba(100,116,139,.20);
+    overflow:hidden;
+}
+.opportunity-card.compact .quality-meter span{
+    display:block;
+    height:100%;
+    border-radius:999px;
+    background:var(--card-accent,#64748b);
+}
+.opportunity-card.compact .quality-caption{
+    margin-top:3px;
+    font-size:7px;
+    line-height:1.1;
+    color:var(--card-text,#334155);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.opportunity-card.compact .setup-outlook{
+    margin-top:5px;
+    font-size:9px;
+    line-height:1.15;
+    font-weight:950;
+    color:var(--card-text,#172033);
+}
+.opportunity-card.compact .setup-caution{
+    margin-top:2px;
+    font-size:8px;
+    line-height:1.15;
+    color:var(--card-text,#172033);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.opportunity-card.compact .data-confidence{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:4px;
+    font-size:7px;
+    line-height:1;
+    font-weight:800;
+    color:var(--card-text,#334155);
+}
+.opportunity-card.compact .data-confidence b{
+    font-size:10px;
+    font-weight:950;
+}
+.opportunity-card.compact .break-caption{
+    margin-top:3px;
+    font-size:7px;
+    line-height:1.1;
+    font-weight:850;
+    color:var(--card-text,#334155);
+}
+.opportunity-card.compact .compact-metrics{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:3px;
+    margin-top:6px;
+}
+.opportunity-card.compact .opportunity-metric{
+    min-width:0;
+    padding:4px 4px;
+    border:1px solid rgba(100,116,139,.18);
+    border-radius:5px;
+    background:rgba(255,255,255,.72);
+    color:#172033;
+    box-sizing:border-box;
+}
+.opportunity-card.compact .opportunity-metric-label{
+    display:block;
+    font-size:6px;
+    line-height:1;
+    font-weight:900;
+    letter-spacing:.2px;
+    color:#475569;
+}
+.opportunity-card.compact .opportunity-metric-value{
+    display:block;
+    margin-top:3px;
+    font-size:9px;
+    line-height:1;
+    font-weight:950;
+    color:#172033;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.opportunity-card.compact .opportunity-metric:last-child .opportunity-metric-value{
+    font-size:8px;
+}
+.opportunity-card.compact .opportunity-reason{
+    margin-top:4px;
+    font-size:7px;
+    line-height:1.1;
+    color:var(--card-text,#334155);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+@media(max-width:1200px){
+    .opportunity-grid.compact-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:900px){
+    .opportunity-grid.compact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+
+/* Deployment 29: minimal first-look opportunity cards */
+.opportunity-grid.minimal-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:10px 0 12px}
+.opportunity-card.minimal-card{min-height:132px;height:132px;padding:9px 10px;border-radius:8px;display:flex;flex-direction:column;box-sizing:border-box;color:var(--card-text,#172033);overflow:hidden}
+.minimal-card .minimal-top{display:flex;justify-content:space-between;align-items:center;font-size:8px;font-weight:850;line-height:1}
+.minimal-card .opportunity-rank{opacity:.68;font-size:8px}
+.minimal-card .opportunity-direction{font-size:9px;font-weight:950;color:var(--card-accent,#334155)}
+.minimal-card .minimal-symbol{margin-top:6px;font-size:18px;line-height:1;font-weight:950;letter-spacing:.15px}
+.minimal-card .minimal-move{display:flex;align-items:baseline;gap:8px;margin-top:5px}
+.minimal-card .minimal-move span{font-size:21px;line-height:1;font-weight:950;color:var(--card-accent,#172033)}
+.minimal-card .minimal-move b{font-size:9px;line-height:1;font-weight:900}
+.minimal-card .minimal-sr{display:flex;gap:5px;align-items:baseline;margin-top:6px;font-size:8px;line-height:1.1}
+.minimal-card .minimal-sr span{font-weight:800;opacity:.68}
+.minimal-card .minimal-sr b{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.minimal-card .minimal-outlook{margin-top:7px;font-size:10px;line-height:1.05;font-weight:950}
+.minimal-card .minimal-caution{margin-top:3px;font-size:8px;line-height:1.15;min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
+.minimal-card .minimal-alert{margin-top:auto;padding-top:6px;border-top:1px solid rgba(100,116,139,.22);display:flex;justify-content:space-between;align-items:center;gap:5px;font-size:7px;line-height:1}
+.minimal-card .minimal-alert span{font-weight:850;opacity:.72}
+.minimal-card .minimal-alert b{font-size:11px;font-weight:950;letter-spacing:.15px}
+@media(max-width:1200px){.opportunity-grid.minimal-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:900px){.opportunity-grid.minimal-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.minimal-retrace{margin-top:4px;padding:3px 5px;border-radius:4px;font-size:8px;line-height:1.1;font-weight:950;color:var(--card-accent,#475569);background:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 </style>
 """,
         unsafe_allow_html=True,
@@ -1789,6 +2133,706 @@ def _directional_alignment(row: pd.Series) -> tuple[str, int, int]:
     return label, supportive, contradictory
 
 
+
+def _retracement_price(row: pd.Series) -> float | None:
+    for key in ("Close", "close", "CMP", "cmp", "current_price", "ltp", "price"):
+        value = pd.to_numeric(row.get(key), errors="coerce")
+        if pd.notna(value) and float(value) > 0:
+            return float(value)
+    return None
+
+
+def _retracement_hl(row: pd.Series) -> tuple[float | None, float | None]:
+    def num(*keys: str) -> float | None:
+        for key in keys:
+            value = pd.to_numeric(row.get(key), errors="coerce")
+            if pd.notna(value):
+                return float(value)
+        return None
+    return num("High", "high"), num("Low", "low")
+
+
+def _retracement_volume(row: pd.Series) -> float | None:
+    for key in ("Volume", "volume", "Total Volume", "total_volume"):
+        value = pd.to_numeric(row.get(key), errors="coerce")
+        if pd.notna(value) and float(value) >= 0:
+            return float(value)
+    return None
+
+
+def _prior_day_structural_break(
+    state: dict[str, Any],
+    trading_date: str,
+    symbol: str,
+    direction: str,
+) -> dict[str, Any] | None:
+    """Return a carried structural break from the latest prior trading day.
+
+    The exact break timestamp is used when it was durably recorded. If an
+    older state has only the final broken structure and First Alert provenance,
+    the break time remains unknown rather than being fabricated.
+    """
+    days = state.get(STATE_KEY, {}) or {}
+    prior_dates = sorted(
+        str(day)
+        for day in days
+        if str(day) < str(trading_date)
+    )
+    for prior_day in reversed(prior_dates):
+        day = days.get(prior_day, {}) or {}
+        ledger = day.get("structural_breaks", {}) or {}
+        entry = ledger.get(symbol)
+        if isinstance(entry, dict):
+            if str(entry.get("direction", "")).upper() == direction:
+                return {
+                    "date": prior_day,
+                    "direction": direction,
+                    "break_timestamp": str(entry.get("break_timestamp", "")).strip(),
+                    "first_alert_timestamp": str(
+                        entry.get("first_alert_timestamp", "")
+                    ).strip(),
+                    "source": "PRIOR DAY STRUCTURAL BREAK",
+                }
+
+        # Backward-compatible fallback for states created before the
+        # structural-break ledger existed.
+        saved = day.get("last_complete_state", {}) or {}
+        rows = saved.get("result", [])
+        if isinstance(rows, list):
+            for saved_row in rows:
+                if not isinstance(saved_row, dict):
+                    continue
+                saved_symbol = str(
+                    saved_row.get("symbol", saved_row.get("Symbol", ""))
+                ).strip().upper()
+                saved_direction = str(
+                    saved_row.get(
+                        "decision_direction",
+                        saved_row.get("direction", "NEUTRAL"),
+                    )
+                ).upper().strip()
+                saved_sr = _sr_text(pd.Series(saved_row)).upper().strip()
+                if (
+                    saved_symbol == symbol
+                    and saved_direction == direction
+                    and (
+                        (direction == "BULLISH" and saved_sr == "RESISTANCE BROKEN")
+                        or (direction == "BEARISH" and saved_sr == "SUPPORT BROKEN")
+                    )
+                ):
+                    first_alert = str(
+                        (day.get("first_alerts", {}) or {})
+                        .get(symbol, {})
+                        .get("timestamp", "")
+                    ).strip()
+                    return {
+                        "date": prior_day,
+                        "direction": direction,
+                        "break_timestamp": "",
+                        "first_alert_timestamp": first_alert,
+                        "source": "PRIOR DAY BROKEN STRUCTURE · BREAK TIME UNKNOWN",
+                    }
+
+        # Do not search indefinitely once the latest prior day has no evidence.
+        # Continue to the next prior trading day only when it has an explicit
+        # durable break ledger.
+    return None
+
+
+def _retracement_context(
+    row: pd.Series,
+    snapshot_results: dict[str, pd.DataFrame] | None = None,
+) -> dict[str, Any]:
+    """Dashboard-only second-entry lifecycle diagnostic.
+
+    The original SDL candidate pool remains authoritative. This layer only
+    follows a completed primary break and looks for a later retracement to a
+    15-minute 20 EMA or VWAP. A directional change invalidates the watch.
+    """
+    symbol = str(row.get("symbol", "")).strip().upper()
+    direction = str(
+        row.get("decision_direction", row.get("direction", "NEUTRAL"))
+    ).upper().strip()
+    history = _symbol_snapshot_history(snapshot_results, symbol)
+    if direction not in {"BULLISH", "BEARISH"} or not history:
+        return {"status": "UNAVAILABLE", "reason": "insufficient intraday history"}
+
+    current_ts = pd.to_datetime(
+        row.get("source_timestamp", row.get("observation_timestamp", "")),
+        errors="coerce",
+    )
+    current_price = _retracement_price(row)
+    if pd.isna(current_ts) or current_price is None:
+        return {"status": "UNAVAILABLE", "reason": "missing price/time"}
+
+    # Lock the primary move to the first matching structural break.
+    break_ts = None
+    break_origin = "CURRENT DAY"
+    carried_break = None
+    for obs in history:
+        obs_dir = str(
+            obs.get("decision_direction", obs.get("direction", "NEUTRAL"))
+        ).upper().strip()
+        sr = _sr_text(obs).upper().strip()
+        if obs_dir == direction and (
+            (direction == "BULLISH" and sr == "RESISTANCE BROKEN")
+            or (direction == "BEARISH" and sr == "SUPPORT BROKEN")
+        ):
+            ts = pd.to_datetime(
+                obs.get("source_timestamp", obs.get("observation_timestamp", "")),
+                errors="coerce",
+            )
+            if pd.notna(ts):
+                break_ts = ts
+                break
+
+    if break_ts is None:
+        carried_break = _prior_day_structural_break(
+            load_state(STATE_JSON),
+            str(current_ts.date()),
+            symbol,
+            direction,
+        )
+        if carried_break:
+            raw_break = carried_break.get("break_timestamp", "")
+            parsed_break = pd.to_datetime(raw_break, errors="coerce")
+            if pd.notna(parsed_break):
+                break_ts = parsed_break
+            else:
+                # The structure is valid historically but its exact break time
+                # is unknown in legacy state. Use current-day history only for
+                # reversal checking and retain the original alert separately.
+                break_ts = pd.Timestamp(current_ts.normalize())
+            break_origin = str(
+                carried_break.get("source", "PRIOR DAY STRUCTURAL BREAK")
+            )
+
+    if break_ts is None or current_ts <= break_ts:
+        return {"status": "NOT_ACTIVE", "reason": "no completed primary break"}
+
+    # Any real directional reversal after the primary break cancels the
+    # retracement idea. Neutral observations do not create a reversal.
+    for obs in history:
+        ts = pd.to_datetime(
+            obs.get("source_timestamp", obs.get("observation_timestamp", "")),
+            errors="coerce",
+        )
+        if pd.isna(ts) or ts <= break_ts or ts > current_ts:
+            continue
+        obs_dir = str(
+            obs.get("decision_direction", obs.get("direction", "NEUTRAL"))
+        ).upper().strip()
+        if obs_dir in {"BULLISH", "BEARISH"} and obs_dir != direction:
+            return {
+                "status": "INVALIDATED",
+                "reason": "direction changed from primary move",
+                "primary_direction": direction,
+            }
+
+    observations = []
+    for obs in history:
+        ts = pd.to_datetime(
+            obs.get("source_timestamp", obs.get("observation_timestamp", "")),
+            errors="coerce",
+        )
+        price = _retracement_price(obs)
+        if pd.isna(ts) or price is None or ts > current_ts:
+            continue
+        observations.append((ts, obs, price))
+    if len(observations) < 2:
+        return {"status": "UNAVAILABLE", "reason": "insufficient price history"}
+
+    # 15-minute closes. Each bucket uses the latest observed value.
+    bars = {}
+    for ts, obs, price in observations:
+        bars[ts.floor("15min")] = (ts, obs, price)
+    bar_items = sorted(bars.items(), key=lambda x: x[0])
+    closes = pd.Series(
+        [item[1][2] for item in bar_items],
+        index=pd.DatetimeIndex([item[0] for item in bar_items]),
+        dtype="float64",
+    )
+    ema20 = float(closes.ewm(span=20, adjust=False, min_periods=1).mean().iloc[-1])
+
+    # Session VWAP is calculated only when the source actually supplies an
+    # absolute volume field. Cumulative volume is converted to increments.
+    vwap = None
+    volume_rows = [(ts, obs, price) for ts, obs, price in observations]
+    volumes = [_retracement_volume(obs) for _, obs, _ in volume_rows]
+    if volumes and all(v is not None for v in volumes):
+        vals = [float(v) for v in volumes]
+        cumulative = all(vals[i] >= vals[i - 1] for i in range(1, len(vals)))
+        if cumulative:
+            effective = [vals[0]] + [
+                max(0.0, vals[i] - vals[i - 1]) for i in range(1, len(vals))
+            ]
+        else:
+            effective = [max(0.0, v) for v in vals]
+        total = sum(effective)
+        if total > 0:
+            weighted = 0.0
+            for (_, obs, price), vol in zip(volume_rows, effective):
+                high = pd.to_numeric(obs.get("High", obs.get("high")), errors="coerce")
+                low = pd.to_numeric(obs.get("Low", obs.get("low")), errors="coerce")
+                typical = (
+                    float((high + low + price) / 3)
+                    if pd.notna(high) and pd.notna(low)
+                    else price
+                )
+                weighted += typical * vol
+            vwap = weighted / total
+
+    levels = [("15m 20 EMA", ema20)]
+    if vwap is not None:
+        levels.append(("VWAP", float(vwap)))
+
+    entry_name, entry_level = min(levels, key=lambda x: abs(current_price - x[1]))
+    high, low = _retracement_hl(row)
+    touched = high is not None and low is not None and low <= entry_level <= high
+
+    # The current structure must still be the primary broken structure.
+    sr = _sr_text(row).upper().strip()
+    primary_break = (
+        direction == "BULLISH" and sr == "RESISTANCE BROKEN"
+    ) or (
+        direction == "BEARISH" and sr == "SUPPORT BROKEN"
+    )
+    if not primary_break:
+        return {
+            "status": "WATCH",
+            "reason": "primary direction retained; waiting for retest",
+            "primary_direction": direction,
+            "entry_name": entry_name,
+            "entry_level": float(entry_level),
+            "ema20": ema20,
+            "vwap": vwap,
+            "break_origin": break_origin,
+            "carried_break_date": (
+                carried_break.get("date", "") if carried_break else ""
+            ),
+            "carried_first_alert_timestamp": (
+                carried_break.get("first_alert_timestamp", "")
+                if carried_break else ""
+            ),
+        }
+
+    return {
+        "status": "REENTRY ALERT" if touched else "WATCH",
+        "reason": (
+            f"{entry_name} retest reached with {direction.lower()} bias intact"
+            if touched
+            else f"watch {entry_name} retest for {direction.lower()} re-entry"
+        ),
+        "primary_direction": direction,
+        "entry_name": entry_name,
+        "entry_level": float(entry_level),
+        "ema20": ema20,
+        "vwap": vwap,
+        "touched": bool(touched),
+        "current_price": current_price,
+        "break_timestamp": (
+            break_ts.to_pydatetime()
+            if pd.notna(break_ts)
+            else None
+        ),
+        "break_origin": break_origin,
+        "carried_break_date": (
+            carried_break.get("date", "") if carried_break else ""
+        ),
+        "carried_first_alert_timestamp": (
+            carried_break.get("first_alert_timestamp", "")
+            if carried_break else ""
+        ),
+    }
+
+
+
+def _setup_readiness_diagnostic(
+    row: pd.Series,
+    snapshot_results: dict[str, pd.DataFrame] | None = None,
+) -> dict[str, Any]:
+    """Timeliness-aware setup diagnostic; presentation-only.
+
+    The critical distinction is:
+      * a setup is developing BEFORE/AT a level test,
+      * a break is a trigger,
+      * a mature post-break move is NOT a new setup.
+
+    This does not alter candidate selection, ranking, SDL scoring, S/R
+    calculations, or any engine output.
+    """
+    direction = str(
+        row.get("decision_direction", row.get("direction", "NEUTRAL"))
+    ).upper().strip()
+    sr = _sr_text(row).upper().strip()
+
+    move = pd.to_numeric(
+        row.get("price_change_pct", row.get("move_pct", 0)), errors="coerce"
+    )
+    move_abs = 0.0 if pd.isna(move) else abs(float(move))
+
+    alignment, supportive, contradictory = _directional_alignment(row)
+    conflict = int(_num(row.get("conflict_count")) or 0)
+
+    # Structural state is the primary lifecycle signal. Do not infer "new
+    # setup" merely because this is the first row available to the renderer.
+    approaching = sr in {"APPROACHING RESISTANCE", "APPROACHING SUPPORT"}
+    testing = sr in {"RESISTANCE TEST", "SUPPORT TEST"}
+    bullish_break = direction == "BULLISH" and sr == "RESISTANCE BROKEN"
+    bearish_break = direction == "BEARISH" and sr == "SUPPORT BROKEN"
+    broken = bullish_break or bearish_break
+
+    if approaching:
+        level_points = 30
+        level_label = "LEVEL APPROACHING"
+    elif testing:
+        level_points = 34
+        level_label = "LEVEL TEST"
+    elif broken:
+        # A break is important, but it is no longer an early setup.
+        level_points = 26
+        level_label = "BREAK DETECTED"
+    else:
+        level_points = 0
+        level_label = "NO IMMEDIATE STRUCTURAL SETUP"
+
+    alignment_points = min(25, supportive * 4)
+    alignment_points = max(0, alignment_points - contradictory * 5)
+
+    evidence = pd.to_numeric(row.get("decision_score", 0), errors="coerce")
+    evidence_points = (
+        0 if pd.isna(evidence)
+        else min(15, max(0.0, float(evidence)) * 0.15)
+    )
+
+    confirm = pd.to_numeric(row.get("confirmation_count", 0), errors="coerce")
+    confirm_points = (
+        0 if pd.isna(confirm)
+        else min(10, max(0.0, float(confirm)) * 0.75)
+    )
+
+    conflict_points = 10 if conflict == 0 else 5 if conflict == 1 else 0
+
+    # Timeliness is intentionally capped. Large price movement reduces
+    # "entry readiness"; it must never make a mature move look like a fresh
+    # setup.
+    if move_abs <= 0.50:
+        timing_points, timing_label = 12, "EARLY"
+    elif move_abs <= 1.00:
+        timing_points, timing_label = 10, "EARLY / ACTIVE"
+    elif move_abs <= 1.50:
+        timing_points, timing_label = 8, "ACTIVE"
+    elif move_abs <= 2.50:
+        timing_points, timing_label = 5, "LATE / ACTIVE"
+    elif move_abs <= 4.00:
+        timing_points, timing_label = 2, "MATURE MOVE"
+    else:
+        timing_points, timing_label = 0, "HIGHLY EXTENDED"
+
+    readiness = int(max(0, min(100, round(
+        level_points + alignment_points + evidence_points +
+        confirm_points + conflict_points + timing_points
+    ))))
+
+    # Chronology is used only to describe the lifecycle, never to create a
+    # new candidate. A broken stock with a large move is explicitly post-break.
+    history = _symbol_snapshot_history(snapshot_results, str(row.get("symbol", "")))
+    current_ts = pd.to_datetime(
+        row.get("source_timestamp", row.get("observation_timestamp", "")),
+        errors="coerce",
+    )
+
+    prior_structural = []
+    if pd.notna(current_ts):
+        for obs in history:
+            obs_ts = pd.to_datetime(
+                obs.get("source_timestamp", obs.get("observation_timestamp", "")),
+                errors="coerce",
+            )
+            if pd.notna(obs_ts) and obs_ts < current_ts:
+                prior_structural.append(_sr_text(obs).upper().strip())
+
+    if broken:
+        if move_abs > 4.0:
+            stage = "POST-BREAK · HIGHLY EXTENDED"
+        elif move_abs > 2.5:
+            stage = "POST-BREAK · MATURE"
+        elif prior_structural:
+            stage = "BREAK TRIGGER · FOLLOW-UP"
+        else:
+            stage = "BREAK TRIGGER · FIRST OBSERVATION"
+    elif testing:
+        stage = "TESTING · ENTRY WINDOW"
+    elif approaching:
+        stage = "APPROACHING · EARLY WATCH"
+    elif sr in {"RESISTANCE REJECTED", "SUPPORT REJECTED"}:
+        stage = "REJECTION · RETRACE / BOUNCE WATCH"
+    else:
+        stage = "DIRECTIONAL · WAIT FOR LEVEL"
+
+    if approaching or testing:
+        label = (
+            "HIGH READINESS" if readiness >= 80
+            else "GOOD READINESS" if readiness >= 65
+            else "WATCH" if readiness >= 50
+            else "EARLY / INSUFFICIENT"
+        )
+    elif broken:
+        # This is deliberately not allowed to be interpreted as fresh setup
+        # quality. It describes readiness for the NEXT valid entry condition.
+        label = (
+            "CONFIRMATION STRONG" if readiness >= 75
+            else "CONFIRMATION WATCH" if readiness >= 55
+            else "LATE / CAUTION"
+        )
+    else:
+        label = "WATCH"
+
+    reasons = []
+    if approaching:
+        reasons.append("level approaching")
+    elif testing:
+        reasons.append("level being tested")
+    elif broken:
+        reasons.append("break already detected")
+
+    if alignment == "STRONG ALIGNMENT":
+        reasons.append(f"{supportive} supporting inputs aligned")
+    elif alignment == "ALIGNED":
+        reasons.append(f"{supportive} supporting inputs")
+    elif alignment == "CONFLICTING":
+        reasons.append(f"{contradictory} conflicting inputs")
+    elif alignment == "INSUFFICIENT":
+        reasons.append("limited directional evidence")
+
+    if timing_label in {"EARLY", "EARLY / ACTIVE"}:
+        reasons.append("move not yet mature")
+    elif timing_label in {"MATURE MOVE", "HIGHLY EXTENDED"}:
+        reasons.append("entry timing is late")
+
+    if conflict:
+        reasons.append(f"{conflict} conflict{'s' if conflict != 1 else ''}")
+
+    lifecycle = _alert_lifecycle_diagnostic(row, snapshot_results)
+    return {
+        "readiness": readiness,
+        "label": label,
+        "level_label": level_label,
+        "timing_label": timing_label,
+        "stage": stage,
+        "alignment": alignment,
+        "supportive": supportive,
+        "contradictory": contradictory,
+        "reason": " · ".join(reasons) if reasons else "existing engine evidence only",
+        "first_alert": lifecycle["first_alert"],
+        "freshness": lifecycle["freshness"],
+        "age_minutes": lifecycle["age_minutes"],
+    }
+
+
+def _alert_lifecycle_diagnostic(
+    row: pd.Series,
+    snapshot_results: dict[str, pd.DataFrame] | None = None,
+) -> dict[str, Any]:
+    """Timestamp-first lifecycle diagnostic; presentation/state interpretation only.
+
+    First Alert is the immutable timestamp of the first qualifying event.
+    Current event time and retracement/re-entry times are separate events.
+    This function never changes candidate selection or SDL scoring.
+    """
+    symbol = str(row.get("symbol", "")).strip().upper()
+    current_ts = pd.to_datetime(
+        row.get("source_timestamp", row.get("observation_timestamp", "")),
+        errors="coerce",
+    )
+    first_ts = pd.to_datetime(
+        row.get("first_alert_timestamp", ""),
+        errors="coerce",
+    )
+
+    # Durable state is authoritative when the row does not carry First Alert.
+    if pd.isna(first_ts):
+        try:
+            _day_raw = st.session_state.get("ds_trading_date", "")
+            trading_day = (
+                _day_raw.strftime("%Y-%m-%d")
+                if hasattr(_day_raw, "strftime")
+                else str(_day_raw).strip()[:10]
+            )
+            state_day = load_state(STATE_JSON).get(STATE_KEY, {}).get(trading_day, {}) or {}
+            alert = (state_day.get("first_alerts", {}) or {}).get(symbol, {}) or {}
+            first_ts = pd.to_datetime(alert.get("timestamp", ""), errors="coerce")
+        except Exception:
+            pass
+
+    age = None
+    if pd.notna(first_ts) and pd.notna(current_ts):
+        age = max(0.0, (current_ts - first_ts).total_seconds() / 60.0)
+
+    if age is None:
+        freshness = "TIME UNKNOWN"
+    elif age <= 10:
+        freshness = "FRESH · ≤10M"
+    elif age <= 30:
+        freshness = "ACTIVE · ≤30M"
+    elif age <= 60:
+        freshness = "AGING · ≤60M"
+    else:
+        freshness = "ORIGINAL ENTRY PASSED"
+
+    return {
+        "first_alert": first_ts.strftime("%H:%M:%S") if pd.notna(first_ts) else "—",
+        "current_event": current_ts.strftime("%H:%M:%S") if pd.notna(current_ts) else "—",
+        "age_minutes": age,
+        "freshness": freshness,
+    }
+
+
+def _setup_outlook_diagnostic(row: pd.Series) -> dict[str, Any]:
+    """Trader-facing early-entry outlook; diagnostic only."""
+    direction = str(
+        row.get("decision_direction", row.get("direction", "NEUTRAL"))
+    ).upper().strip()
+    sr = _sr_text(row).upper().strip()
+    move = pd.to_numeric(
+        row.get("price_change_pct", row.get("move_pct", 0)), errors="coerce"
+    )
+    move_abs = 0.0 if pd.isna(move) else abs(float(move))
+
+    alignment, supportive, contradictory = _directional_alignment(row)
+    conflict_count = int(_num(row.get("conflict_count")) or 0)
+
+    # Evidence-basis confidence remains about evidence quality, not movement
+    # probability.
+    evidence_fields = (
+        "directional_interpretation",
+        "futures_interpretation",
+        "options_interpretation",
+        "pcr_interpretation",
+        "iv_interpretation",
+        "volume_interpretation",
+        "oi_interpretation",
+    )
+    populated = sum(
+        1 for field in evidence_fields
+        if str(row.get(field, "")).strip().upper() not in {"", "NAN", "NONE", "—"}
+    )
+    completeness = round((populated / len(evidence_fields)) * 35)
+
+    if supportive >= 5 and contradictory == 0:
+        agreement = 40
+    elif supportive >= 3 and contradictory <= 1:
+        agreement = 32
+    elif supportive >= 2 and contradictory <= 2:
+        agreement = 22
+    elif supportive > contradictory:
+        agreement = 14
+    else:
+        agreement = 5
+
+    conflict_quality = 20 if conflict_count == 0 else 10 if conflict_count == 1 else 0
+    data_confidence = max(0, min(100, completeness + agreement + conflict_quality))
+
+    # Timing gate for interpretation only: large moves are explicitly late.
+    extended = move_abs > 2.50
+    highly_extended = move_abs > 4.00
+
+    if direction == "BULLISH" and sr == "APPROACHING RESISTANCE":
+        if highly_extended:
+            outlook = "RETRACE RISK"
+            caution = "resistance overhead · move already highly extended"
+        elif supportive >= 4 and contradictory <= 1:
+            outlook = "BREAKOUT WATCH"
+            caution = "resistance overhead · evidence supports a break attempt"
+        else:
+            outlook = "RETRACE RISK"
+            caution = "resistance overhead · evidence not strong enough yet"
+
+    elif direction == "BULLISH" and sr == "RESISTANCE TEST":
+        if extended:
+            outlook = "BREAKOUT CAUTION"
+            caution = "resistance test · move is already extended; avoid chasing"
+        elif supportive >= 4 and contradictory <= 1:
+            outlook = "BREAKOUT SETUP"
+            caution = "resistance test · evidence aligned"
+        else:
+            outlook = "RETRACE RISK"
+            caution = "resistance test · mixed evidence"
+
+    elif direction == "BEARISH" and sr == "APPROACHING SUPPORT":
+        if highly_extended:
+            outlook = "BOUNCE RISK"
+            caution = "support below · move already highly extended"
+        elif supportive >= 4 and contradictory <= 1:
+            outlook = "BREAKDOWN WATCH"
+            caution = "support below · evidence supports a break attempt"
+        else:
+            outlook = "BOUNCE RISK"
+            caution = "support below · evidence not strong enough yet"
+
+    elif direction == "BEARISH" and sr == "SUPPORT TEST":
+        if extended:
+            outlook = "BREAKDOWN CAUTION"
+            caution = "support test · move is already extended; avoid chasing"
+        elif supportive >= 4 and contradictory <= 1:
+            outlook = "BREAKDOWN SETUP"
+            caution = "support test · evidence aligned"
+        else:
+            outlook = "BOUNCE RISK"
+            caution = "support test · mixed evidence"
+
+    elif direction == "BULLISH" and sr == "RESISTANCE BROKEN":
+        if highly_extended:
+            outlook = "BREAKOUT — LATE"
+            caution = "resistance broken · move highly extended; wait for retest/hold"
+        elif extended:
+            outlook = "BREAKOUT — CAUTION"
+            caution = "resistance broken · move extended; confirmation preferred"
+        else:
+            outlook = "BREAKOUT CONFIRMATION"
+            caution = "resistance broken · wait for subsequent hold"
+
+    elif direction == "BEARISH" and sr == "SUPPORT BROKEN":
+        if highly_extended:
+            outlook = "BREAKDOWN — LATE"
+            caution = "support broken · move highly extended; wait for retest/hold"
+        elif extended:
+            outlook = "BREAKDOWN — CAUTION"
+            caution = "support broken · move extended; confirmation preferred"
+        else:
+            outlook = "BREAKDOWN CONFIRMATION"
+            caution = "support broken · wait for subsequent hold"
+
+    elif direction == "BULLISH":
+        outlook = "BULLISH · WAIT FOR LEVEL"
+        caution = "direction positive · no immediate structural trigger"
+
+    elif direction == "BEARISH":
+        outlook = "BEARISH · WAIT FOR LEVEL"
+        caution = "direction negative · no immediate structural trigger"
+
+    else:
+        outlook = "WAIT FOR STRUCTURE"
+        caution = "direction or level evidence is insufficient"
+
+    data_label = (
+        "HIGH DATA CONFIDENCE" if data_confidence >= 80
+        else "GOOD DATA CONFIDENCE" if data_confidence >= 65
+        else "MODERATE DATA CONFIDENCE" if data_confidence >= 50
+        else "LOW DATA CONFIDENCE"
+    )
+
+    return {
+        "outlook": outlook,
+        "caution": caution,
+        "data_confidence": data_confidence,
+        "data_label": data_label,
+        "supportive": supportive,
+        "contradictory": contradictory,
+        "alignment": alignment,
+    }
+
+
 def _break_quality_diagnostic(row: pd.Series, snapshot_results: dict[str, pd.DataFrame] | None = None) -> dict[str, Any]:
     'Diagnostic break-quality view; never feeds candidate selection or score.'
     sr = _sr_text(row).upper()
@@ -1894,7 +2938,7 @@ def _render_opportunity_cards(
     limit: int = 10,
     snapshot_results: dict[str, pd.DataFrame] | None = None,
 ) -> None:
-    'Compact ranked cards with direction colour and diagnostic quality.'
+    'Minimal first-look cards; detailed evidence remains in the inspector/table.'
     if candidates.empty:
         st.info('No stock currently meets the primary decision-visibility criteria.')
         return
@@ -1903,32 +2947,48 @@ def _render_opportunity_cards(
         bg, accent, text_color = _opportunity_palette(row)
         symbol=html.escape(str(row.get('symbol','—')).upper())
         direction=str(row.get('decision_direction',row.get('direction','NEUTRAL'))).upper()
-        state=str(row.get('decision_state','—')).replace('_',' ')
         strength=str(row.get('decision_strength','—')).replace('_',' ')
-        evidence=pd.to_numeric(row.get('decision_score',0),errors='coerce')
-        confirm=pd.to_numeric(row.get('confirmation_count',0),errors='coerce')
-        conflict=pd.to_numeric(row.get('conflict_count',0),errors='coerce')
         move=pd.to_numeric(row.get('price_change_pct',row.get('move_pct',0)),errors='coerce')
-        first_raw=str(row.get('first_alert_timestamp','')).strip()
-        first=first_raw.replace('T',' ')[11:19] if first_raw else '—'
+        lifecycle=_alert_lifecycle_diagnostic(row,snapshot_results)
+        first=lifecycle['first_alert']
+        if first == '—':
+            try:
+                trading_day = str(st.session_state.get('ds_trading_date','')).strip()
+                symbol_key = str(row.get('symbol','')).strip().upper()
+                state_day = load_state(STATE_JSON).get(STATE_KEY, {}).get(trading_day, {}) or {}
+                durable_alert = (state_day.get('first_alerts', {}) or {}).get(symbol_key, {}) or {}
+                durable_ts = str(durable_alert.get('timestamp','')).strip()
+                if durable_ts:
+                    first = durable_ts.replace('T',' ')[11:19]
+            except Exception:
+                pass
         sr=_sr_text(row)
-        diag=_break_quality_diagnostic(row,snapshot_results)
-        quality=int(diag['quality'])
-        reason=html.escape(diag['reason'])
+        outlook=_setup_outlook_diagnostic(row)
+        retrace=_retracement_context(row, snapshot_results)
         move_text='—' if pd.isna(move) else f'{float(move):+.2f}%'
-        evidence_text='—' if pd.isna(evidence) else f'{float(evidence):.0f}'
-        confirm_text='—' if pd.isna(confirm) else f'{float(confirm):.0f}'
-        conflict_text='—' if pd.isna(conflict) else f'{float(conflict):.0f}'
-        cards.append(f'''<div class="opportunity-card compact" style="--card-bg:{bg};--card-accent:{accent};--card-text:{text_color};">
-<div class="opportunity-top"><div><div class="opportunity-rank">RANK {rank}</div><div class="opportunity-stock">{symbol}</div></div><div class="opportunity-direction">{direction}</div></div>
-<div class="opportunity-state">{state} · {strength}</div><div class="opportunity-move-large">{move_text}</div>
-<div class="opportunity-sr">S/R: {html.escape(sr)}</div>
-<div class="quality-row"><span>EVIDENCE QUALITY</span><b>{quality}%</b></div><div class="quality-meter"><span style="width:{quality}%"></span></div>
-<div class="quality-caption">{html.escape(diag['quality_label'])} · {html.escape(diag['sustain_label'])} · {html.escape(diag['alignment'])}</div>
-<div class="opportunity-metrics compact-metrics"><div class="opportunity-metric"><span class="opportunity-metric-label">Evidence</span><span class="opportunity-metric-value">{evidence_text}</span></div><div class="opportunity-metric"><span class="opportunity-metric-label">Confirm</span><span class="opportunity-metric-value">{confirm_text}</span></div><div class="opportunity-metric"><span class="opportunity-metric-label">Conflict</span><span class="opportunity-metric-value">{conflict_text}</span></div><div class="opportunity-metric"><span class="opportunity-metric-label">First Alert</span><span class="opportunity-metric-value">{first}</span></div></div>
-<div class="opportunity-reason" title="{reason}">{reason}</div></div>''')
-    st.markdown('<div class="opportunity-grid compact-grid">'+''.join(cards)+'</div>',unsafe_allow_html=True)
-
+        outlook_text=html.escape(outlook['outlook'])
+        caution_text=html.escape(outlook['caution'])
+        retrace_html=''
+        if retrace.get('status') in {'WATCH','REENTRY ALERT'}:
+            rlabel='RE-ENTRY ALERT' if retrace.get('status') == 'REENTRY ALERT' else 'RETRACE WATCH'
+            rlevel=retrace.get('entry_level')
+            rlevel_text=(f" · {retrace.get('entry_name')} {rlevel:.2f}"
+                         if isinstance(rlevel,(int,float)) else '')
+            origin=str(retrace.get('break_origin','')).strip()
+            retrace_html=f'<div class="minimal-retrace">{rlabel}{html.escape(rlevel_text)}</div>'
+            if origin.startswith('PRIOR DAY'):
+                retrace_html += '<div class="minimal-retrace-origin">PRIOR-DAY BREAK CARRIED</div>'
+        cards.append(f"""<div class="opportunity-card compact minimal-card" style="--card-bg:{bg};--card-accent:{accent};--card-text:{text_color};">
+<div class="minimal-top"><span class="opportunity-rank">RANK {rank}</span><span class="opportunity-direction">{direction}</span></div>
+<div class="minimal-symbol">{symbol}</div>
+<div class="minimal-move"><span>{move_text}</span><b>{html.escape(strength)}</b></div>
+<div class="minimal-sr"><span>S/R</span><b>{html.escape(sr)}</b></div>
+<div class="minimal-outlook">{outlook_text}</div>
+<div class="minimal-caution" title="{caution_text}">{caution_text}</div>
+{retrace_html}
+<div class="minimal-alert"><span>FIRST ALERT</span><b>{html.escape(first)}</b></div>
+</div>""")
+    st.markdown('<div class="opportunity-grid compact-grid minimal-grid">'+''.join(cards)+'</div>',unsafe_allow_html=True)
 
 def _render_live_queue(candidates: pd.DataFrame, snapshot_results: dict[str, pd.DataFrame] | None = None) -> None:
     'Recent first-alert queue; presentation only.'
@@ -1945,8 +3005,11 @@ def _render_live_queue(candidates: pd.DataFrame, snapshot_results: dict[str, pd.
         strength=str(row.get('decision_strength',row.get('decision_state','—'))).replace('_',' ')
         move=pd.to_numeric(row.get('price_change_pct',0),errors='coerce')
         move_text='—' if pd.isna(move) else f'{float(move):+.2f}%'
-        quality=int(_break_quality_diagnostic(row,snapshot_results)['quality'])
-        tiles.append(f'''<div class="live-queue-tile" style="--queue-bg:{bg};--queue-accent:{accent};"><div class="queue-head"><b>{symbol}</b><span>{direction}</span></div><div class="queue-state">{html.escape(strength.title())}</div><div class="queue-move">{move_text}</div><div class="queue-quality"><span style="width:{quality}%"></span></div><div class="queue-foot"><span>Quality {quality}%</span><span>First {row['_first'].strftime('%H:%M:%S')}</span></div></div>''')
+        setup_q=_setup_readiness_diagnostic(row,snapshot_results)
+        outlook_q=_setup_outlook_diagnostic(row)
+        lifecycle_q=_alert_lifecycle_diagnostic(row,snapshot_results)
+        quality=int(setup_q['readiness'])
+        tiles.append(f'''<div class="live-queue-tile" style="--queue-bg:{bg};--queue-accent:{accent};"><div class="queue-head"><b>{symbol}</b><span>{direction}</span></div><div class="queue-state">{html.escape(strength.title())}</div><div class="queue-move">{move_text}</div><div class="queue-quality"><span style="width:{quality}%"></span></div><div class="queue-foot"><span>{html.escape(outlook_q['outlook'])} · {quality}%</span><span>First {html.escape(lifecycle_q['first_alert'])}</span></div></div>''')
     st.markdown('<div class="live-queue-panel"><div class="live-queue-title">LIVE QUEUE · RECENT FIRST ALERTS</div><div class="live-queue-sub">Direction + strength colour coded · diagnostic quality only · existing selection unchanged</div><div class="live-queue-grid">'+''.join(tiles)+'</div></div>',unsafe_allow_html=True)
 
 
@@ -1954,6 +3017,7 @@ def _render_processing_output(
     result: pd.DataFrame,
     processed_time: datetime,
     source_path: Path,
+    snapshot_results: dict[str, pd.DataFrame] | None = None,
 ) -> None:
     """Show the actual output produced from the latest processed snapshot.
 
@@ -1992,11 +3056,20 @@ def _render_processing_output(
             'observation_timestamp', 'first_alert_timestamp', 'symbol',
             'price_change_pct', 'decision_direction', 'decision_state',
             'decision_score', 'decision_strength', 'confirmation_count',
-            'conflict_count', 'sr_status', 'gate_passed', '_diagnostic_quality',
+            'conflict_count', 'sr_status', 'gate_passed',
+            '_setup_readiness', '_break_confirmation', '_diagnostic_quality',
         ]
         display_source = candidates.copy()
+        display_source['_setup_readiness'] = display_source.apply(
+            lambda row: _setup_readiness_diagnostic(row, snapshot_results).get('readiness', 0),
+            axis=1,
+        )
+        display_source['_break_confirmation'] = display_source.apply(
+            lambda row: _break_quality_diagnostic(row, snapshot_results).get('sustain_label', '—'),
+            axis=1,
+        )
         display_source['_diagnostic_quality'] = display_source.apply(
-            lambda row: _break_quality_diagnostic(row, None).get('quality', 0),
+            lambda row: _break_quality_diagnostic(row, snapshot_results).get('quality', 0),
             axis=1,
         )
         columns = [c for c in preferred if c in display_source.columns]
@@ -2020,10 +3093,12 @@ def _render_processing_output(
                 "conflict_count": "Conflict",
                 "sr_status": "S/R",
                 "gate_passed": "Gate",
+                "_setup_readiness": "Setup Readiness",
+                "_break_confirmation": "Break Confirmation",
                 "_diagnostic_quality": "Break Quality",
             }
             output = output.rename(columns=rename)
-            output["Reason"] = output_source.apply(lambda row: _break_quality_diagnostic(row, None).get("reason", "Existing engine evidence only"), axis=1).values
+            output["Reason"] = output_source.apply(lambda row: _break_quality_diagnostic(row, snapshot_results).get("reason", "Existing engine evidence only"), axis=1).values
             for timestamp_col in ["Time", "First Alert"]:
                 if timestamp_col in output.columns:
                     output[timestamp_col] = (
@@ -2089,7 +3164,7 @@ def _render_processing_output(
                 # so add it explicitly before selecting audit columns.
                 audit_source = result.copy()
                 audit_source['_diagnostic_quality'] = audit_source.apply(
-                    lambda row: _break_quality_diagnostic(row, None).get('quality', 0),
+                    lambda row: _break_quality_diagnostic(row, snapshot_results).get('quality', 0),
                     axis=1,
                 )
                 audit_columns = [c for c in columns if c in audit_source.columns]
@@ -2214,40 +3289,77 @@ def _render_current_result(
             # Attach the durable first-alert timestamp when the timeline predates
             # this field. The state file is the source of truth.
             try:
+                _evo_date_raw = st.session_state.get("ds_trading_date", "")
+                if hasattr(_evo_date_raw, "strftime"):
+                    _evo_date_key = _evo_date_raw.strftime("%Y-%m-%d")
+                else:
+                    _evo_date_key = str(_evo_date_raw).strip()[:10]
                 day_state = load_state(STATE_JSON).get(STATE_KEY, {}).get(
-                    st.session_state.get("ds_trading_date", ""), {}
+                    _evo_date_key, {}
                 ) or {}
                 first_alerts = day_state.get("first_alerts", {}) or {}
             except Exception:
                 first_alerts = {}
             def _display_first_alert(row: pd.Series) -> str:
-                alert = str(
-                    first_alerts.get(
-                        str(row["Symbol"]).upper().strip(), {}
-                    ).get("timestamp", "")
-                ).strip()
-                event_time = str(row.get("Time", "")).strip()[:8]
-                if not alert:
-                    return "—"
-                try:
-                    alert_time = datetime.fromisoformat(alert).strftime("%H:%M:%S")
-                except (TypeError, ValueError):
-                    return "—"
-                return alert_time if alert_time == event_time else "—"
+                symbol = str(row["Symbol"]).upper().strip()
 
-            evo["First Alert"] = evo.apply(
-                _display_first_alert,
-                axis=1,
-            )
+                # First Alert is immutable. Prefer an explicit timeline value,
+                # then durable state. Never compare it to the current event time.
+                for key in ("first_alert_timestamp", "first_alert", "First Alert"):
+                    raw = str(row.get(key, "")).strip()
+                    if raw and raw not in {"—", "NAN", "NONE"}:
+                        try:
+                            return datetime.fromisoformat(raw).strftime("%H:%M:%S")
+                        except (TypeError, ValueError):
+                            pass
+
+                saved = first_alerts.get(symbol, {}) or {}
+                raw = str(saved.get("timestamp", "")).strip() if isinstance(saved, dict) else ""
+                if raw:
+                    try:
+                        return datetime.fromisoformat(raw).strftime("%H:%M:%S")
+                    except (TypeError, ValueError):
+                        pass
+                return "—"
+
+            evo["First Alert"] = evo.apply(_display_first_alert, axis=1)
+
+            # Attach the durable second-opportunity lifecycle without replacing
+            # the original event history.
+            retrace_alerts = day_state.get("retracement_alerts", {}) or {}
+            retrace_watches = day_state.get("retracement_watches", {}) or {}
+            structural_breaks = day_state.get("structural_breaks", {}) or {}
 
             def _evolution_event(row: pd.Series) -> str:
+                symbol = str(row.get("Symbol", "")).upper().strip()
                 previous = str(row.get("Previous", "")).upper()
                 direction = str(row.get("Direction", "")).upper()
                 decision = str(row.get("Decision", "")).upper()
-                if previous in {"", "—", "NONE", "NAN", "NO DECISION"}:
-                    return "NEW ALERT"
+                sr = str(row.get("S/R", "")).upper()
+
+                # A current-day observation that is the actual qualifying
+                # structural break remains the original event.
+                is_break = (
+                    (direction == "BULLISH" and sr == "RESISTANCE BROKEN")
+                    or (direction == "BEARISH" and sr == "SUPPORT BROKEN")
+                )
+                if is_break:
+                    return "ORIGINAL BREAK"
+
+                if symbol in retrace_alerts:
+                    alert = retrace_alerts.get(symbol, {}) or {}
+                    name = str(alert.get("entry_name", "EMA20/VWAP")).strip()
+                    return f"RE-ENTRY ALERT · {name}"
+
+                if symbol in retrace_watches:
+                    watch = retrace_watches.get(symbol, {}) or {}
+                    name = str(watch.get("entry_name", "EMA20/VWAP")).strip()
+                    return f"RETRACE WATCH · {name}"
+
                 if previous in {"BULLISH", "BEARISH"} and direction in {"BULLISH", "BEARISH"} and previous != direction:
                     return "REVERSAL"
+                if previous in {"", "—", "NONE", "NAN", "NO DECISION"}:
+                    return "NEW ALERT"
                 if decision.startswith("DEVELOPING"):
                     return "DEVELOPING"
                 if decision == "WAIT_BREAK_CONFIRMATION":
@@ -2259,6 +3371,15 @@ def _render_current_result(
                 return "STATE CHANGE"
 
             evo["Event"] = evo.apply(_evolution_event, axis=1)
+
+            def _break_origin(row: pd.Series) -> str:
+                symbol = str(row.get("Symbol", "")).upper().strip()
+                item = structural_breaks.get(symbol, {}) or {}
+                if not isinstance(item, dict):
+                    return "—"
+                return str(item.get("date", "")).strip() or "—"
+
+            evo["Break Origin"] = evo.apply(_break_origin, axis=1)
             symbols = sorted(evo["Symbol"].dropna().unique().tolist())
             f1, f2 = st.columns([2, 1])
             with f1:
@@ -2286,8 +3407,8 @@ def _render_current_result(
                 filtered_evo = filtered_evo.tail(60)
 
             display_cols = [
-                "Time", "Symbol", "First Alert", "Event", "Decision",
-                "Previous", "Direction", "Evidence", "Strength", "S/R",
+                "Time", "Symbol", "First Alert", "Event", "Break Origin",
+                "Decision", "Previous", "Direction", "Evidence", "Strength", "S/R",
             ]
             display_cols = [c for c in display_cols if c in filtered_evo.columns]
 
@@ -2318,8 +3439,8 @@ def _render_current_result(
             )
             st.caption(
                 "Progress colours: green = strengthening/strong, amber = developing, "
-                "indigo = wait-break, red/pink = reversal. First Alert is the first time "
-                "the stock entered the existing decision table."
+                "indigo = wait-break, red/pink = reversal. First Alert is immutable "
+                "provenance; Event Time changes with each observation or re-entry event."
             )
 
 
@@ -2442,12 +3563,25 @@ if hasattr(st, "fragment"):
                     )
                     persisted_source = ""
                     persisted_timestamp = ""
-            elif auto_update:
+            elif auto_update and market_open:
                 latest, timeline, _changed = _auto_process_new_snapshots(
                     sources, trading_date
                 )
                 persisted_source = ""
                 persisted_timestamp = ""
+            elif auto_update and not market_open:
+                # After the regular session closes, LIVE becomes a frozen
+                # read-only view of the last complete processed state. The
+                # 5-minute fragment may still refresh the page, but it must
+                # not keep mutating the closed session.
+                restored = _restore_last_complete_state(trading_date)
+                if restored is not None:
+                    latest, timeline, persisted_source, persisted_timestamp = restored
+                else:
+                    latest, timeline, _ = _load_day_for_snapshot_view(
+                        sources, trading_date
+                    )
+                session_state["finalized"] = True
             else:
                 latest, timeline, _ = _load_day_for_snapshot_view(
                     sources, trading_date
@@ -2491,7 +3625,18 @@ if hasattr(st, "fragment"):
                     if not processed_times.empty:
                         latest_time = processed_times.max().to_pydatetime()
             source_latest_time = parse_observation_timestamp(sources[-1])
-            if auto_update:
+            if not market_open:
+                if persisted_source:
+                    status = (
+                        "LIVE FEED • SESSION CLOSED • "
+                        "LAST COMPLETE SNAPSHOT"
+                    )
+                else:
+                    status = (
+                        "LIVE FEED • SESSION CLOSED • "
+                        "LAST AVAILABLE SNAPSHOT"
+                    )
+            elif auto_update:
                 if latest_time < source_latest_time:
                     status = (
                         "LIVE FEED • processing catch-up • "
@@ -2504,8 +3649,6 @@ if hasattr(st, "fragment"):
                     )
             else:
                 status = "LIVE FEED • last processed snapshot • Auto-update OFF"
-            if not market_open:
-                status += " • market closed"
 
             if latest_time < source_latest_time:
                 st.caption(
@@ -2521,12 +3664,13 @@ if hasattr(st, "fragment"):
             # applied to the data available through this processed timestamp.
             # Keep the row-level output collapsed so it does not compete with
             # the decision-first board.
+            _live_cache = _get_replay_cache(trading_date)
             _render_processing_output(
                 latest,
                 latest_time,
                 latest_path,
+                _live_cache.get("snapshots", {}) if isinstance(_live_cache, dict) else {},
             )
-            _live_cache = _get_replay_cache(trading_date)
             _render_current_result(latest, timeline, latest_time.strftime("%H:%M:%S"), "live_", _live_cache.get("snapshots", {}) if isinstance(_live_cache, dict) else {})
         except Exception as exc:
             st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
@@ -2625,7 +3769,9 @@ def render() -> None:
                 if data_trading_date != selected_calendar_date:
                     st.info(
                         f"No snapshots yet for {selected_calendar_date}. "
-                        f"Showing latest available trading day: {data_trading_date}."
+                        f"Showing latest available trading day: {data_trading_date}. "
+                        "New-session LIVE processing will begin when the first "
+                        "current-day snapshot arrives."
                     )
             else:
                 st.warning("No Daywise snapshots are available yet.")
@@ -2665,9 +3811,12 @@ def render() -> None:
     # Market status is separate: after hours, the last available snapshot
     # remains the live dashboard result until a newer source file arrives.
     auto_live_enabled = st.session_state.get("ds_auto_update", True)
-    if auto_live_enabled:
+    if auto_live_enabled and market_open:
         live_feed_class = "top-status-active"
         live_feed_label = "LIVE FEED • LAST AVAILABLE"
+    elif auto_live_enabled and not market_open:
+        live_feed_class = "top-status-closed"
+        live_feed_label = "LIVE FEED • SESSION CLOSED"
     else:
         live_feed_class = "top-status-closed"
         live_feed_label = "LIVE FEED • PAUSED"
