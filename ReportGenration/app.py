@@ -241,7 +241,12 @@ class Manager:
                                     job["id"],
                                     now,
                                 ):
-                                    self.download(page, job)
+                                    context, page = self.download(
+                                        playwright,
+                                        context,
+                                        page,
+                                        job,
+                                    )
 
                                     interval = max(
                                         1,
@@ -481,7 +486,7 @@ class Manager:
 
         return filename
 
-    def download(self, page, job):
+    def download(self, playwright, context, page, job):
         name = job["name"]
         destination_text = str(
             job.get("destination", "")
@@ -491,24 +496,20 @@ class Manager:
             self.log(
                 f"{name}: destination folder is empty."
             )
-            return
+            return context, page
 
         try:
-            # A transient Chromium/network suspension can invalidate the
-            # current Page object. Retry navigation once only, and always
-            # reacquire a live page after browser recovery.
+            # Recover transient network/browser failures without
+            # reusing a stale Page object.
             navigation_error = None
 
             for navigation_attempt in range(2):
                 try:
-                    if (
-                        self.context is None
-                        or self.browser is None
-                        or len(self.context.pages) == 0
-                    ):
-                        self.open_browser()
-
-                    page = self.context.pages[-1]
+                    context, page = self.ensure_browser(
+                        playwright,
+                        context,
+                        page,
+                    )
 
                     page.goto(
                         job["url"],
@@ -528,7 +529,11 @@ class Manager:
                             f"reopening Chromium and retrying: {error}"
                         )
                         try:
-                            self.open_browser()
+                            context, page = self.ensure_browser(
+                                playwright,
+                                None,
+                                None,
+                            )
                         except Exception as recovery_error:
                             navigation_error = recovery_error
                             break
@@ -538,7 +543,7 @@ class Manager:
                     f"{name}: download failed during navigation: "
                     f"{navigation_error}"
                 )
-                return
+                return context, page
 
             page.wait_for_timeout(1000)
 
@@ -797,6 +802,7 @@ class Manager:
             self.log(
                 f"{name}: download failed: {error}"
             )
+            return context, page
 
 
 st.set_page_config(
