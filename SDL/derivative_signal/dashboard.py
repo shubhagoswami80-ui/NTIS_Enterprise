@@ -1,27 +1,34 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import gzip
 import html
+import pickle
 import time
 from pathlib import Path
 from typing import Any
+from functools import lru_cache
 import re
 
 import pandas as pd
 import streamlit as st
 
+import multi_source_adapter as _replay_adapter
+
 from config import INTRADAY_SOURCE_ROOT
-from derivative_signal.source_loader import (
+from source_loader import (
     discover_daywise_files,
     parse_observation_timestamp,
     read_source,
 )
 from storage import load_state, save_state
-from derivative_signal.signal_engine import build_signal
+from signal_engine import build_signal
 from decision_evidence import merge_evidence, enrich_decision
 
 STATE_KEY = "derivative_signal"
 STATE_JSON = Path(__file__).resolve().parent / "data" / "output" / "state" / "processing_state.json"
+REPLAY_CACHE_ROOT = STATE_JSON.parent / "replay_cache"
+REPLAY_CACHE_VERSION = 1
 
 CONFIRMED_STATES = {
     "STRONG_BULLISH",
@@ -240,8 +247,12 @@ def _process_snapshot(
     trading_date: str,
     previous: dict[str, dict],
     first_range: dict[str, Any] | None = None,
+    evidence_cache: dict[str, tuple[pd.DataFrame, dict[str, str]]] | None = None,
 ) -> pd.DataFrame:
-    df, source_map = merge_evidence(path, trading_date)
+    if evidence_cache is not None and _source_key(path) in evidence_cache:
+        df, source_map = evidence_cache[_source_key(path)]
+    else:
+        df, source_map = merge_evidence(path, trading_date)
     rows = []
 
     for record in df.to_dict(orient="records"):
@@ -438,6 +449,7 @@ def _update_retracement_alerts(
     result: pd.DataFrame,
     snapshot_results: dict[str, pd.DataFrame],
     history_by_symbol: dict[str, list[pd.Series]] | None = None,
+    durable_state: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Persist structural-break provenance and one-shot retracement alerts."""
     if result is None or result.empty:
@@ -451,6 +463,16 @@ def _update_retracement_alerts(
     retracement_events = day.get("retracement_events", []) or []
     if not isinstance(retracement_events, list):
         retracement_events = []
+    # O(1) duplicate-event lookup for the chronological ledger.
+    event_keys = {
+        (
+            str(item.get("symbol", "")).upper(),
+            str(item.get("event", "")).upper(),
+            str(item.get("break_timestamp", "")),
+        )
+        for item in retracement_events
+        if isinstance(item, dict)
+    }
     first_alerts = day.get("first_alerts", {}) or {}
 
     # Retracement/re-entry alerts use exactly the same authoritative
@@ -533,10 +555,26 @@ def _update_retracement_alerts(
                     "source_file": str(row.get("source_file", "")),
                 }
 
+        existing_cycle = structural_breaks.get(symbol, {}) or {}
+        existing_reversal = reversal_alerts.get(symbol, {}) or {}
+        existing_cycle_direction = str(existing_cycle.get("direction", "")).upper().strip()
+        if (
+            isinstance(existing_reversal, dict)
+            and existing_reversal
+            and existing_cycle_direction == direction
+            and not is_break
+        ):
+            # A REVERSAL is terminal for this structural-break cycle. No later
+            # snapshot can create another one-shot reversal until an opposite
+            # structural break starts a new cycle. Preserve the durable event
+            # data and avoid recalculating EMA/VWAP/history on every snapshot.
+            continue
+
         ctx = _retracement_context(
             row,
             snapshot_results,
             (history_by_symbol or {}).get(symbol),
+            durable_state=durable_state,
         )
         if ctx.get("status") == "INVALIDATED":
             watches.pop(symbol, None)
@@ -546,7 +584,88 @@ def _update_retracement_alerts(
 
         existing_watch = watches.get(symbol, {}) or {}
         watch_timestamp = str(existing_watch.get("watch_timestamp", "")).strip()
-        if not watch_timestamp and pd.notna(current_ts) and ctx.get("status") in {"WATCH", "REENTRY ALERT", "REVERSAL"}:
+
+        # A REENTRY/REVERSAL event must never manufacture its WATCH timestamp
+        # from the later alert timestamp. If an older durable ledger is missing
+        # the WATCH event, recover the first actual WATCH observation from the
+        # already-available chronological symbol history. This is lifecycle
+        # provenance recovery only; it does not change qualification or create
+        # a synthetic event.
+        if (
+            not watch_timestamp
+            and ctx.get("status") in {"REENTRY ALERT", "REVERSAL"}
+            and isinstance(retracement_events, list)
+        ):
+            current_break_ts = ctx.get("break_timestamp")
+            try:
+                current_break_ts = (
+                    pd.Timestamp(current_break_ts)
+                    if current_break_ts is not None and pd.notna(current_break_ts)
+                    else None
+                )
+            except (TypeError, ValueError):
+                current_break_ts = None
+
+            history = (history_by_symbol or {}).get(symbol, [])
+            prior_candidates: list[tuple[pd.Timestamp, pd.Series]] = []
+            for prior_obs in history:
+                prior_ts = pd.to_datetime(
+                    prior_obs.get(
+                        "source_timestamp",
+                        prior_obs.get("observation_timestamp", ""),
+                    ),
+                    errors="coerce",
+                )
+                if pd.isna(prior_ts) or (pd.notna(current_ts) and prior_ts >= current_ts):
+                    continue
+                if current_break_ts is not None and pd.Timestamp(prior_ts) <= current_break_ts:
+                    continue
+                prior_candidates.append((pd.Timestamp(prior_ts), prior_obs))
+
+            for prior_ts, prior_obs in sorted(prior_candidates, key=lambda item: item[0]):
+                prior_ctx = _retracement_context(
+                    prior_obs,
+                    history=history,
+                    durable_state=durable_state,
+                )
+                if str(prior_ctx.get("status", "")).upper().strip() != "WATCH":
+                    continue
+                watch_timestamp = prior_ts.isoformat()
+                # Preserve the actual WATCH provenance for the current lifecycle
+                # without replacing the later REENTRY/REVERSAL state.
+                watch_break_timestamp = (
+                    prior_ctx.get("break_timestamp").isoformat()
+                    if prior_ctx.get("break_timestamp") is not None
+                    else (ctx.get("break_timestamp").isoformat() if ctx.get("break_timestamp") is not None else "")
+                )
+                watch_event_key = (symbol, "WATCH", watch_break_timestamp)
+                if watch_event_key not in event_keys:
+                    retracement_events.append({
+                        "timestamp": watch_timestamp,
+                        "event": "WATCH",
+                        "alert_type": "WATCH",
+                        "symbol": symbol,
+                        "direction": prior_ctx.get("primary_direction", direction),
+                        "data_cycle_development": prior_ctx.get("data_cycle_development", "UNKNOWN"),
+                        "camarilla_name": prior_ctx.get("camarilla_name", ""),
+                        "camarilla_level": prior_ctx.get("camarilla_level"),
+                        "entry_name": prior_ctx.get("entry_name", ""),
+                        "entry_level": prior_ctx.get("entry_level"),
+                        "reason": prior_ctx.get("reason", ""),
+                        "break_timestamp": (
+                            prior_ctx.get("break_timestamp").isoformat()
+                            if prior_ctx.get("break_timestamp") is not None
+                            else (ctx.get("break_timestamp").isoformat() if ctx.get("break_timestamp") is not None else "")
+                        ),
+                        "break_origin": prior_ctx.get("break_origin", ctx.get("break_origin", "")),
+                        "price_interaction": prior_ctx.get("price_interaction", "APPROACHING"),
+                    })
+                    event_keys.add(watch_event_key)
+                break
+
+        # WATCH is timestamped only when the actual WATCH condition was
+        # observed. A later REENTRY/REVERSAL must not be used as a substitute.
+        if not watch_timestamp and pd.notna(current_ts) and ctx.get("status") == "WATCH":
             watch_timestamp = current_ts.isoformat()
 
         break_timestamp = (
@@ -593,14 +712,8 @@ def _update_retracement_alerts(
         # once per structural-break cycle and keeps its real source timestamp.
         if pd.notna(current_ts) and ctx.get("status") in {"WATCH", "REENTRY ALERT", "REVERSAL"}:
             event_type = str(ctx.get("status", "")).upper()
-            event_exists = any(
-                isinstance(item, dict)
-                and str(item.get("symbol", "")).upper() == symbol
-                and str(item.get("event", "")).upper() == event_type
-                and str(item.get("break_timestamp", "")) == break_timestamp
-                for item in retracement_events
-            )
-            if not event_exists:
+            event_key = (symbol, event_type, break_timestamp)
+            if event_key not in event_keys:
                 retracement_events.append({
                     "timestamp": current_ts.isoformat(),
                     "event": event_type,
@@ -617,6 +730,7 @@ def _update_retracement_alerts(
                     "break_origin": ctx.get("break_origin", ""),
                     "price_interaction": common["price_interaction"],
                 })
+                event_keys.add(event_key)
 
         # One-shot RETRACEMENT / RE-ENTRY alert. A REVERSAL is a distinct
         # alert type and must not be suppressed merely because a re-entry
@@ -996,20 +1110,176 @@ def _cache_key(trading_date: str) -> str:
     return f"ds_snapshot_cache::{trading_date}"
 
 
+def _replay_cache_path(trading_date: str) -> Path:
+    return REPLAY_CACHE_ROOT / f"{trading_date}.pkl.gz"
+
+
+def _replay_cache_complete(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    snapshots = value.get("snapshots")
+    timeline = value.get("timeline")
+    if not isinstance(snapshots, dict) or not snapshots:
+        return False
+    if not isinstance(timeline, pd.DataFrame):
+        return False
+    # Empty decision frames are valid historical observations.  The BASE
+    # observation can also be a raw source frame.  Completeness therefore
+    # checks structure/timestamp, not non-empty decision content.
+    return all(
+        isinstance(frame, pd.DataFrame)
+        and "source_timestamp" in frame.columns
+        for frame in snapshots.values()
+    )
+
+
+def _replay_frame_timestamp(frame: pd.DataFrame) -> pd.Timestamp | None:
+    """Return the persisted observation timestamp for one replay frame."""
+    if not isinstance(frame, pd.DataFrame):
+        return None
+    raw_timestamp = frame.get(
+        "source_timestamp", frame.get("observation_timestamp")
+    )
+    if isinstance(raw_timestamp, pd.Series):
+        valid = pd.to_datetime(raw_timestamp, errors="coerce").dropna()
+    else:
+        valid = pd.to_datetime(
+            pd.Series([raw_timestamp]), errors="coerce"
+        ).dropna()
+    if valid.empty:
+        return None
+    return pd.Timestamp(valid.iloc[0])
+
+
+def _find_replay_cache_key_by_timestamp(
+    snapshots: dict[str, pd.DataFrame],
+    target_timestamp: Any,
+) -> str | None:
+    """Resolve a historical snapshot by its persisted observation time.
+
+    The UI exposes timestamps to the second, while Windows ctime values can
+    differ at microsecond precision when a source file is recreated. Replay
+    therefore matches the displayed observation second first and uses the
+    smallest actual timestamp delta as the deterministic tie-breaker. This
+    prevents an otherwise valid historical cache entry from being rejected
+    and rebuilt merely because the physical file was recreated.
+    """
+    target = pd.to_datetime(target_timestamp, errors="coerce")
+    if pd.isna(target) or not isinstance(snapshots, dict):
+        return None
+    target = pd.Timestamp(target)
+    best_key: str | None = None
+    best_delta: float | None = None
+    for key, frame in snapshots.items():
+        ts = _replay_frame_timestamp(frame)
+        if ts is None or ts.date() != target.date():
+            continue
+        # Replay selection is second-resolution. Prefer the exact displayed
+        # second; only then consider a tiny sub-second drift from file recreate.
+        if ts.strftime("%H:%M:%S") != target.strftime("%H:%M:%S"):
+            continue
+        delta = abs((ts - target).total_seconds())
+        if best_delta is None or delta < best_delta or (delta == best_delta and str(key) < str(best_key)):
+            best_delta = delta
+            best_key = str(key)
+    return best_key
+
+
+def _build_replay_point_in_time_cache(
+    snapshots: dict[str, pd.DataFrame],
+) -> dict[str, dict[str, Any]]:
+    """Index already-produced point-in-time state without recomputation.
+
+    Snapshot frames already carry their actual source timestamp and, for
+    decision-bearing observations, the lifecycle events captured during
+    chronological processing.  Replay must reuse that state rather than
+    re-running _rank() or retracement calculations across the whole history.
+    """
+    if not isinstance(snapshots, dict) or not snapshots:
+        return {}
+
+    point_cache: dict[str, dict[str, Any]] = {}
+    for key, frame in snapshots.items():
+        if not isinstance(frame, pd.DataFrame):
+            continue
+        timestamp = _replay_frame_timestamp(frame)
+        if timestamp is None:
+            continue
+        lifecycle = frame.attrs.get("replay_lifecycle_events", {})
+        if not isinstance(lifecycle, dict):
+            lifecycle = {}
+        point_cache[key] = {
+            "source_timestamp": timestamp.isoformat(),
+            "result": frame,
+            "lifecycle_events": dict(lifecycle),
+        }
+    return point_cache
+
+
 def _store_replay_cache(
     trading_date: str,
     snapshot_results: dict[str, pd.DataFrame],
     timeline: pd.DataFrame,
+    point_in_time_cache: dict[str, dict[str, Any]] | None = None,
 ) -> None:
-    st.session_state[_cache_key(trading_date)] = {
+    value = {
+        "version": REPLAY_CACHE_VERSION,
+        "trading_date": trading_date,
         "snapshots": snapshot_results,
         "timeline": timeline,
+        "point_in_time_cache": point_in_time_cache or {},
     }
+    st.session_state[_cache_key(trading_date)] = value
+
+    if not _replay_cache_complete(value):
+        return
+
+    REPLAY_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    target = _replay_cache_path(trading_date)
+    temp = target.with_name(f".{target.name}.tmp")
+    try:
+        with temp.open("wb") as raw:
+            with gzip.GzipFile(fileobj=raw, mode="wb") as compressed:
+                pickle.dump(value, compressed, protocol=pickle.HIGHEST_PROTOCOL)
+            raw.flush()
+        temp.replace(target)
+    except (OSError, pickle.PickleError, TypeError):
+        try:
+            temp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def _load_replay_cache_file_cached(trading_date: str, cache_path: str, mtime_ns: int) -> dict[str, Any]:
+    """Read one persisted replay cache once per Streamlit process."""
+    try:
+        with gzip.open(cache_path, "rb") as compressed:
+            restored = pickle.load(compressed)
+    except (OSError, EOFError, pickle.PickleError, AttributeError, ValueError, TypeError):
+        return {}
+    return restored if _replay_cache_complete(restored) else {}
 
 
 def _get_replay_cache(trading_date: str) -> dict[str, Any]:
     value = st.session_state.get(_cache_key(trading_date))
-    return value if isinstance(value, dict) else {}
+    if _replay_cache_complete(value):
+        return value
+
+    target = _replay_cache_path(trading_date)
+    if not target.is_file():
+        return {}
+
+    try:
+        restored = _load_replay_cache_file_cached(
+            trading_date, str(target), target.stat().st_mtime_ns
+        )
+    except OSError:
+        return {}
+    if not _replay_cache_complete(restored):
+        return {}
+    st.session_state[_cache_key(trading_date)] = restored
+    return restored
 
 
 def _process_and_cache_day(
@@ -1035,6 +1305,7 @@ def _process_and_cache_day(
 def _auto_process_new_snapshots(
     sources: list[Path],
     trading_date: str,
+    max_batch: int | None = 3,
 ) -> tuple[pd.DataFrame, pd.DataFrame, bool]:
     """Return LIVE at the latest successfully processed source.
 
@@ -1055,13 +1326,28 @@ def _auto_process_new_snapshots(
         or ""
     ).strip()
 
-    # Establish the authoritative checkpoint index from durable state.
+    # Establish the authoritative checkpoint from durable state. The physical
+    # checkpoint file may have been deleted after processing, so its persisted
+    # observation timestamp is also a valid checkpoint identity.
     checkpoint_key = _source_key(Path(checkpoint_file)) if checkpoint_file else ""
     checkpoint_idx = -1
+    checkpoint_timestamp = pd.to_datetime(
+        saved.get("observation_timestamp", ""), errors="coerce"
+    )
+    if pd.isna(checkpoint_timestamp) and checkpoint_file:
+        checkpoint_path = Path(checkpoint_file)
+        if checkpoint_path.is_file():
+            checkpoint_timestamp = pd.Timestamp(
+                parse_observation_timestamp(checkpoint_path)
+            )
+
     if checkpoint_key:
         for i, path in enumerate(sources):
             if _source_key(path) == checkpoint_key:
                 checkpoint_idx = i
+                checkpoint_timestamp = pd.Timestamp(
+                    parse_observation_timestamp(path)
+                )
                 break
 
     # If durable state is absent, restore it from the last complete record.
@@ -1072,6 +1358,9 @@ def _auto_process_new_snapshots(
             if _source_key(path) == restored_key:
                 checkpoint_idx = i
                 checkpoint_key = restored_key
+                checkpoint_timestamp = pd.Timestamp(
+                    parse_observation_timestamp(path)
+                )
                 break
 
     cache = _get_replay_cache(trading_date)
@@ -1079,15 +1368,18 @@ def _auto_process_new_snapshots(
     if not isinstance(cached_snapshots, dict):
         cached_snapshots = {}
 
-    # Genuinely new day/state: process the complete chronological chain once.
-    if checkpoint_idx < 0:
+    # Reuse the durable result at the checkpoint as the starting LIVE result.
+    # If the checkpoint file itself was deleted, the persisted timestamp above
+    # still lets LIVE continue from that exact point instead of rebuilding the
+    # remaining day from scratch.
+    restored = _restore_last_complete_state(trading_date)
+    if checkpoint_idx < 0 and (restored is None or pd.isna(checkpoint_timestamp)):
+        # Genuinely new day/state: process the complete chronological chain once.
         latest, timeline, snapshots = _process_and_cache_day(
             sources, trading_date
         )
         return latest, timeline, True
 
-    # Reuse the durable result at the checkpoint as the starting LIVE result.
-    restored = _restore_last_complete_state(trading_date)
     if restored is not None:
         latest_result, restored_timeline, _, _ = restored
     else:
@@ -1100,8 +1392,21 @@ def _auto_process_new_snapshots(
     # IMPORTANT: the durable checkpoint, not cache membership, determines what
     # still needs processing. Process only a small chronological batch per
     # fragment so the UI remains responsive while LIVE catches up.
-    all_new_paths = sources[checkpoint_idx + 1 :]
-    new_paths = all_new_paths[:3]
+    if checkpoint_idx >= 0:
+        all_new_paths = sources[checkpoint_idx + 1 :]
+    else:
+        # Historical source deletion is tolerated: use the persisted observation
+        # timestamp as the immutable LIVE cutoff and process only genuinely newer
+        # source observations.
+        all_new_paths = [
+            path
+            for path in sources
+            if parse_observation_timestamp(path) > checkpoint_timestamp
+        ]
+    if max_batch is None:
+        new_paths = all_new_paths
+    else:
+        new_paths = all_new_paths[:max(1, int(max_batch))]
 
     if not new_paths:
         # Do not collapse a complete chronological cache to the final snapshot.
@@ -1132,6 +1437,21 @@ def _auto_process_new_snapshots(
     for cached_frame in cached_snapshots.values():
         if not isinstance(cached_frame, pd.DataFrame) or cached_frame.empty or "symbol" not in cached_frame.columns:
             continue
+        # A replay cache can legitimately contain observations later than the
+        # current LIVE checkpoint. Never feed those future observations into
+        # live retracement/alert calculations.
+        if not pd.isna(checkpoint_timestamp):
+            raw_cached_ts = cached_frame.get(
+                "source_timestamp", cached_frame.get("observation_timestamp")
+            )
+            if isinstance(raw_cached_ts, pd.Series):
+                cached_ts = pd.to_datetime(raw_cached_ts, errors="coerce").dropna()
+            else:
+                cached_ts = pd.to_datetime(
+                    pd.Series([raw_cached_ts]), errors="coerce"
+                ).dropna()
+            if not cached_ts.empty and pd.Timestamp(cached_ts.iloc[0]) > checkpoint_timestamp:
+                continue
         for _, cached_row in cached_frame.iterrows():
             symbol = str(cached_row.get("symbol", "")).strip().upper()
             if symbol:
@@ -1565,6 +1885,24 @@ header[data-testid="stHeader"],
 [data-testid="stStatusWidget"],
 [data-testid="stAppDeployButton"],
 #MainMenu{display:none !important}
+/* Full-page scrolling: Streamlit owns the app shell, so do not create a
+   nested viewport scroll container.  Let the document grow naturally and
+   let the browser provide the single vertical scrollbar. */
+html, body, #root, .stApp, [data-testid="stAppViewContainer"],
+[data-testid="stMain"], section.main, [data-testid="stMainBlockContainer"]{
+    height:auto !important;
+    min-height:100vh !important;
+    max-height:none !important;
+    overflow:visible !important;
+}
+html, body{
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+}
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"], section.main{
+    width:100% !important;
+}
 .block-container{max-width:1500px;padding-top:.55rem;padding-bottom:2rem}
 .hero{
     padding:17px 26px;
@@ -2223,7 +2561,10 @@ def _render_evidence(row: pd.Series) -> None:
         )
 
 
-def _render_timeline(timeline: pd.DataFrame) -> None:
+def _render_timeline(
+    timeline: pd.DataFrame,
+    current_result: pd.DataFrame | None = None,
+) -> None:
     """Render the replay as a focused evidence-history investigation tool.
 
     The replay never introduces a second stock-selection algorithm.  It uses
@@ -2231,7 +2572,6 @@ def _render_timeline(timeline: pd.DataFrame) -> None:
       - Current Relevant: relevant in the latest replay observation
       - Historical Relevant: relevant at any point in the replay
       - Selected Stock: full evolution for one relevant stock
-      - Raw Audit: the complete underlying replay data
     """
     if not isinstance(timeline, pd.DataFrame) or timeline.empty:
         return
@@ -2281,14 +2621,28 @@ def _render_timeline(timeline: pd.DataFrame) -> None:
         if df["_snapshot_num"].notna().any()
         else None
     )
-    if latest_snapshot is not None:
+
+    # In replay the selected result is the authoritative current observation.
+    # The timeline contains only meaningful decision events, so deriving
+    # Current Relevant from the last event can omit stocks that remain relevant
+    # but did not change state at the selected snapshot.
+    if isinstance(current_result, pd.DataFrame) and not current_result.empty:
+        current_candidates = _rank(current_result)
+        current_symbols = set(
+            current_candidates.get(
+                "symbol", pd.Series(dtype=str)
+            ).astype(str).str.upper().str.strip().dropna().tolist()
+        )
+    elif latest_snapshot is not None:
         latest = df.loc[df["_snapshot_num"].eq(latest_snapshot)].copy()
+        current_symbols = set(
+            latest.loc[latest["_relevant"], "Symbol"].dropna().tolist()
+        )
     else:
         latest = df.tail(1).copy()
-
-    current_symbols = set(
-        latest.loc[latest["_relevant"], "Symbol"].dropna().tolist()
-    )
+        current_symbols = set(
+            latest.loc[latest["_relevant"], "Symbol"].dropna().tolist()
+        )
     historical_symbols = set(
         df.loc[df["_relevant"], "Symbol"].dropna().tolist()
     )
@@ -2297,7 +2651,7 @@ def _render_timeline(timeline: pd.DataFrame) -> None:
     c1.metric("Current Relevant", len(current_symbols))
     c2.metric("Historical Relevant", len(historical_symbols))
     c3.metric("Replay Events", len(df))
-    c4.metric("Observation Times", df["Time"].astype(str).nunique())
+    c4.metric("Event Times", df["Time"].astype(str).nunique())
 
     scope = st.radio(
         "Replay scope",
@@ -2305,23 +2659,10 @@ def _render_timeline(timeline: pd.DataFrame) -> None:
             "Current Relevant",
             "Historical Relevant",
             "Selected Stock",
-            "Raw Audit",
         ],
         horizontal=True,
-        key="ds_replay_scope",
+        key=f"ds_replay_scope_{st.session_state.get('ds_replay_date', 'unknown')}",
     )
-
-    if scope == "Raw Audit":
-        st.caption(
-            "Complete replay retained for audit/debugging. "
-            "No stock-selection filtering is applied here."
-        )
-        st.dataframe(
-            df[required],
-            use_container_width=True,
-            hide_index=True,
-        )
-        return
 
     if scope == "Current Relevant":
         scope_symbols = current_symbols
@@ -2349,7 +2690,7 @@ def _render_timeline(timeline: pd.DataFrame) -> None:
     selected_symbol = st.selectbox(
         "Stock",
         symbols,
-        key="ds_replay_symbol",
+        key=f"ds_replay_symbol_{st.session_state.get('ds_replay_date', 'unknown')}",
     )
 
     stock = scope_df.loc[scope_df["Symbol"].eq(selected_symbol)].copy()
@@ -2427,42 +2768,57 @@ def _render_timeline(timeline: pd.DataFrame) -> None:
         hide_index=True,
     )
 
-    # Compact session relationship view.  This is deliberately derived from
-    # the existing replay rows and does not create a new trading signal.
-    st.markdown("**Decision path**")
-    path_parts = []
-    for _, row in stock.iterrows():
-        time_value = str(row["Time"])
-        decision = str(row["Decision"])
-        direction = str(row["Direction"])
-        path_parts.append(f"{time_value}  {direction}  {decision}")
-    st.code("\n↓\n".join(path_parts), language="text")
-
-    with st.expander("Raw replay audit data", expanded=False):
-        st.dataframe(
-            stock[required],
-            use_container_width=True,
-            hide_index=True,
-        )
 
 
+def _build_symbol_history_index(
+    snapshot_results: dict[str, pd.DataFrame] | None,
+    symbols: set[str] | None = None,
+) -> dict[str, list[pd.Series]]:
+    """Build chronological symbol history once for diagnostic/lifecycle views.
 
-def _symbol_snapshot_history(snapshot_results: dict[str, pd.DataFrame] | None, symbol: str) -> list[pd.Series]:
-    'Return chronological observations for one symbol; diagnostic only.'
-    if not isinstance(snapshot_results, dict):
-        return []
-    target = str(symbol).strip().upper()
-    observations = []
+    The old renderer rescanned every snapshot separately for every stock. This
+    vectorized index preserves the same observations while avoiding repeated
+    DataFrame/iterrows work. It is presentation support only; it does not create
+    or change any decision or lifecycle event.
+    """
+    if not isinstance(snapshot_results, dict) or not snapshot_results:
+        return {}
+    wanted = {str(v).strip().upper() for v in symbols or set() if str(v).strip()}
+    buckets: dict[str, list[tuple[pd.Timestamp, pd.Series]]] = {}
     for frame in snapshot_results.values():
-        if not isinstance(frame, pd.DataFrame) or frame.empty or 'symbol' not in frame.columns:
+        if not isinstance(frame, pd.DataFrame) or frame.empty or "symbol" not in frame.columns:
             continue
-        matches = frame.loc[frame['symbol'].astype(str).str.upper().str.strip().eq(target)]
-        for _, row in matches.iterrows():
-            ts = pd.to_datetime(row.get('source_timestamp', row.get('observation_timestamp', '')), errors='coerce')
-            if pd.notna(ts):
-                observations.append((ts.to_pydatetime(), row))
-    observations.sort(key=lambda item: item[0])
-    return [row for _, row in observations]
+        work = frame.copy()
+        work["__history_symbol"] = work["symbol"].astype(str).str.upper().str.strip()
+        if wanted:
+            work = work.loc[work["__history_symbol"].isin(wanted)]
+        if work.empty:
+            continue
+        ts_col = (
+            work["source_timestamp"]
+            if "source_timestamp" in work.columns
+            else work.get("observation_timestamp", pd.Series(index=work.index))
+        )
+        work["__history_ts"] = pd.to_datetime(ts_col, errors="coerce")
+        work = work.loc[work["__history_ts"].notna()]
+        if work.empty:
+            continue
+        for symbol, group in work.groupby("__history_symbol", sort=False):
+            bucket = buckets.setdefault(symbol, [])
+            for idx in group.index:
+                bucket.append((pd.Timestamp(group.at[idx, "__history_ts"]), group.loc[idx].drop(labels=["__history_symbol", "__history_ts"])))
+    return {
+        symbol: [row for _, row in sorted(items, key=lambda item: item[0])]
+        for symbol, items in buckets.items()
+    }
+
+
+def _symbol_snapshot_history(
+    snapshot_results: dict[str, pd.DataFrame] | None, symbol: str
+) -> list[pd.Series]:
+    """Return chronological observations for one symbol; diagnostic only."""
+    target = str(symbol).strip().upper()
+    return _build_symbol_history_index(snapshot_results, {target}).get(target, [])
 
 
 def _directional_alignment(row: pd.Series) -> tuple[str, int, int]:
@@ -2500,6 +2856,7 @@ def _directional_alignment(row: pd.Series) -> tuple[str, int, int]:
 def _build_replay_lifecycle_events(
     snapshots: dict[str, pd.DataFrame],
     selected_result: pd.DataFrame,
+    durable_state: dict[str, Any] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Build immutable replay lifecycle provenance from actual snapshot observations.
 
@@ -2545,7 +2902,7 @@ def _build_replay_lifecycle_events(
             if matches.empty:
                 continue
             obs = matches.iloc[0]
-            ctx = _retracement_context(obs, prefix)
+            ctx = _retracement_context(obs, prefix, durable_state=durable_state)
             status = str(ctx.get("status", "")).upper().strip()
             event_ts = pd.to_datetime(
                 obs.get("source_timestamp", obs.get("observation_timestamp", "")),
@@ -2655,7 +3012,7 @@ def _prior_day_structural_break(
                         saved_row.get("direction", "NEUTRAL"),
                     )
                 ).upper().strip()
-                saved_sr = _sr_text(pd.Series(saved_row)).upper().strip()
+                saved_sr = str(saved_row.get("sr_status", "—")).replace("_", " ").upper().strip()
                 if (
                     saved_symbol == symbol
                     and saved_direction == direction
@@ -2728,6 +3085,7 @@ def _data_cycle_development(row: pd.Series) -> str:
 
 @st.cache_data(ttl=300, show_spinner=False)
 @st.cache_data(ttl=300, show_spinner=False)
+@lru_cache(maxsize=128)
 def _camarilla_r3_s3_for_date(path: Path, trading_date: str) -> dict[str, tuple[float, float]]:
     """Return previous-session Camarilla R3/S3 from the latest prior source snapshot."""
     try:
@@ -2768,6 +3126,7 @@ def _retracement_context(
     row: pd.Series,
     snapshot_results: dict[str, pd.DataFrame] | None = None,
     history: list[pd.Series] | None = None,
+    durable_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Evaluate a second-opportunity retracement without changing SDL selection.
 
@@ -2846,7 +3205,7 @@ def _retracement_context(
         break
     if break_ts is None:
         carried_break = _prior_day_structural_break(
-            load_state(STATE_JSON),
+            (durable_state if durable_state is not None else load_state(STATE_JSON)),
             str(current_ts.date()),
             symbol,
             direction,
@@ -3061,6 +3420,7 @@ def _retracement_context(
 def _setup_readiness_diagnostic(
     row: pd.Series,
     snapshot_results: dict[str, pd.DataFrame] | None = None,
+    history_by_symbol: dict[str, list[pd.Series]] | None = None,
 ) -> dict[str, Any]:
     """Timeliness-aware setup diagnostic; presentation-only.
 
@@ -3147,7 +3507,11 @@ def _setup_readiness_diagnostic(
 
     # Chronology is used only to describe the lifecycle, never to create a
     # new candidate. A broken stock with a large move is explicitly post-break.
-    history = _symbol_snapshot_history(snapshot_results, str(row.get("symbol", "")))
+    symbol_key = str(row.get("symbol", "")).strip().upper()
+    if history_by_symbol is None:
+        history = _symbol_snapshot_history(snapshot_results, symbol_key)
+    else:
+        history = history_by_symbol.get(symbol_key, [])
     current_ts = pd.to_datetime(
         row.get("source_timestamp", row.get("observation_timestamp", "")),
         errors="coerce",
@@ -3601,7 +3965,12 @@ def _render_opportunity_cards(
 </div>""")
     st.markdown('<div class="opportunity-grid compact-grid minimal-grid">'+''.join(cards)+'</div>',unsafe_allow_html=True)
 
-def _render_live_queue(candidates: pd.DataFrame, snapshot_results: dict[str, pd.DataFrame] | None = None, replay_mode: bool = False) -> None:
+def _render_live_queue(
+    candidates: pd.DataFrame,
+    snapshot_results: dict[str, pd.DataFrame] | None = None,
+    replay_mode: bool = False,
+    history_by_symbol: dict[str, list[pd.Series]] | None = None,
+) -> None:
     'Recent first-alert queue; presentation only.'
     if candidates is None or candidates.empty or 'first_alert_timestamp' not in candidates.columns:
         return
@@ -3616,7 +3985,7 @@ def _render_live_queue(candidates: pd.DataFrame, snapshot_results: dict[str, pd.
         strength=str(row.get('decision_strength',row.get('decision_state','—'))).replace('_',' ')
         move=pd.to_numeric(row.get('price_change_pct',0),errors='coerce')
         move_text='—' if pd.isna(move) else f'{float(move):+.2f}%'
-        setup_q=_setup_readiness_diagnostic(row,snapshot_results)
+        setup_q=_setup_readiness_diagnostic(row, snapshot_results, history_by_symbol)
         outlook_q=_setup_outlook_diagnostic(row)
         lifecycle_q=_alert_lifecycle_diagnostic(row,snapshot_results)
         quality=int(setup_q['readiness'])
@@ -3624,6 +3993,24 @@ def _render_live_queue(candidates: pd.DataFrame, snapshot_results: dict[str, pd.
     queue_title = 'REPLAY QUEUE · SELECTED POINT-IN-TIME ALERTS' if replay_mode else 'LIVE QUEUE · RECENT FIRST ALERTS'
     queue_sub = ('Point-in-time historical queue · direction + strength colour coded · existing selection unchanged' if replay_mode else 'Direction + strength colour coded · diagnostic quality only · existing selection unchanged')
     st.markdown(f'<div class="live-queue-panel"><div class="live-queue-title">{queue_title}</div><div class="live-queue-sub">{queue_sub}</div><div class="live-queue-grid">'+''.join(tiles)+'</div></div>',unsafe_allow_html=True)
+
+
+def _render_historical_live_queue(
+    candidates: pd.DataFrame,
+    snapshot_label: str,
+) -> None:
+    """Render the LIVE-style qualified queue at a historical replay point."""
+    if candidates is None or not isinstance(candidates, pd.DataFrame) or candidates.empty:
+        return
+    with st.expander(
+        f"LIVE Queue • historical snapshot {snapshot_label}",
+        expanded=True,
+    ):
+        st.caption(
+            "Point-in-time LIVE-style queue: the existing qualified/ranked stock"
+            " state at the selected historical snapshot."
+        )
+        _render_table(candidates)
 
 
 def _render_processing_output(
@@ -3813,6 +4200,7 @@ def _render_retracement_lifecycle(
     trading_date: str | None = None,
     replay_mode: bool = False,
     lifecycle_events: dict[str, dict[str, Any]] | None = None,
+    history_by_symbol: dict[str, list[pd.Series]] | None = None,
 ) -> None:
     """Render the second-opportunity lifecycle as an auditable dashboard view.
 
@@ -3832,10 +4220,16 @@ def _render_retracement_lifecycle(
             if hasattr(raw_date, "strftime")
             else str(raw_date).strip()[:10]
         )
-    try:
-        day = load_state(STATE_JSON).get(STATE_KEY, {}).get(trading_date, {}) or {}
-    except Exception:
+    durable_state_root: dict[str, Any] = {}
+    if replay_mode:
         day = {}
+    else:
+        try:
+            durable_state_root = load_state(STATE_JSON) or {}
+            day = durable_state_root.get(STATE_KEY, {}).get(trading_date, {}) or {}
+        except Exception:
+            durable_state_root = {}
+            day = {}
 
     # In replay mode the selected snapshot is the point-in-time truth. Do not
     # read today's end-of-day retracement watch/alert/break ledgers because they
@@ -3845,7 +4239,73 @@ def _render_retracement_lifecycle(
     # the selected day's own replay history has no completed break.
     watches = {} if replay_mode else (day.get("retracement_watches", {}) or {})
     alerts = {} if replay_mode else (day.get("retracement_alerts", {}) or {})
+    reversal_alerts = {} if replay_mode else (day.get("retracement_reversal_alerts", {}) or {})
     breaks = {} if replay_mode else (day.get("structural_breaks", {}) or {})
+
+    # LIVE compatibility fallback: older/incrementally-restored durable state
+    # can contain the immutable chronological retracement event ledger without
+    # the newer summary maps. Rehydrate the display-only maps from those actual
+    # recorded events. This does not recalculate lifecycle logic and does not
+    # change qualification, ranking, or alert generation.
+    if not replay_mode:
+        retracement_events = day.get("retracement_events", []) or []
+        if isinstance(retracement_events, list):
+            for event in retracement_events:
+                if not isinstance(event, dict):
+                    continue
+                symbol = str(event.get("symbol", "")).strip().upper()
+                if not symbol:
+                    continue
+                event_type = str(event.get("event", "")).upper().strip()
+                timestamp = str(event.get("timestamp", "")).strip()
+                common = {
+                    "direction": event.get("direction", ""),
+                    "entry_name": event.get("entry_name", ""),
+                    "entry_level": event.get("entry_level"),
+                    "data_cycle_development": event.get("data_cycle_development", "UNKNOWN"),
+                    "camarilla_name": event.get("camarilla_name", ""),
+                    "camarilla_level": event.get("camarilla_level"),
+                    "break_timestamp": event.get("break_timestamp", ""),
+                    "break_origin": event.get("break_origin", ""),
+                    "price_interaction": event.get("price_interaction", ""),
+                    "reason": event.get("reason", ""),
+                }
+                if not breaks.get(symbol) and common["break_timestamp"]:
+                    breaks[symbol] = {
+                        **common,
+                        "date": trading_date,
+                        "direction": common["direction"],
+                    }
+                if event_type == "WATCH" and timestamp:
+                    existing = watches.get(symbol, {}) or {}
+                    watches[symbol] = {
+                        **common,
+                        **existing,
+                        "status": "WATCH",
+                        "alert_type": "WATCH",
+                        "watch_timestamp": existing.get("watch_timestamp") or timestamp,
+                    }
+                elif event_type == "REENTRY ALERT" and timestamp:
+                    existing_watch = watches.get(symbol, {}) or {}
+                    watches[symbol] = {**common, **existing_watch, "status": "REENTRY ALERT", "alert_type": "REENTRY ALERT"}
+                    if symbol not in alerts:
+                        alerts[symbol] = {
+                            **common,
+                            "timestamp": timestamp,
+                            "status": "REENTRY ALERT",
+                            "alert_type": "REENTRY ALERT",
+                        }
+                elif event_type == "REVERSAL" and timestamp:
+                    existing_watch = watches.get(symbol, {}) or {}
+                    watches[symbol] = {**common, **existing_watch, "status": "REVERSAL", "alert_type": "REVERSAL ALERT"}
+                    if symbol not in reversal_alerts:
+                        reversal_alerts[symbol] = {
+                            **common,
+                            "timestamp": timestamp,
+                            "status": "REVERSAL",
+                            "alert_type": "REVERSAL ALERT",
+                        }
+
     # LIVE uses the durable First Alert ledger. Replay must never read the
     # selected day's durable ledger because it represents the final/live state
     # and can contain events that occurred after the selected replay point.
@@ -3872,8 +4332,146 @@ def _render_retracement_lifecycle(
     if qualified_result is None or qualified_result.empty:
         return
 
+    # Build a display-only event index from the immutable chronological ledger.
+    # This is the authoritative source for Watch/Event, Re-entry Alert and
+    # Reversal timestamps when older durable summary maps are incomplete.
+    event_index: dict[str, dict[str, dict[str, Any]]] = {}
+    if not replay_mode:
+        for event in day.get("retracement_events", []) or []:
+            if not isinstance(event, dict):
+                continue
+            symbol_key = str(event.get("symbol", "")).strip().upper()
+            event_type_key = str(event.get("event", "")).strip().upper()
+            if symbol_key and event_type_key:
+                event_index.setdefault(symbol_key, {})[event_type_key] = event
+
+        # LIVE durable state can predate the richer lifecycle ledger. When the
+        # requested LIVE snapshot has only the structural-break summary, recover
+        # the already-produced point-in-time lifecycle from the persisted replay
+        # cache for the SAME observation timestamp. This is read-only hydration:
+        # it never invents an event and never evaluates a future observation.
+        try:
+            qualified_symbols = {
+                str(v).strip().upper()
+                for v in qualified_result.get("symbol", pd.Series(dtype=str)).tolist()
+                if str(v).strip()
+            }
+            needs_lifecycle = any(
+                symbol not in event_index
+                or not any(
+                    key in event_index.get(symbol, {})
+                    for key in ("WATCH", "REENTRY ALERT", "REVERSAL")
+                )
+                for symbol in qualified_symbols
+            )
+            if needs_lifecycle:
+                cached_live = _get_replay_cache(trading_date)
+                cached_points = (
+                    cached_live.get("point_in_time_cache", {})
+                    if isinstance(cached_live, dict)
+                    else {}
+                )
+                cached_snapshots = (
+                    cached_live.get("snapshots", {})
+                    if isinstance(cached_live, dict)
+                    else {}
+                )
+                if isinstance(cached_points, dict) and cached_points:
+                    live_ts = None
+                    for value in result.get(
+                        "source_timestamp", result.get("observation_timestamp", pd.Series(dtype=object))
+                    ).tolist():
+                        parsed = pd.to_datetime(value, errors="coerce")
+                        if pd.notna(parsed):
+                            live_ts = pd.Timestamp(parsed)
+                            break
+                    if live_ts is not None:
+                        best_key = None
+                        best_ts = None
+                        for cache_key, point in cached_points.items():
+                            if not isinstance(point, dict):
+                                continue
+                            parsed = pd.to_datetime(point.get("source_timestamp", ""), errors="coerce")
+                            if pd.isna(parsed) or pd.Timestamp(parsed) > live_ts:
+                                continue
+                            if best_ts is None or pd.Timestamp(parsed) > best_ts:
+                                best_ts = pd.Timestamp(parsed)
+                                best_key = cache_key
+                        if best_key is not None:
+                            cached_lifecycle = cached_points.get(best_key, {}).get("lifecycle_events", {})
+                            if isinstance(cached_lifecycle, dict):
+                                for symbol_key, lifecycle in cached_lifecycle.items():
+                                    symbol_key = str(symbol_key).strip().upper()
+                                    if symbol_key not in qualified_symbols or not isinstance(lifecycle, dict):
+                                        continue
+                                    # The point cache contains the lifecycle state
+                                    # captured at this actual source observation.
+                                    # Convert it to the same event-index shape used
+                                    # by the durable ledger, without recalculation.
+                                    if lifecycle.get("watch_timestamp"):
+                                        event_index.setdefault(symbol_key, {}).setdefault(
+                                            "WATCH",
+                                            {
+                                                **lifecycle,
+                                                "symbol": symbol_key,
+                                                "event": "WATCH",
+                                                "timestamp": lifecycle.get("watch_timestamp"),
+                                                "alert_type": lifecycle.get("alert_type", "WATCH"),
+                                            },
+                                        )
+                                    if lifecycle.get("reentry_timestamp"):
+                                        event_index.setdefault(symbol_key, {}).setdefault(
+                                            "REENTRY ALERT",
+                                            {
+                                                **lifecycle,
+                                                "symbol": symbol_key,
+                                                "event": "REENTRY ALERT",
+                                                "timestamp": lifecycle.get("reentry_timestamp"),
+                                                "alert_type": "REENTRY ALERT",
+                                            },
+                                        )
+                                    if lifecycle.get("reversal_timestamp"):
+                                        event_index.setdefault(symbol_key, {}).setdefault(
+                                            "REVERSAL",
+                                            {
+                                                **lifecycle,
+                                                "symbol": symbol_key,
+                                                "event": "REVERSAL",
+                                                "timestamp": lifecycle.get("reversal_timestamp"),
+                                                "alert_type": "REVERSAL ALERT",
+                                            },
+                                        )
+                                    # Preserve structural-break provenance even when
+                                    # the legacy summary map is incomplete.
+                                    if lifecycle.get("break_timestamp") and not event_index.get(symbol_key, {}).get("BREAK"):
+                                        event_index.setdefault(symbol_key, {})["BREAK"] = {
+                                            **lifecycle,
+                                            "symbol": symbol_key,
+                                            "event": "BREAK",
+                                            "timestamp": lifecycle.get("break_timestamp"),
+                                            "alert_type": "STRUCTURAL BREAK",
+                                        }
+        except Exception:
+            # Lifecycle hydration is optional display support. A failure must not
+            # affect the frozen LIVE decision board.
+            pass
+
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
+
+    # Build the symbol history index once. The previous renderer called
+    # _symbol_snapshot_history() separately for each qualified stock, which
+    # rescanned every historical snapshot repeatedly. This index is read-only
+    # presentation data and does not alter lifecycle generation.
+    if history_by_symbol is None:
+        history_by_symbol = _build_symbol_history_index(
+            snapshot_results,
+            {
+                str(v).strip().upper()
+                for v in qualified_result.get("symbol", pd.Series(dtype=str)).tolist()
+                if str(v).strip()
+            },
+        )
 
     # Evaluate only the existing qualified opportunity pool so a prior-day
     # structural break can be carried into today's retracement context without
@@ -3884,12 +4482,33 @@ def _render_retracement_lifecycle(
             continue
         seen.add(symbol)
 
+        direction = str(
+            row.get("decision_direction", row.get("direction", ""))
+        ).upper().strip()
+        sr = _sr_text(row).upper().strip()
+        current_break = (
+            (direction == "BULLISH" and sr == "RESISTANCE BROKEN")
+            or (direction == "BEARISH" and sr == "SUPPORT BROKEN")
+        )
+        current_ts = pd.to_datetime(
+            row.get("source_timestamp", row.get("observation_timestamp", "")),
+            errors="coerce",
+        )
+
         replay_event = (lifecycle_events.get(symbol, {}) or {}) if replay_mode and isinstance(lifecycle_events, dict) else {}
-        if replay_mode and replay_event:
-            # Point-in-time replay must consume only the lifecycle state captured
-            # while processing the selected source observation. Never call
-            # _retracement_context() against the full-day cache here: doing so
-            # would expose future observations while rendering an earlier point.
+        saved_watch = watches.get(symbol, {}) or {}
+        saved_alert = alerts.get(symbol, {}) or {}
+        saved_reversal = (day.get("retracement_reversal_alerts", {}) or {}).get(symbol, {}) or {}
+        saved_break = breaks.get(symbol, {}) or {}
+        if replay_mode:
+            # Point-in-time replay must consume only lifecycle state captured at
+            # the selected observation. Never fall back to _retracement_context()
+            # here: that routine can inspect a historical chain and recompute
+            # indicators, which is both unnecessary and capable of exposing data
+            # outside the selected point. A missing event simply means there is
+            # no recorded lifecycle state for this qualified row.
+            if not replay_event:
+                continue
             ctx = {
                 "status": replay_event.get("status", ""),
                 "primary_direction": replay_event.get("direction", row.get("decision_direction", row.get("direction", ""))),
@@ -3903,16 +4522,78 @@ def _render_retracement_lifecycle(
                 "price_interaction": replay_event.get("price_interaction", ""),
                 "reason": replay_event.get("reason", ""),
             }
+        elif saved_reversal or saved_alert or saved_watch or saved_break or event_index.get(symbol):
+            # LIVE already has durable lifecycle state. Prefer the richest recorded
+            # lifecycle event (REVERSAL > REENTRY ALERT > WATCH) over older summary
+            # maps. The event index may have been hydrated from the persisted
+            # point-in-time cache above, so this remains read-only and does not
+            # recalculate retracement indicators.
+            symbol_events = event_index.get(symbol, {})
+            source = (
+                saved_reversal
+                or saved_alert
+                or saved_watch
+                or symbol_events.get("REVERSAL", {})
+                or symbol_events.get("REENTRY ALERT", {})
+                or symbol_events.get("WATCH", {})
+                or saved_break
+            )
+            ctx = {
+                "status": source.get("status", ""),
+                "primary_direction": source.get("direction", row.get("decision_direction", row.get("direction", ""))),
+                "entry_name": source.get("entry_name", ""),
+                "entry_level": source.get("entry_level"),
+                "break_timestamp": pd.to_datetime(source.get("break_timestamp", ""), errors="coerce"),
+                "break_origin": source.get("break_origin", ""),
+                "data_cycle_development": source.get("data_cycle_development", "UNKNOWN"),
+                "camarilla_name": source.get("camarilla_name", ""),
+                "camarilla_level": source.get("camarilla_level"),
+                "price_interaction": source.get("price_interaction", ""),
+                "reason": source.get("reason", ""),
+                "touched": source.get("touched", False),
+                "camarilla_touched": source.get("camarilla_touched", False),
+                "camarilla_reversal": source.get("camarilla_reversal", False),
+                "ema_ready": source.get("ema_ready"),
+                "bar_count": source.get("bar_count"),
+                "ema20": source.get("ema20"),
+                "vwap": source.get("vwap"),
+            }
         else:
-            ctx = _retracement_context(row, snapshot_results)
-        saved_watch = watches.get(symbol, {}) or {}
-        saved_alert = alerts.get(symbol, {}) or {}
-        saved_reversal = (day.get("retracement_reversal_alerts", {}) or {}).get(symbol, {}) or {}
-        saved_break = breaks.get(symbol, {}) or {}
+            # Avoid the expensive historical indicator reconstruction for every
+            # qualified row. Only rows with an actual current-day break or a
+            # persisted prior-day structural break can enter the lifecycle.
+            # Reuse the pre-built per-symbol history index so the context routine
+            # does not rescan every snapshot for each stock.
+            if current_break:
+                ctx = _retracement_context(
+                    row, history=history_by_symbol.get(symbol, []),
+                    durable_state=durable_state_root,
+                )
+            else:
+                durable_root = durable_state_root if isinstance(durable_state_root, dict) else {}
+                prior_break = _prior_day_structural_break(
+                    durable_root, str(current_ts.date()) if pd.notna(current_ts) else trading_date,
+                    symbol, direction,
+                )
+                if not prior_break:
+                    continue
+                ctx = _retracement_context(
+                    row, history=history_by_symbol.get(symbol, []),
+                    durable_state=durable_root,
+                )
+        # First Alert provenance can exist directly on the current result row
+        # even when the durable summary map is older/incomplete. Prefer the
+        # immutable row value, then the durable ledger/map.
+        row_first_alert = str(
+            row.get("first_alert_timestamp", row.get("First Alert", ""))
+        ).strip()
         first = (
-            str(first_alerts.get(symbol, {}).get("timestamp", "")).strip()
-            if isinstance(first_alerts.get(symbol, {}), dict)
-            else ""
+            row_first_alert
+            or (
+                str(first_alerts.get(symbol, {}).get("timestamp", "")).strip()
+                if isinstance(first_alerts.get(symbol, {}), dict)
+                else ""
+            )
         )
         if replay_mode and first:
             # A replay must never display a First Alert from another trading day.
@@ -3927,7 +4608,7 @@ def _render_retracement_lifecycle(
             # Reconstruct immutable First Alert from the replay chain itself.
             # The first timestamp is the earliest available decision-bearing
             # observation for this symbol at or before the selected replay point.
-            replay_history = _symbol_snapshot_history(snapshot_results, symbol)
+            replay_history = history_by_symbol.get(symbol, [])
             for replay_obs in replay_history:
                 candidate_first = str(
                     replay_obs.get("first_alert_timestamp", "")
@@ -3944,14 +4625,6 @@ def _render_retracement_lifecycle(
         # carried prior-day break, or a lifecycle state already exists. In
         # replay mode the context must be calculated only from observations
         # available at the selected snapshot time.
-        direction = str(
-            row.get("decision_direction", row.get("direction", ""))
-        ).upper().strip()
-        sr = _sr_text(row).upper().strip()
-        current_break = (
-            (direction == "BULLISH" and sr == "RESISTANCE BROKEN")
-            or (direction == "BEARISH" and sr == "SUPPORT BROKEN")
-        )
         context_break = bool(ctx.get("break_timestamp") or ctx.get("break_level") is not None)
         relevant = bool(saved_break or saved_watch or saved_alert or current_break or context_break)
         if not relevant:
@@ -3967,44 +4640,69 @@ def _render_retracement_lifecycle(
             if status in {"NOT_ACTIVE", ""}:
                 continue
         else:
+            symbol_event_index = event_index.get(symbol, {})
+            recorded_status_source = (
+                saved_reversal
+                or saved_alert
+                or saved_watch
+                or symbol_event_index.get("REVERSAL", {})
+                or symbol_event_index.get("REENTRY ALERT", {})
+                or symbol_event_index.get("WATCH", {})
+            )
             status = str(
-                saved_reversal.get("status", "")
-                if saved_reversal
-                else saved_alert.get("status", "")
-                if saved_alert
-                else saved_watch.get("status", "")
-                if saved_watch
+                recorded_status_source.get("status", "")
+                if isinstance(recorded_status_source, dict)
                 else ctx.get("status", "")
-            ).upper().strip()
+            ).upper().strip() or str(ctx.get("status", "")).upper().strip()
 
         # If the current context explicitly invalidated the lifecycle, show it
         # rather than silently retaining an old watch.
         if ctx.get("status") == "INVALIDATED":
             status = "INVALIDATED"
 
+        # Resolve display provenance from the strongest available source in
+        # this order: selected replay event -> current durable lifecycle maps ->
+        # structural-break ledger. This is display-only; no lifecycle event is
+        # created here.
         if replay_mode:
             break_origin = (
                 str(replay_event.get("break_origin", "")).strip()
                 or str(ctx.get("break_origin", "")).strip()
                 or ("CURRENT DAY" if current_break else "PRIOR DAY")
             )
-            break_ts = replay_event.get("break_timestamp") or ctx.get("break_timestamp")
+            break_ts = (
+                replay_event.get("break_timestamp")
+                or ctx.get("break_timestamp")
+            )
         else:
+            symbol_event_index = event_index.get(symbol, {})
+            watch_event = symbol_event_index.get("WATCH", {}) or {}
+            reentry_event = symbol_event_index.get("REENTRY ALERT", {}) or {}
+            reversal_event = symbol_event_index.get("REVERSAL", {}) or {}
+            break_event = symbol_event_index.get("BREAK", {}) or watch_event or reentry_event or reversal_event
             break_origin = (
                 str(ctx.get("break_origin", "")).strip()
                 or str(saved_watch.get("break_origin", "")).strip()
+                or str(saved_alert.get("break_origin", "")).strip()
+                or str(saved_break.get("source", "")).strip()
+                or str(break_event.get("break_origin", "")).strip()
                 or ("CURRENT DAY" if current_break else "PRIOR DAY")
             )
-            break_ts = ctx.get("break_timestamp")
-            if not break_ts:
-                break_ts = saved_break.get("break_timestamp", "") or saved_watch.get(
-                    "break_timestamp", ""
-                )
+            break_ts = (
+                ctx.get("break_timestamp")
+                or saved_break.get("break_timestamp", "")
+                or saved_watch.get("break_timestamp", "")
+                or saved_alert.get("break_timestamp", "")
+                or break_event.get("break_timestamp", "")
+            )
 
         entry_name = (
             str(ctx.get("entry_name", "")).strip()
             or str(saved_watch.get("entry_name", "")).strip()
             or str(saved_alert.get("entry_name", "")).strip()
+            or str((replay_event if replay_mode else {}).get("entry_name", "")).strip()
+            or str((event_index.get(symbol, {}).get("REENTRY ALERT", {}) or {}).get("entry_name", "")).strip()
+            or str((event_index.get(symbol, {}).get("WATCH", {}) or {}).get("entry_name", "")).strip()
             or "—"
         )
         entry_level = (
@@ -4013,11 +4711,34 @@ def _render_retracement_lifecycle(
             else saved_watch.get("entry_level")
             if saved_watch.get("entry_level") is not None
             else saved_alert.get("entry_level")
+            if saved_alert.get("entry_level") is not None
+            else (replay_event.get("entry_level") if replay_mode else None)
+            if (replay_event.get("entry_level") if replay_mode else None) is not None
+            else (event_index.get(symbol, {}).get("REENTRY ALERT", {}) or {}).get("entry_level")
+            if (event_index.get(symbol, {}).get("REENTRY ALERT", {}) or {}).get("entry_level") is not None
+            else (event_index.get(symbol, {}).get("WATCH", {}) or {}).get("entry_level")
         )
 
         reentry_time = ""
         watch_time = ""
         reversal_time = ""
+        # Resolve lifecycle timestamps deterministically from ACTUAL recorded
+        # events first, then the durable summary records. Never substitute one
+        # lifecycle event timestamp for another.
+        if not replay_mode:
+            symbol_event_index = event_index.get(symbol, {})
+            watch_event = symbol_event_index.get("WATCH", {}) or {}
+            reentry_event = symbol_event_index.get("REENTRY ALERT", {}) or {}
+            reversal_event = symbol_event_index.get("REVERSAL", {}) or {}
+            watch_time = str(watch_event.get("timestamp", "")).strip()
+            if not watch_time:
+                watch_time = str(saved_watch.get("watch_timestamp", "")).strip()
+            reentry_time = str(reentry_event.get("timestamp", "")).strip()
+            if not reentry_time and str(saved_alert.get("status", "")).upper().strip() == "REENTRY ALERT":
+                reentry_time = str(saved_alert.get("timestamp", "")).strip()
+            reversal_time = str(reversal_event.get("timestamp", "")).strip()
+            if not reversal_time and str(saved_reversal.get("status", "")).upper().strip() == "REVERSAL":
+                reversal_time = str(saved_reversal.get("timestamp", "")).strip()
         if replay_mode:
             # These timestamps are read directly from the selected point-in-time
             # cache. They are actual source-processing event times, never the UI
@@ -4042,19 +4763,24 @@ def _render_retracement_lifecycle(
                     return "—"
 
         live_watch_time = str(saved_watch.get("watch_timestamp", "")).strip()
-        if not replay_mode and saved_alert:
-            reentry_time = str(saved_alert.get("timestamp", "")).strip()
-        if not replay_mode and saved_reversal and status == "REVERSAL":
-            reversal_time = str(saved_reversal.get("timestamp", "")).strip()
         original_alert_value = (
             first
             or saved_alert.get("original_first_alert_timestamp", "")
             or saved_watch.get("original_first_alert_timestamp", "")
+            or str((event_index.get(symbol, {}).get("WATCH", {}) or {}).get("original_first_alert_timestamp", "")).strip()
+            or str((event_index.get(symbol, {}).get("REENTRY ALERT", {}) or {}).get("original_first_alert_timestamp", "")).strip()
         )
-        alert_raw = (
-            reversal_time if status == "REVERSAL" and reversal_time else
-            reentry_time or watch_time or live_watch_time or original_alert_value
-        )
+        # Alert Time is the timestamp of the actionable/current lifecycle event.
+        # It is never allowed to borrow a later event timestamp merely because
+        # another lifecycle field is missing.
+        if status == "REVERSAL":
+            alert_raw = reversal_time
+        elif status == "REENTRY ALERT":
+            alert_raw = reentry_time
+        elif status == "WATCH":
+            alert_raw = watch_time or live_watch_time
+        else:
+            alert_raw = original_alert_value
         alert_dt = pd.to_datetime(alert_raw, errors="coerce")
         if replay_mode and replay_event:
             development = str(replay_event.get("data_cycle_development", "UNKNOWN")).upper().strip()
@@ -4065,19 +4791,44 @@ def _render_retracement_lifecycle(
                 else "WATCH"
             )
         else:
-            development = str(ctx.get("data_cycle_development", _data_cycle_development(row))).upper().strip()
-            if ctx.get("camarilla_reversal"):
-                price_interaction = "REACHED / REVERSAL"
-                alert_type = "REVERSAL ALERT"
-            elif ctx.get("camarilla_touched"):
-                price_interaction = "REACHED"
-                alert_type = "RETRACEMENT WATCH"
-            elif ctx.get("touched"):
-                price_interaction = "RETEST"
-                alert_type = "REENTRY ALERT"
-            else:
-                price_interaction = "APPROACHING"
-                alert_type = "WATCH"
+            development = str(ctx.get("data_cycle_development", "")).upper().strip()
+            if not development or development == "UNKNOWN":
+                development = _data_cycle_development(row).upper().strip() or "UNKNOWN"
+            if development == "UNKNOWN":
+                development = str(saved_alert.get("data_cycle_development", "") or saved_watch.get("data_cycle_development", "")).upper().strip() or "UNKNOWN"
+
+            # Prefer the recorded event classification where available so the
+            # audit table displays the event that was actually emitted rather
+            # than reconstructing a different label during rendering.
+            recorded_event = (
+                saved_reversal if status == "REVERSAL" else
+                saved_alert if status == "REENTRY ALERT" else
+                saved_watch
+            ) or {}
+            event_source = recorded_event or (event_index.get(symbol, {}).get(status, {}) or {})
+            price_interaction = str(
+                ctx.get("price_interaction", "")
+                or event_source.get("price_interaction", "")
+            ).upper().strip()
+            if not price_interaction:
+                if ctx.get("camarilla_reversal"):
+                    price_interaction = "REACHED / REVERSAL"
+                elif ctx.get("camarilla_touched"):
+                    price_interaction = "REACHED"
+                elif ctx.get("touched"):
+                    price_interaction = "RETEST"
+                else:
+                    price_interaction = "APPROACHING"
+            alert_type = str(
+                event_source.get("alert_type", "")
+                or ctx.get("alert_type", "")
+            ).upper().strip()
+            if not alert_type:
+                alert_type = (
+                    "REVERSAL ALERT" if status == "REVERSAL"
+                    else "REENTRY ALERT" if status == "REENTRY ALERT"
+                    else "WATCH"
+                )
         rows.append(
             {
                 "Stock": symbol,
@@ -4096,7 +4847,7 @@ def _render_retracement_lifecycle(
                 "Data Cycle": development,
                 "Price Interaction": price_interaction,
                 "Alert Type": alert_type,
-                "Watch/Event": _fmt_ts(watch_time or live_watch_time or reentry_time),
+                "Watch/Event": _fmt_ts(watch_time),
                 "Re-entry Alert": _fmt_ts(reentry_time),
                 "Alert Time": _fmt_ts(alert_raw),
                 "Reason": str(
@@ -4129,65 +4880,103 @@ def _render_retracement_lifecycle(
             )
             return
 
-        table = pd.DataFrame(rows)
+        table = pd.DataFrame(rows).reset_index(drop=True)
 
-        # Audit-only combination filters. These never alter qualification,
+        st.markdown(
+            '<div class="rt-section-head"><div><b>Retracement / Re-entry Opportunities</b>'
+            '<span class="rt-section-sub">Lifecycle event audit • existing SDL qualification unchanged</span></div>'
+            '<div class="rt-legend"><span class="rt-legend-bull">● BULLISH</span>'
+            '<span class="rt-legend-bear">● BEARISH</span>'
+            '<span class="rt-legend-watch">WATCH</span>'
+            '<span class="rt-legend-reentry">RE-ENTRY</span></div></div>', 
+            unsafe_allow_html=True,
+        )
+
+        # Audit-only combination filters. They never alter qualification,
         # ranking, scoring, or Primary Stock Selection.
         def _options(column: str) -> list[str]:
-            values = table[column].dropna().astype(str).str.strip() if column in table.columns else pd.Series(dtype=str)
-            return sorted(v for v in values.unique().tolist() if v and v != "—")
+            if column not in table.columns:
+                return []
+            values: list[str] = []
+            for value in table[column].tolist():
+                if value is None or (isinstance(value, float) and pd.isna(value)):
+                    continue
+                text = str(value).strip()
+                if text and text not in {"—", "nan", "NaT"}:
+                    values.append(text)
+            return sorted(set(values), key=str.upper)
 
-        f1, f2, f3, f4 = st.columns(4)
+        filter_scope = str(trading_date or "unknown").replace("-", "")
+        f1, f2, f3, f4, f5, f6, f7 = st.columns(7)
         with f1:
-            direction_filter = st.multiselect("Direction", ["BULLISH", "BEARISH"], key=f"{widget_key_prefix}rt_direction_filter")
+            direction_filter = st.multiselect(
+                "Direction", _options("Direction"),
+                key=f"{widget_key_prefix}rt_direction_filter_{filter_scope}",
+            )
         with f2:
-            reference_filter = st.multiselect("Reference", _options("Reference"), key=f"{widget_key_prefix}rt_reference_filter")
+            reference_filter = st.multiselect(
+                "Reference", _options("Reference"),
+                key=f"{widget_key_prefix}rt_reference_filter_{filter_scope}",
+            )
         with f3:
-            status_filter = st.multiselect("Lifecycle", _options("Status"), key=f"{widget_key_prefix}rt_status_filter")
+            status_filter = st.multiselect(
+                "Lifecycle", _options("Status"),
+                key=f"{widget_key_prefix}rt_status_filter_{filter_scope}",
+            )
         with f4:
-            development_filter = st.multiselect("Data Cycle Development", ["POSITIVE", "NEUTRAL", "NEGATIVE", "UNKNOWN"], key=f"{widget_key_prefix}rt_development_filter")
-
-        f5, f6, f7 = st.columns(3)
+            development_filter = st.multiselect(
+                "Data Cycle", _options("Data Cycle"),
+                key=f"{widget_key_prefix}rt_development_filter_{filter_scope}",
+            )
         with f5:
-            interaction_filter = st.multiselect("Price Interaction", _options("Price Interaction"), key=f"{widget_key_prefix}rt_interaction_filter")
+            interaction_filter = st.multiselect(
+                "Interaction", _options("Price Interaction"),
+                key=f"{widget_key_prefix}rt_interaction_filter_{filter_scope}",
+            )
         with f6:
-            alert_type_filter = st.multiselect("Alert Type", _options("Alert Type"), key=f"{widget_key_prefix}rt_alert_type_filter")
+            alert_type_filter = st.multiselect(
+                "Alert Type", _options("Alert Type"),
+                key=f"{widget_key_prefix}rt_alert_type_filter_{filter_scope}",
+            )
         with f7:
-            time_filter = st.selectbox("Alert Time", ["All times", "Before 10:00", "10:00–12:00", "12:00–14:00", "After 14:00"], key=f"{widget_key_prefix}rt_time_filter")
+            time_filter = st.selectbox(
+                "Alert Time",
+                ["All times", "Before 10:00", "10:00–12:00", "12:00–14:00", "After 14:00"],
+                key=f"{widget_key_prefix}rt_time_filter_{filter_scope}",
+            )
 
-        # Build one boolean mask from the unmodified audit table.  Applying
-        # every selection to the same source frame makes combinations reliable
-        # across Streamlit reruns and prevents one filter from accidentally
-        # operating on a frame whose helper columns were already reduced.
-        mask = pd.Series(True, index=table.index)
-        if direction_filter:
-            mask &= table["Direction"].astype(str).str.upper().str.strip().isin(
-                {str(v).upper().strip() for v in direction_filter}
-            )
-        if reference_filter:
-            mask &= table["Reference"].astype(str).str.strip().isin(
-                {str(v).strip() for v in reference_filter}
-            )
-        if status_filter:
-            mask &= table["Status"].astype(str).str.upper().str.strip().isin(
-                {str(v).upper().strip() for v in status_filter}
-            )
-        if development_filter:
-            mask &= table["_development"].astype(str).str.upper().str.strip().isin(
-                {str(v).upper().strip() for v in development_filter}
-            )
-        if interaction_filter:
-            mask &= table["_price_interaction"].astype(str).str.upper().str.strip().isin(
-                {str(v).upper().strip() for v in interaction_filter}
-            )
-        if alert_type_filter:
-            mask &= table["_alert_type"].astype(str).str.upper().str.strip().isin(
-                {str(v).upper().strip() for v in alert_type_filter}
-            )
+        # Filters are audit-only and apply immediately on widget change. This
+        # avoids a separate submitted-filter copy becoming stale after replay
+        # or LIVE reruns while leaving all decision/lifecycle generation intact.
+        mask = pd.Series(True, index=table.index, dtype=bool)
+
+        def _apply_text_filter(column: str, selected: list[str], upper: bool = True) -> None:
+            nonlocal mask
+            if not selected or column not in table.columns:
+                return
+            values = table[column].fillna("").astype(str).str.strip()
+            if upper:
+                values = values.str.upper()
+                wanted = {str(v).strip().upper() for v in selected}
+            else:
+                wanted = {str(v).strip() for v in selected}
+            mask &= values.isin(wanted)
+
+        _apply_text_filter("Direction", direction_filter)
+        _apply_text_filter("Reference", reference_filter, upper=False)
+        _apply_text_filter("Status", status_filter)
+        _apply_text_filter("Data Cycle", development_filter)
+        _apply_text_filter("Price Interaction", interaction_filter)
+        _apply_text_filter("Alert Type", alert_type_filter)
+
         if time_filter != "All times":
-            alert_hours = pd.to_datetime(
-                table["_alert_datetime"], errors="coerce"
-            ).dt.hour
+            def _alert_hour(value: Any) -> float:
+                parsed = pd.to_datetime(value, errors="coerce")
+                if pd.isna(parsed):
+                    return float("nan")
+                return float(parsed.hour)
+
+            alert_hours = table["_alert_datetime"].map(_alert_hour)
             if time_filter == "Before 10:00":
                 mask &= alert_hours < 10
             elif time_filter == "10:00–12:00":
@@ -4247,6 +5036,13 @@ def _render_retracement_lifecycle(
             cls = "bullish" if d == "BULLISH" else "bearish" if d == "BEARISH" else "neutral"
             return f'<span class="rt-direction {cls}">{_html(d or "—")}</span>'
 
+        def _alert_type_html(alert_type: str) -> str:
+            value = str(alert_type).upper().strip()
+            if not value:
+                return "—"
+            cls = "reentry" if "REENTRY" in value or "REVERSAL" in value else "watch" if "WATCH" in value else "neutral"
+            return f'<span class="rt-alert-type {cls}">{_html(value)}</span>'
+
         headers = [
             "Stock", "Direction", "Original Alert", "Break Origin",
             "Break Time", "Status", "Reference", "Level",
@@ -4267,9 +5063,9 @@ def _render_retracement_lifecycle(
                 f"<td>{_html(item['Level'])}</td>"
                 f"<td>{_html(item['Data Cycle'])}</td>"
                 f"<td>{_html(item['Price Interaction'])}</td>"
-                f"<td>{_html(item['Alert Type'])}</td>"
-                f"<td>{_html(item['Watch/Event'])}</td>"
-                f"<td>{_html(item['Re-entry Alert'])}</td>"
+                f"<td>{_alert_type_html(item['Alert Type'])}</td>"
+                f"<td class='rt-event-time'>{_html(item['Watch/Event'])}</td>"
+                f"<td class='rt-event-time'>{_html(item['Re-entry Alert'])}</td>"
                 f"<td>{_html(item['Alert Time'])}</td>"
                 f"<td class='rt-reason'>{_html(item['Reason'])}</td>"
                 "</tr>"
@@ -4278,32 +5074,49 @@ def _render_retracement_lifecycle(
         st.markdown(
             """
             <style>
+            .rt-section-head{
+                display:flex;justify-content:space-between;align-items:center;gap:16px;
+                padding:10px 2px 8px;margin-bottom:6px;border-bottom:1px solid #e3e8ef;
+                color:#273449;font-size:14px;
+            }
+            .rt-section-sub{margin-left:10px;color:#667085;font-size:12px;font-weight:400}
+            .rt-legend{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;font-weight:700}
+            .rt-legend-bull{color:#159447}.rt-legend-bear{color:#e3262e}
+            .rt-legend-watch,.rt-legend-reentry{padding:3px 7px;border-radius:5px;border:1px solid}
+            .rt-legend-watch{background:#fff0f1;color:#e3262e;border-color:#ffb8bd}
+            .rt-legend-reentry{background:#e9f8ef;color:#159447;border-color:#9fe0b8}
+            div[data-testid="stMultiSelect"] label, div[data-testid="stSelectbox"] label{
+                font-weight:650;font-size:12px;color:#475467;
+            }
             .rt-audit-wrap{
                 width:100%;
-                overflow-x:auto;
+                max-height:460px;
+                overflow:auto;
                 border:1px solid #e3e8ef;
                 border-radius:10px;
                 background:#fff;
             }
             .rt-audit-table{
-                width:100%;
+                width:max-content;
+                min-width:100%;
                 border-collapse:separate;
                 border-spacing:0;
-                font-size:13px;
+                font-size:12px;
                 color:#273449;
                 white-space:nowrap;
             }
             .rt-audit-table th{
+                position:sticky;top:0;z-index:2;
                 background:#f7f8fa;
                 color:#667085;
                 font-weight:600;
                 text-align:left;
-                padding:10px 12px;
+                padding:6px 8px;
                 border-bottom:1px solid #dfe4ea;
                 border-right:1px solid #e9edf2;
             }
             .rt-audit-table td{
-                padding:9px 12px;
+                padding:6px 8px;
                 border-bottom:1px solid #e9edf2;
                 border-right:1px solid #eef1f4;
                 vertical-align:middle;
@@ -4327,6 +5140,13 @@ def _render_retracement_lifecycle(
             .rt-direction.bullish{color:#159447}
             .rt-direction.bearish{color:#e3262e}
             .rt-direction.neutral{color:#667085}
+            .rt-alert-type{display:inline-block;padding:3px 6px;border-radius:5px;font-size:11px;font-weight:700;border:1px solid transparent}
+            .rt-alert-type.reentry{background:#e9f8ef;color:#159447;border-color:#9fe0b8}
+            .rt-alert-type.watch{background:#fff0f1;color:#e3262e;border-color:#ffb8bd}
+            .rt-alert-type.neutral{background:#f2f4f7;color:#667085;border-color:#d0d5dd}
+            .rt-event-time{font-weight:650;font-variant-numeric:tabular-nums}
+            .rt-section-head + div div[data-testid="stMultiSelect"] label,
+            .rt-section-head + div div[data-testid="stSelectbox"] label{font-size:11px}
             .rt-status{
                 display:inline-block;
                 padding:4px 9px;
@@ -4432,6 +5252,18 @@ def _render_current_result(
         return
 
     candidates = _rank(result)
+    history_by_symbol = (
+        _build_symbol_history_index(
+            snapshot_results,
+            {
+                str(v).strip().upper()
+                for v in candidates.get("symbol", pd.Series(dtype=str)).tolist()
+                if str(v).strip()
+            },
+        )
+        if (isinstance(snapshot_results, dict) and snapshot_results and not lifecycle_replay)
+        else {}
+    )
     gate_passed_count = int(
         result.get("gate_passed", pd.Series(False, index=result.index)).map(_bool).sum()
     )
@@ -4448,16 +5280,62 @@ def _render_current_result(
 
     # Replay is intentionally lightweight: queue + retracement only.
     if lifecycle_replay:
-        _render_live_queue(candidates, snapshot_results=snapshot_results, replay_mode=True)
+        _render_live_queue(candidates, snapshot_results=snapshot_results, replay_mode=True, history_by_symbol=history_by_symbol)
+        _render_historical_live_queue(candidates, snapshot_label)
         lifecycle_snapshots = snapshot_results
         if not isinstance(lifecycle_snapshots, dict) or not lifecycle_snapshots:
             lifecycle_snapshots = {f"__current__::{snapshot_label}": result.copy()}
-        _render_retracement_lifecycle(result, snapshot_results=lifecycle_snapshots, widget_key_prefix=widget_key_prefix, trading_date=lifecycle_trading_date, replay_mode=True, lifecycle_events=lifecycle_events)
-        # Replay must expose the running decision/evolution state as well as the
-        # selected snapshot. This is the point-in-time execution history, not a
-        # static screenshot. Lifecycle alert events are already embedded in the
-        # chronological replay timeline at their actual source timestamps.
-        _render_timeline(timeline)
+        # These two replay audit views can be materially more expensive than the
+        # point-in-time queue itself.  Streamlit expanders still execute their
+        # contents while collapsed, so they previously delayed the whole page.
+        # Keep the controls immediately available and calculate the audit views
+        # only when the user explicitly requests them.  No decision logic changes.
+        replay_scope = str(st.session_state.get("ds_replay_date", "unknown")).replace("-", "")
+        st.caption("REPLAY audit tools — load only when needed")
+        c1, c2 = st.columns(2)
+        with c1:
+            load_lifecycle = st.button(
+                "REPLAY • Load Retracement / Re-entry",
+                key=f"{widget_key_prefix}load_replay_lifecycle_{replay_scope}",
+                use_container_width=True,
+            )
+        with c2:
+            load_evolution = st.button(
+                "REPLAY • Load Intraday Stock Evolution",
+                key=f"{widget_key_prefix}load_replay_evolution_{replay_scope}",
+                use_container_width=True,
+            )
+        if load_lifecycle:
+            st.session_state[f"{widget_key_prefix}show_replay_lifecycle_{replay_scope}"] = True
+        if load_evolution:
+            st.session_state[f"{widget_key_prefix}show_replay_evolution_{replay_scope}"] = True
+
+        if st.session_state.get(f"{widget_key_prefix}show_replay_lifecycle_{replay_scope}", False):
+            try:
+                with st.spinner("Loading REPLAY retracement / re-entry audit…"):
+                    _render_retracement_lifecycle(
+                        result,
+                        snapshot_results=snapshot_results,
+                        widget_key_prefix=widget_key_prefix,
+                        trading_date=lifecycle_trading_date,
+                        replay_mode=True,
+                        lifecycle_events=lifecycle_events,
+                        history_by_symbol=history_by_symbol,
+                    )
+            except Exception as exc:
+                # A diagnostic audit view must never take down the selected
+                # point-in-time replay. Keep the replay result visible and
+                # surface the exact audit error locally.
+                st.warning(
+                    f"Replay retracement/re-entry view unavailable: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+        if st.session_state.get(f"{widget_key_prefix}show_replay_evolution_{replay_scope}", False):
+            # Replay must expose the running decision/evolution state as well as
+            # the selected snapshot. This is the point-in-time execution history,
+            # not a static screenshot. Lifecycle alert events remain at their
+            # actual source timestamps.
+            _render_timeline(timeline, current_result=result)
         return
 
     with st.expander("Current Decision Opportunities • Top candidates", expanded=True):
@@ -4486,7 +5364,7 @@ def _render_current_result(
             filtered = candidates.copy()
 
         _render_opportunity_cards(filtered, limit=10, snapshot_results=snapshot_results)
-        _render_live_queue(filtered, snapshot_results=snapshot_results)
+        _render_live_queue(filtered, snapshot_results=snapshot_results, history_by_symbol=history_by_symbol)
         if not filtered.empty:
             symbol = st.selectbox(
                 "Inspect one decision",
@@ -4519,18 +5397,137 @@ def _render_current_result(
         current_key = f"__current__::{snapshot_label}"
         lifecycle_snapshots = {current_key: result.copy()}
 
-    _render_retracement_lifecycle(
-        result,
-        snapshot_results=lifecycle_snapshots,
-        widget_key_prefix=widget_key_prefix,
-        trading_date=lifecycle_trading_date,
-        replay_mode=lifecycle_replay,
-    )
+    # LIVE audit views are intentionally lazy.  Streamlit expander contents are
+    # executed even when the expander is collapsed; rendering these diagnostics
+    # synchronously was the main reason the lower dashboard remained unavailable
+    # for several seconds after the live queue appeared.
+    live_scope = str(st.session_state.get("ds_trading_date", "unknown")).replace("-", "")
+    st.caption("LIVE audit tools — load only when needed")
+    c1, c2 = st.columns(2)
+    with c1:
+        load_lifecycle = st.button(
+            "LIVE • Load Retracement / Re-entry",
+            key=f"{widget_key_prefix}load_live_lifecycle_{live_scope}",
+            use_container_width=True,
+        )
+    with c2:
+        load_evolution = st.button(
+            "LIVE • Load Intraday Stock Evolution",
+            key=f"{widget_key_prefix}load_live_evolution_{live_scope}",
+            use_container_width=True,
+        )
+    if load_lifecycle:
+        st.session_state[f"{widget_key_prefix}show_live_lifecycle_{live_scope}"] = True
+    if load_evolution:
+        st.session_state[f"{widget_key_prefix}show_live_evolution_{live_scope}"] = True
+
+    if st.session_state.get(f"{widget_key_prefix}show_live_lifecycle_{live_scope}", False):
+        # After session close the normal LIVE path intentionally avoids loading
+        # the historical replay cache during startup. If the user explicitly
+        # requests the LIVE retracement audit, hydrate that cache on demand so
+        # the audit has the same chronological context it had during the live
+        # session. This is diagnostic only and does not alter LIVE decisions.
+        if (
+            not lifecycle_replay
+            and (
+                not isinstance(lifecycle_snapshots, dict)
+                or len(lifecycle_snapshots) < 2
+            )
+        ):
+            # Do not hydrate the large historical replay cache merely because the
+            # current LIVE snapshot is the only in-memory frame. Durable lifecycle
+            # events are sufficient for most audits. Hydrate historical snapshots
+            # only when a qualified current-day break has no corresponding durable
+            # lifecycle event and therefore genuinely needs chronological context.
+            need_history = False
+            try:
+                live_day = load_state(STATE_JSON).get(STATE_KEY, {}).get(
+                    live_scope, {}
+                ) or {}
+                recorded_symbols = set()
+                for event in live_day.get("retracement_events", []) or []:
+                    if isinstance(event, dict):
+                        event_symbol = str(event.get("symbol", "")).strip().upper()
+                        if event_symbol:
+                            recorded_symbols.add(event_symbol)
+                for map_name in (
+                    "retracement_watches",
+                    "retracement_alerts",
+                    "retracement_reversal_alerts",
+                    "structural_breaks",
+                ):
+                    values = live_day.get(map_name, {}) or {}
+                    if isinstance(values, dict):
+                        recorded_symbols.update(str(k).strip().upper() for k in values)
+
+                live_candidates = _rank(result)
+                if isinstance(live_candidates, pd.DataFrame) and not live_candidates.empty:
+                    for _, candidate in live_candidates.iterrows():
+                        symbol = str(candidate.get("symbol", "")).strip().upper()
+                        direction = str(
+                            candidate.get(
+                                "decision_direction", candidate.get("direction", "")
+                            )
+                        ).upper().strip()
+                        sr = _sr_text(candidate).upper().strip()
+                        current_break = (
+                            (direction == "BULLISH" and sr == "RESISTANCE BROKEN")
+                            or (direction == "BEARISH" and sr == "SUPPORT BROKEN")
+                        )
+                        if current_break and symbol not in recorded_symbols:
+                            need_history = True
+                            break
+            except Exception:
+                # If the cheap durable-state probe fails, preserve the original
+                # safe fallback and hydrate the cache rather than losing lifecycle
+                # context.
+                need_history = True
+
+            if need_history:
+                try:
+                    on_demand_cache = _get_replay_cache(lifecycle_trading_date or live_scope)
+                    on_demand_snapshots = (
+                        on_demand_cache.get("snapshots", {})
+                        if isinstance(on_demand_cache, dict)
+                        else {}
+                    )
+                    if isinstance(on_demand_snapshots, dict) and on_demand_snapshots:
+                        lifecycle_snapshots = on_demand_snapshots
+                        history_by_symbol = _build_symbol_history_index(
+                            lifecycle_snapshots,
+                            {
+                                str(v).strip().upper()
+                                for v in _rank(result).get("symbol", pd.Series(dtype=str)).tolist()
+                                if str(v).strip()
+                            },
+                        )
+                except Exception:
+                    pass
+        try:
+            with st.spinner("Loading LIVE retracement / re-entry audit…"):
+                _render_retracement_lifecycle(
+                    result,
+                    snapshot_results=lifecycle_snapshots,
+                    widget_key_prefix=widget_key_prefix,
+                    trading_date=lifecycle_trading_date,
+                    replay_mode=lifecycle_replay,
+                    history_by_symbol=history_by_symbol,
+                )
+        except Exception as exc:
+            # Optional diagnostics must not break the live decision board.
+            st.warning(
+                f"Live retracement/re-entry view unavailable: "
+                f"{type(exc).__name__}: {exc}"
+            )
 
     # Intraday Stock Evolution is a focused, stock-wise progress view. It remains
     # derived only from the existing timeline events and never creates a new
     # decision rule.
-    if isinstance(timeline, pd.DataFrame) and not timeline.empty:
+    if (
+        isinstance(timeline, pd.DataFrame)
+        and not timeline.empty
+        and st.session_state.get(f"{widget_key_prefix}show_live_evolution_{live_scope}", False)
+    ):
         with st.expander("Intraday Stock Evolution • meaningful changes", expanded=False):
             evo = timeline.copy()
             for col in [
@@ -4548,18 +5545,22 @@ def _render_current_result(
 
             # Attach the durable first-alert timestamp when the timeline predates
             # this field. The state file is the source of truth.
-            try:
-                _evo_date_raw = st.session_state.get("ds_trading_date", "")
-                if hasattr(_evo_date_raw, "strftime"):
-                    _evo_date_key = _evo_date_raw.strftime("%Y-%m-%d")
-                else:
-                    _evo_date_key = str(_evo_date_raw).strip()[:10]
-                day_state = load_state(STATE_JSON).get(STATE_KEY, {}).get(
-                    _evo_date_key, {}
-                ) or {}
-                first_alerts = day_state.get("first_alerts", {}) or {}
-            except Exception:
+            if lifecycle_replay:
+                day_state = {}
                 first_alerts = {}
+            else:
+                try:
+                    _evo_date_raw = st.session_state.get("ds_trading_date", "")
+                    if hasattr(_evo_date_raw, "strftime"):
+                        _evo_date_key = _evo_date_raw.strftime("%Y-%m-%d")
+                    else:
+                        _evo_date_key = str(_evo_date_raw).strip()[:10]
+                    day_state = load_state(STATE_JSON).get(STATE_KEY, {}).get(
+                        _evo_date_key, {}
+                    ) or {}
+                    first_alerts = day_state.get("first_alerts", {}) or {}
+                except Exception:
+                    first_alerts = {}
             def _display_first_alert(row: pd.Series) -> str:
                 symbol = str(row["Symbol"]).upper().strip()
 
@@ -4643,23 +5644,30 @@ def _render_current_result(
             symbols = sorted(evo["Symbol"].dropna().unique().tolist())
             f1, f2 = st.columns([2, 1])
             with f1:
+                evolution_scope = str(st.session_state.get("ds_replay_date", "unknown")).replace("-", "")
                 selected_stock = st.selectbox(
                     "Stock",
                     ["All stocks"] + symbols,
-                    key=f"{widget_key_prefix}evolution_stock",
+                    key=f"{widget_key_prefix}evolution_stock_{evolution_scope}",
                 )
             with f2:
                 selected_event = st.selectbox(
                     "Progress",
-                    ["All", "NEW ALERT", "DEVELOPING", "WAIT BREAK", "ACTIVE", "STRONG", "REVERSAL", "STATE CHANGE"],
-                    key=f"{widget_key_prefix}evolution_event",
+                    [
+                        "All", "ORIGINAL BREAK", "NEW ALERT", "RETRACE WATCH",
+                        "RE-ENTRY ALERT", "DEVELOPING", "WAIT BREAK",
+                        "ACTIVE", "STRONG", "REVERSAL", "STATE CHANGE",
+                    ],
+                    key=f"{widget_key_prefix}evolution_event_{evolution_scope}",
                 )
 
             filtered_evo = evo.copy()
             if selected_stock != "All stocks":
                 filtered_evo = filtered_evo.loc[filtered_evo["Symbol"].eq(selected_stock)].copy()
             if selected_event != "All":
-                filtered_evo = filtered_evo.loc[filtered_evo["Event"].eq(selected_event)].copy()
+                filtered_evo = filtered_evo.loc[
+                    filtered_evo["Event"].astype(str).str.upper().str.startswith(selected_event.upper())
+                ].copy()
 
             if selected_stock == "All stocks":
                 filtered_evo = filtered_evo.tail(30)
@@ -4823,25 +5831,48 @@ if hasattr(st, "fragment"):
                     )
                     persisted_source = ""
                     persisted_timestamp = ""
-            elif auto_update and market_open:
-                latest, timeline, _changed = _auto_process_new_snapshots(
-                    sources, trading_date
+            elif auto_update:
+                # The fragment checks frequently so a post-market backlog can
+                # drain promptly, but ordinary LIVE processing keeps its
+                # established 5-minute cadence when no backlog exists.
+                restored_for_cadence = _restore_last_complete_state(trading_date)
+                restored_ts = pd.NaT
+                if restored_for_cadence is not None:
+                    _, _, _, restored_timestamp = restored_for_cadence
+                    restored_ts = pd.to_datetime(
+                        restored_timestamp, errors="coerce"
+                    )
+                source_latest_for_cadence = parse_observation_timestamp(sources[-1])
+                backlog_pending = (
+                    pd.notna(restored_ts)
+                    and pd.Timestamp(restored_ts) < pd.Timestamp(source_latest_for_cadence)
                 )
+                now_ts = datetime.now()
+                last_cycle_ts = st.session_state.get(
+                    "ds_last_live_process_at",
+                    None,
+                )
+                due_for_normal_cycle = (
+                    last_cycle_ts is None
+                    or (now_ts - last_cycle_ts).total_seconds() >= 300
+                )
+                if backlog_pending or due_for_normal_cycle:
+                    latest, timeline, _changed = _auto_process_new_snapshots(
+                        sources,
+                        trading_date,
+                        max_batch=3 if market_open else 6,
+                    )
+                    st.session_state["ds_last_live_process_at"] = now_ts
+                else:
+                    restored = _restore_last_complete_state(trading_date)
+                    if restored is not None:
+                        latest, timeline, _, _ = restored
+                    else:
+                        latest, timeline, _ = _load_day_for_snapshot_view(
+                            sources, trading_date
+                        )
                 persisted_source = ""
                 persisted_timestamp = ""
-            elif auto_update and not market_open:
-                # After the regular session closes, LIVE becomes a frozen
-                # read-only view of the last complete processed state. The
-                # 5-minute fragment may still refresh the page, but it must
-                # not keep mutating the closed session.
-                restored = _restore_last_complete_state(trading_date)
-                if restored is not None:
-                    latest, timeline, persisted_source, persisted_timestamp = restored
-                else:
-                    latest, timeline, _ = _load_day_for_snapshot_view(
-                        sources, trading_date
-                    )
-                session_state["finalized"] = True
             else:
                 latest, timeline, _ = _load_day_for_snapshot_view(
                     sources, trading_date
@@ -4885,7 +5916,12 @@ if hasattr(st, "fragment"):
                     if not processed_times.empty:
                         latest_time = processed_times.max().to_pydatetime()
             source_latest_time = parse_observation_timestamp(sources[-1])
-            if not market_open:
+            if auto_update and latest_time < source_latest_time:
+                status = (
+                    "LIVE FEED • processing catch-up • "
+                    "chronologically monitored"
+                )
+            elif not market_open:
                 if persisted_source:
                     status = (
                         "LIVE FEED • SESSION CLOSED • "
@@ -4924,16 +5960,44 @@ if hasattr(st, "fragment"):
             # applied to the data available through this processed timestamp.
             # Keep the row-level output collapsed so it does not compete with
             # the decision-first board.
-            _live_cache = _get_replay_cache(trading_date)
+            # Closed-session LIVE restoration must remain lightweight.  The
+            # durable replay cache can contain every snapshot for the day and
+            # may be large; loading/decompressing it here makes the normal
+            # dashboard startup pay the historical-replay cost.  Replay owns
+            # that cache.  LIVE uses the already-restored last-complete result
+            # and timeline, with the current result as the lifecycle fallback.
+            if market_open:
+                live_cache = _get_replay_cache(trading_date)
+                live_snapshot_results = (
+                    live_cache.get("snapshots", {})
+                    if isinstance(live_cache, dict)
+                    else {}
+                )
+            else:
+                live_snapshot_results = {}
+
             _render_processing_output(
                 latest,
                 latest_time,
                 latest_path,
-                _live_cache.get("snapshots", {}) if isinstance(_live_cache, dict) else {},
+                live_snapshot_results,
             )
-            _render_current_result(latest, timeline, latest_time.strftime("%H:%M:%S"), "live_", _live_cache.get("snapshots", {}) if isinstance(_live_cache, dict) else {})
+            _render_current_result(
+                latest,
+                timeline,
+                latest_time.strftime("%H:%M:%S"),
+                "live_",
+                live_snapshot_results,
+            )
         except Exception as exc:
             st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
+
+
+def _request_replay_snapshot(trading_date: str, selected_index: int) -> None:
+    st.session_state["ds_replay_request"] = {
+        "trading_date": str(trading_date),
+        "selected_index": int(selected_index),
+    }
 
 
 def _replay_view_cache_key(trading_date: str, selected_index: int | None = None) -> str:
@@ -4968,48 +6032,105 @@ def _store_replay_view_cache(
     }
 
 
-def _build_replay_point_in_time_cache(
-    snapshots: dict[str, pd.DataFrame],
-) -> dict[str, dict[str, Any]]:
-    """Package lifecycle state already produced at each source observation.
+@st.cache_data(ttl=86400, show_spinner=False)
+def _replay_read_canonical_source(
+    path_str: str, role: str, mtime_ns: int
+) -> pd.DataFrame:
+    """Read and canonicalize one replay source file once per Streamlit process.
 
-    The old implementation re-ran _retracement_context for every qualified
-    symbol at every historical point and rebuilt each symbol's entire prefix
-    repeatedly. That duplicated the live alert work and caused the multi-minute
-    replay delay. This function now consumes the point state captured during
-    chronological processing; it never reconstructs lifecycle events from the
-    final state and never invents timestamps.
+    Replay must not use the LIVE adapter's "latest BASE" discovery for every
+    historical observation. This cache only removes repeated Excel I/O; it does
+    not alter the decision engine or its calculations.
     """
-    if not isinstance(snapshots, dict) or not snapshots:
+    path = Path(path_str)
+    frame = _replay_adapter._clean(_replay_adapter._read(path, role))
+    return frame
+
+
+def _build_replay_evidence_cache(
+    sources: list[Path],
+) -> dict[str, tuple[pd.DataFrame, dict[str, str]]]:
+    """Prepare snapshot-specific evidence without changing LIVE source behavior.
+
+    The existing LIVE merge adapter discovers the latest BASE file in a day
+    folder. That is appropriate for LIVE, but historical replay needs the exact
+    BASE observation represented by each snapshot. Auxiliary source families
+    are bound to the latest file available at or before that observation.
+    Each physical Excel file is read through the Streamlit data cache at most
+    once per cache lifetime.
+    """
+    ordered = sorted(
+        [Path(p) for p in sources if Path(p).is_file()],
+        key=lambda p: (
+            parse_observation_timestamp(p),
+            p.stat().st_mtime,
+            p.name.lower(),
+        ),
+    )
+    if not ordered:
         return {}
 
-    ordered: list[tuple[pd.Timestamp, str, pd.DataFrame]] = []
-    for key, frame in snapshots.items():
-        if not isinstance(frame, pd.DataFrame) or frame.empty:
-            continue
-        ts = pd.to_datetime(
-            frame.get("source_timestamp", frame.get("observation_timestamp")),
-            errors="coerce",
-        )
-        valid = ts.dropna()
-        if valid.empty:
-            continue
-        ordered.append((pd.Timestamp(valid.iloc[0]), key, frame))
-    ordered.sort(key=lambda item: (item[0], item[1]))
+    directory = ordered[0].parent
+    try:
+        candidates = [
+            p for p in directory.iterdir()
+            if p.is_file()
+            and p.suffix.lower() in {".xlsx", ".xls", ".xlsm"}
+            and not p.name.startswith("~$")
+        ]
+    except OSError:
+        candidates = []
 
-    point_cache: dict[str, dict[str, Any]] = {}
-    for source_ts, key, frame in ordered:
-        qualified = _rank(frame)
-        lifecycle = frame.attrs.get("replay_lifecycle_events", {})
-        if not isinstance(lifecycle, dict):
-            lifecycle = {}
-        point_cache[key] = {
-            "source_timestamp": source_ts.isoformat(),
-            "result": frame,
-            "qualified_result": qualified if isinstance(qualified, pd.DataFrame) else pd.DataFrame(),
-            "lifecycle_events": dict(lifecycle),
-        }
-    return point_cache
+    result: dict[str, tuple[pd.DataFrame, dict[str, str]]] = {}
+    for path in ordered:
+        observed_mtime = path.stat().st_mtime
+        selected: dict[str, Path] = {"BASE": path}
+        for spec in _replay_adapter.SPECS[1:]:
+            matches = [
+                candidate
+                for candidate in candidates
+                if _replay_adapter._family_match(candidate, spec)
+                and candidate != path
+                and candidate.stat().st_mtime <= observed_mtime
+            ]
+            if matches:
+                selected[spec.role] = max(
+                    matches,
+                    key=_replay_adapter._order_key,
+                )
+
+        frames: list[tuple[str, pd.DataFrame]] = []
+        source_map: dict[str, str] = {}
+        for role, selected_path in selected.items():
+            try:
+                frame = _replay_read_canonical_source(
+                    str(selected_path), role, selected_path.stat().st_mtime_ns
+                )
+                if "symbol" not in frame.columns:
+                    continue
+                frames.append((role, frame))
+                source_map[role] = str(selected_path)
+            except Exception:
+                continue
+
+        if not frames:
+            result[_source_key(path)] = (pd.DataFrame(), source_map)
+            continue
+
+        base = next(
+            (frame for role, frame in frames if role == "BASE"),
+            frames[0][1],
+        )
+        merged = _replay_adapter._clean(
+            base.drop(columns=["_role"], errors="ignore").copy()
+        )
+        merged["_source_BASE"] = True
+        for role, frame in frames:
+            if role != "BASE":
+                merged = _replay_adapter._coalesce(merged, frame, role)
+        result[_source_key(path)] = (merged, source_map)
+
+    return result
 
 
 def _build_replay_day_in_memory(
@@ -5017,12 +6138,11 @@ def _build_replay_day_in_memory(
     trading_date: str,
     selected_index: int | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
-    """Build replay chronologically once, recording lifecycle at processing time.
+    """Build replay chronologically using the existing LIVE signal/lifecycle path.
 
-    Replay uses an isolated in-memory state. The existing qualification and alert
-    mechanism runs at each actual source observation; the resulting lifecycle
-    state is attached to that observation. No final-state backward reconstruction
-    is performed.
+    Replay uses an isolated in-memory state and never writes processing_state.json.
+    Each source observation is processed in chronological order and its lifecycle
+    state is attached to that observation.
     """
     ordered = sorted(
         [Path(p) for p in sources if Path(p).is_file()],
@@ -5042,6 +6162,17 @@ def _build_replay_day_in_memory(
         working = ordered
 
     replay_state: dict[str, Any] = {STATE_KEY: {trading_date: {}}}
+    # Historical replay may consult immutable prior-day provenance, but must not
+    # consult the selected day's current/live ledger. Filter durable state to
+    # dates strictly before the selected trading date and read it once.
+    raw_durable_state = load_state(STATE_JSON)
+    durable_prior_state: dict[str, Any] = {
+        STATE_KEY: {
+            str(day): value
+            for day, value in (raw_durable_state.get(STATE_KEY, {}) or {}).items()
+            if str(day) < str(trading_date)
+        }
+    }
     previous: dict[str, dict] = {}
     previous_state: dict[str, str] = {}
     previous_direction: dict[str, str] = {}
@@ -5050,33 +6181,159 @@ def _build_replay_day_in_memory(
     snapshots: dict[str, pd.DataFrame] = {}
     latest_result = pd.DataFrame()
     history_by_symbol: dict[str, list[pd.Series]] = {}
-    point_lifecycle: dict[str, dict[str, Any]] = {}
     first_range = _first_range_from_path(ordered[0], trading_date)
+    replay_evidence_cache = _build_replay_evidence_cache(ordered)
 
     for sequence, path in enumerate(working, start=1):
         key = _source_key(path)
+        timestamp = parse_observation_timestamp(path)
 
-        # IMPORTANT: the first source observation is a real decision point,
-        # not merely a raw/base frame. Replay must run the SAME derivative_signal
-        # processing + qualification + alert path from the first observation
-        # onward. Otherwise the replay loses the first state transition and the
-        # running performance/decision history starts one snapshot late.
-    timeline = pd.DataFrame(timeline_rows)
-    point_in_time_cache: dict[str, dict[str, Any]] = {}
-    for path in working:
-        key = _source_key(path)
-        frame = snapshots.get(key, pd.DataFrame())
-        if not isinstance(frame, pd.DataFrame) or frame.empty:
+        if sequence == 1:
+            base_frame = replay_evidence_cache.get(
+                key, (pd.DataFrame(), {})
+            )[0].copy()
+            if base_frame.empty:
+                base_frame = _read(path)
+            if isinstance(base_frame, pd.DataFrame) and not base_frame.empty:
+                base_frame = base_frame.copy()
+                base_frame["source_timestamp"] = timestamp
+                base_frame["source_file"] = path.name
+                snapshots[key] = base_frame
+                for _, base_row in base_frame.iterrows():
+                    symbol = str(
+                        base_row.get("Symbol", base_row.get("symbol", ""))
+                    ).strip().upper()
+                    if symbol:
+                        history_by_symbol.setdefault(symbol, []).append(base_row)
+            previous = _snapshot_rows(base_frame)
             continue
-        point_in_time_cache[key] = {
-            "source_timestamp": parse_observation_timestamp(path).isoformat(),
-            "result": frame,
-            "qualified_result": _rank(frame),
-            "lifecycle_events": point_lifecycle.get(key, {}),
-        }
+
+        result = _process_snapshot(
+            path,
+            trading_date,
+            previous,
+            first_range,
+            evidence_cache=replay_evidence_cache,
+        )
+        result = _attach_snapshot_metadata(result, path)
+        result = _update_first_alerts(
+            replay_state,
+            trading_date,
+            result,
+            timestamp,
+            first_alerts,
+        )
+        snapshots[key] = result
+
+        if result.empty:
+            previous = _snapshot_rows(
+                replay_evidence_cache.get(key, (pd.DataFrame(), {}))[0]
+            )
+            if not previous:
+                previous = _snapshot_rows(_read(path))
+            continue
+
+        for _, current_row in result.iterrows():
+            symbol = str(current_row.get("symbol", "")).strip().upper()
+            if symbol:
+                history_by_symbol.setdefault(symbol, []).append(current_row)
+
+        result = _update_retracement_alerts(
+            replay_state,
+            trading_date,
+            result,
+            snapshots,
+            history_by_symbol,
+            durable_prior_state,
+        )
+
+        lifecycle_point = _point_lifecycle_from_state(
+            replay_state,
+            trading_date,
+            _rank(result),
+        )
+        result.attrs["replay_lifecycle_events"] = lifecycle_point
+        snapshots[key] = result
+
+        for row in result.to_dict(orient="records"):
+            symbol = str(row.get("symbol", "")).upper()
+            state_name = str(
+                row.get("decision_state", row.get("state", "WATCH"))
+            ).upper()
+            direction = str(
+                row.get("decision_direction", row.get("direction", "NEUTRAL"))
+            ).upper()
+
+            old_state = previous_state.get(symbol)
+            old_direction = previous_direction.get(symbol)
+            state_changed = state_name != old_state
+            direction_changed = (
+                old_direction is not None
+                and direction not in {"", "NEUTRAL"}
+                and old_direction not in {"", "NEUTRAL"}
+                and direction != old_direction
+            )
+
+            if (
+                (state_changed or direction_changed)
+                and state_name in QUALIFIED_STATES
+            ):
+                timeline_rows.append(
+                    {
+                        "Time": timestamp.strftime("%H:%M:%S"),
+                        "First Alert": _timeline_first_alert_value(
+                            row, timestamp
+                        ),
+                        "Snapshot": sequence,
+                        "Symbol": symbol,
+                        "Decision": row.get(
+                            "decision_state",
+                            "NO DECISION",
+                        ),
+                        "Direction": direction,
+                        "Previous": (
+                            old_direction
+                            if direction_changed
+                            else old_state or "—"
+                        ),
+                        "Evidence": row.get("decision_score", 0),
+                        "Strength": row.get("decision_strength", "—"),
+                        "S/R": row.get("sr_status", "—"),
+                    }
+                )
+
+            previous_state[symbol] = state_name
+            previous_direction[symbol] = direction
+
+        previous = _snapshot_rows(
+            replay_evidence_cache.get(key, (pd.DataFrame(), {}))[0]
+        )
+        if not previous:
+            previous = _snapshot_rows(_read(path))
+        latest_result = result
+
+    timeline = pd.DataFrame(timeline_rows)
+    point_in_time_cache = _build_replay_point_in_time_cache(snapshots)
 
     selected_key = _source_key(working[-1]) if working else ""
-    lifecycle_events = point_in_time_cache.get(selected_key, {}).get("lifecycle_events", {}) if selected_key else {}
+    lifecycle_events = (
+        point_in_time_cache.get(selected_key, {}).get(
+            "lifecycle_events", {}
+        )
+        if selected_key
+        else {}
+    )
+
+    # A full historical reconstruction is a complete point-in-time chain.
+    # Persist that chain separately from LIVE processing_state.json so later
+    # replay selections can restore the already-calculated historical state
+    # instead of rebuilding the day. Partial selected-index reconstructions are
+    # deliberately not persisted as a full-day cache.
+    if selected_index is None:
+        _store_replay_cache(
+            trading_date, snapshots, timeline, point_in_time_cache=point_in_time_cache
+        )
+
     _store_replay_view_cache(
         trading_date,
         snapshots,
@@ -5088,19 +6345,31 @@ def _build_replay_day_in_memory(
     )
     return latest_result, timeline, snapshots
 
-
 def _get_point_in_time_timeline(
     timeline: pd.DataFrame,
-    selected_index: int,
+    selected_timestamp: Any,
 ) -> pd.DataFrame:
-    """Return replay evolution only through the selected source snapshot."""
+    """Return replay evolution only through the selected source observation.
+
+    The historical cache may contain source files that no longer exist on disk,
+    so the current filesystem index is not a reliable historical sequence number.
+    Filter by the actual persisted event/source timestamp instead.
+    """
     if not isinstance(timeline, pd.DataFrame) or timeline.empty:
         return timeline
+    cutoff = pd.to_datetime(selected_timestamp, errors="coerce")
+    if pd.isna(cutoff) or "Time" not in timeline.columns:
+        return timeline.copy()
     out = timeline.copy()
-    if "Snapshot" not in out.columns:
-        return out
-    nums = pd.to_numeric(out["Snapshot"], errors="coerce")
-    return out.loc[nums.le(int(selected_index) + 1)].copy()
+    event_text = out["Time"].astype(str).str.strip()
+    event_ts = pd.to_datetime(
+        event_text, format="%H:%M:%S", errors="coerce"
+    )
+    event_ts = pd.to_datetime(
+        str(cutoff.date()) + " " + event_ts.dt.strftime("%H:%M:%S"),
+        errors="coerce",
+    )
+    return out.loc[event_ts.le(cutoff)].copy()
 
 
 def _load_day_for_snapshot_view(sources: list[Path], trading_date: str) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
@@ -5170,7 +6439,7 @@ def render() -> None:
     with st.expander("LIVE • Feed & Session", expanded=True):
         a1, a2 = st.columns([2, 1])
         with a1:
-            auto_update = st.checkbox("Auto-update live feed (5 min)", value=True, key="ds_auto_update")
+            auto_update = st.checkbox("Auto-update live feed (5 min) • catch-up checks every 30s", value=True, key="ds_auto_update")
         with a2:
             refresh = st.button("↻ Refresh", use_container_width=True, key="ds_live_refresh")
         if refresh:
@@ -5220,122 +6489,319 @@ def render() -> None:
         else:
             default_replay_date = st.session_state.get("ds_replay_date", available_dates[-1])
             try:
-                default_replay_date_obj = datetime.strptime(str(default_replay_date), "%Y-%m-%d").date()
+                default_replay_date_obj = datetime.strptime(
+                    str(default_replay_date), "%Y-%m-%d"
+                ).date()
             except ValueError:
-                default_replay_date_obj = datetime.strptime(available_dates[-1], "%Y-%m-%d").date()
-            replay_date_obj = st.date_input("Trading date", value=default_replay_date_obj, min_value=datetime.strptime(available_dates[0], "%Y-%m-%d").date(), max_value=datetime.strptime(available_dates[-1], "%Y-%m-%d").date(), key="ds_replay_date_input")
-            replay_date = replay_date_obj.strftime("%Y-%m-%d")
-            st.session_state["ds_replay_date"] = replay_date
-            try:
-                replay_sources = _discover_sources(replay_date, source_root)
-            except Exception as exc:
-                st.error(f"Replay source discovery failed: {type(exc).__name__}: {exc}")
-                return
-            if not replay_sources:
-                st.info("No snapshots found for the selected trading date.")
-            else:
-                replay_labels = [parse_observation_timestamp(p).strftime("%H:%M:%S") for p in replay_sources]
-                previous_time = st.session_state.get("ds_replay_selected_label")
-                replay_index = replay_labels.index(previous_time) if previous_time in replay_labels else len(replay_labels) - 1
-                selected_index = st.selectbox("Snapshot time", list(range(len(replay_sources))), index=replay_index, format_func=lambda i: replay_labels[i], key="ds_replay_time_input")
-                selected_label = replay_labels[selected_index]
-                st.session_state["ds_replay_selected_label"] = selected_label
-                view_clicked = st.button("View Snapshot", type="primary", key="ds_replay_view_button")
-                stored_key = "ds_replay_point_in_time"
-                stored = st.session_state.get(stored_key)
-                if view_clicked:
-                    try:
-                        started = time.perf_counter()
-                        # Build the point-in-time replay cache once for the full
-                        # trading day. Subsequent timestamp selections only read
-                        # the already-built cache and selected historical prefix.
-                        view_cache = _get_replay_view_cache(replay_date, None)
-                        snapshots = view_cache.get("snapshots", {})
-                        timeline = view_cache.get("timeline", pd.DataFrame())
-                        point_cache = view_cache.get("point_in_time_cache", {})
-                        complete = (
-                            isinstance(snapshots, dict)
-                            and view_cache.get("source_count") == len(replay_sources)
-                            and all(_source_key(p) in snapshots for p in replay_sources)
-                            and isinstance(point_cache, dict)
-                            and all(_source_key(p) in point_cache for p in replay_sources)
-                        )
-                        if not complete:
-                            # A complete LIVE snapshot cache is already an exact
-                            # chronological source-processing cache. Reuse it for
-                            # replay rather than reprocessing the source files.
-                            live_cache = _get_replay_cache(replay_date)
-                            live_snapshots = live_cache.get("snapshots", {}) if isinstance(live_cache, dict) else {}
-                            live_timeline = live_cache.get("timeline", pd.DataFrame()) if isinstance(live_cache, dict) else pd.DataFrame()
-                            live_complete = (
-                                isinstance(live_snapshots, dict)
-                                and all(_source_key(p) in live_snapshots for p in replay_sources)
-                            )
-                            if live_complete:
-                                snapshots = live_snapshots
-                                timeline = live_timeline if isinstance(live_timeline, pd.DataFrame) else pd.DataFrame()
-                                point_cache = _build_replay_point_in_time_cache(snapshots)
-                                selected_live_key = _source_key(replay_sources[-1])
-                                _store_replay_view_cache(
-                                    replay_date, snapshots, timeline,
-                                    selected_index=None,
-                                    source_count=len(replay_sources),
-                                    lifecycle_events=point_cache.get(selected_live_key, {}).get("lifecycle_events", {}),
-                                    point_in_time_cache=point_cache,
-                                )
-                                view_cache = _get_replay_view_cache(replay_date, None)
-                            else:
-                                _, timeline, snapshots = _build_replay_day_in_memory(
-                                    replay_sources, replay_date, selected_index=None
-                                )
-                                view_cache = _get_replay_view_cache(replay_date, None)
-                                snapshots = view_cache.get("snapshots", snapshots)
-                                timeline = view_cache.get("timeline", timeline)
-                                point_cache = view_cache.get("point_in_time_cache", {})
-                        selected_path = replay_sources[selected_index]
-                        selected_key = _source_key(selected_path)
-                        point_cache = view_cache.get("point_in_time_cache", {}) or {}
-                        point_entry = point_cache.get(selected_key, {}) if isinstance(point_cache, dict) else {}
-                        result = point_entry.get("result", snapshots.get(selected_key, pd.DataFrame()))
-                        selected_lifecycle_events = point_entry.get("lifecycle_events", {}) if isinstance(point_entry, dict) else {}
-                        # If an older in-session cache does not yet contain the
-                        # point-in-time entry, use the cache-wide lifecycle only
-                        # as a compatibility fallback; never synthesize event
-                        # timestamps from selected_label.
-                        if not isinstance(selected_lifecycle_events, dict):
-                            selected_lifecycle_events = {}
-                        selected_prefix = {
-                            _source_key(path): snapshots.get(_source_key(path), pd.DataFrame())
-                            for path in replay_sources[: selected_index + 1]
-                            if _source_key(path) in snapshots
-                        }
-                        st.session_state[stored_key] = {
-                            "trading_date": replay_date,
-                            "selected_index": selected_index,
-                            "selected_label": selected_label,
-                            "result": result,
-                            "timeline": _get_point_in_time_timeline(timeline, selected_index),
-                            "snapshots": selected_prefix,
-                            "lifecycle_events": {symbol: event for symbol, event in selected_lifecycle_events.items()},
-                            "point_in_time_cache": point_cache,
-                        }
-                        st.session_state["ds_replay_last_seconds"] = round(time.perf_counter() - started, 1)
-                        stored = st.session_state[stored_key]
-                    except Exception as exc:
-                        st.error(f"Intraday replay preparation failed: {type(exc).__name__}: {exc}")
-                        return
-                if isinstance(stored, dict) and stored.get("trading_date") == replay_date and int(stored.get("selected_index", -1)) == int(selected_index):
-                    result = stored.get("result", pd.DataFrame())
-                    replay_timeline = stored.get("timeline", pd.DataFrame())
-                    replay_snapshots = stored.get("snapshots", {})
-                    replay_lifecycle_events = stored.get("lifecycle_events", {})
-                    last_seconds = st.session_state.get("ds_replay_last_seconds")
-                    suffix = f" • prepared in {last_seconds:.1f}s" if last_seconds is not None else ""
-                    count = len(replay_snapshots) if isinstance(replay_snapshots, dict) else 0
-                    st.caption(f"INTRADAY REPLAY • {replay_date} • selected {selected_label} • {count} snapshots included{suffix} • LIVE state isolated")
-                    _render_current_result(result, replay_timeline, selected_label, "replay_", replay_snapshots, lifecycle_trading_date=replay_date, lifecycle_replay=True, lifecycle_events=replay_lifecycle_events)
+                default_replay_date_obj = datetime.strptime(
+                    available_dates[-1], "%Y-%m-%d"
+                ).date()
+
+            # Keep the replay controls in a Streamlit form.  The submit event
+            # belongs to the main app execution and is not coupled to the
+            # independent LIVE fragment rerun.
+            with st.form("ds_replay_form", clear_on_submit=False):
+                replay_date_obj = st.date_input(
+                    "Trading date",
+                    value=default_replay_date_obj,
+                    min_value=datetime.strptime(
+                        available_dates[0], "%Y-%m-%d"
+                    ).date(),
+                    max_value=datetime.strptime(
+                        available_dates[-1], "%Y-%m-%d"
+                    ).date(),
+                    key="ds_replay_date_input",
+                )
+                replay_date = replay_date_obj.strftime("%Y-%m-%d")
+                try:
+                    replay_sources = _discover_sources(replay_date, source_root)
+                except Exception as exc:
+                    st.error(
+                        f"Replay source discovery failed: {type(exc).__name__}: {exc}"
+                    )
+                    replay_sources = []
+
+                if not replay_sources:
+                    st.info("No snapshots found for the selected trading date.")
+                    submit_replay = False
+                    selected_index = 0
+                    selected_label = ""
                 else:
-                    st.caption("Select a trading date and snapshot time, then choose View Snapshot.")
+                    replay_labels = [
+                        parse_observation_timestamp(p).strftime("%H:%M:%S")
+                        for p in replay_sources
+                    ]
+                    previous_time = st.session_state.get(
+                        "ds_replay_selected_label"
+                    )
+                    replay_index = (
+                        replay_labels.index(previous_time)
+                        if previous_time in replay_labels
+                        else len(replay_labels) - 1
+                    )
+                    selected_index = st.selectbox(
+                        "Snapshot time",
+                        list(range(len(replay_sources))),
+                        index=replay_index,
+                        format_func=lambda i: replay_labels[i],
+                        key="ds_replay_time_input",
+                    )
+                    selected_label = replay_labels[selected_index]
+                    submit_replay = st.form_submit_button(
+                        "View Snapshot",
+                        type="primary",
+                    )
+
+            st.session_state["ds_replay_date"] = replay_date
+            if selected_label:
+                st.session_state["ds_replay_selected_label"] = selected_label
+
+            stored_key = "ds_replay_point_in_time"
+            stored = st.session_state.get(stored_key)
+            replay_requested = bool(submit_replay)
+            if replay_requested:
+                try:
+                    started = time.perf_counter()
+                    view_cache = _get_replay_view_cache(replay_date, None)
+                    snapshots = view_cache.get("snapshots", {})
+                    timeline = view_cache.get("timeline", pd.DataFrame())
+                    point_cache = view_cache.get("point_in_time_cache", {})
+                    complete = (
+                        isinstance(snapshots, dict)
+                        and view_cache.get("source_count") == len(replay_sources)
+                        and all(
+                            _source_key(p) in snapshots for p in replay_sources
+                        )
+                        and isinstance(point_cache, dict)
+                        and all(
+                            _source_key(p) in point_cache for p in replay_sources
+                        )
+                    )
+                    if not complete:
+                        # A persisted full-day replay cache is historical evidence.
+                        # Its completeness must NOT depend on which source files
+                        # still happen to exist on disk; source files may have been
+                        # removed after the historical chain was captured.
+                        live_cache = _get_replay_cache(replay_date)
+                        live_snapshots = (
+                            live_cache.get("snapshots", {})
+                            if isinstance(live_cache, dict)
+                            else {}
+                        )
+                        live_timeline = (
+                            live_cache.get("timeline", pd.DataFrame())
+                            if isinstance(live_cache, dict)
+                            else pd.DataFrame()
+                        )
+                        selected_path = replay_sources[selected_index]
+                        selected_source_timestamp = parse_observation_timestamp(selected_path)
+                        selected_key = _source_key(selected_path)
+                        historical_key = selected_key
+                        if (
+                            isinstance(live_snapshots, dict)
+                            and historical_key not in live_snapshots
+                        ):
+                            # Historical cache keys are physical source paths. A source
+                            # may have been replaced/recreated after the cache was
+                            # captured, so resolve the requested snapshot by its actual
+                            # persisted observation timestamp before falling back to a
+                            # full-day reconstruction.
+                            historical_key = _find_replay_cache_key_by_timestamp(
+                                live_snapshots, selected_source_timestamp
+                            )
+                        historical_cache_usable = (
+                            _replay_cache_complete(live_cache)
+                            and historical_key in live_snapshots
+                        )
+                        if historical_cache_usable:
+                            snapshots = live_snapshots
+                            timeline = (
+                                live_timeline
+                                if isinstance(live_timeline, pd.DataFrame)
+                                else pd.DataFrame()
+                            )
+                            point_cache = live_cache.get(
+                                "point_in_time_cache", {}
+                            )
+                            if not isinstance(point_cache, dict):
+                                point_cache = {}
+                            if historical_key not in point_cache:
+                                cached_frame = snapshots.get(historical_key)
+                                cached_ts = _replay_frame_timestamp(cached_frame)
+                                if cached_frame is not None and cached_ts is not None:
+                                    point_cache[historical_key] = {
+                                        "source_timestamp": cached_ts.isoformat(),
+                                        "result": cached_frame,
+                                        "lifecycle_events": dict(
+                                            cached_frame.attrs.get(
+                                                "replay_lifecycle_events", {}
+                                            )
+                                            if isinstance(
+                                                cached_frame.attrs.get(
+                                                    "replay_lifecycle_events", {}
+                                                ),
+                                                dict,
+                                            )
+                                            else {}
+                                        ),
+                                    }
+                            _store_replay_view_cache(
+                                replay_date,
+                                snapshots,
+                                timeline,
+                                selected_index=None,
+                                source_count=len(replay_sources),
+                                lifecycle_events=point_cache.get(
+                                    historical_key, {}
+                                ).get("lifecycle_events", {}),
+                                point_in_time_cache=point_cache,
+                            )
+                            view_cache = _get_replay_view_cache(
+                                replay_date, None
+                            )
+                        else:
+                            _, timeline, snapshots = _build_replay_day_in_memory(
+                                replay_sources,
+                                replay_date,
+                                selected_index=None,
+                            )
+                            view_cache = _get_replay_view_cache(
+                                replay_date, None
+                            )
+                            snapshots = view_cache.get(
+                                "snapshots", snapshots
+                            )
+                            timeline = view_cache.get(
+                                "timeline", timeline
+                            )
+                            point_cache = view_cache.get(
+                                "point_in_time_cache", {}
+                            )
+
+                    selected_path = replay_sources[selected_index]
+                    selected_key = _source_key(selected_path)
+                    selected_source_timestamp = parse_observation_timestamp(selected_path)
+                    point_cache = (
+                        view_cache.get("point_in_time_cache", {}) or {}
+                    )
+                    historical_key = selected_key
+                    if isinstance(point_cache, dict) and historical_key not in point_cache:
+                        cached_snapshots = view_cache.get("snapshots", {})
+                        if isinstance(cached_snapshots, dict):
+                            historical_key = (
+                                _find_replay_cache_key_by_timestamp(
+                                    cached_snapshots, selected_source_timestamp
+                                )
+                                or selected_key
+                            )
+                    point_entry = (
+                        point_cache.get(historical_key, {})
+                        if isinstance(point_cache, dict)
+                        else {}
+                    )
+                    result = point_entry.get(
+                        "result",
+                        snapshots.get(historical_key, pd.DataFrame()),
+                    )
+                    selected_lifecycle_events = (
+                        point_entry.get("lifecycle_events", {})
+                        if isinstance(point_entry, dict)
+                        else {}
+                    )
+                    if not isinstance(selected_lifecycle_events, dict):
+                        selected_lifecycle_events = {}
+
+                    # Build the historical prefix from the persisted cache, not
+                    # from the currently surviving source-file list. This keeps
+                    # replay point-in-time lifecycle/alert context correct even
+                    # when older source files have been removed from disk.
+                    selected_timestamp = pd.to_datetime(
+                        point_entry.get("source_timestamp", "")
+                        or datetime.fromtimestamp(selected_path.stat().st_ctime).isoformat(),
+                        errors="coerce",
+                    )
+                    selected_prefix = {}
+                    if not pd.isna(selected_timestamp):
+                        ordered_cached: list[tuple[pd.Timestamp, str, pd.DataFrame]] = []
+                        for cached_key, cached_frame in snapshots.items():
+                            if not isinstance(cached_frame, pd.DataFrame):
+                                continue
+                            raw_cached_ts = cached_frame.get(
+                                "source_timestamp", cached_frame.get("observation_timestamp")
+                            )
+                            if isinstance(raw_cached_ts, pd.Series):
+                                cached_valid = pd.to_datetime(
+                                    raw_cached_ts, errors="coerce"
+                                ).dropna()
+                            else:
+                                cached_valid = pd.to_datetime(
+                                    pd.Series([raw_cached_ts]), errors="coerce"
+                                ).dropna()
+                            if cached_valid.empty:
+                                continue
+                            cached_ts = pd.Timestamp(cached_valid.iloc[0])
+                            if cached_ts <= selected_timestamp:
+                                ordered_cached.append((cached_ts, cached_key, cached_frame))
+                        ordered_cached.sort(key=lambda item: (item[0], item[1]))
+                        selected_prefix = {
+                            cached_key: cached_frame
+                            for _, cached_key, cached_frame in ordered_cached
+                        }
+                    if not selected_prefix and selected_key in snapshots:
+                        selected_prefix[selected_key] = snapshots[selected_key]
+
+                    st.session_state[stored_key] = {
+                        "trading_date": replay_date,
+                        "selected_index": selected_index,
+                        "selected_label": selected_label,
+                        "result": result,
+                        "timeline": _get_point_in_time_timeline(
+                            timeline, selected_timestamp
+                        ),
+                        "snapshots": selected_prefix,
+                        "lifecycle_events": {
+                            symbol: event
+                            for symbol, event in selected_lifecycle_events.items()
+                        },
+                        "point_in_time_cache": point_cache,
+                    }
+                    st.session_state["ds_replay_last_seconds"] = round(
+                        time.perf_counter() - started, 1
+                    )
+                    stored = st.session_state[stored_key]
+                except Exception as exc:
+                    st.error(
+                        f"Intraday replay preparation failed: "
+                        f"{type(exc).__name__}: {exc}"
+                    )
+                    return
+
+            # Render the stored replay state on EVERY rerun while the selected
+            # date/time still matches.  Streamlit button clicks (including the
+            # optional replay audit buttons) cause a full script rerun; previously
+            # the replay was rendered only inside the View Snapshot submit branch,
+            # so clicking an audit button made the replay appear to disappear and
+            # returned the user to the selector.
+            stored = st.session_state.get(stored_key)
+            stored_matches = (
+                isinstance(stored, dict)
+                and stored.get("trading_date") == replay_date
+                and str(stored.get("selected_label", "")) == str(selected_label)
+                and int(stored.get("selected_index", -1)) == int(selected_index)
+            )
+            if stored_matches:
+                result = stored.get("result", pd.DataFrame())
+                replay_timeline = stored.get("timeline", pd.DataFrame())
+                replay_snapshots = stored.get("snapshots", {})
+                replay_lifecycle_events = stored.get("lifecycle_events", {})
+                last_seconds = st.session_state.get("ds_replay_last_seconds")
+                suffix = f" • prepared in {last_seconds:.1f}s" if last_seconds is not None else ""
+                count = len(replay_snapshots) if isinstance(replay_snapshots, dict) else 0
+                st.caption(f"INTRADAY REPLAY • {replay_date} • selected {selected_label} • {count} snapshots included{suffix} • LIVE state isolated")
+                _render_current_result(result, replay_timeline, selected_label, "replay_", replay_snapshots, lifecycle_trading_date=replay_date, lifecycle_replay=True, lifecycle_events=replay_lifecycle_events)
+            else:
+                st.caption("Select a trading date and snapshot time, then choose View Snapshot.")
 
 if __name__ == "__main__":
     render()
+

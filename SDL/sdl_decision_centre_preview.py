@@ -2455,6 +2455,60 @@ def latest_live() -> tuple[
                 path = Path(path)
                 ts = observation_ts(path)
                 pred = candidates(df, snapshot_ts=ts)
+
+                # Last-valid-snapshot protection:
+                # The newest source workbook may be successfully processed yet
+                # contain zero currently eligible decisions. In that case do
+                # NOT replace the last working intraday Decision Board state.
+                #
+                # This recovery is dashboard-only and READ-ONLY. It evaluates
+                # already-existing source snapshots backwards in chronology
+                # through replay_snapshot_frame(), without rerunning the live
+                # pipeline and without changing SDL scoring/qualification.
+                if pred is not None and not pred.empty:
+                    return path, pred, ts, message
+
+                try:
+                    day = ts.date().isoformat() if pd.notna(ts) else None
+                    candidates_for_day = snapshot_files(day)
+                    candidates_for_day = [
+                        candidate
+                        for candidate in candidates_for_day
+                        if pd.notna(observation_ts(candidate))
+                    ]
+
+                    # Search newest -> oldest, excluding the already-tested
+                    # latest workbook. The first non-empty result is the last
+                    # factual working dashboard state available for this day.
+                    for fallback_path in reversed(candidates_for_day):
+                        if Path(fallback_path) == path:
+                            continue
+
+                        fallback_ts = observation_ts(fallback_path)
+                        if pd.isna(fallback_ts):
+                            continue
+
+                        fallback_pred, _ = replay_snapshot_frame(fallback_path)
+                        if fallback_pred is not None and not fallback_pred.empty:
+                            return (
+                                Path(fallback_path),
+                                fallback_pred,
+                                fallback_ts,
+                                (
+                                    f"Latest source snapshot at "
+                                    f"{ts.strftime('%H:%M:%S')} produced no "
+                                    f"eligible decisions. Showing the last "
+                                    f"valid same-session decision state from "
+                                    f"{fallback_ts.strftime('%H:%M:%S')}."
+                                ),
+                            )
+                except Exception:
+                    # Historical recovery is best-effort. A source/read error
+                    # must never interrupt the dashboard.
+                    pass
+
+                # No earlier valid prediction state could be reconstructed.
+                # The existing empty-state guard will handle this safely.
                 return path, pred, ts, message
 
             # Calendar-day rollover rule:
@@ -2588,6 +2642,17 @@ def render_live() -> None:
     # Presentation guard: never allow a missing optional label to crash
     # the Decision Centre. No decision is recalculated here.
     pred = normalize_dashboard_predictions(pred)
+
+    # A valid source snapshot can legitimately contain zero eligible SDL
+    # decisions. Treat that as an explicit empty state rather than indexing
+    # optional prediction columns on a zero-column DataFrame.
+    if pred is None or pred.empty:
+        st.info(
+            "No SDL decisions are currently qualified for this source snapshot. "
+            "The source snapshot was processed successfully; no decision is "
+            "being manufactured for display."
+        )
+        return
 
     # Agreed order: KPI ribbon first, Priority Radar second.
     total = len(pred)
