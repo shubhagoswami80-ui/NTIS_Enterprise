@@ -499,18 +499,12 @@ class Manager:
             return context, page
 
         try:
-            # Recover transient network/browser failures without
-            # reusing a stale Page object.
+            # Keep the normal working browser path unchanged. Browser
+            # recovery is attempted only after an actual navigation failure.
             navigation_error = None
 
             for navigation_attempt in range(2):
                 try:
-                    context, page = self.ensure_browser(
-                        playwright,
-                        context,
-                        page,
-                    )
-
                     page.goto(
                         job["url"],
                         wait_until="domcontentloaded",
@@ -528,12 +522,15 @@ class Manager:
                             f"{name}: navigation failed; "
                             f"reopening Chromium and retrying: {error}"
                         )
+
                         try:
-                            context, page = self.ensure_browser(
-                                playwright,
-                                None,
-                                None,
-                            )
+                            if context is not None:
+                                context.close()
+                        except Exception:
+                            pass
+
+                        try:
+                            context, page = self.open_browser(playwright)
                         except Exception as recovery_error:
                             navigation_error = recovery_error
                             break
@@ -554,7 +551,7 @@ class Manager:
                 self.log(
                     f"{name}: login required."
                 )
-                return
+                return context, page
 
             action = job.get(
                 "action",
@@ -591,7 +588,7 @@ class Manager:
                     page,
                     job,
                 ):
-                    return
+                    return context, page
 
             if action in (
                 "submit",
@@ -611,7 +608,7 @@ class Manager:
                     self.log(
                         f"{name}: Submit button not found."
                     )
-                    return
+                    return context, page
 
                 button.click()
                 page.wait_for_timeout(
@@ -732,7 +729,7 @@ class Manager:
                     f"{name}: Download button not found. "
                     f"Configured selector: {download_selector}"
                 )
-                return
+                return context, page
 
             with page.expect_download(
                 timeout=30000
@@ -797,6 +794,7 @@ class Manager:
             self.log(
                 f"{name}: saved -> {output}"
             )
+            return context, page
 
         except Exception as error:
             self.log(
