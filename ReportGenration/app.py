@@ -288,51 +288,99 @@ class Manager:
                     time.sleep(2)
 
     def select_option(self, page, job):
-        value = str(
-            job.get("selection", "")
-        ).strip()
-
-        selector = str(
-            job.get("selection_selector", "")
-        ).strip()
+        value = str(job.get("selection", "")).strip()
+        selector = str(job.get("selection_selector", "")).strip()
 
         if not value and not selector:
             return True
 
         def norm(text):
-            return " ".join(
-                str(text or "").split()
-            ).strip().casefold()
+            return " ".join(str(text or "").split()).strip().casefold()
 
         wanted = norm(value)
+
+        def verify_radio(radio):
+            try:
+                checked = bool(radio.is_checked())
+            except Exception:
+                checked = bool(radio.evaluate("el => !!el.checked"))
+            if not checked:
+                return False
+
+            try:
+                details = radio.evaluate(
+                    """
+                    el => ({
+                        value: el.value || "",
+                        id: el.id || "",
+                        name: el.name || "",
+                        checked: !!el.checked
+                    })
+                    """
+                )
+                if not details.get("checked"):
+                    return False
+            except Exception:
+                return False
+
+            # For a radio group, confirm that no other radio in the same
+            # named group remains selected. This mirrors the manual
+            # deselect -> select -> SUBMIT workflow used on iCharts.
+            try:
+                group_name = str(details.get("name") or "").strip()
+                if group_name:
+                    selected = page.locator(
+                        f'input[type="radio"][name="{group_name}"]:checked'
+                    )
+                    if selected.count() != 1:
+                        return False
+            except Exception:
+                pass
+
+            return True
+
+        def activate_and_verify(radio):
+            try:
+                # Native radio checking is preferred because it updates the
+                # browser's radio group state and automatically clears the
+                # previously selected member of that group.
+                try:
+                    radio.check(force=True)
+                except Exception:
+                    radio.click(force=True)
+
+                page.wait_for_timeout(300)
+                return verify_radio(radio)
+            except Exception:
+                return False
 
         try:
             # 1. Explicit selector supplied by the user.
             if selector:
                 locator = page.locator(selector).first
-
                 if locator.count() == 0:
                     self.log(
-                        f"{job['name']}: selection selector "
-                        f"not found: {selector}"
+                        f"{job['name']}: selection selector not found: {selector}"
                     )
                     return False
+                if activate_and_verify(locator):
+                    self.log(
+                        f"{job['name']}: selected radio option '{value}' "
+                        f"and verified it is checked."
+                    )
+                    return True
+                self.log(
+                    f"{job['name']}: selection '{value}' could not be verified."
+                )
+                return False
 
-                try:
-                    locator.check(force=True)
-                except Exception:
-                    locator.click(force=True)
-
-                page.wait_for_timeout(300)
-                return True
-
-            # 2. Prefer actual radio inputs and inspect their
-            # value/id/name plus associated label/container text.
+            # 2. Find the actual radio whose value/id/name/associated text
+            # exactly matches the requested Support or Resistance option.
             radios = page.locator('input[type="radio"]')
+            candidates = []
 
             for index in range(radios.count()):
                 radio = radios.nth(index)
-
                 try:
                     details = radio.evaluate(
                         """
@@ -346,7 +394,6 @@ class Manager:
                             const container = el.closest(
                                 "label, td, th, div, span, li"
                             );
-
                             return {
                                 value: el.value || "",
                                 id: el.id || "",
@@ -354,12 +401,8 @@ class Manager:
                                 aria: el.getAttribute("aria-label") || "",
                                 title: el.getAttribute("title") || "",
                                 label: label ? label.innerText : "",
-                                parentLabel: parentLabel
-                                    ? parentLabel.innerText
-                                    : "",
-                                container: container
-                                    ? container.innerText
-                                    : ""
+                                parentLabel: parentLabel ? parentLabel.innerText : "",
+                                container: container ? container.innerText : ""
                             };
                         }
                         """
@@ -367,86 +410,56 @@ class Manager:
                 except Exception:
                     continue
 
-                candidates = [
-                    details.get("value"),
-                    details.get("id"),
-                    details.get("name"),
-                    details.get("aria"),
-                    details.get("title"),
-                    details.get("label"),
-                    details.get("parentLabel"),
-                    details.get("container"),
+                fields = [
+                    details.get("value"), details.get("id"),
+                    details.get("aria"), details.get("title"),
+                    details.get("label"), details.get("parentLabel"),
                 ]
+                if any(wanted == norm(item) for item in fields):
+                    candidates.append(radio)
 
-                if any(
-                    wanted == norm(candidate)
-                    for candidate in candidates
-                ):
-                    try:
-                        radio.check(force=True)
-                    except Exception:
-                        radio.click(force=True)
-
-                    page.wait_for_timeout(300)
+            for radio in candidates:
+                if activate_and_verify(radio):
                     self.log(
-                        f"{job['name']}: selected radio option "
-                        f"'{value}'."
+                        f"{job['name']}: selected radio option '{value}' "
+                        f"and verified it is checked before SUBMIT."
                     )
                     return True
 
-            # 3. Fallback to an exact matching label.
+            # 3. Exact label fallback, followed by the same verification.
             labels = page.locator("label")
-
             for index in range(labels.count()):
                 label = labels.nth(index)
-
                 try:
-                    text = label.inner_text().strip()
-                except Exception:
-                    continue
-
-                if norm(text) != wanted:
-                    continue
-
-                try:
+                    if norm(label.inner_text()) != wanted:
+                        continue
+                    target = label.locator('input[type="radio"]').first
+                    if target.count() > 0 and activate_and_verify(target):
+                        self.log(
+                            f"{job['name']}: selected option '{value}' via label "
+                            f"and verified it is checked before SUBMIT."
+                        )
+                        return True
                     label.click(force=True)
                     page.wait_for_timeout(300)
-                    self.log(
-                        f"{job['name']}: selected option "
-                        f"'{value}' via label."
-                    )
-                    return True
+                    target = label.locator('input[type="radio"]').first
+                    if target.count() > 0 and verify_radio(target):
+                        self.log(
+                            f"{job['name']}: selected option '{value}' via label "
+                            f"and verified it is checked before SUBMIT."
+                        )
+                        return True
                 except Exception:
                     continue
 
-            # 4. Final visible-text fallback for unusual page markup.
-            locator = page.get_by_text(
-                value,
-                exact=True,
-            ).first
-
-            if locator.count() > 0:
-                try:
-                    locator.click(force=True)
-                    page.wait_for_timeout(300)
-                    self.log(
-                        f"{job['name']}: selected option "
-                        f"'{value}' via text."
-                    )
-                    return True
-                except Exception:
-                    pass
-
             self.log(
-                f"{job['name']}: selection not found: "
-                f"'{value}'."
+                f"{job['name']}: selection '{value}' not found or not checked; "
+                f"SUBMIT was not attempted."
             )
             return False
 
         except Exception as error:
-            self.log(
-                f"{job['name']}: selection error: {error}"
-            )
+            self.log(f"{job['name']}: selection error: {error}")
             return False
 
     @staticmethod
@@ -499,12 +512,26 @@ class Manager:
             return context, page
 
         try:
-            # Keep the normal working browser path unchanged. Browser
-            # recovery is attempted only after an actual navigation failure.
+            # A transient Chromium/network suspension can invalidate the
+            # current Page object. Retry navigation once only, and always
+            # reacquire a live page after browser recovery.
             navigation_error = None
 
             for navigation_attempt in range(2):
                 try:
+                    if (
+                        context is None
+                        or page is None
+                        or page.is_closed()
+                        or len(context.pages) == 0
+                    ):
+                        try:
+                            if context:
+                                context.close()
+                        except Exception:
+                            pass
+                        context, page = self.open_browser(playwright)
+
                     page.goto(
                         job["url"],
                         wait_until="domcontentloaded",
@@ -522,14 +549,12 @@ class Manager:
                             f"{name}: navigation failed; "
                             f"reopening Chromium and retrying: {error}"
                         )
-
                         try:
-                            if context is not None:
-                                context.close()
-                        except Exception:
-                            pass
-
-                        try:
+                            try:
+                                if context:
+                                    context.close()
+                            except Exception:
+                                pass
                             context, page = self.open_browser(playwright)
                         except Exception as recovery_error:
                             navigation_error = recovery_error
@@ -794,13 +819,15 @@ class Manager:
             self.log(
                 f"{name}: saved -> {output}"
             )
-            return context, page
 
         except Exception as error:
             self.log(
                 f"{name}: download failed: {error}"
             )
-            return context, page
+
+        # Always return the current browser state to the scheduler so the
+        # next enabled job can continue in the same session.
+        return context, page
 
 
 st.set_page_config(

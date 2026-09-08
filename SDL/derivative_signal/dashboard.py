@@ -1332,7 +1332,11 @@ def _auto_process_new_snapshots(
     checkpoint_key = _source_key(Path(checkpoint_file)) if checkpoint_file else ""
     checkpoint_idx = -1
     checkpoint_timestamp = pd.to_datetime(
-        saved.get("observation_timestamp", ""), errors="coerce"
+        day.get(
+            "last_processed_observation_timestamp",
+            saved.get("observation_timestamp", ""),
+        ),
+        errors="coerce",
     )
     if pd.isna(checkpoint_timestamp) and checkpoint_file:
         checkpoint_path = Path(checkpoint_file)
@@ -1468,6 +1472,23 @@ def _auto_process_new_snapshots(
 
         if result.empty:
             previous = _snapshot_rows(_read(path))
+            # An empty decision result is still a processed chronological BASE
+            # observation. Do not overwrite last_complete_state: the dashboard
+            # must continue displaying the last decision-bearing result. But do
+            # advance the durable processing checkpoint so one empty/missing-
+            # evidence observation cannot block all later snapshots.
+            day["previous_snapshot"] = previous
+            day["source_file"] = str(path)
+            day["last_processed_observation_timestamp"] = timestamp.isoformat()
+            day["processed_at"] = datetime.now().isoformat()
+            state.setdefault(STATE_KEY, {})[trading_date] = day
+            save_state(state, STATE_JSON)
+            empty_snapshot = result.copy()
+            empty_snapshot["source_timestamp"] = timestamp
+            empty_snapshot["source_file"] = path.name
+            empty_snapshot["source_path"] = str(path)
+            cached_snapshots[_source_key(path)] = empty_snapshot
+            state_changed_any = True
             continue
 
         # Keep the chronological snapshot cache synchronized BEFORE evaluating
@@ -1540,6 +1561,7 @@ def _auto_process_new_snapshots(
             if str(row.get("symbol", "")).strip()
         }
         day["source_file"] = str(path)
+        day["last_processed_observation_timestamp"] = timestamp.isoformat()
         day["processed_at"] = datetime.now().isoformat()
         state.setdefault(STATE_KEY, {})[trading_date] = day
         save_state(state, STATE_JSON)
@@ -5856,11 +5878,24 @@ if hasattr(st, "fragment"):
                     last_cycle_ts is None
                     or (now_ts - last_cycle_ts).total_seconds() >= 300
                 )
-                if backlog_pending or due_for_normal_cycle:
+                if backlog_pending:
+                    # Keep the initial page render lightweight. Restore the last
+                    # complete durable state now; chronological catch-up is left
+                    # to a later scheduled LIVE cycle.
+                    restored = _restore_last_complete_state(trading_date)
+                    if restored is not None:
+                        latest, timeline, _, _ = restored
+                    else:
+                        latest, timeline, _ = _load_day_for_snapshot_view(
+                            sources, trading_date
+                        )
+                elif due_for_normal_cycle:
                     latest, timeline, _changed = _auto_process_new_snapshots(
                         sources,
                         trading_date,
-                        max_batch=3 if market_open else 6,
+                        # Controlled catch-up batch; the fragment remains on the
+                        # stable 5-minute cadence.
+                        max_batch=24,
                     )
                     st.session_state["ds_last_live_process_at"] = now_ts
                 else:
@@ -6439,7 +6474,7 @@ def render() -> None:
     with st.expander("LIVE • Feed & Session", expanded=True):
         a1, a2 = st.columns([2, 1])
         with a1:
-            auto_update = st.checkbox("Auto-update live feed (5 min) • catch-up checks every 30s", value=True, key="ds_auto_update")
+            auto_update = st.checkbox("Auto-update live feed (5 min) • backlog catch-up in batch", value=True, key="ds_auto_update")
         with a2:
             refresh = st.button("↻ Refresh", use_container_width=True, key="ds_live_refresh")
         if refresh:
@@ -6483,325 +6518,329 @@ def render() -> None:
                 _render_current_result(latest, timeline, live_time.strftime("%H:%M:%S"), "live_", live_cache.get("snapshots", {}) if isinstance(live_cache, dict) else {}, lifecycle_trading_date=trading_date, lifecycle_replay=False)
 
     # Independent point-in-time controller. It does not change the main LIVE context.
-    with st.expander("INTRADAY SNAPSHOT / REPLAY", expanded=False):
-        if not available_dates:
-            st.info("No snapshots are available for historical inspection.")
-        else:
-            default_replay_date = st.session_state.get("ds_replay_date", available_dates[-1])
-            try:
-                default_replay_date_obj = datetime.strptime(
-                    str(default_replay_date), "%Y-%m-%d"
-                ).date()
-            except ValueError:
-                default_replay_date_obj = datetime.strptime(
-                    available_dates[-1], "%Y-%m-%d"
-                ).date()
-
-            # Keep the replay controls in a Streamlit form.  The submit event
-            # belongs to the main app execution and is not coupled to the
-            # independent LIVE fragment rerun.
-            with st.form("ds_replay_form", clear_on_submit=False):
-                replay_date_obj = st.date_input(
-                    "Trading date",
-                    value=default_replay_date_obj,
-                    min_value=datetime.strptime(
-                        available_dates[0], "%Y-%m-%d"
-                    ).date(),
-                    max_value=datetime.strptime(
+    @st.fragment
+    def _replay_panel() -> None:
+        with st.expander("INTRADAY SNAPSHOT / REPLAY", expanded=False):
+            if not available_dates:
+                st.info("No snapshots are available for historical inspection.")
+            else:
+                default_replay_date = st.session_state.get("ds_replay_date", available_dates[-1])
+                try:
+                    default_replay_date_obj = datetime.strptime(
+                        str(default_replay_date), "%Y-%m-%d"
+                    ).date()
+                except ValueError:
+                    default_replay_date_obj = datetime.strptime(
                         available_dates[-1], "%Y-%m-%d"
-                    ).date(),
-                    key="ds_replay_date_input",
-                )
-                replay_date = replay_date_obj.strftime("%Y-%m-%d")
-                try:
-                    replay_sources = _discover_sources(replay_date, source_root)
-                except Exception as exc:
-                    st.error(
-                        f"Replay source discovery failed: {type(exc).__name__}: {exc}"
-                    )
-                    replay_sources = []
+                    ).date()
 
-                if not replay_sources:
-                    st.info("No snapshots found for the selected trading date.")
-                    submit_replay = False
-                    selected_index = 0
-                    selected_label = ""
-                else:
-                    replay_labels = [
-                        parse_observation_timestamp(p).strftime("%H:%M:%S")
-                        for p in replay_sources
-                    ]
-                    previous_time = st.session_state.get(
-                        "ds_replay_selected_label"
+                # Keep the replay controls in a Streamlit form.  The submit event
+                # belongs to the main app execution and is not coupled to the
+                # independent LIVE fragment rerun.
+                with st.form("ds_replay_form", clear_on_submit=False):
+                    replay_date_obj = st.date_input(
+                        "Trading date",
+                        value=default_replay_date_obj,
+                        min_value=datetime.strptime(
+                            available_dates[0], "%Y-%m-%d"
+                        ).date(),
+                        max_value=datetime.strptime(
+                            available_dates[-1], "%Y-%m-%d"
+                        ).date(),
+                        key="ds_replay_date_input",
                     )
-                    replay_index = (
-                        replay_labels.index(previous_time)
-                        if previous_time in replay_labels
-                        else len(replay_labels) - 1
-                    )
-                    selected_index = st.selectbox(
-                        "Snapshot time",
-                        list(range(len(replay_sources))),
-                        index=replay_index,
-                        format_func=lambda i: replay_labels[i],
-                        key="ds_replay_time_input",
-                    )
-                    selected_label = replay_labels[selected_index]
-                    submit_replay = st.form_submit_button(
-                        "View Snapshot",
-                        type="primary",
-                    )
+                    replay_date = replay_date_obj.strftime("%Y-%m-%d")
+                    try:
+                        replay_sources = _discover_sources(replay_date, source_root)
+                    except Exception as exc:
+                        st.error(
+                            f"Replay source discovery failed: {type(exc).__name__}: {exc}"
+                        )
+                        replay_sources = []
 
-            st.session_state["ds_replay_date"] = replay_date
-            if selected_label:
-                st.session_state["ds_replay_selected_label"] = selected_label
+                    if not replay_sources:
+                        st.info("No snapshots found for the selected trading date.")
+                        submit_replay = False
+                        selected_index = 0
+                        selected_label = ""
+                    else:
+                        replay_labels = [
+                            parse_observation_timestamp(p).strftime("%H:%M:%S")
+                            for p in replay_sources
+                        ]
+                        previous_time = st.session_state.get(
+                            "ds_replay_selected_label"
+                        )
+                        replay_index = (
+                            replay_labels.index(previous_time)
+                            if previous_time in replay_labels
+                            else len(replay_labels) - 1
+                        )
+                        selected_index = st.selectbox(
+                            "Snapshot time",
+                            list(range(len(replay_sources))),
+                            index=replay_index,
+                            format_func=lambda i: replay_labels[i],
+                            key="ds_replay_time_input",
+                        )
+                        selected_label = replay_labels[selected_index]
+                        submit_replay = st.form_submit_button(
+                            "View Snapshot",
+                            type="primary",
+                        )
 
-            stored_key = "ds_replay_point_in_time"
-            stored = st.session_state.get(stored_key)
-            replay_requested = bool(submit_replay)
-            if replay_requested:
-                try:
-                    started = time.perf_counter()
-                    view_cache = _get_replay_view_cache(replay_date, None)
-                    snapshots = view_cache.get("snapshots", {})
-                    timeline = view_cache.get("timeline", pd.DataFrame())
-                    point_cache = view_cache.get("point_in_time_cache", {})
-                    complete = (
-                        isinstance(snapshots, dict)
-                        and view_cache.get("source_count") == len(replay_sources)
-                        and all(
-                            _source_key(p) in snapshots for p in replay_sources
-                        )
-                        and isinstance(point_cache, dict)
-                        and all(
-                            _source_key(p) in point_cache for p in replay_sources
-                        )
-                    )
-                    if not complete:
-                        # A persisted full-day replay cache is historical evidence.
-                        # Its completeness must NOT depend on which source files
-                        # still happen to exist on disk; source files may have been
-                        # removed after the historical chain was captured.
-                        live_cache = _get_replay_cache(replay_date)
-                        live_snapshots = (
-                            live_cache.get("snapshots", {})
-                            if isinstance(live_cache, dict)
-                            else {}
-                        )
-                        live_timeline = (
-                            live_cache.get("timeline", pd.DataFrame())
-                            if isinstance(live_cache, dict)
-                            else pd.DataFrame()
-                        )
-                        selected_path = replay_sources[selected_index]
-                        selected_source_timestamp = parse_observation_timestamp(selected_path)
-                        selected_key = _source_key(selected_path)
-                        historical_key = selected_key
-                        if (
-                            isinstance(live_snapshots, dict)
-                            and historical_key not in live_snapshots
-                        ):
-                            # Historical cache keys are physical source paths. A source
-                            # may have been replaced/recreated after the cache was
-                            # captured, so resolve the requested snapshot by its actual
-                            # persisted observation timestamp before falling back to a
-                            # full-day reconstruction.
-                            historical_key = _find_replay_cache_key_by_timestamp(
-                                live_snapshots, selected_source_timestamp
+                st.session_state["ds_replay_date"] = replay_date
+                if selected_label:
+                    st.session_state["ds_replay_selected_label"] = selected_label
+
+                stored_key = "ds_replay_point_in_time"
+                stored = st.session_state.get(stored_key)
+                replay_requested = bool(submit_replay)
+                if replay_requested:
+                    try:
+                        started = time.perf_counter()
+                        view_cache = _get_replay_view_cache(replay_date, None)
+                        snapshots = view_cache.get("snapshots", {})
+                        timeline = view_cache.get("timeline", pd.DataFrame())
+                        point_cache = view_cache.get("point_in_time_cache", {})
+                        complete = (
+                            isinstance(snapshots, dict)
+                            and view_cache.get("source_count") == len(replay_sources)
+                            and all(
+                                _source_key(p) in snapshots for p in replay_sources
                             )
-                        historical_cache_usable = (
-                            _replay_cache_complete(live_cache)
-                            and historical_key in live_snapshots
+                            and isinstance(point_cache, dict)
+                            and all(
+                                _source_key(p) in point_cache for p in replay_sources
+                            )
                         )
-                        if historical_cache_usable:
-                            snapshots = live_snapshots
-                            timeline = (
-                                live_timeline
-                                if isinstance(live_timeline, pd.DataFrame)
+                        if not complete:
+                            # A persisted full-day replay cache is historical evidence.
+                            # Its completeness must NOT depend on which source files
+                            # still happen to exist on disk; source files may have been
+                            # removed after the historical chain was captured.
+                            live_cache = _get_replay_cache(replay_date)
+                            live_snapshots = (
+                                live_cache.get("snapshots", {})
+                                if isinstance(live_cache, dict)
+                                else {}
+                            )
+                            live_timeline = (
+                                live_cache.get("timeline", pd.DataFrame())
+                                if isinstance(live_cache, dict)
                                 else pd.DataFrame()
                             )
-                            point_cache = live_cache.get(
-                                "point_in_time_cache", {}
+                            selected_path = replay_sources[selected_index]
+                            selected_source_timestamp = parse_observation_timestamp(selected_path)
+                            selected_key = _source_key(selected_path)
+                            historical_key = selected_key
+                            if (
+                                isinstance(live_snapshots, dict)
+                                and historical_key not in live_snapshots
+                            ):
+                                # Historical cache keys are physical source paths. A source
+                                # may have been replaced/recreated after the cache was
+                                # captured, so resolve the requested snapshot by its actual
+                                # persisted observation timestamp before falling back to a
+                                # full-day reconstruction.
+                                historical_key = _find_replay_cache_key_by_timestamp(
+                                    live_snapshots, selected_source_timestamp
+                                )
+                            historical_cache_usable = (
+                                _replay_cache_complete(live_cache)
+                                and historical_key in live_snapshots
                             )
-                            if not isinstance(point_cache, dict):
-                                point_cache = {}
-                            if historical_key not in point_cache:
-                                cached_frame = snapshots.get(historical_key)
-                                cached_ts = _replay_frame_timestamp(cached_frame)
-                                if cached_frame is not None and cached_ts is not None:
-                                    point_cache[historical_key] = {
-                                        "source_timestamp": cached_ts.isoformat(),
-                                        "result": cached_frame,
-                                        "lifecycle_events": dict(
-                                            cached_frame.attrs.get(
-                                                "replay_lifecycle_events", {}
-                                            )
-                                            if isinstance(
+                            if historical_cache_usable:
+                                snapshots = live_snapshots
+                                timeline = (
+                                    live_timeline
+                                    if isinstance(live_timeline, pd.DataFrame)
+                                    else pd.DataFrame()
+                                )
+                                point_cache = live_cache.get(
+                                    "point_in_time_cache", {}
+                                )
+                                if not isinstance(point_cache, dict):
+                                    point_cache = {}
+                                if historical_key not in point_cache:
+                                    cached_frame = snapshots.get(historical_key)
+                                    cached_ts = _replay_frame_timestamp(cached_frame)
+                                    if cached_frame is not None and cached_ts is not None:
+                                        point_cache[historical_key] = {
+                                            "source_timestamp": cached_ts.isoformat(),
+                                            "result": cached_frame,
+                                            "lifecycle_events": dict(
                                                 cached_frame.attrs.get(
                                                     "replay_lifecycle_events", {}
-                                                ),
-                                                dict,
-                                            )
-                                            else {}
-                                        ),
-                                    }
-                            _store_replay_view_cache(
-                                replay_date,
-                                snapshots,
-                                timeline,
-                                selected_index=None,
-                                source_count=len(replay_sources),
-                                lifecycle_events=point_cache.get(
-                                    historical_key, {}
-                                ).get("lifecycle_events", {}),
-                                point_in_time_cache=point_cache,
-                            )
-                            view_cache = _get_replay_view_cache(
-                                replay_date, None
-                            )
-                        else:
-                            _, timeline, snapshots = _build_replay_day_in_memory(
-                                replay_sources,
-                                replay_date,
-                                selected_index=None,
-                            )
-                            view_cache = _get_replay_view_cache(
-                                replay_date, None
-                            )
-                            snapshots = view_cache.get(
-                                "snapshots", snapshots
-                            )
-                            timeline = view_cache.get(
-                                "timeline", timeline
-                            )
-                            point_cache = view_cache.get(
-                                "point_in_time_cache", {}
-                            )
-
-                    selected_path = replay_sources[selected_index]
-                    selected_key = _source_key(selected_path)
-                    selected_source_timestamp = parse_observation_timestamp(selected_path)
-                    point_cache = (
-                        view_cache.get("point_in_time_cache", {}) or {}
-                    )
-                    historical_key = selected_key
-                    if isinstance(point_cache, dict) and historical_key not in point_cache:
-                        cached_snapshots = view_cache.get("snapshots", {})
-                        if isinstance(cached_snapshots, dict):
-                            historical_key = (
-                                _find_replay_cache_key_by_timestamp(
-                                    cached_snapshots, selected_source_timestamp
+                                                )
+                                                if isinstance(
+                                                    cached_frame.attrs.get(
+                                                        "replay_lifecycle_events", {}
+                                                    ),
+                                                    dict,
+                                                )
+                                                else {}
+                                            ),
+                                        }
+                                _store_replay_view_cache(
+                                    replay_date,
+                                    snapshots,
+                                    timeline,
+                                    selected_index=None,
+                                    source_count=len(replay_sources),
+                                    lifecycle_events=point_cache.get(
+                                        historical_key, {}
+                                    ).get("lifecycle_events", {}),
+                                    point_in_time_cache=point_cache,
                                 )
-                                or selected_key
-                            )
-                    point_entry = (
-                        point_cache.get(historical_key, {})
-                        if isinstance(point_cache, dict)
-                        else {}
-                    )
-                    result = point_entry.get(
-                        "result",
-                        snapshots.get(historical_key, pd.DataFrame()),
-                    )
-                    selected_lifecycle_events = (
-                        point_entry.get("lifecycle_events", {})
-                        if isinstance(point_entry, dict)
-                        else {}
-                    )
-                    if not isinstance(selected_lifecycle_events, dict):
-                        selected_lifecycle_events = {}
-
-                    # Build the historical prefix from the persisted cache, not
-                    # from the currently surviving source-file list. This keeps
-                    # replay point-in-time lifecycle/alert context correct even
-                    # when older source files have been removed from disk.
-                    selected_timestamp = pd.to_datetime(
-                        point_entry.get("source_timestamp", "")
-                        or datetime.fromtimestamp(selected_path.stat().st_ctime).isoformat(),
-                        errors="coerce",
-                    )
-                    selected_prefix = {}
-                    if not pd.isna(selected_timestamp):
-                        ordered_cached: list[tuple[pd.Timestamp, str, pd.DataFrame]] = []
-                        for cached_key, cached_frame in snapshots.items():
-                            if not isinstance(cached_frame, pd.DataFrame):
-                                continue
-                            raw_cached_ts = cached_frame.get(
-                                "source_timestamp", cached_frame.get("observation_timestamp")
-                            )
-                            if isinstance(raw_cached_ts, pd.Series):
-                                cached_valid = pd.to_datetime(
-                                    raw_cached_ts, errors="coerce"
-                                ).dropna()
+                                view_cache = _get_replay_view_cache(
+                                    replay_date, None
+                                )
                             else:
-                                cached_valid = pd.to_datetime(
-                                    pd.Series([raw_cached_ts]), errors="coerce"
-                                ).dropna()
-                            if cached_valid.empty:
-                                continue
-                            cached_ts = pd.Timestamp(cached_valid.iloc[0])
-                            if cached_ts <= selected_timestamp:
-                                ordered_cached.append((cached_ts, cached_key, cached_frame))
-                        ordered_cached.sort(key=lambda item: (item[0], item[1]))
-                        selected_prefix = {
-                            cached_key: cached_frame
-                            for _, cached_key, cached_frame in ordered_cached
+                                _, timeline, snapshots = _build_replay_day_in_memory(
+                                    replay_sources,
+                                    replay_date,
+                                    selected_index=None,
+                                )
+                                view_cache = _get_replay_view_cache(
+                                    replay_date, None
+                                )
+                                snapshots = view_cache.get(
+                                    "snapshots", snapshots
+                                )
+                                timeline = view_cache.get(
+                                    "timeline", timeline
+                                )
+                                point_cache = view_cache.get(
+                                    "point_in_time_cache", {}
+                                )
+
+                        selected_path = replay_sources[selected_index]
+                        selected_key = _source_key(selected_path)
+                        selected_source_timestamp = parse_observation_timestamp(selected_path)
+                        point_cache = (
+                            view_cache.get("point_in_time_cache", {}) or {}
+                        )
+                        historical_key = selected_key
+                        if isinstance(point_cache, dict) and historical_key not in point_cache:
+                            cached_snapshots = view_cache.get("snapshots", {})
+                            if isinstance(cached_snapshots, dict):
+                                historical_key = (
+                                    _find_replay_cache_key_by_timestamp(
+                                        cached_snapshots, selected_source_timestamp
+                                    )
+                                    or selected_key
+                                )
+                        point_entry = (
+                            point_cache.get(historical_key, {})
+                            if isinstance(point_cache, dict)
+                            else {}
+                        )
+                        result = point_entry.get(
+                            "result",
+                            snapshots.get(historical_key, pd.DataFrame()),
+                        )
+                        selected_lifecycle_events = (
+                            point_entry.get("lifecycle_events", {})
+                            if isinstance(point_entry, dict)
+                            else {}
+                        )
+                        if not isinstance(selected_lifecycle_events, dict):
+                            selected_lifecycle_events = {}
+
+                        # Build the historical prefix from the persisted cache, not
+                        # from the currently surviving source-file list. This keeps
+                        # replay point-in-time lifecycle/alert context correct even
+                        # when older source files have been removed from disk.
+                        selected_timestamp = pd.to_datetime(
+                            point_entry.get("source_timestamp", "")
+                            or datetime.fromtimestamp(selected_path.stat().st_ctime).isoformat(),
+                            errors="coerce",
+                        )
+                        selected_prefix = {}
+                        if not pd.isna(selected_timestamp):
+                            ordered_cached: list[tuple[pd.Timestamp, str, pd.DataFrame]] = []
+                            for cached_key, cached_frame in snapshots.items():
+                                if not isinstance(cached_frame, pd.DataFrame):
+                                    continue
+                                raw_cached_ts = cached_frame.get(
+                                    "source_timestamp", cached_frame.get("observation_timestamp")
+                                )
+                                if isinstance(raw_cached_ts, pd.Series):
+                                    cached_valid = pd.to_datetime(
+                                        raw_cached_ts, errors="coerce"
+                                    ).dropna()
+                                else:
+                                    cached_valid = pd.to_datetime(
+                                        pd.Series([raw_cached_ts]), errors="coerce"
+                                    ).dropna()
+                                if cached_valid.empty:
+                                    continue
+                                cached_ts = pd.Timestamp(cached_valid.iloc[0])
+                                if cached_ts <= selected_timestamp:
+                                    ordered_cached.append((cached_ts, cached_key, cached_frame))
+                            ordered_cached.sort(key=lambda item: (item[0], item[1]))
+                            selected_prefix = {
+                                cached_key: cached_frame
+                                for _, cached_key, cached_frame in ordered_cached
+                            }
+                        if not selected_prefix and selected_key in snapshots:
+                            selected_prefix[selected_key] = snapshots[selected_key]
+
+                        st.session_state[stored_key] = {
+                            "trading_date": replay_date,
+                            "selected_index": selected_index,
+                            "selected_label": selected_label,
+                            "result": result,
+                            "timeline": _get_point_in_time_timeline(
+                                timeline, selected_timestamp
+                            ),
+                            "snapshots": selected_prefix,
+                            "lifecycle_events": {
+                                symbol: event
+                                for symbol, event in selected_lifecycle_events.items()
+                            },
+                            "point_in_time_cache": point_cache,
                         }
-                    if not selected_prefix and selected_key in snapshots:
-                        selected_prefix[selected_key] = snapshots[selected_key]
+                        st.session_state["ds_replay_last_seconds"] = round(
+                            time.perf_counter() - started, 1
+                        )
+                        stored = st.session_state[stored_key]
+                    except Exception as exc:
+                        st.error(
+                            f"Intraday replay preparation failed: "
+                            f"{type(exc).__name__}: {exc}"
+                        )
+                        return
 
-                    st.session_state[stored_key] = {
-                        "trading_date": replay_date,
-                        "selected_index": selected_index,
-                        "selected_label": selected_label,
-                        "result": result,
-                        "timeline": _get_point_in_time_timeline(
-                            timeline, selected_timestamp
-                        ),
-                        "snapshots": selected_prefix,
-                        "lifecycle_events": {
-                            symbol: event
-                            for symbol, event in selected_lifecycle_events.items()
-                        },
-                        "point_in_time_cache": point_cache,
-                    }
-                    st.session_state["ds_replay_last_seconds"] = round(
-                        time.perf_counter() - started, 1
-                    )
-                    stored = st.session_state[stored_key]
-                except Exception as exc:
-                    st.error(
-                        f"Intraday replay preparation failed: "
-                        f"{type(exc).__name__}: {exc}"
-                    )
-                    return
-
-            # Render the stored replay state on EVERY rerun while the selected
-            # date/time still matches.  Streamlit button clicks (including the
-            # optional replay audit buttons) cause a full script rerun; previously
-            # the replay was rendered only inside the View Snapshot submit branch,
-            # so clicking an audit button made the replay appear to disappear and
-            # returned the user to the selector.
-            stored = st.session_state.get(stored_key)
-            stored_matches = (
-                isinstance(stored, dict)
-                and stored.get("trading_date") == replay_date
-                and str(stored.get("selected_label", "")) == str(selected_label)
-                and int(stored.get("selected_index", -1)) == int(selected_index)
-            )
-            if stored_matches:
-                result = stored.get("result", pd.DataFrame())
-                replay_timeline = stored.get("timeline", pd.DataFrame())
-                replay_snapshots = stored.get("snapshots", {})
-                replay_lifecycle_events = stored.get("lifecycle_events", {})
-                last_seconds = st.session_state.get("ds_replay_last_seconds")
-                suffix = f" • prepared in {last_seconds:.1f}s" if last_seconds is not None else ""
-                count = len(replay_snapshots) if isinstance(replay_snapshots, dict) else 0
-                st.caption(f"INTRADAY REPLAY • {replay_date} • selected {selected_label} • {count} snapshots included{suffix} • LIVE state isolated")
-                _render_current_result(result, replay_timeline, selected_label, "replay_", replay_snapshots, lifecycle_trading_date=replay_date, lifecycle_replay=True, lifecycle_events=replay_lifecycle_events)
-            else:
-                st.caption("Select a trading date and snapshot time, then choose View Snapshot.")
+                # Render the stored replay state on EVERY rerun while the selected
+                # date/time still matches.  Streamlit button clicks (including the
+                # optional replay audit buttons) cause a full script rerun; previously
+                # the replay was rendered only inside the View Snapshot submit branch,
+                # so clicking an audit button made the replay appear to disappear and
+                # returned the user to the selector.
+                stored = st.session_state.get(stored_key)
+                stored_matches = (
+                    isinstance(stored, dict)
+                    and stored.get("trading_date") == replay_date
+                    and str(stored.get("selected_label", "")) == str(selected_label)
+                    and int(stored.get("selected_index", -1)) == int(selected_index)
+                )
+                if stored_matches:
+                    result = stored.get("result", pd.DataFrame())
+                    replay_timeline = stored.get("timeline", pd.DataFrame())
+                    replay_snapshots = stored.get("snapshots", {})
+                    replay_lifecycle_events = stored.get("lifecycle_events", {})
+                    last_seconds = st.session_state.get("ds_replay_last_seconds")
+                    suffix = f" • prepared in {last_seconds:.1f}s" if last_seconds is not None else ""
+                    count = len(replay_snapshots) if isinstance(replay_snapshots, dict) else 0
+                    st.caption(f"INTRADAY REPLAY • {replay_date} • selected {selected_label} • {count} snapshots included{suffix} • LIVE state isolated")
+                    _render_current_result(result, replay_timeline, selected_label, "replay_", replay_snapshots, lifecycle_trading_date=replay_date, lifecycle_replay=True, lifecycle_events=replay_lifecycle_events)
+                else:
+                    st.caption("Select a trading date and snapshot time, then choose View Snapshot.")
+    _replay_panel()
 
 if __name__ == "__main__":
     render()
+
 
