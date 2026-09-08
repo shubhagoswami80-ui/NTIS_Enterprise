@@ -481,7 +481,7 @@ def enrich_decision(
 
 def merge_evidence(base_path: Path, trading_date: str):
     root = Path(base_path).parent
-    bundle = discover_sources(root, trading_date)
+    bundle = discover_sources(root, trading_date, cutoff_path=Path(base_path))
     bundle = load_and_merge(bundle)
     if bundle.rows is None:
         return pd.DataFrame(), {}
@@ -491,4 +491,5 @@ def merge_evidence(base_path: Path, trading_date: str):
         for role, path in bundle.files.items()
     }
     return bundle.rows.copy(), source_map
+
 
