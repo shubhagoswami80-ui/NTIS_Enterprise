@@ -570,6 +570,52 @@ def _update_retracement_alerts(
             # data and avoid recalculating EMA/VWAP/history on every snapshot.
             continue
 
+        # Fast lifecycle eligibility guard.  The full retracement context is
+        # required only when this symbol has a lifecycle anchor, the current
+        # row is a structural break, the chronological history contains a
+        # matching break, or an approved prior-day break is carried forward.
+        # This does not alter _retracement_context(); it only avoids invoking
+        # the unchanged EMA/VWAP/history reconstruction when the symbol cannot
+        # enter a retracement lifecycle.
+        existing_watch = watches.get(symbol, {}) or {}
+        existing_alert = alerts.get(symbol, {}) or {}
+        existing_reversal = reversal_alerts.get(symbol, {}) or {}
+        existing_cycle = structural_breaks.get(symbol, {}) or {}
+        if (
+            not is_break
+            and not existing_watch
+            and not existing_alert
+            and not existing_reversal
+            and not existing_cycle
+        ):
+            symbol_history = (history_by_symbol or {}).get(symbol) or []
+            history_has_break = False
+            for hist_row in symbol_history:
+                hist_direction = str(
+                    hist_row.get(
+                        "decision_direction",
+                        hist_row.get("direction", "NEUTRAL"),
+                    )
+                ).upper().strip()
+                if hist_direction != direction:
+                    continue
+                hist_sr = _sr_text(hist_row).upper().strip()
+                if (
+                    (direction == "BULLISH" and hist_sr == "RESISTANCE BROKEN")
+                    or (direction == "BEARISH" and hist_sr == "SUPPORT BROKEN")
+                ):
+                    history_has_break = True
+                    break
+            if not history_has_break:
+                carried_break = _prior_day_structural_break(
+                    durable_state if durable_state is not None else load_state(STATE_JSON),
+                    str(current_ts.date()) if pd.notna(current_ts) else trading_date,
+                    symbol,
+                    direction,
+                )
+                if not carried_break:
+                    continue
+
         ctx = _retracement_context(
             row,
             snapshot_results,
@@ -1411,7 +1457,6 @@ def _auto_process_new_snapshots(
         new_paths = all_new_paths
     else:
         new_paths = all_new_paths[:max(1, int(max_batch))]
-
     if not new_paths:
         # Do not collapse a complete chronological cache to the final snapshot.
         # After a restart the durable checkpoint may be current while the
@@ -5838,15 +5883,51 @@ if hasattr(st, "fragment"):
             # durable result directly instead of replaying all snapshots merely
             # to reconstruct an already-processed day.
             if rollover_fallback:
-                restored = _restore_last_complete_state(trading_date)
-                if restored is not None:
-                    latest, timeline, persisted_source, persisted_timestamp = restored
-                elif auto_update:
+                # Calendar rollover must keep the initial LIVE render lightweight.
+                # Restore the durable last-complete state first; defer chronological
+                # catch-up to a later LIVE fragment cycle.
+                rollover_initial_date = str(
+                    st.session_state.get("ds_live_initial_render_date", "")
+                ).strip()
+                rollover_initial_render = rollover_initial_date != str(trading_date)
+                st.session_state["ds_live_initial_render_date"] = str(trading_date)
+
+                restored_for_rollover = _restore_last_complete_state(trading_date)
+                restored_ts_for_rollover = pd.NaT
+                if restored_for_rollover is not None:
+                    _, _, _, restored_timestamp_for_rollover = restored_for_rollover
+                    restored_ts_for_rollover = pd.to_datetime(
+                        restored_timestamp_for_rollover, errors="coerce"
+                    )
+                source_latest_for_rollover = parse_observation_timestamp(sources[-1])
+                rollover_backlog_pending = (
+                    pd.notna(restored_ts_for_rollover)
+                    and pd.Timestamp(restored_ts_for_rollover) < pd.Timestamp(source_latest_for_rollover)
+                )
+
+                if rollover_initial_render:
+                    # First render remains restoration-only. Never perform catch-up
+                    # work while establishing the rollover view.
+                    if restored_for_rollover is not None:
+                        latest, timeline, persisted_source, persisted_timestamp = restored_for_rollover
+                    else:
+                        latest, timeline, _ = _load_day_for_snapshot_view(
+                            sources, trading_date
+                        )
+                        persisted_source = ""
+                        persisted_timestamp = ""
+                elif auto_update and rollover_backlog_pending:
+                    # Subsequent LIVE fragment cycles perform the existing
+                    # chronological catch-up in a controlled batch of up to
+                    # three sources. The durable checkpoint advances after
+                    # each successfully processed source.
                     latest, timeline, _changed = _auto_process_new_snapshots(
-                        sources, trading_date
+                        sources, trading_date, max_batch=3
                     )
                     persisted_source = ""
                     persisted_timestamp = ""
+                elif restored_for_rollover is not None:
+                    latest, timeline, persisted_source, persisted_timestamp = restored_for_rollover
                 else:
                     latest, timeline, _ = _load_day_for_snapshot_view(
                         sources, trading_date
@@ -5878,10 +5959,14 @@ if hasattr(st, "fragment"):
                     last_cycle_ts is None
                     or (now_ts - last_cycle_ts).total_seconds() >= 300
                 )
-                if backlog_pending:
-                    # Keep the initial page render lightweight. Restore the last
+                initial_render_date = str(st.session_state.get("ds_live_initial_render_date", "")).strip()
+                initial_live_render = initial_render_date != str(trading_date)
+                st.session_state["ds_live_initial_render_date"] = str(trading_date)
+
+                if backlog_pending and initial_live_render:
+                    # Keep the first LIVE page render lightweight. Restore the last
                     # complete durable state now; chronological catch-up is left
-                    # to a later scheduled LIVE cycle.
+                    # to the next scheduled LIVE cycle.
                     restored = _restore_last_complete_state(trading_date)
                     if restored is not None:
                         latest, timeline, _, _ = restored
@@ -5889,13 +5974,13 @@ if hasattr(st, "fragment"):
                         latest, timeline, _ = _load_day_for_snapshot_view(
                             sources, trading_date
                         )
-                elif due_for_normal_cycle:
+                elif backlog_pending or due_for_normal_cycle:
                     latest, timeline, _changed = _auto_process_new_snapshots(
                         sources,
                         trading_date,
-                        # Controlled catch-up batch; the fragment remains on the
-                        # stable 5-minute cadence.
-                        max_batch=24,
+                        # Controlled catch-up batch of up to three sources; the fragment
+                        # remains on the stable 5-minute cadence.
+                        max_batch=3,
                     )
                     st.session_state["ds_last_live_process_at"] = now_ts
                 else:
@@ -6456,6 +6541,10 @@ def render() -> None:
         st.warning("No Daywise snapshots are available yet.")
         return
 
+    # Keep the resolved LIVE trading date authoritative for all LIVE audit
+    # controls and lifecycle state lookups.
+    st.session_state["ds_trading_date"] = trading_date
+
     latest_path = sources[-1]
     latest_time = parse_observation_timestamp(latest_path)
     st.markdown(f'<div class="snapshot"><b>Snapshots:</b> {len(sources)} &nbsp;|&nbsp; <b>First:</b> {parse_observation_timestamp(sources[0]):%H:%M:%S} &nbsp;|&nbsp; <b>Latest:</b> {latest_time:%H:%M:%S}</div>', unsafe_allow_html=True)
@@ -6479,6 +6568,7 @@ def render() -> None:
             refresh = st.button("↻ Refresh", use_container_width=True, key="ds_live_refresh")
         if refresh:
             st.session_state.pop(_cache_key(trading_date), None)
+            _cached_daywise_inventory.clear()
             st.rerun()
         if hasattr(st, "fragment"):
             _live_auto_panel(source_root, trading_date, auto_update, rollover_fallback=(trading_date != selected_calendar_date))
