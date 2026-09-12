@@ -1375,7 +1375,7 @@ def _auto_process_new_snapshots(
     # Establish the authoritative checkpoint from durable state. The physical
     # checkpoint file may have been deleted after processing, so its persisted
     # observation timestamp is also a valid checkpoint identity.
-    checkpoint_key = _source_key(Path(checkpoint_file)) if checkpoint_file else ""
+    checkpoint_key = ""
     checkpoint_idx = -1
     checkpoint_timestamp = pd.to_datetime(
         day.get(
@@ -1384,34 +1384,69 @@ def _auto_process_new_snapshots(
         ),
         errors="coerce",
     )
+
+    # LIVE chronology is owned by the durable processing timestamp.  The
+    # day-level source_file may also be written by full-day/replay reconstruction
+    # and therefore must not move the LIVE checkpoint forward on its own.
+    if pd.notna(checkpoint_timestamp):
+        checkpoint_timestamp = pd.Timestamp(checkpoint_timestamp)
+        # Prefer the exact source identity only when it agrees with the durable
+        # LIVE timestamp.  If source_file points to a later reconstructed source,
+        # ignore that identity and retain the real chronological cutoff.
+        if checkpoint_file:
+            checkpoint_path = Path(checkpoint_file)
+            if checkpoint_path.is_file():
+                checkpoint_path_timestamp = pd.Timestamp(
+                    parse_observation_timestamp(checkpoint_path)
+                )
+                if checkpoint_path_timestamp == checkpoint_timestamp:
+                    checkpoint_key = _source_key(checkpoint_path)
+        if checkpoint_key:
+            for i, path in enumerate(sources):
+                if _source_key(path) == checkpoint_key:
+                    checkpoint_idx = i
+                    break
+        if checkpoint_idx < 0:
+            # The processed source may have been deleted.  Find the surviving
+            # source at the same persisted observation timestamp when available;
+            # otherwise the timestamp-only path below remains authoritative.
+            for i, path in enumerate(sources):
+                if pd.Timestamp(parse_observation_timestamp(path)) == checkpoint_timestamp:
+                    checkpoint_idx = i
+                    checkpoint_key = _source_key(path)
+                    break
+
+    # If the durable LIVE timestamp is absent, fall back to the persisted source
+    # identity.  This is a compatibility path for older state records only.
     if pd.isna(checkpoint_timestamp) and checkpoint_file:
         checkpoint_path = Path(checkpoint_file)
         if checkpoint_path.is_file():
             checkpoint_timestamp = pd.Timestamp(
                 parse_observation_timestamp(checkpoint_path)
             )
-
-    if checkpoint_key:
-        for i, path in enumerate(sources):
-            if _source_key(path) == checkpoint_key:
-                checkpoint_idx = i
-                checkpoint_timestamp = pd.Timestamp(
-                    parse_observation_timestamp(path)
-                )
-                break
+            checkpoint_key = _source_key(checkpoint_path)
+            for i, path in enumerate(sources):
+                if _source_key(path) == checkpoint_key:
+                    checkpoint_idx = i
+                    break
 
     # If durable state is absent, restore it from the last complete record.
-    if checkpoint_idx < 0 and saved.get("source_file"):
+    if pd.isna(checkpoint_timestamp) and saved.get("source_file"):
         restored_path = Path(str(saved["source_file"]))
         restored_key = _source_key(restored_path)
-        for i, path in enumerate(sources):
-            if _source_key(path) == restored_key:
-                checkpoint_idx = i
-                checkpoint_key = restored_key
-                checkpoint_timestamp = pd.Timestamp(
-                    parse_observation_timestamp(path)
-                )
-                break
+        if restored_path.is_file():
+            checkpoint_timestamp = pd.Timestamp(
+                parse_observation_timestamp(restored_path)
+            )
+            checkpoint_key = restored_key
+            for i, path in enumerate(sources):
+                if _source_key(path) == restored_key:
+                    checkpoint_idx = i
+                    break
+    elif pd.isna(checkpoint_timestamp) and saved.get("observation_timestamp"):
+        checkpoint_timestamp = pd.to_datetime(
+            saved.get("observation_timestamp", ""), errors="coerce"
+        )
 
     cache = _get_replay_cache(trading_date)
     cached_snapshots = cache.get("snapshots", {})
@@ -1970,7 +2005,7 @@ html, body{
 [data-testid="stMain"], section.main{
     width:100% !important;
 }
-.block-container{max-width:1500px;padding-top:.55rem;padding-bottom:2rem}
+.block-container{width:calc(100% - 32px);max-width:1800px;margin-left:auto;margin-right:auto;padding-top:.55rem;padding-bottom:2rem}
 .hero{
     padding:17px 26px;
     border-radius:14px;
@@ -2385,27 +2420,32 @@ html, body{
 
 
 /* Deployment 29: minimal first-look opportunity cards */
-.opportunity-grid.minimal-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:10px 0 12px}
-.opportunity-card.minimal-card{min-height:132px;height:132px;padding:9px 10px;border-radius:8px;display:flex;flex-direction:column;box-sizing:border-box;color:var(--card-text,#172033);overflow:hidden}
-.minimal-card .minimal-top{display:flex;justify-content:space-between;align-items:center;font-size:8px;font-weight:850;line-height:1}
-.minimal-card .opportunity-rank{opacity:.68;font-size:8px}
-.minimal-card .opportunity-direction{font-size:9px;font-weight:950;color:var(--card-accent,#334155)}
-.minimal-card .minimal-symbol{margin-top:6px;font-size:18px;line-height:1;font-weight:950;letter-spacing:.15px}
-.minimal-card .minimal-move{display:flex;align-items:baseline;gap:8px;margin-top:5px}
-.minimal-card .minimal-move span{font-size:21px;line-height:1;font-weight:950;color:var(--card-accent,#172033)}
-.minimal-card .minimal-move b{font-size:9px;line-height:1;font-weight:900}
-.minimal-card .minimal-sr{display:flex;gap:5px;align-items:baseline;margin-top:6px;font-size:8px;line-height:1.1}
+.opportunity-grid.minimal-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:10px 0 12px}
+.opportunity-card.minimal-card{min-height:168px;height:auto;padding:11px 12px;border-radius:9px;display:flex;flex-direction:column;box-sizing:border-box;color:var(--card-text,#172033);overflow:hidden}
+.minimal-card .minimal-top{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:850;line-height:1.1}
+.minimal-card .opportunity-rank{opacity:.68;font-size:10px}
+.minimal-card .opportunity-direction{font-size:10px;font-weight:950;color:var(--card-accent,#334155)}
+.minimal-card .minimal-symbol{margin-top:7px;font-size:20px;line-height:1.05;font-weight:950;letter-spacing:.15px}
+.minimal-card .minimal-move{display:flex;align-items:baseline;gap:9px;margin-top:6px}
+.minimal-card .minimal-move span{font-size:23px;line-height:1;font-weight:950;color:var(--card-accent,#172033)}
+.minimal-card .minimal-move b{font-size:10px;line-height:1;font-weight:900}
+.minimal-card .minimal-sr{display:flex;gap:6px;align-items:baseline;margin-top:7px;font-size:10px;line-height:1.15}
 .minimal-card .minimal-sr span{font-weight:800;opacity:.68}
 .minimal-card .minimal-sr b{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.minimal-card .minimal-outlook{margin-top:7px;font-size:10px;line-height:1.05;font-weight:950}
-.minimal-card .minimal-caution{margin-top:3px;font-size:8px;line-height:1.15;min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
-.minimal-card .minimal-alert{margin-top:auto;padding-top:6px;border-top:1px solid rgba(100,116,139,.22);display:flex;justify-content:space-between;align-items:center;gap:5px;font-size:7px;line-height:1}
+.minimal-card .minimal-outlook{margin-top:8px;font-size:11px;line-height:1.15;font-weight:950}
+.minimal-card .minimal-caution{margin-top:4px;font-size:10px;line-height:1.25;min-height:25px;white-space:normal;overflow:hidden;text-overflow:ellipsis;opacity:.9}
+.minimal-card .minimal-alert{margin-top:auto;padding-top:8px;border-top:1px solid rgba(100,116,139,.22);display:flex;justify-content:space-between;align-items:center;gap:7px;font-size:9px;line-height:1.1}
 .minimal-card .minimal-alert span{font-weight:850;opacity:.72}
-.minimal-card .minimal-alert b{font-size:11px;font-weight:950;letter-spacing:.15px}
-@media(max-width:1200px){.opportunity-grid.minimal-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:900px){.opportunity-grid.minimal-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.minimal-card .minimal-alert b{font-size:12px;font-weight:950;letter-spacing:.15px}
+@media(max-width:1450px){.opportunity-grid.minimal-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1050px){.opportunity-grid.minimal-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.opportunity-grid.minimal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.opportunity-grid.minimal-grid{grid-template-columns:1fr}.opportunity-card.minimal-card{min-height:156px}}
 
 .minimal-retrace{margin-top:4px;padding:3px 5px;border-radius:4px;font-size:8px;line-height:1.1;font-weight:950;color:var(--card-accent,#475569);background:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:1100px){.live-queue-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:760px){.live-queue-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.live-queue-tile{padding:8px}}
+@media(max-width:480px){.live-queue-grid{grid-template-columns:1fr}}
 
 </style>
 """,
@@ -5860,7 +5900,34 @@ def _restore_last_complete_state(
 
 if hasattr(st, "fragment"):
     @st.fragment(run_every="300s")
-    def _live_auto_panel(source_root: Path, trading_date: str, auto_update: bool, rollover_fallback: bool = False) -> None:
+    def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bool = False) -> None:
+        # LIVE controls belong to the LIVE fragment.  If they live in the main
+        # script, changing the checkbox or clicking Refresh causes a full-app
+        # rerun and can re-enter synchronous catch-up while the user is working
+        # with the dashboard.  Keeping them here makes those interactions
+        # fragment-local.
+        controls_a, controls_b = st.columns([2, 1])
+        with controls_a:
+            auto_update = st.checkbox(
+                "Auto-update live feed (5 min) • backlog catch-up in batch",
+                value=True,
+                key="ds_auto_update",
+            )
+        with controls_b:
+            refresh = st.button(
+                "↻ Refresh",
+                use_container_width=True,
+                key="ds_live_refresh",
+            )
+        if refresh:
+            st.session_state.pop(_cache_key(trading_date), None)
+            _cached_daywise_inventory.clear()
+            # A refresh may hand control back to the full app once.  The
+            # one-shot guard prevents that handoff from consuming another
+            # backlog batch immediately.
+            st.session_state["ds_live_skip_processing_once"] = True
+            st.rerun()
+
         # Re-discover on every live fragment cycle so newly-arrived snapshots
         # become visible without requiring a manual full-page refresh.
         try:
@@ -5869,7 +5936,17 @@ if hasattr(st, "fragment"):
                 st.info("No intraday snapshots are currently available for this date.")
                 return
 
+            # A full-app rerun can be triggered after a completed batch so that
+            # the interactive dashboard below the LIVE controller receives the
+            # new result.  The immediate rerun must NOT process another batch;
+            # otherwise one backlog batch would cascade into repeated processing
+            # and the page would remain busy.
+            skip_processing_once = bool(
+                st.session_state.pop("ds_live_skip_processing_once", False)
+            )
+
             _, market_open = _market_session_status(trading_date)
+            state_changed_any = False
             session_state = st.session_state.setdefault(_live_session_key(trading_date), {})
             session_state["last_source_key"] = _source_key(sources[-1])
 
@@ -5916,12 +5993,12 @@ if hasattr(st, "fragment"):
                         )
                         persisted_source = ""
                         persisted_timestamp = ""
-                elif auto_update and rollover_backlog_pending:
+                elif auto_update and rollover_backlog_pending and not skip_processing_once:
                     # Subsequent LIVE fragment cycles perform the existing
                     # chronological catch-up in a controlled batch of up to
                     # three sources. The durable checkpoint advances after
                     # each successfully processed source.
-                    latest, timeline, _changed = _auto_process_new_snapshots(
+                    latest, timeline, state_changed_any = _auto_process_new_snapshots(
                         sources, trading_date, max_batch=3
                     )
                     persisted_source = ""
@@ -5974,8 +6051,8 @@ if hasattr(st, "fragment"):
                         latest, timeline, _ = _load_day_for_snapshot_view(
                             sources, trading_date
                         )
-                elif backlog_pending or due_for_normal_cycle:
-                    latest, timeline, _changed = _auto_process_new_snapshots(
+                elif (backlog_pending or due_for_normal_cycle) and not skip_processing_once:
+                    latest, timeline, state_changed_any = _auto_process_new_snapshots(
                         sources,
                         trading_date,
                         # Controlled catch-up batch of up to three sources; the fragment
@@ -6076,16 +6153,11 @@ if hasattr(st, "fragment"):
                     f"{status} • {latest_time:%H:%M:%S} • {latest_path.name}"
                 )
 
-            # The LIVE result is the output of the existing processing pipeline
-            # applied to the data available through this processed timestamp.
-            # Keep the row-level output collapsed so it does not compete with
-            # the decision-first board.
-            # Closed-session LIVE restoration must remain lightweight.  The
-            # durable replay cache can contain every snapshot for the day and
-            # may be large; loading/decompressing it here makes the normal
-            # dashboard startup pay the historical-replay cost.  Replay owns
-            # that cache.  LIVE uses the already-restored last-complete result
-            # and timeline, with the current result as the lifecycle fallback.
+            # The LIVE fragment is intentionally limited to source monitoring
+            # and processing.  All interactive dashboard widgets are rendered
+            # by the parent app run below this fragment.  This prevents a click
+            # on a radio/selectbox/button in the decision board from re-entering
+            # synchronous LIVE catch-up processing.
             if market_open:
                 live_cache = _get_replay_cache(trading_date)
                 live_snapshot_results = (
@@ -6096,19 +6168,23 @@ if hasattr(st, "fragment"):
             else:
                 live_snapshot_results = {}
 
-            _render_processing_output(
-                latest,
-                latest_time,
-                latest_path,
-                live_snapshot_results,
-            )
-            _render_current_result(
-                latest,
-                timeline,
-                latest_time.strftime("%H:%M:%S"),
-                "live_",
-                live_snapshot_results,
-            )
+            st.session_state["ds_live_render_state"] = {
+                "latest": latest,
+                "timeline": timeline,
+                "latest_path": str(latest_path),
+                "latest_time": latest_time.isoformat(),
+                "snapshot_results": live_snapshot_results,
+                "trading_date": str(trading_date),
+                "market_open": bool(market_open),
+            }
+
+            # If this fragment actually completed a processing batch, perform
+            # exactly one full-app rerun so the non-fragment dashboard renders
+            # the newly completed snapshot.  The one-shot skip flag prevents
+            # that rerun from immediately processing the next backlog batch.
+            if auto_update and state_changed_any and not skip_processing_once:
+                st.session_state["ds_live_skip_processing_once"] = True
+                st.rerun()
         except Exception as exc:
             st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
 
@@ -6502,6 +6578,53 @@ def _load_day_for_snapshot_view(sources: list[Path], trading_date: str) -> tuple
     return latest, timeline, snapshots
 
 
+if hasattr(st, "fragment"):
+    @st.fragment
+    def _live_decision_panel() -> None:
+        """Render the interactive LIVE decision board independently of LIVE processing."""
+        live_render_state = st.session_state.get("ds_live_render_state", {})
+        if not (
+            isinstance(live_render_state, dict)
+            and isinstance(live_render_state.get("latest"), pd.DataFrame)
+            and not live_render_state.get("latest").empty
+        ):
+            return
+
+        live_latest = live_render_state["latest"]
+        live_timeline = live_render_state.get("timeline", pd.DataFrame())
+        live_latest_path = Path(str(live_render_state.get("latest_path", ".")))
+        try:
+            live_latest_time = datetime.fromisoformat(
+                str(live_render_state.get("latest_time", ""))
+            )
+        except (TypeError, ValueError):
+            live_latest_time = parse_observation_timestamp(live_latest_path)
+        live_snapshot_results = live_render_state.get("snapshot_results", {})
+        if not isinstance(live_snapshot_results, dict):
+            live_snapshot_results = {}
+        lifecycle_trading_date = str(
+            live_render_state.get(
+                "trading_date", st.session_state.get("ds_trading_date", "")
+            )
+        )
+
+        _render_processing_output(
+            live_latest,
+            live_latest_time,
+            live_latest_path,
+            live_snapshot_results,
+        )
+        _render_current_result(
+            live_latest,
+            live_timeline,
+            live_latest_time.strftime("%H:%M:%S"),
+            "live_",
+            live_snapshot_results,
+            lifecycle_trading_date=lifecycle_trading_date,
+            lifecycle_replay=False,
+        )
+
+
 def render() -> None:
     st.set_page_config(page_title="NTIS SDL — Intraday Decision Center", layout="wide")
     _css()
@@ -6561,18 +6684,32 @@ def render() -> None:
     st.markdown(f'<div class="top-status"><div class="top-status-chip top-status-ready"><span class="top-status-dot"></span>DATA READY</div><div class="top-status-chip {live_feed_class}"><span class="top-status-dot"></span>{live_feed_label}</div><div class="top-status-chip {session_class}"><span class="top-status-dot"></span>{session_label}</div><div class="top-status-chip"><span class="top-status-dot"></span>LAST {latest_time:%H:%M:%S}</div></div>', unsafe_allow_html=True)
 
     with st.expander("LIVE • Feed & Session", expanded=True):
-        a1, a2 = st.columns([2, 1])
-        with a1:
-            auto_update = st.checkbox("Auto-update live feed (5 min) • backlog catch-up in batch", value=True, key="ds_auto_update")
-        with a2:
-            refresh = st.button("↻ Refresh", use_container_width=True, key="ds_live_refresh")
-        if refresh:
-            st.session_state.pop(_cache_key(trading_date), None)
-            _cached_daywise_inventory.clear()
-            st.rerun()
         if hasattr(st, "fragment"):
-            _live_auto_panel(source_root, trading_date, auto_update, rollover_fallback=(trading_date != selected_calendar_date))
+            _live_auto_panel(
+                source_root,
+                trading_date,
+                rollover_fallback=(trading_date != selected_calendar_date),
+            )
+
+            # The interactive LIVE decision board is a separate fragment.
+            # Radio/selectbox/button interactions here rerun only this board;
+            # they cannot restart synchronous LIVE catch-up.
+            _live_decision_panel()
         else:
+            auto_update = st.checkbox(
+                "Auto-update live feed (5 min) • backlog catch-up in batch",
+                value=True,
+                key="ds_auto_update",
+            )
+            refresh = st.button(
+                "↻ Refresh",
+                use_container_width=True,
+                key="ds_live_refresh",
+            )
+            if refresh:
+                st.session_state.pop(_cache_key(trading_date), None)
+                _cached_daywise_inventory.clear()
+                st.rerun()
             try:
                 live_sources = _discover_sources(trading_date, source_root)
                 if market_open and auto_update:

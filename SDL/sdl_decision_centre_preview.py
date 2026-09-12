@@ -444,6 +444,58 @@ div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) span{
 
 /* V24 UI REFINEMENT: filter text +2px; non-stock queue data +2px. No logic changes. */
 
+/* ---------- LIVE QUEUE FILTER REFINEMENT (PRESENTATION ONLY) ----------
+   Scoped only to the four Live Queue radios whose keys begin with live_.
+   Existing options, state, filtering semantics and all other dashboard
+   controls remain unchanged. */
+div[data-testid="stRadio"]:has(input[id*="live_progress"]),
+div[data-testid="stRadio"]:has(input[id*="live_direction"]),
+div[data-testid="stRadio"]:has(input[id*="live_strength"]),
+div[data-testid="stRadio"]:has(input[id*="live_stage"]){
+  padding-top:0!important;
+}
+div[data-testid="stRadio"]:has(input[id*="live_progress"]) [role="radiogroup"],
+div[data-testid="stRadio"]:has(input[id*="live_direction"]) [role="radiogroup"],
+div[data-testid="stRadio"]:has(input[id*="live_strength"]) [role="radiogroup"],
+div[data-testid="stRadio"]:has(input[id*="live_stage"]) [role="radiogroup"]{
+  gap:6px!important;
+  align-items:center!important;
+}
+div[data-testid="stRadio"]:has(input[id*="live_progress"]) [role="radiogroup"] label,
+div[data-testid="stRadio"]:has(input[id*="live_direction"]) [role="radiogroup"] label,
+div[data-testid="stRadio"]:has(input[id*="live_strength"]) [role="radiogroup"] label,
+div[data-testid="stRadio"]:has(input[id*="live_stage"]) [role="radiogroup"] label{
+  min-height:30px!important;
+  padding:5px 10px!important;
+  border-radius:8px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.025)!important;
+  transition:background .12s ease,border-color .12s ease,box-shadow .12s ease!important;
+}
+div[data-testid="stRadio"]:has(input[id*="live_progress"]) [role="radiogroup"] label:has(input:checked),
+div[data-testid="stRadio"]:has(input[id*="live_direction"]) [role="radiogroup"] label:has(input:checked),
+div[data-testid="stRadio"]:has(input[id*="live_strength"]) [role="radiogroup"] label:has(input:checked),
+div[data-testid="stRadio"]:has(input[id*="live_stage"]) [role="radiogroup"] label:has(input:checked){
+  background:#6d38f0!important;
+  border-color:#8b63ff!important;
+  box-shadow:0 0 0 1px rgba(139,99,255,.22),0 4px 12px rgba(109,56,240,.18)!important;
+}
+div[data-testid="stRadio"]:has(input[id*="live_progress"]) [role="radiogroup"] label:hover,
+div[data-testid="stRadio"]:has(input[id*="live_direction"]) [role="radiogroup"] label:hover,
+div[data-testid="stRadio"]:has(input[id*="live_strength"]) [role="radiogroup"] label:hover,
+div[data-testid="stRadio"]:has(input[id*="live_stage"]) [role="radiogroup"] label:hover{
+  border-color:#466284!important;
+}
+.live-queue-header-block{
+  min-height:58px;
+  padding-top:6px!important;
+}
+.live-inline-filter-title{
+  margin-bottom:3px!important;
+  line-height:1.1!important;
+}
 /* ---------- PRIORITY RADAR ---------- */
 .radar-panel{
   background:#091729;
@@ -800,6 +852,7 @@ def _matches_source_snapshot(ts, source_times: list[pd.Timestamp], tolerance_sec
     return any(abs((value - candidate).total_seconds()) <= tolerance_seconds for candidate in source_times)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def first_alert_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
     """Return first primary-gate qualification time from persisted evidence.
 
@@ -858,6 +911,7 @@ def first_alert_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
     return e.groupby("Symbol")["observation_timestamp"].min().to_dict()
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def breakout_event_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
     """Return the first factual breakout observed in the real source snapshots.
 
@@ -1005,6 +1059,7 @@ def frozen_base_from_df(df: pd.DataFrame) -> dict:
     return result
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def candidates(
     df: pd.DataFrame,
     base: dict | None = None,
@@ -1175,7 +1230,7 @@ def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
     # One five-part header: queue identity on the left, the four existing
     # native filter controls on the right.  No filter option or semantics is
     # changed by this layout.
-    cols = st.columns([1.18, 1.02, 0.82, 1.08, 1.42], gap="small")
+    cols = st.columns([1.20, 1.04, 0.86, 1.10, 1.36], gap="small")
     selections = {}
 
     with cols[0]:
@@ -2289,6 +2344,7 @@ def historical_view() -> None:
 # READ-ONLY REPLAY — DIFFERENT FROM HISTORICAL EVIDENCE
 # ============================================================================
 
+@st.cache_data(ttl=300, show_spinner=False)
 def replay_snapshot_frame(
     path: Path,
 ) -> tuple[pd.DataFrame, pd.Timestamp]:
@@ -2455,60 +2511,6 @@ def latest_live() -> tuple[
                 path = Path(path)
                 ts = observation_ts(path)
                 pred = candidates(df, snapshot_ts=ts)
-
-                # Last-valid-snapshot protection:
-                # The newest source workbook may be successfully processed yet
-                # contain zero currently eligible decisions. In that case do
-                # NOT replace the last working intraday Decision Board state.
-                #
-                # This recovery is dashboard-only and READ-ONLY. It evaluates
-                # already-existing source snapshots backwards in chronology
-                # through replay_snapshot_frame(), without rerunning the live
-                # pipeline and without changing SDL scoring/qualification.
-                if pred is not None and not pred.empty:
-                    return path, pred, ts, message
-
-                try:
-                    day = ts.date().isoformat() if pd.notna(ts) else None
-                    candidates_for_day = snapshot_files(day)
-                    candidates_for_day = [
-                        candidate
-                        for candidate in candidates_for_day
-                        if pd.notna(observation_ts(candidate))
-                    ]
-
-                    # Search newest -> oldest, excluding the already-tested
-                    # latest workbook. The first non-empty result is the last
-                    # factual working dashboard state available for this day.
-                    for fallback_path in reversed(candidates_for_day):
-                        if Path(fallback_path) == path:
-                            continue
-
-                        fallback_ts = observation_ts(fallback_path)
-                        if pd.isna(fallback_ts):
-                            continue
-
-                        fallback_pred, _ = replay_snapshot_frame(fallback_path)
-                        if fallback_pred is not None and not fallback_pred.empty:
-                            return (
-                                Path(fallback_path),
-                                fallback_pred,
-                                fallback_ts,
-                                (
-                                    f"Latest source snapshot at "
-                                    f"{ts.strftime('%H:%M:%S')} produced no "
-                                    f"eligible decisions. Showing the last "
-                                    f"valid same-session decision state from "
-                                    f"{fallback_ts.strftime('%H:%M:%S')}."
-                                ),
-                            )
-                except Exception:
-                    # Historical recovery is best-effort. A source/read error
-                    # must never interrupt the dashboard.
-                    pass
-
-                # No earlier valid prediction state could be reconstructed.
-                # The existing empty-state guard will handle this safely.
                 return path, pred, ts, message
 
             # Calendar-day rollover rule:
