@@ -1,0 +1,21 @@
+{
+  "id": "pece_xhr_total_pe_ce",
+  "name": "iCharts PE/CE XHR Batch",
+  "transport": "icharts_xhr_batch",
+  "url": "https://www.icharts.in/opt/TotalPECEOIDiff_Beta.php",
+  "action": "none",
+  "selection": "",
+  "selection_selector": "",
+  "submit_selector": "",
+  "download_selector": "",
+  "wait_seconds": 1,
+  "interval_minutes": 5,
+  "destination": "E:\\NSE_Daily_Analysis\\Intraday\\Output\\PECE_XHR",
+  "filename_suffix": "",
+  "filename_rule": "",
+  "expected_symbol_count": 220,
+  "concurrency": 8,
+  "retries": 2,
+  "request_timeout_seconds": 15,
+  "enabled": false
+}

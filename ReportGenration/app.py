@@ -7,6 +7,7 @@ from pathlib import Path
 
 import streamlit as st
 from playwright.sync_api import sync_playwright
+from pece_xhr_golive_engine import run_pece_xhr_batch
 
 ROOT = Path(__file__).resolve().parent
 CFG = ROOT / "reports.json"
@@ -511,6 +512,31 @@ class Manager:
             )
             return context, page
 
+        # XHR batch reports use the SAME authenticated Playwright BrowserContext
+        # but a temporary second page. Existing browser-download jobs keep their
+        # original code path unchanged.
+        if job.get("transport") == "icharts_xhr_batch":
+            try:
+                result = run_pece_xhr_batch(
+                    context=context,
+                    output_root=destination_text,
+                    job=job,
+                    status_callback=self.log,
+                )
+                self.set(
+                    last_download=(
+                        f"{name} | {result.get('integrity_gate', 'HOLD')} | "
+                        f"{result.get('success_count', 0)}/{result.get('symbol_count', 0)} valid"
+                    ),
+                    message=(
+                        f"{name}: {result.get('integrity_gate', 'HOLD')} | "
+                        f"{result.get('success_count', 0)}/{result.get('symbol_count', 0)} valid"
+                    ),
+                )
+            except Exception as error:
+                self.log(f"{name}: XHR batch failed: {error}")
+            return context, page
+
         try:
             # A transient Chromium/network suspension can invalidate the
             # current Page object. Retry navigation once only, and always
@@ -793,15 +819,33 @@ class Manager:
                     f"{path.suffix}"
                 )
 
+            # Every browser-download acquisition gets an explicit acquisition
+            # timestamp. XHR-batch jobs return above and use their own timestamped
+            # consolidated filename.
+            path = Path(filename)
+            acquisition_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = (
+                f"{path.stem}_"
+                f"{acquisition_timestamp}"
+                f"{path.suffix}"
+            )
             output = destination / filename
 
+            # If two acquisitions ever land in the same second, keep both files
+            # without adding a second timestamp or overwriting an earlier file.
             if output.exists():
-                path = output
-                output = destination / (
-                    f"{path.stem}_"
-                    f"{datetime.now():%H%M%S}"
-                    f"{path.suffix}"
-                )
+                counter = 1
+                while True:
+                    candidate = destination / (
+                        f"{path.stem}_"
+                        f"{acquisition_timestamp}_"
+                        f"{counter:02d}"
+                        f"{path.suffix}"
+                    )
+                    if not candidate.exists():
+                        output = candidate
+                        break
+                    counter += 1
 
             download.save_as(
                 str(output)
@@ -929,6 +973,22 @@ for index, job in enumerate(
                 disabled=status["running"],
             )
 
+            transport_options = {
+                "browser_download": "Browser / Excel download",
+                "icharts_xhr_batch": "iCharts XHR batch (PE/CE)",
+            }
+            current_transport = job.get("transport", "browser_download")
+            if current_transport not in transport_options:
+                current_transport = "browser_download"
+            job["transport"] = st.selectbox(
+                "Acquisition type",
+                list(transport_options),
+                index=list(transport_options).index(current_transport),
+                format_func=lambda value: transport_options[value],
+                key=f"transport_{index}",
+                disabled=status["running"],
+            )
+
             current_action = job.get(
                 "action",
                 "refresh",
@@ -1014,6 +1074,28 @@ for index, job in enumerate(
                 key=f"wait_{index}",
                 disabled=status["running"],
             )
+
+            if job.get("transport") == "icharts_xhr_batch":
+                job["expected_symbol_count"] = st.number_input(
+                    "Expected symbols", min_value=1, max_value=1000,
+                    value=int(job.get("expected_symbol_count", 220)), step=1,
+                    key=f"xhr_expected_{index}", disabled=status["running"],
+                )
+                job["concurrency"] = st.number_input(
+                    "XHR concurrency", min_value=1, max_value=12,
+                    value=int(job.get("concurrency", 8)), step=1,
+                    key=f"xhr_concurrency_{index}", disabled=status["running"],
+                )
+                job["retries"] = st.number_input(
+                    "Retry failed symbols", min_value=0, max_value=5,
+                    value=int(job.get("retries", 2)), step=1,
+                    key=f"xhr_retries_{index}", disabled=status["running"],
+                )
+                job["request_timeout_seconds"] = st.number_input(
+                    "XHR request timeout (seconds)", min_value=3, max_value=30,
+                    value=int(job.get("request_timeout_seconds", 15)), step=1,
+                    key=f"xhr_timeout_{index}", disabled=status["running"],
+                )
 
             job["submit_selector"] = st.text_input(
                 "Submit selector",
@@ -1104,6 +1186,7 @@ if not status["running"]:
                 ),
                 "name": "New Report",
                 "url": "",
+                "transport": "browser_download",
                 "action": "refresh",
                 "selection": "",
                 "selection_selector": "",

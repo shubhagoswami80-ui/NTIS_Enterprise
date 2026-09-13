@@ -1,0 +1,21 @@
+{
+  "engine_version": "1.1",
+  "reports": [
+    {
+      "id": "pece_total_oi_diff",
+      "name": "Total PE-CE OI Diff (XHR)",
+      "transport": "xhr_capture",
+      "page_url": "https://www.icharts.in/opt/TotalPECEOIDiff_Beta.php",
+      "endpoint": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+      "interval_minutes": 5,
+      "enabled": false,
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-27\\PECE",
+      "output_stem": "TotalPECEOIDiff",
+      "page_wait_seconds": 3,
+      "capture_wait_seconds": 15,
+      "request_timeout_ms": 60000,
+      "columns": [],
+      "notes": "The page itself creates the authenticated XHR. The engine captures that response in the same Playwright BrowserContext, avoiding hard-coded session IDs, cookies, expiry or symbol/strike request values. Initial job is disabled until live validation."
+    }
+  ]
+}

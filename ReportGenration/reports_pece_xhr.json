@@ -1,6 +1,6 @@
 {
-  "start_time": "01:10",
-  "stop_time": "23:50",
+  "start_time": "01:00",
+  "stop_time": "05:00",
   "jobs": [
     {
       "id": "daywise_price_oi",
@@ -11,13 +11,12 @@
       "selection_selector": "",
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
-      "wait_seconds": 2.0,
+      "wait_seconds": 3.0,
       "interval_minutes": 5,
       "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
-      "transport": "browser_download"
+      "enabled": true
     },
     {
       "id": "report_1786791134",
@@ -28,13 +27,12 @@
       "selection_selector": "",
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
-      "wait_seconds": 2.0,
+      "wait_seconds": 3.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-11",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
-      "transport": "browser_download"
+      "enabled": false
     },
     {
       "id": "report_1786791316",
@@ -45,13 +43,12 @@
       "selection_selector": "",
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
-      "wait_seconds": 2.0,
+      "wait_seconds": 3.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-11",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
-      "transport": "browser_download"
+      "enabled": false
     },
     {
       "id": "report_1786791380",
@@ -62,13 +59,12 @@
       "selection_selector": "",
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
-      "wait_seconds": 2.0,
-      "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
+      "wait_seconds": 3.0,
+      "interval_minutes": 15,
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-11",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
-      "transport": "browser_download"
+      "enabled": false
     },
     {
       "id": "report_1786791444",
@@ -79,13 +75,12 @@
       "selection_selector": "",
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
-      "wait_seconds": 2.0,
+      "wait_seconds": 3.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-11",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
-      "transport": "browser_download"
+      "enabled": false
     },
     {
       "id": "report_1786791524",
@@ -96,40 +91,29 @@
       "selection_selector": "",
       "submit_selector": "button:has-text(\"SUBMIT\")",
       "download_selector": "button[title=\"Download Excel\"]",
-      "wait_seconds": 2.0,
+      "wait_seconds": 3.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-11",
       "filename_suffix": "",
       "filename_rule": "replace_leading_support_with_resistance",
-      "enabled": true,
-      "transport": "browser_download"
+      "enabled": false
     },
     {
-      "id": "pece_xhr_total_pe_ce",
-      "name": "iCharts PE/CE XHR Batch",
-      "transport": "icharts_xhr_batch",
-      "url": "https://www.icharts.in/opt/TotalPECEOIDiff_Beta.php",
-      "action": "none",
-      "selection": "",
-      "selection_selector": "",
-      "submit_selector": "",
-      "download_selector": "",
-      "wait_seconds": 1.0,
+      "id": "pece_total_oi_diff",
+      "name": "Total PE-CE OI Diff (XHR)",
+      "transport": "xhr_capture",
+      "page_url": "https://www.icharts.in/opt/TotalPECEOIDiff_Beta.php",
+      "endpoint": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\PECE_Volume",
-      "filename_suffix": "",
-      "filename_rule": "",
-      "expected_symbol_count": 220,
-      "concurrency": 12,
-      "retries": 0,
-      "request_timeout_seconds": 3,
-      "enabled": true,
-      "split_batch_size": 48,
-      "batch_gap_ms": 3000,
-      "request_gap_ms": 150,
-      "request_jitter_min_ms": 100,
-      "request_jitter_max_ms": 400,
-      "run_timeout_seconds": 210
+      "enabled": false,
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\August26\\2026-08-27\\PECE",
+      "output_stem": "TotalPECEOIDiff",
+      "page_wait_seconds": 3,
+      "capture_wait_seconds": 15,
+      "request_timeout_ms": 60000,
+      "columns": [],
+      "notes": "The page itself creates the authenticated XHR. The engine captures that response in the same Playwright BrowserContext, avoiding hard-coded session IDs, cookies, expiry or symbol/strike request values. Initial job is disabled until live validation.",
+      "action": "xhr"
     }
   ]
 }
