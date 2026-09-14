@@ -1,6 +1,6 @@
 {
   "start_time": "01:10",
-  "stop_time": "23:50",
+  "stop_time": "23:59",
   "jobs": [
     {
       "id": "daywise_price_oi",
@@ -16,7 +16,7 @@
       "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -33,7 +33,7 @@
       "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -50,7 +50,7 @@
       "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -67,7 +67,7 @@
       "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -84,7 +84,7 @@
       "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -101,7 +101,7 @@
       "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "replace_leading_support_with_resistance",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -121,7 +121,7 @@
       "filename_rule": "",
       "expected_symbol_count": 220,
       "concurrency": 12,
-      "retries": 0,
+      "retries": 1,
       "request_timeout_seconds": 3,
       "enabled": true,
       "split_batch_size": 48,

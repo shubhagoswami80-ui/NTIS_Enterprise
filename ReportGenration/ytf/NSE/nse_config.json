@@ -1,0 +1,20 @@
+{
+  "feed_root": "D:\\My-data\\Share_P&L\\ytdata\\nse_feed",
+  "output_subfolder": "output",
+  "date_folder": {
+    "enabled": true,
+    "year_format": "%Y",
+    "month_format": "%B",
+    "day_format": "%Y-%m-%d"
+  },
+  "inputs": {
+    "daywise": "",
+    "resistance": "",
+    "support_resistance": "",
+    "nse_option_chain": ""
+  },
+  "runtime": {
+    "trade_date": "",
+    "timezone": "Asia/Kolkata"
+  }
+}

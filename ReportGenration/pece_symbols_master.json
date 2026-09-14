@@ -1,0 +1,1758 @@
+{
+  "version": 2,
+  "scope": "NSE individual F&O stocks only",
+  "symbols": [
+    {
+      "symbol": "NIFTY",
+      "instrument_type": "INDEX",
+      "exchange": "NSE",
+      "expiry_frequency": "IGNORE",
+      "enabled": false,
+      "reason": "Index excluded from NSE-stock download"
+    },
+    {
+      "symbol": "BANKNIFTY",
+      "instrument_type": "INDEX",
+      "exchange": "NSE",
+      "expiry_frequency": "IGNORE",
+      "enabled": false,
+      "reason": "Index excluded from NSE-stock download"
+    },
+    {
+      "symbol": "FINNIFTY",
+      "instrument_type": "INDEX",
+      "exchange": "NSE",
+      "expiry_frequency": "IGNORE",
+      "enabled": false,
+      "reason": "Index excluded from NSE-stock download"
+    },
+    {
+      "symbol": "MIDCPNIFTY",
+      "instrument_type": "INDEX",
+      "exchange": "NSE",
+      "expiry_frequency": "IGNORE",
+      "enabled": false,
+      "reason": "Index excluded from NSE-stock download"
+    },
+    {
+      "symbol": "NIFTYNXT50",
+      "instrument_type": "INDEX",
+      "exchange": "NSE",
+      "expiry_frequency": "IGNORE",
+      "enabled": false,
+      "reason": "Index excluded from NSE-stock download"
+    },
+    {
+      "symbol": "NIFTYFPI",
+      "instrument_type": "INDEX",
+      "exchange": "NSE",
+      "expiry_frequency": "IGNORE",
+      "enabled": false,
+      "reason": "Index excluded from NSE-stock download"
+    },
+    {
+      "symbol": "SENSEX",
+      "instrument_type": "INDEX",
+      "exchange": "BSE",
+      "expiry_frequency": "IGNORE",
+      "enabled": false,
+      "reason": "Index excluded from NSE-stock download"
+    },
+    {
+      "symbol": "BANKEX",
+      "instrument_type": "INDEX",
+      "exchange": "BSE",
+      "expiry_frequency": "IGNORE",
+      "enabled": false,
+      "reason": "Index excluded from NSE-stock download"
+    },
+    {
+      "symbol": "FOCIT",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "360ONE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ABB",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ABCAPITAL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ADANIENSOL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ADANIENT",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ADANIGREEN",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ADANIPORTS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ADANIPOWER",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ALKEM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "AMBER",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "AMBUJACEM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ANGELONE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "APLAPOLLO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "APOLLOHOSP",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ASHOKLEY",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ASIANPAINT",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ASTRAL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ATHERENERG",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "AUBANK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "AUROPHARMA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "AXISBANK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BAJAJ-AUTO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BAJAJFINSV",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BAJAJHLDNG",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BAJFINANCE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BANDHANBNK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BANKBARODA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BANKINDIA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BDL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BEL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BHARATFORG",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BHARTIARTL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BHEL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BIOCON",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BLUESTARCO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BOSCHLTD",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BPCL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BRITANNIA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "BSE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "CAMS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "CANBK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "CDSL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "CGPOWER",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "CHOLAFIN",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "CIPLA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "COALINDIA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "COCHINSHIP",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "COFORGE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "COLPAL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "CONCOR",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "CROMPTON",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "CUMMINSIND",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "DABUR",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "DELHIVERY",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "DIVISLAB",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "DIXON",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "DLF",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "DMART",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "DRREDDY",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "EICHERMOT",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ETERNAL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "FEDERALBNK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "FORCEMOT",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "FORTIS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "GAIL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "GLENMARK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "GMRAIRPORT",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "GODFRYPHLP",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "GODREJCP",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "GODREJPROP",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "GRASIM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "GVT&D",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HAL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HAVELLS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HCLTECH",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HDFCAMC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HDFCBANK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HDFCLIFE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HEROMOTOCO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HINDALCO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HINDPETRO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HINDUNILVR",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HINDZINC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "HYUNDAI",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ICICIBANK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ICICIGI",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ICICIPRULI",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "IDEA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "IDFCFIRSTB",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "IEX",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "INDHOTEL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "INDIANB",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "INDIGO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "INDUSINDBK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "INDUSTOWER",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "INFY",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "INOXWIND",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "IOC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "IREDA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "IRFC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ITC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "JINDALSTEL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "JIOFIN",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "JSWENERGY",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "JSWSTEEL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "JUBLFOOD",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "KALYANKJIL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "KAYNES",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "KEI",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "KFINTECH",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "KOTAKBANK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "KPITTECH",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "LAURUSLABS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "LICHSGFIN",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "LICI",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "LODHA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "LT",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "LTF",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "LTM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "LUPIN",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "M&M",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MAHABANK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MANAPPURAM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MANKIND",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MARICO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MARUTI",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MAZDOCK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MCX",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MFSL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MOTHERSON",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MOTILALOFS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MPHASIS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "MUTHOOTFIN",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "NAM-INDIA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "NATIONALUM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "NAUKRI",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "NBCC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "NESTLEIND",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "NHPC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "NMDC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "NTPC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "NYKAA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "OBEROIRLTY",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "OFSS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "OIL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ONGC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PAGEIND",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PATANJALI",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PAYTM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PERSISTENT",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PETRONET",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PFC",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PGEL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PHOENIXLTD",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PIDILITIND",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PIIND",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PNB",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PNBHOUSING",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "POLICYBZR",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "POLYCAB",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "POWERGRID",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "POWERINDIA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PREMIERENE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "PRESTIGE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "RADICO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "RBLBANK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "RECLTD",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "RELIANCE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "RVNL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SAGILITY",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SAIL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SBICARD",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SBILIFE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SBIN",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SHREECEM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SHRIRAMFIN",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SIEMENS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SOLARINDS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SONACOMS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SRF",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SUNPHARMA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SUPREMEIND",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SUZLON",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "SWIGGY",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TATACONSUM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TATAELXSI",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TATAPOWER",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TATASTEEL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TCS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TECHM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TIINDIA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TITAN",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TMPV",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TORNTPHARM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TRENT",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "TVSMOTOR",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ULTRACEMCO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "UNIONBANK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "UNITDSPR",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "UNOMINDA",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "UPL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "VBL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "VEDL",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "VMM",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "VOLTAS",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "WAAREEENER",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "WIPRO",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "YESBANK",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    },
+    {
+      "symbol": "ZYDUSLIFE",
+      "instrument_type": "STOCK",
+      "exchange": "NSE",
+      "expiry_frequency": "MONTHLY",
+      "enabled": true,
+      "reason": "NSE individual-stock candidate"
+    }
+  ]
+}
