@@ -2891,6 +2891,43 @@ def _build_symbol_history_index(
     if not isinstance(snapshot_results, dict) or not snapshot_results:
         return {}
     wanted = {str(v).strip().upper() for v in symbols or set() if str(v).strip()}
+
+    # Presentation-only reuse: within a Streamlit run, identical snapshot
+    # objects and symbol selections do not need to be rescanned repeatedly.
+    # This deliberately avoids st.cache_data because snapshot_results contains
+    # mutable/stateful DataFrames and this function is also used outside the
+    # normal page-render path. The cache is bounded and has no decision impact.
+    # Use a stable fingerprint of the snapshot collection rather than only
+    # id(snapshot_results). Streamlit reruns can recreate the outer dictionary
+    # while retaining the same underlying snapshot frames; using only the
+    # dictionary id would then miss safe presentation-only reuse. The frame
+    # identity/shape/timestamp components also invalidate the entry when the
+    # underlying snapshot collection advances. This remains outside all
+    # decision, scoring, alert, and lifecycle state.
+    _snapshot_fingerprint = []
+    for _snapshot_key, _snapshot_frame in snapshot_results.items():
+        if isinstance(_snapshot_frame, pd.DataFrame):
+            _timestamp_probe = ''
+            for _timestamp_column in ('source_timestamp', 'observation_timestamp'):
+                if _timestamp_column in _snapshot_frame.columns and not _snapshot_frame.empty:
+                    try:
+                        _timestamp_probe = str(_snapshot_frame[_timestamp_column].iloc[-1])
+                    except Exception:
+                        _timestamp_probe = ''
+                    break
+            _snapshot_fingerprint.append(
+                (str(_snapshot_key), id(_snapshot_frame), _snapshot_frame.shape, _timestamp_probe)
+            )
+        else:
+            _snapshot_fingerprint.append((str(_snapshot_key), type(_snapshot_frame).__name__))
+    _memo_key = (tuple(_snapshot_fingerprint), tuple(sorted(wanted)))
+    try:
+        _memo = st.session_state.setdefault("_ntis_history_index_memo", {})
+        if _memo_key in _memo:
+            return _memo[_memo_key]
+    except Exception:
+        _memo = None
+
     buckets: dict[str, list[tuple[pd.Timestamp, pd.Series]]] = {}
     for frame in snapshot_results.values():
         if not isinstance(frame, pd.DataFrame) or frame.empty or "symbol" not in frame.columns:
@@ -2914,10 +2951,19 @@ def _build_symbol_history_index(
             bucket = buckets.setdefault(symbol, [])
             for idx in group.index:
                 bucket.append((pd.Timestamp(group.at[idx, "__history_ts"]), group.loc[idx].drop(labels=["__history_symbol", "__history_ts"])))
-    return {
+    built = {
         symbol: [row for _, row in sorted(items, key=lambda item: item[0])]
         for symbol, items in buckets.items()
     }
+    if _memo is not None:
+        try:
+            _memo[_memo_key] = built
+            # Keep the memo bounded across repeated Streamlit reruns.
+            while len(_memo) > 8:
+                _memo.pop(next(iter(_memo)))
+        except Exception:
+            pass
+    return built
 
 
 def _symbol_snapshot_history(
