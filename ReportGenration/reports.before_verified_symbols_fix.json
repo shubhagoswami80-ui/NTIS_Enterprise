@@ -1,6 +1,6 @@
 {
-  "start_time": "09:18",
-  "stop_time": "15:10",
+  "start_time": "01:10",
+  "stop_time": "23:50",
   "jobs": [
     {
       "id": "daywise_price_oi",
@@ -13,10 +13,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-16",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -30,10 +30,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-16",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -47,10 +47,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-16",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -64,10 +64,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-16",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -81,10 +81,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-16",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -98,10 +98,10 @@
       "download_selector": "button[title=\"Download Excel\"]",
       "wait_seconds": 2.0,
       "interval_minutes": 5,
-      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-16",
+      "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\",
       "filename_suffix": "",
       "filename_rule": "replace_leading_support_with_resistance",
-      "enabled": true,
+      "enabled": false,
       "transport": "browser_download"
     },
     {
@@ -115,7 +115,7 @@
       "submit_selector": "",
       "download_selector": "",
       "wait_seconds": 1.0,
-      "interval_minutes": 10,
+      "interval_minutes": 5,
       "destination": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\PECE_Volume",
       "filename_suffix": "",
       "filename_rule": "",
