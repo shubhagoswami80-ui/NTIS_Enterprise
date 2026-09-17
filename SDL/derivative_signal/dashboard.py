@@ -1745,6 +1745,7 @@ def _initialize_live_day_from_backlog(
     sources: list[Path],
     trading_date: str,
     progress_callback: Any | None = None,
+    retracement_enabled: bool | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, bool, bool]:
     """Reconcile a current day: complete replay if needed, otherwise promote it."""
     ordered = _sort_sources(sources)
@@ -1759,7 +1760,14 @@ def _initialize_live_day_from_backlog(
         return latest, timeline, changed, False
 
     latest, timeline, snapshots = _build_replay_day_in_memory(
-        ordered, trading_date, selected_index=None, progress_callback=progress_callback
+        ordered,
+        trading_date,
+        selected_index=None,
+        progress_callback=progress_callback,
+        run_retracement=(
+            bool(st.session_state.get("ds_live_retracement_enabled", False))
+            if retracement_enabled is None else bool(retracement_enabled)
+        ),
     )
     cached_count, source_count, complete = _replay_cache_coverage(
         trading_date, ordered, cache={"snapshots": snapshots, "timeline": timeline}
@@ -1889,13 +1897,20 @@ def _auto_process_new_snapshots(
     trading_date: str,
     max_batch: int | None = 1,
     progress_callback: Any | None = None,
+    retracement_enabled: bool | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, bool]:
     """Process complete logical LIVE snapshots strictly after the durable checkpoint.
 
     Physical reports are first assembled into downloader capture groups. One
     logical group is then evaluated once by the existing decision engine. The
     durable checkpoint advances only after the whole logical group completes.
+
+    ``retracement_enabled`` is an isolated LIVE diagnostic switch. When false,
+    the frozen decision path still processes and checkpoints snapshots, but the
+    retracement lifecycle engine is not invoked.
     """
+    if retracement_enabled is None:
+        retracement_enabled = bool(st.session_state.get("ds_live_retracement_enabled", False))
     ordered = _sort_sources(sources)
     if not ordered:
         return pd.DataFrame(), pd.DataFrame(), False
@@ -2114,10 +2129,23 @@ def _auto_process_new_snapshots(
 
             logical_key = f"logical::{pd.Timestamp(timestamp).isoformat()}"
             cached_snapshots[logical_key] = result
-            # TEMPORARY LIVE DIAGNOSTIC: retracement execution is disabled here only.
-            # Historical replay and all other retracement call sites remain unchanged.
-            # This bypass is intentionally limited to the normal LIVE incremental path
-            # so we can measure whether retracement processing is the dominant latency source.
+            # Retracement is an isolated post-processing layer. It runs only after
+            # the logical snapshot is complete and uses the same authoritative
+            # _rank(result) eligibility boundary. Failures are contained so the
+            # frozen LIVE decision/dashboard path remains usable. The LIVE toggle
+            # can disable this entire layer for tomorrow's diagnostic test.
+            if retracement_enabled:
+                try:
+                    retracement_result = _update_retracement_alerts(
+                        state, trading_date, result, cached_snapshots,
+                        history_by_symbol=history_by_symbol, durable_state=state,
+                    )
+                    if isinstance(retracement_result, pd.DataFrame):
+                        result = retracement_result
+                except Exception as exc:
+                    result.attrs["retracement_isolated_error"] = str(exc)[:240]
+            else:
+                result.attrs["retracement_disabled_for_live"] = True
             result.attrs["replay_lifecycle_events"] = _point_lifecycle_from_state(
                 state, trading_date, _rank(result)
             )
@@ -3853,6 +3881,157 @@ def _camarilla_r3_s3_for_date(path: Path, trading_date: str) -> dict[str, tuple[
         return {}
 
 
+def _wilder_rsi(closes: pd.Series, period: int = 14) -> float | None:
+    """Calculate Wilder RSI(14) from chronological closes only."""
+    if not isinstance(closes, pd.Series):
+        return None
+    values = pd.to_numeric(closes, errors="coerce").dropna().astype(float)
+    if len(values) < period + 1:
+        return None
+    delta = values.diff().dropna()
+    gains = delta.clip(lower=0.0)
+    losses = (-delta).clip(lower=0.0)
+    avg_gain = float(gains.iloc[:period].mean())
+    avg_loss = float(losses.iloc[:period].mean())
+    for i in range(period, len(gains)):
+        avg_gain = ((avg_gain * (period - 1)) + float(gains.iloc[i])) / period
+        avg_loss = ((avg_loss * (period - 1)) + float(losses.iloc[i])) / period
+    if avg_loss == 0.0:
+        return 100.0 if avg_gain > 0.0 else 50.0
+    return float(100.0 - (100.0 / (1.0 + (avg_gain / avg_loss))))
+
+
+def _retracement_mtf_rsi(
+    observations: list[tuple[pd.Timestamp, pd.Series, float]],
+    current_ts: pd.Timestamp,
+) -> dict[str, float | None]:
+    """Return point-in-time Wilder RSI(14) on session-aligned intraday bars.
+
+    The base observation stream is reduced to one latest price per 15-minute
+    bucket. Higher timeframes are then aggregated from those same chronological
+    15-minute observations using an NSE-session anchor of 09:15, rather than
+    arbitrary chunks or midnight-aligned pandas buckets. No observation after
+    ``current_ts`` is ever used.
+    """
+    if pd.isna(current_ts):
+        return {"15m": None, "30m": None, "1H": None, "2H": None}
+
+    bars: dict[pd.Timestamp, float] = {}
+    for ts, _obs, price in observations:
+        if pd.isna(ts) or ts > current_ts:
+            continue
+        bars[pd.Timestamp(ts).floor("15min")] = float(price)
+    if not bars:
+        return {"15m": None, "30m": None, "1H": None, "2H": None}
+
+    ordered = sorted(bars.items(), key=lambda x: x[0])
+    result: dict[str, float | None] = {
+        "15m": _wilder_rsi(
+            pd.Series([v for _, v in ordered], dtype="float64"), 14
+        ),
+        "30m": None,
+        "1H": None,
+        "2H": None,
+    }
+
+    session_anchor = pd.Timestamp(current_ts).normalize() + pd.Timedelta(hours=9, minutes=15)
+
+    def _session_bucket(ts: pd.Timestamp, minutes: int) -> pd.Timestamp:
+        if ts.normalize() != session_anchor.normalize():
+            anchor = ts.normalize() + pd.Timedelta(hours=9, minutes=15)
+        else:
+            anchor = session_anchor
+        elapsed = ts - anchor
+        steps = int(elapsed.total_seconds() // (minutes * 60))
+        return anchor + pd.Timedelta(minutes=steps * minutes)
+
+    for label, minutes in (("30m", 30), ("1H", 60), ("2H", 120)):
+        grouped: dict[pd.Timestamp, float] = {}
+        for ts, price in ordered:
+            bucket = _session_bucket(pd.Timestamp(ts), minutes)
+            grouped[bucket] = float(price)
+        grouped_ordered = sorted(grouped.items(), key=lambda x: x[0])
+        if len(grouped_ordered) >= 15:
+            result[label] = _wilder_rsi(
+                pd.Series([v for _, v in grouped_ordered], dtype="float64"), 14
+            )
+    return result
+
+
+def _retracement_indicator_values(
+    history: list[pd.Series] | None,
+    current_ts: pd.Timestamp,
+) -> dict[str, Any]:
+    """Build point-in-time EMA20/VWAP/MTF-RSI evidence from symbol history only."""
+    observations: list[tuple[pd.Timestamp, pd.Series, float]] = []
+    if isinstance(history, list):
+        today = current_ts.date() if pd.notna(current_ts) else None
+        for obs in history:
+            ts = pd.to_datetime(
+                obs.get("source_timestamp", obs.get("observation_timestamp", "")),
+                errors="coerce",
+            )
+            price = _retracement_price(obs)
+            if pd.isna(ts) or price is None or ts > current_ts:
+                continue
+            if today is not None and ts.date() != today:
+                continue
+            observations.append((pd.Timestamp(ts), obs, float(price)))
+
+    # Indicator calculations must be deterministic even if the supplied
+    # history dictionary/list was assembled by different persistence paths.
+    observations.sort(key=lambda item: item[0])
+
+    bars: dict[pd.Timestamp, tuple[pd.Timestamp, pd.Series, float]] = {}
+    for ts, obs, price in observations:
+        bars[ts.floor("15min")] = (ts, obs, price)
+    bar_items = sorted(bars.items(), key=lambda item: item[0])
+    closes = pd.Series(
+        [item[1][2] for item in bar_items],
+        index=pd.DatetimeIndex([item[0] for item in bar_items]),
+        dtype="float64",
+    )
+    ema20 = None
+    ema_ready = len(closes) >= 20
+    if ema_ready:
+        ema20 = float(
+            closes.ewm(span=20, adjust=False, min_periods=20).mean().iloc[-1]
+        )
+
+    vwap = None
+    volumes = [_retracement_volume(obs) for _, obs, _ in observations]
+    if volumes and all(v is not None for v in volumes):
+        vals = [float(v) for v in volumes]
+        cumulative = all(vals[i] >= vals[i - 1] for i in range(1, len(vals)))
+        effective = (
+            [vals[0]] + [max(0.0, vals[i] - vals[i - 1]) for i in range(1, len(vals))]
+            if cumulative
+            else [max(0.0, v) for v in vals]
+        )
+        total = sum(effective)
+        if total > 0:
+            weighted = 0.0
+            for (_, obs, price), vol in zip(observations, effective):
+                h = pd.to_numeric(obs.get("High", obs.get("high")), errors="coerce")
+                l = pd.to_numeric(obs.get("Low", obs.get("low")), errors="coerce")
+                typical = float((h + l + price) / 3) if pd.notna(h) and pd.notna(l) else price
+                weighted += typical * vol
+            vwap = weighted / total
+
+    mtf = _retracement_mtf_rsi(observations, current_ts)
+    return {
+        "ema20": ema20,
+        "ema_ready": ema_ready,
+        "bar_count": len(closes),
+        "vwap": vwap,
+        "rsi_15m": mtf.get("15m"),
+        "rsi_30m": mtf.get("30m"),
+        "rsi_1h": mtf.get("1H"),
+        "rsi_2h": mtf.get("2H"),
+        "observation_count": len(observations),
+    }
+
+
 def _retracement_context(
     row: pd.Series,
     snapshot_results: dict[str, pd.DataFrame] | None = None,
@@ -4010,59 +4189,20 @@ def _retracement_context(
             camarilla_touched = low <= s3 <= high
             camarilla_reversal = camarilla_touched and data_cycle_development == "POSITIVE"
 
-    # Today's observations only for 15-minute EMA20 and session VWAP.
-    today = current_ts.date()
-    observations = []
-    for obs in history:
-        ts = pd.to_datetime(
-            obs.get("source_timestamp", obs.get("observation_timestamp", "")),
-            errors="coerce",
-        )
-        price = _retracement_price(obs)
-        if pd.isna(ts) or price is None or ts.date() != today or ts > current_ts:
-            continue
-        observations.append((ts, obs, price))
-
-    # One close per completed 15-minute bucket, using the latest observation.
-    bars: dict[pd.Timestamp, tuple[pd.Timestamp, pd.Series, float]] = {}
-    for ts, obs, price in observations:
-        bars[ts.floor("15min")] = (ts, obs, price)
-
-    bar_items = sorted(bars.items(), key=lambda item: item[0])
-    closes = pd.Series(
-        [item[1][2] for item in bar_items],
-        index=pd.DatetimeIndex([item[0] for item in bar_items]),
-        dtype="float64",
-    )
-
-    ema20 = None
-    ema_ready = len(closes) >= 20
-    if ema_ready:
-        ema20 = float(
-            closes.ewm(span=20, adjust=False, min_periods=20).mean().iloc[-1]
-        )
-
-    # Session VWAP: use only today's source rows and convert cumulative volume
-    # to increments when the input is cumulative.
-    vwap = None
-    volumes = [_retracement_volume(obs) for _, obs, _ in observations]
-    if volumes and all(v is not None for v in volumes):
-        vals = [float(v) for v in volumes]
-        cumulative = all(vals[i] >= vals[i - 1] for i in range(1, len(vals)))
-        effective = (
-            [vals[0]] + [max(0.0, vals[i] - vals[i - 1]) for i in range(1, len(vals))]
-            if cumulative
-            else [max(0.0, v) for v in vals]
-        )
-        total = sum(effective)
-        if total > 0:
-            weighted = 0.0
-            for (_, obs, price), vol in zip(observations, effective):
-                h = pd.to_numeric(obs.get("High", obs.get("high")), errors="coerce")
-                l = pd.to_numeric(obs.get("Low", obs.get("low")), errors="coerce")
-                typical = float((h + l + price) / 3) if pd.notna(h) and pd.notna(l) else price
-                weighted += typical * vol
-            vwap = weighted / total
+    # Today's point-in-time indicator evidence. Preserve the existing EMA20 and
+    # VWAP formulas, and derive MTF RSI from the same chronological observation
+    # stream. This helper is also reused by historical replay display.
+    indicators = _retracement_indicator_values(history, current_ts)
+    ema20 = indicators.get("ema20")
+    ema_ready = bool(indicators.get("ema_ready"))
+    vwap = indicators.get("vwap")
+    mtf_rsi = {
+        "15m": indicators.get("rsi_15m"),
+        "30m": indicators.get("rsi_30m"),
+        "1H": indicators.get("rsi_1h"),
+        "2H": indicators.get("rsi_2h"),
+    }
+    closes_count = int(indicators.get("bar_count", 0) or 0)
 
     levels: list[tuple[str, float]] = []
     if ema20 is not None:
@@ -4082,11 +4222,15 @@ def _retracement_context(
                 "15m EMA20 warming up and session VWAP unavailable"
             ),
             "ema_ready": ema_ready,
-            "bar_count": len(closes),
+            "bar_count": closes_count,
             "break_origin": break_origin,
             "break_timestamp": break_ts.to_pydatetime() if break_ts is not None else None,
             "break_level": break_level,
             "primary_direction": direction,
+            "rsi_15m": mtf_rsi.get("15m"),
+            "rsi_30m": mtf_rsi.get("30m"),
+            "rsi_1h": mtf_rsi.get("1H"),
+            "rsi_2h": mtf_rsi.get("2H"),
         }
 
     # Prefer the closest valid retest reference that is on the retracement side
@@ -4107,10 +4251,32 @@ def _retracement_context(
         and low <= entry_level <= high
     )
 
-    # For a retracement, the current S/R label may legitimately be TEST,
-    # APPROACHING, or another non-broken state. What matters is that the
-    # primary direction has not reversed and the historical break exists.
-    status = "REENTRY ALERT" if touched else "WATCH"
+    # Two-stage lifecycle: interaction creates/maintains WATCH. A REENTRY ALERT
+    # requires a later point-in-time confirmation that price has recovered back
+    # through the selected reference in the primary direction.
+    confirmation = False
+    if isinstance(history, list):
+        for prior_obs in reversed(history):
+            prior_ts = pd.to_datetime(
+                prior_obs.get("source_timestamp", prior_obs.get("observation_timestamp", "")),
+                errors="coerce",
+            )
+            if pd.isna(prior_ts) or prior_ts >= current_ts:
+                continue
+            if break_ts is not None and prior_ts <= break_ts:
+                continue
+            prior_price = _retracement_price(prior_obs)
+            prior_high, prior_low = _retracement_hl(prior_obs)
+            if prior_price is None or prior_high is None or prior_low is None:
+                continue
+            if prior_low <= entry_level <= prior_high:
+                if direction == "BULLISH" and current_price > entry_level and prior_price <= entry_level:
+                    confirmation = True
+                elif direction == "BEARISH" and current_price < entry_level and prior_price >= entry_level:
+                    confirmation = True
+                break
+
+    status = "REENTRY ALERT" if confirmation else "WATCH"
     if camarilla_reversal:
         status = "REVERSAL"
         entry_name = camarilla_name
@@ -4128,7 +4294,11 @@ def _retracement_context(
         "entry_level": float(entry_level),
         "ema20": ema20,
         "ema_ready": ema_ready,
-        "bar_count": len(closes),
+        "rsi_15m": mtf_rsi.get("15m"),
+        "rsi_30m": mtf_rsi.get("30m"),
+        "rsi_1h": mtf_rsi.get("1H"),
+        "rsi_2h": mtf_rsi.get("2H"),
+        "bar_count": closes_count,
         "vwap": vwap,
         "touched": bool(touched),
         "current_price": current_price,
@@ -5253,6 +5423,14 @@ def _render_retracement_lifecycle(
                 "price_interaction": replay_event.get("price_interaction", ""),
                 "reason": replay_event.get("reason", ""),
             }
+            # Replay lifecycle status comes only from the selected point-in-time
+            # event. Indicator values are independently calculated from the
+            # already-selected historical prefix, so filters can see real RSI/EMA
+            # values without recomputing or changing lifecycle state.
+            replay_indicators = _retracement_indicator_values(
+                history_by_symbol.get(symbol, []), current_ts
+            )
+            ctx.update(replay_indicators)
         elif saved_reversal or saved_alert or saved_watch or saved_break or event_index.get(symbol):
             # LIVE already has durable lifecycle state. Prefer the richest recorded
             # lifecycle event (REVERSAL > REENTRY ALERT > WATCH) over older summary
@@ -5289,6 +5467,12 @@ def _render_retracement_lifecycle(
                 "ema20": source.get("ema20"),
                 "vwap": source.get("vwap"),
             }
+            live_indicators = _retracement_indicator_values(
+                history_by_symbol.get(symbol, []), current_ts
+            )
+            for _key, _value in live_indicators.items():
+                if _value is not None:
+                    ctx[_key] = _value
         else:
             # Avoid the expensive historical indicator reconstruction for every
             # qualified row. Only rows with an actual current-day break or a
@@ -5593,6 +5777,10 @@ def _render_retracement_lifecycle(
                 "_ema_ready": ctx.get("ema_ready"),
                 "_ema20": ctx.get("ema20"),
                 "_vwap": ctx.get("vwap"),
+                "_rsi_15m": ctx.get("rsi_15m"),
+                "_rsi_30m": ctx.get("rsi_30m"),
+                "_rsi_1h": ctx.get("rsi_1h"),
+                "_rsi_2h": ctx.get("rsi_2h"),
                 "_alert_datetime": alert_dt,
                 "_development": development,
                 "_price_interaction": price_interaction,
@@ -5716,6 +5904,64 @@ def _render_retracement_lifecycle(
                 mask &= (alert_hours >= 12) & (alert_hours < 14)
             elif time_filter == "After 14:00":
                 mask &= alert_hours >= 14
+
+        # Retracement-only audit filters. These affect display only and never
+        # feed _rank(), qualification, lifecycle generation, or replay state.
+        with st.expander("Advanced Filters • audit/display only", expanded=False):
+            numeric_map = {
+                "15m RSI": "_rsi_15m", "30m RSI": "_rsi_30m",
+                "1H RSI": "_rsi_1h", "2H RSI": "_rsi_2h",
+                "15m EMA20": "_ema20", "Session VWAP": "_vwap",
+            }
+            active_filters = []
+
+            # Retracement-only numeric filters. Four RSI controls occupy the
+            # first row; EMA20 and VWAP occupy a second row. The prior version
+            # attempted to index four columns with six filters, causing the
+            # observed LIVE IndexError: list index out of range.
+            filter_groups = [
+                list(numeric_map.items())[:4],
+                list(numeric_map.items())[4:],
+            ]
+            filter_idx = 0
+            for group in filter_groups:
+                if not group:
+                    continue
+                af_cols = st.columns(len(group))
+                for col_idx, (label, colname) in enumerate(group):
+                    with af_cols[col_idx]:
+                        mode = st.selectbox(
+                            label, ["Any", ">=", "<=", ">", "<", "="],
+                            key=f"{widget_key_prefix}rt_af_mode_{filter_scope}_{filter_idx}",
+                        )
+                        if mode != "Any":
+                            threshold = st.number_input(
+                                f"{label} threshold",
+                                value=50.0,
+                                step=0.5,
+                                key=f"{widget_key_prefix}rt_af_value_{filter_scope}_{filter_idx}",
+                            )
+                            active_filters.append((colname, mode, float(threshold)))
+                    filter_idx += 1
+            logic = st.radio(
+                "Advanced filter combination", ["ALL (AND)", "ANY (OR)"],
+                horizontal=True, key=f"{widget_key_prefix}rt_af_logic_{filter_scope}",
+            )
+            if active_filters:
+                conditions = []
+                for colname, mode, threshold in active_filters:
+                    values = pd.to_numeric(table[colname], errors="coerce")
+                    if mode == ">=": conditions.append(values >= threshold)
+                    elif mode == "<=": conditions.append(values <= threshold)
+                    elif mode == ">": conditions.append(values > threshold)
+                    elif mode == "<": conditions.append(values < threshold)
+                    else: conditions.append((values - threshold).abs() < 1e-9)
+                advanced_mask = conditions[0]
+                for cond in conditions[1:]:
+                    advanced_mask = (
+                        advanced_mask & cond if logic.startswith("ALL") else advanced_mask | cond
+                    )
+                mask &= advanced_mask.fillna(False)
 
         filtered = table.loc[mask].copy()
 
@@ -5962,6 +6208,40 @@ def _render_retracement_lifecycle(
                 use_container_width=True,
                 hide_index=True,
             )
+        rsi_rows = []
+        for item in rows:
+            rsi_rows.append({
+                "Stock": item["Stock"],
+                "15m RSI(14)": (
+                    f"{float(item['_rsi_15m']):.1f}"
+                    if item.get("_rsi_15m") is not None else "WARMING UP"
+                ),
+                "30m RSI(14)": (
+                    f"{float(item['_rsi_30m']):.1f}"
+                    if item.get("_rsi_30m") is not None else "WARMING UP"
+                ),
+                "1H RSI(14)": (
+                    f"{float(item['_rsi_1h']):.1f}"
+                    if item.get("_rsi_1h") is not None else "WARMING UP"
+                ),
+                "2H RSI(14)": (
+                    f"{float(item['_rsi_2h']):.1f}"
+                    if item.get("_rsi_2h") is not None else "WARMING UP"
+                ),
+            })
+        if rsi_rows:
+            with st.expander("MTF Momentum / RSI • formula-derived", expanded=False):
+                st.caption(
+                    "Wilder RSI(14) from the selected point-in-time intraday prefix. "
+                    "A value requires at least 15 bars; otherwise WARMING UP is shown. "
+                    "RSI is display/evidence only and is not a qualification gate."
+                )
+                st.dataframe(
+                    pd.DataFrame(rsi_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
         st.caption(
             "Original Alert, Break Time, Watch/Event, and Re-entry Alert are "
             "separate timestamps. This layer is diagnostic and does not change "
@@ -6155,16 +6435,45 @@ def _live_audit_controls() -> None:
     if not isinstance(timeline, pd.DataFrame):
         timeline = pd.DataFrame()
 
-    st.caption("LIVE audit tools — retracement temporarily disabled")
-    _, c2 = st.columns(2)
+    retracement_enabled = bool(st.session_state.get("ds_live_retracement_enabled", False))
+    st.caption(
+        "LIVE audit tools — retracement "
+        + ("ON" if retracement_enabled else "OFF")
+        + " • lifecycle execution is isolated from snapshot processing"
+    )
+    c1, c2 = st.columns(2)
+    with c1:
+        load_lifecycle = st.button(
+            "LIVE • Load Retracement / Re-entry",
+            use_container_width=True,
+            key=f"live_audit_load_lifecycle_{live_scope}",
+        )
     with c2:
         load_evolution = st.button(
             "LIVE • Load Intraday Stock Evolution",
             use_container_width=True,
             key=f"live_audit_load_evolution_{live_scope}",
         )
+    if load_lifecycle:
+        st.session_state[f"show_live_lifecycle_{live_scope}"] = True
     if load_evolution:
         st.session_state[f"show_live_evolution_{live_scope}"] = True
+
+    if st.session_state.get(f"show_live_lifecycle_{live_scope}", False):
+        try:
+            _render_retracement_lifecycle(
+                result,
+                snapshot_results=live_render_state.get("snapshot_results", {}),
+                widget_key_prefix="live_",
+                trading_date=str(st.session_state.get("ds_trading_date", "")),
+                replay_mode=False,
+                history_by_symbol=_build_symbol_history_index(
+                    live_render_state.get("snapshot_results", {}),
+                    {str(v).strip().upper() for v in _rank(result).get("symbol", pd.Series(dtype=str)).tolist() if str(v).strip()}
+                ),
+            )
+        except Exception as exc:
+            st.warning(f"LIVE retracement audit unavailable: {type(exc).__name__}: {exc}")
 
     if not st.session_state.get(f"show_live_evolution_{live_scope}", False):
         return
@@ -6439,7 +6748,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
         # This diagnostic build has no periodic LIVE fragment. LIVE processing
         # runs only when the normal dashboard render is triggered; when enabled,
         # it processes only newly completed logical groups.
-        controls_a, controls_b = st.columns([2, 1])
+        controls_a, controls_b, controls_c = st.columns([2, 2, 1])
         with controls_a:
             auto_update = st.checkbox(
                 "Auto-update live feed (manual refresh during optimization)",
@@ -6447,11 +6756,27 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                 key="ds_auto_update",
             )
         with controls_b:
+            retracement_enabled = st.checkbox(
+                "Enable LIVE retracement processing (diagnostic)",
+                value=False,
+                key="ds_live_retracement_enabled",
+                help=(
+                    "OFF: LIVE snapshot processing bypasses the retracement lifecycle engine. "
+                    "ON: retracement/re-entry lifecycle runs after each completed logical LIVE snapshot. "
+                    "This switch does not change SDL qualification, ranking, signals, or dashboard filters."
+                ),
+            )
+        with controls_c:
             refresh = st.button(
                 "↻ Refresh",
                 use_container_width=True,
                 key="ds_live_refresh",
             )
+
+        st.caption(
+            "LIVE retracement processing: "
+            + ("ON • diagnostic" if retracement_enabled else "OFF • snapshot processing protected")
+        )
 
         current_day_backlog_requested = bool(
             st.session_state.pop("ds_current_day_backlog_requested", False)
@@ -6569,7 +6894,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                     if not current_complete:
                         progress.progress(0, text=f"Rebuilding complete point-in-time chain: 0 / {len(live_sources_now)}")
                         _latest, _timeline, changed, processed = _initialize_live_day_from_backlog(
-                            live_sources_now, trading_date, progress_callback=_backlog_progress
+                            live_sources_now, trading_date, progress_callback=_backlog_progress, retracement_enabled=retracement_enabled
                         )
                         final_cached, final_total, _snapshot_complete = _replay_cache_coverage(
                             trading_date, live_sources_now
@@ -6587,7 +6912,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         )
                     elif not checkpoint_ok and checkpoint_reason_now == "NO_DURABLE_CHECKPOINT":
                         _latest, _timeline, changed, _processed = _initialize_live_day_from_backlog(
-                            live_sources_now, trading_date, progress_callback=_backlog_progress
+                            live_sources_now, trading_date, progress_callback=_backlog_progress, retracement_enabled=retracement_enabled
                         )
                         if not changed:
                             raise RuntimeError("LIVE checkpoint could not be established from the complete replay chain.")
@@ -6603,7 +6928,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         pending_now = _pending_live_sources(live_sources_now, trading_date)
                         if pending_now:
                             _latest, _timeline, _changed = _auto_process_new_snapshots(
-                                pending_now, trading_date, max_batch=None, progress_callback=_backlog_progress
+                                pending_now, trading_date, max_batch=None, progress_callback=_backlog_progress, retracement_enabled=retracement_enabled
                             )
                         # A LIVE-only catch-up can leave replay gaps when older
                         # snapshots were processed before replay persistence was
@@ -6617,7 +6942,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         )
                         if not final_complete:
                             _latest, _timeline, _changed, _processed = _initialize_live_day_from_backlog(
-                                final_sources, trading_date, progress_callback=_backlog_progress
+                                final_sources, trading_date, progress_callback=_backlog_progress, retracement_enabled=retracement_enabled
                             )
                             final_cached, final_total, final_complete = _replay_cache_coverage(
                                 trading_date, final_sources
@@ -6761,6 +7086,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         trading_date,
                         # One complete logical snapshot group per LIVE tick.
                         max_batch=1,
+                        retracement_enabled=retracement_enabled,
                     )
                 else:
                     restored = _restore_last_complete_state(trading_date)
@@ -7060,6 +7386,7 @@ def _build_replay_day_in_memory(
     trading_date: str,
     selected_index: int | None = None,
     progress_callback: Any | None = None,
+    run_retracement: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
     """Build/rebuild the chronological replay chain with durable resume.
 
@@ -7254,18 +7581,22 @@ def _build_replay_day_in_memory(
             if symbol:
                 history_by_symbol.setdefault(symbol, []).append(current_row)
 
-        result = _update_retracement_alerts(
-            replay_state,
-            trading_date,
-            result,
-            snapshots,
-            history_by_symbol,
-            durable_prior_state,
-        )
-        lifecycle_point = _point_lifecycle_from_state(
-            replay_state, trading_date, _rank(result)
-        )
-        result.attrs["replay_lifecycle_events"] = lifecycle_point
+        if run_retracement:
+            result = _update_retracement_alerts(
+                replay_state,
+                trading_date,
+                result,
+                snapshots,
+                history_by_symbol,
+                durable_prior_state,
+            )
+            lifecycle_point = _point_lifecycle_from_state(
+                replay_state, trading_date, _rank(result)
+            )
+            result.attrs["replay_lifecycle_events"] = lifecycle_point
+        else:
+            result.attrs["retracement_disabled_for_live"] = True
+            result.attrs["replay_lifecycle_events"] = {}
         snapshots[key] = result
 
         for row in result.to_dict(orient="records"):
