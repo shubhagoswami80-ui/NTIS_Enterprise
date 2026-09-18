@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime
 import html
 import json
+import pickle
 import re
 import time
 from urllib.parse import quote
@@ -66,6 +67,54 @@ st.set_page_config(
 )
 
 SETTINGS_FILE = Path(__file__).resolve().parent / ".sdl_dashboard_settings.json"
+
+# One persisted dashboard working snapshot.  Source workbooks are used only
+# to detect/ingest a NEW 5-minute observation; once processed, the dashboard
+# serves this persisted result and does not reopen the source workbook.
+PROCESSED_LIVE_SNAPSHOT_FILE = (
+    Path(__file__).resolve().parent / ".sdl_processed_live_snapshot.pkl"
+)
+
+# Persistent chronological day cache. Source workbooks remain READ ONLY;
+# replay/live consume this cache once a trading-day observation has been processed.
+DAY_POINT_CACHE_SCHEMA = 6
+DAY_POINT_IN_TIME_CACHE_FILE = (
+    Path(__file__).resolve().parent / ".sdl_day_point_in_time_cache.pkl"
+)
+
+def _load_persisted_live_snapshot():
+    try:
+        if not PROCESSED_LIVE_SNAPSHOT_FILE.exists():
+            return None
+        with PROCESSED_LIVE_SNAPSHOT_FILE.open("rb") as handle:
+            value = pickle.load(handle)
+        if not isinstance(value, dict):
+            return None
+        if not isinstance(value.get("pred"), pd.DataFrame):
+            return None
+        return value
+    except Exception:
+        return None
+
+def _save_persisted_live_snapshot(path: Path, ts, pred: pd.DataFrame, message: str) -> None:
+    tmp = PROCESSED_LIVE_SNAPSHOT_FILE.with_suffix(".tmp")
+    payload = {
+        "source_path": str(path) if path is not None else None,
+        "observation_timestamp": pd.Timestamp(ts).isoformat() if ts is not None and pd.notna(ts) else None,
+        "pred": pred.copy(),
+        "message": str(message or ""),
+        "evidence_status": "pending",
+    }
+    try:
+        with tmp.open("wb") as handle:
+            pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        tmp.replace(PROCESSED_LIVE_SNAPSHOT_FILE)
+    except Exception:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
 
 
 # ============================================================================
@@ -628,6 +677,13 @@ table.queue td{
 }
 .trader-label{color:#a9bad0;font-size:10px!important;font-weight:950!important;letter-spacing:.08em}
 .trader-value{color:#f3f7fd;font-size:19px!important;font-weight:950!important;margin-top:6px;line-height:1.05}
+.trader-value.up{color:#18df82!important}
+.trader-value.down{color:#ff5960!important}
+.trader-value.flat{color:#f3f7fd!important}
+.trader-secondary-change{display:inline-block;margin-left:6px;font-size:10px!important;font-weight:900!important;vertical-align:baseline;white-space:nowrap}
+.trader-secondary-change.up{color:#18df82!important}
+.trader-secondary-change.down{color:#ff5960!important}
+.trader-secondary-change.flat{color:#a9bad0!important}
 .trader-note{color:#8ea1ba;font-size:10px!important;margin-top:5px}
 .interpretation{
   padding:0 9px 9px;color:#aabbd0;font-size:10px!important;line-height:1.45;
@@ -779,6 +835,7 @@ def pct(value) -> str:
     return f"{float(value):+.2f}%"
 
 
+@st.cache_data(ttl=30, show_spinner=False)
 def observation_ts(path: Path) -> pd.Timestamp:
     """
     Return the authoritative source observation timestamp.
@@ -792,6 +849,7 @@ def observation_ts(path: Path) -> pd.Timestamp:
     except Exception:
         return pd.NaT
 
+@st.cache_data(ttl=30, show_spinner=False)
 def snapshot_files(trading_date: str | None = None) -> list[Path]:
     try:
         return sorted(
@@ -800,6 +858,352 @@ def snapshot_files(trading_date: str | None = None) -> list[Path]:
         )
     except Exception:
         return []
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+
+
+
+def _load_day_point_cache() -> dict:
+    try:
+        if not DAY_POINT_IN_TIME_CACHE_FILE.exists():
+            return {}
+        with DAY_POINT_IN_TIME_CACHE_FILE.open("rb") as handle:
+            value = pickle.load(handle)
+        return value if isinstance(value, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_day_point_cache(cache: dict) -> None:
+    tmp = DAY_POINT_IN_TIME_CACHE_FILE.with_suffix(".tmp")
+    try:
+        with tmp.open("wb") as handle:
+            pickle.dump(cache, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        tmp.replace(DAY_POINT_IN_TIME_CACHE_FILE)
+    except Exception:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def _canonical_header_map(columns) -> dict[str, object]:
+    return {str(c).strip().casefold(): c for c in columns}
+
+
+def _named_column(df: pd.DataFrame, *names: str):
+    lookup = _canonical_header_map(df.columns)
+    for name in names:
+        col = lookup.get(str(name).strip().casefold())
+        if col is not None:
+            return col
+    return None
+
+
+def _numeric_series(df: pd.DataFrame, column) -> pd.Series:
+    if column is None:
+        return pd.Series(pd.NA, index=df.index, dtype="Float64")
+    return pd.to_numeric(
+        df[column].astype(str)
+        .str.replace(",", "", regex=False)
+        .str.replace("%", "", regex=False),
+        errors="coerce",
+    )
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+
+
+
+
+def _day_ivrp_candidates(day: str) -> list[Path]:
+    """Find IVR/IVP periodic workbooks by filename, without column positions."""
+    root = Path(getattr(sdl_config, "INTRADAY_SOURCE_ROOT", ""))
+    if not root.exists():
+        return []
+    found = []
+    patterns = (
+        f"IVR-IVP*{day}*.xlsx",
+        f"IVR_IVP*{day}*.xlsx",
+        f"IVRIVP*{day}*.xlsx",
+    )
+    for pattern in patterns:
+        try:
+            found.extend(root.rglob(pattern))
+        except Exception:
+            continue
+    return sorted({Path(x) for x in found}, key=lambda x: (observation_ts(x), str(x).lower()))
+
+
+def _source_filename_timestamp_key(path: Path) -> str | None:
+    """Extract the explicit YYYY-MM-DD_HHMMSS capture token from a source name."""
+    if path is None:
+        return None
+    m = re.search(r"(20\d{2}-\d{2}-\d{2})[_-](\d{6})(?:\D|$)", Path(path).name)
+    if not m:
+        return None
+    return f"{m.group(1)}_{m.group(2)}"
+
+
+def _normalize_ivrp_export(raw: pd.DataFrame) -> pd.DataFrame:
+    """Normalize IVR/IVP exports whose first row contains the real headers."""
+    if raw is None or raw.empty:
+        return pd.DataFrame()
+    out = raw.copy()
+    out.columns = [str(c).strip() for c in out.columns]
+    first = out.iloc[0].astype(str).str.strip().tolist()
+    if first and first[0].lower() == "symbol":
+        out = out.iloc[1:].copy()
+        out.columns = first
+        out.columns = [str(c).strip() for c in out.columns]
+    return out.reset_index(drop=True)
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _read_ivrp_for_timestamp(day: str, target: pd.Timestamp) -> pd.DataFrame:
+    """Read authoritative Futures OI evidence from IVR/IVP for one snapshot.
+
+    Matching is deliberately centralized for both LIVE and Replay:
+      1) exact capture token (YYYY-MM-DD_HHMMSS), when available;
+      2) otherwise the first IVR/IVP workbook arriving from target through
+         +300 seconds. Older companions are never substituted.
+
+    The IVR/IVP physical fields ``Total OI Chg`` and ``Total OI Chg (%)`` are
+    authoritative for Futures OI Change. Missing evidence remains pending.
+    """
+    if not day or target is None or pd.isna(target):
+        return pd.DataFrame()
+    candidates = _day_ivrp_candidates(str(day)[:10])
+    if not candidates:
+        return pd.DataFrame()
+
+    target = pd.Timestamp(target)
+    target_key = target.strftime("%Y-%m-%d_%H%M%S")
+    exact_name = []
+    forward = []
+    for path in candidates:
+        ckey = _source_filename_timestamp_key(path)
+        if ckey == target_key:
+            exact_name.append(path)
+            continue
+        ts = observation_ts(path)
+        if pd.isna(ts):
+            continue
+        delta = (pd.Timestamp(ts) - target).total_seconds()
+        if 0.0 <= delta <= 300.0:
+            forward.append((delta, path))
+
+    if exact_name:
+        path = sorted(exact_name, key=lambda p: str(p).lower())[0]
+    elif forward:
+        _, path = sorted(forward, key=lambda x: (x[0], str(x[1]).lower()))[0]
+    else:
+        return pd.DataFrame()
+
+    try:
+        raw = _normalize_ivrp_export(pd.read_excel(path))
+        symbol_col = _named_column(raw, "Symbol", "symbol", "Ticker", "ticker")
+        # These are the authoritative physical IVR/IVP fields.
+        oi_col = _named_column(
+            raw,
+            "Total OI Chg", "Total OI Change", "total_oi_chg",
+            "Fut OI Chg", "Futures OI Chg", "Future OI Chg",
+            "fut_oi_chg", "futures_oi_chg",
+        )
+        oi_pct_col = _named_column(
+            raw,
+            "Total OI Chg (%)", "Total OI Chg %", "Total OI Change (%)",
+            "Total OI Change %", "total_oi_chg_pct",
+            "Fut OI Chg %", "Futures OI Chg %", "Future OI Chg %",
+            "fut_oi_chg_pct", "futures_oi_chg_pct",
+        )
+        if symbol_col is None:
+            return pd.DataFrame()
+        out = pd.DataFrame({
+            "symbol": raw[symbol_col].astype(str).str.strip().str.upper(),
+            "futures_oi_chg": _numeric_series(raw, oi_col),
+            "futures_oi_chg_pct": _numeric_series(raw, oi_pct_col),
+        })
+        out = out[out["symbol"].ne("") & out["symbol"].ne("NAN")].copy()
+        return out.drop_duplicates("symbol")
+    except Exception:
+        return pd.DataFrame()
+
+def _day_option_evidence(daywise: pd.DataFrame) -> pd.DataFrame:
+    """Extract Daywise option/PCR evidence for dashboard presentation.
+
+    Futures OI is intentionally not sourced here: IVR/IVP is authoritative.
+    """
+    if daywise is None or daywise.empty:
+        return pd.DataFrame()
+    symbol_col = _named_column(daywise, "Symbol", "symbol", "Ticker", "ticker")
+    if symbol_col is None:
+        return pd.DataFrame()
+
+    out = pd.DataFrame({
+        "symbol": daywise[symbol_col].astype(str).str.strip().str.upper()
+    })
+    out["futures_oi_chg"] = pd.NA
+    out["futures_oi_chg_pct"] = pd.NA
+
+    pece_col = _named_column(
+        daywise, "Tot PE-CE OI Chg", "PE-CE OI Chg", "PE_CE_OI_Chg"
+    )
+    pe_pct_col = _named_column(
+        daywise, "Tot PE OI Chg %", "PE OI Chg %", "PE OI Change %"
+    )
+    ce_pct_col = _named_column(
+        daywise, "Tot CE OI Chg %", "CE OI Chg %", "CE OI Change %"
+    )
+    pcr_pct_col = _named_column(
+        daywise, "PCR Chg %", "PCR Change %", "PCR Δ %"
+    )
+
+    out["pe_minus_ce_oi_chg"] = _numeric_series(daywise, pece_col)
+    pe_pct = _numeric_series(daywise, pe_pct_col)
+    ce_pct = _numeric_series(daywise, ce_pct_col)
+    out["pe_minus_ce_oi_chg_pct"] = pe_pct - ce_pct
+    out["pcr_chg_pct"] = _numeric_series(daywise, pcr_pct_col)
+
+    return out[out["symbol"].ne("") & out["symbol"].ne("NAN")].drop_duplicates("symbol")
+
+def _merge_snapshot_evidence(
+    df: pd.DataFrame,
+    option_evidence: pd.DataFrame | None,
+    futures_evidence: pd.DataFrame | None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Merge one snapshot's Daywise + authoritative IVR/IVP evidence.
+
+    IVR/IVP Futures OI values override any same-named Daywise values whenever
+    present. All other requested presentation fields remain Daywise-derived.
+    """
+    if df is None or df.empty or "symbol" not in df.columns:
+        return df, pd.DataFrame()
+    opt = option_evidence.copy() if isinstance(option_evidence, pd.DataFrame) else pd.DataFrame()
+    fut = futures_evidence.copy() if isinstance(futures_evidence, pd.DataFrame) else pd.DataFrame()
+
+    if opt.empty and fut.empty:
+        return df.copy(), pd.DataFrame()
+    if opt.empty:
+        evidence = fut.copy()
+    elif fut.empty:
+        evidence = opt.copy()
+    else:
+        evidence = opt.merge(fut, on="symbol", how="outer", suffixes=("", "_ivrp"))
+        for col in ("futures_oi_chg", "futures_oi_chg_pct"):
+            ivrp_col = f"{col}_ivrp"
+            if ivrp_col in evidence.columns:
+                # IVR/IVP is authoritative: use it whenever populated.
+                incoming = pd.to_numeric(evidence[ivrp_col], errors="coerce")
+                evidence[col] = incoming
+                evidence.drop(columns=[ivrp_col], inplace=True)
+    return _enrich_snapshot_from_day_cache(df, evidence), evidence
+
+
+def _enrich_snapshot_from_day_cache(df: pd.DataFrame, evidence: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty or evidence is None or evidence.empty or "symbol" not in df.columns:
+        return df
+    out = df.copy()
+    lookup = evidence.drop_duplicates("symbol").set_index("symbol")
+    for col in (
+        "futures_oi_chg", "futures_oi_chg_pct",
+        "pe_minus_ce_oi_chg", "pe_minus_ce_oi_chg_pct", "pcr_chg_pct",
+    ):
+        if col not in out.columns:
+            out[col] = pd.NA
+        existing = pd.to_numeric(out[col], errors="coerce")
+        incoming = (
+            pd.to_numeric(out["symbol"].map(lookup[col]), errors="coerce")
+            if col in lookup.columns else pd.Series(pd.NA, index=out.index)
+        )
+        # Presentation evidence only: fill missing values. IVR/IVP
+        # precedence is enforced before this helper by _merge_snapshot_evidence.
+        out[col] = existing.where(existing.notna(), incoming)
+    return out
+
+@st.cache_data(ttl=60, show_spinner=False)
+def build_day_point_in_time_cache(trading_date: str) -> dict:
+    """Build/load one complete chronological trading-day cache.
+
+    Each entry contains the already-processed SDL prediction plus the source
+    evidence available at that exact observation.  Existing SDL qualification
+    logic is reused unchanged; this function only packages its point-in-time
+    inputs/results for replay and presentation.
+    """
+    day = str(trading_date)[:10]
+    if not day:
+        return {}
+    cache = _load_day_point_cache()
+    day_cache = cache.get(day, {}) if isinstance(cache.get(day), dict) else {}
+    if day_cache.get("cache_schema") != DAY_POINT_CACHE_SCHEMA:
+        # Rebuild this day once after the corrected point-in-time evidence mapping.
+        # No source files are modified.
+        day_cache = {}
+    entries = day_cache.get("snapshots", {}) if isinstance(day_cache.get("snapshots"), dict) else {}
+    files = snapshot_files(day)
+    if not files:
+        return day_cache
+
+    state = load_state(STATE_JSON)
+    base = state.get("daily_opening_straddles", {}).get(day) if isinstance(state, dict) else None
+    if not base:
+        first_df, first_ts = load_primary_snapshot(files[0], observation_ts(files[0]))
+        first_df = derive_straddle_values(first_df)
+        base = frozen_base_from_df(first_df)
+
+    changed = False
+    for path in files:
+        ts = observation_ts(path)
+        if pd.isna(ts):
+            continue
+        key = pd.Timestamp(ts).isoformat()
+        existing_entry = entries.get(key) if isinstance(entries, dict) else None
+        existing_pending = bool(
+            isinstance(existing_entry, dict)
+            and existing_entry.get("evidence_status") == "pending"
+        )
+        existing_complete = bool(
+            isinstance(existing_entry, dict)
+            and existing_entry.get("evidence_status") == "complete"
+        )
+        if key in entries and existing_complete and not existing_pending:
+            continue
+        try:
+            raw, loaded_ts = load_primary_snapshot(path, ts)
+            ts = pd.to_datetime(loaded_ts, errors="coerce")
+            if pd.isna(ts):
+                continue
+            raw = derive_straddle_values(raw)
+            option_ev = _day_option_evidence(raw)
+            future_ev = _read_ivrp_for_timestamp(day, ts)
+            pred = candidates(raw, base or {}, snapshot_ts=ts, snapshot_path=None)
+            pred, evidence = _merge_snapshot_evidence(pred, option_ev, future_ev)
+            futures_available = _futures_evidence_available(future_ev)
+            entries[key] = {
+                "timestamp": pd.Timestamp(ts).isoformat(),
+                "source_path": str(path),
+                "pred": pred.copy(),
+                "evidence": evidence.copy(),
+                "evidence_status": "complete" if futures_available else "pending",
+            }
+            changed = True
+        except Exception:
+            continue
+
+    ordered = dict(sorted(entries.items(), key=lambda kv: kv[0]))
+    day_cache = {
+        "cache_schema": DAY_POINT_CACHE_SCHEMA,
+        "trading_date": day,
+        "latest_timestamp": next(reversed(ordered), None) if ordered else None,
+        "snapshots": ordered,
+        "source_count": len(files),
+    }
+    if changed:
+        cache[day] = day_cache
+        _save_day_point_cache(cache)
+    return day_cache
+
 
 
 def logo(symbol) -> str:
@@ -853,66 +1257,120 @@ def _matches_source_snapshot(ts, source_times: list[pd.Timestamp], tolerance_sec
 
 
 @st.cache_data(ttl=60, show_spinner=False)
-def first_alert_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
-    """Return first primary-gate qualification time from persisted evidence.
+def first_alert_map(
+    trading_date: str | None = None,
+    cutoff_ts: pd.Timestamp | None = None,
+) -> dict[str, pd.Timestamp]:
+    """Return only carried, source-backed first-alert timestamps.
 
-    Uses the frozen daily opening base, not each later snapshot's Open field.
-    This is display-only timestamp reconstruction; the primary SDL candidate
-    engine remains authoritative and is not modified.
+    Provenance order is: durable SDL ``first_alerts`` state, then required
+    evidence.  Neither source is allowed to create an alert time.  A carried
+    timestamp is accepted only when it matches an actual source observation
+    timestamp for the same trading day and is not later than the selected
+    replay cutoff.
     """
-    evidence = _daily_evidence(trading_date)
-    if evidence.empty:
+    if not trading_date:
         return {}
 
-    required = {"Symbol", "current_price", "observation_timestamp"}
-    if not required.issubset(evidence.columns):
+    source_times = _source_timestamp_set(trading_date)
+    if not source_times:
         return {}
 
+    cutoff = pd.Timestamp(cutoff_ts) if cutoff_ts is not None and pd.notna(cutoff_ts) else None
+    result: dict[str, pd.Timestamp] = {}
+
+    # ------------------------------------------------------------------
+    # 1) Durable SDL first_alerts state — established carried provenance.
+    # ------------------------------------------------------------------
     try:
         state = load_state(STATE_JSON)
     except Exception:
         state = {}
-    base_map = (
-        state.get("daily_opening_straddles", {}).get(str(trading_date)[:10], {})
+
+    day_state = (
+        state.get("first_alerts", {}).get(str(trading_date)[:10], {})
         if isinstance(state, dict)
         else {}
     )
-    if not base_map:
-        return {}
+    # Some SDL state layouts store first_alerts under the per-day state.
+    if not isinstance(day_state, dict) or not day_state:
+        day_state = (
+            state.get(str(trading_date)[:10], {}).get("first_alerts", {})
+            if isinstance(state, dict) and isinstance(state.get(str(trading_date)[:10]), dict)
+            else {}
+        )
+    if not isinstance(day_state, dict) or not day_state:
+        day_state = (
+            state.get("decision_state", {}).get(str(trading_date)[:10], {}).get("first_alerts", {})
+            if isinstance(state, dict) and isinstance(state.get("decision_state"), dict)
+            else {}
+        )
 
-    source_times = _source_timestamp_set(trading_date)
-    e = evidence.copy()
-    e["Symbol"] = e["Symbol"].astype(str).str.strip().str.upper()
-    e["observation_timestamp"] = _evidence_timestamp(e)
-    e["current_price"] = pd.to_numeric(e["current_price"], errors="coerce")
-    e["_frozen_open"] = e["Symbol"].map(
-        {k: v.get("open_price") for k, v in base_map.items()}
-    )
-    e["_frozen_premium"] = e["Symbol"].map(
-        {k: v.get("opening_straddle_premium") for k, v in base_map.items()}
-    )
-    e["_frozen_open"] = pd.to_numeric(e["_frozen_open"], errors="coerce")
-    e["_frozen_premium"] = pd.to_numeric(e["_frozen_premium"], errors="coerce")
-    e["price_gate"] = (e["current_price"] - e["_frozen_open"]).abs() / e["_frozen_open"] * 100.0
-    e["progress"] = (e["current_price"] - e["_frozen_open"]).abs() / e["_frozen_premium"] * 100.0
-    e = e[
-        e["Symbol"].ne("")
-        & e["observation_timestamp"].notna()
-        & e["current_price"].notna()
-        & e["_frozen_open"].notna()
-        & e["_frozen_premium"].gt(0)
-        & e["price_gate"].ge(0.75)
-        & e["progress"].ge(25.0)
-    ]
-    if source_times:
-        e = e[e["observation_timestamp"].map(lambda x: _matches_source_snapshot(x, source_times))]
-    if e.empty:
-        return {}
-    return e.groupby("Symbol")["observation_timestamp"].min().to_dict()
+    if isinstance(day_state, dict):
+        for symbol, payload in day_state.items():
+            symbol = str(symbol).strip().upper()
+            if not symbol:
+                continue
+            raw_ts = payload.get("timestamp") if isinstance(payload, dict) else payload
+            ts = pd.to_datetime(raw_ts, errors="coerce")
+            if pd.isna(ts):
+                continue
+            if not _matches_source_snapshot(ts, source_times):
+                continue
+            if cutoff is not None and ts > cutoff:
+                continue
+            result[symbol] = pd.Timestamp(ts)
+
+    # ------------------------------------------------------------------
+    # 2) Required evidence — secondary carried source, never a generator.
+    # ------------------------------------------------------------------
+    evidence = _daily_evidence(trading_date)
+    if (
+        not evidence.empty
+        and "Symbol" in evidence.columns
+        and "observation_timestamp" in evidence.columns
+    ):
+        alert_aliases = (
+            "first_trigger_timestamp",
+            "first_alert_timestamp",
+            "first_seen_timestamp",
+            "first_detection_timestamp",
+            "trigger_timestamp",
+            "decision_timestamp",
+            "alert_timestamp",
+            "alert_time",
+        )
+        alert_column = next((name for name in alert_aliases if name in evidence.columns), None)
+        if alert_column is not None:
+            e = evidence[["Symbol", "observation_timestamp", alert_column]].copy()
+            e["Symbol"] = e["Symbol"].astype(str).str.strip().str.upper()
+            e["observation_timestamp"] = _evidence_timestamp(e)
+            e["_alert_timestamp"] = pd.to_datetime(e[alert_column], errors="coerce")
+            e = e[
+                e["Symbol"].ne("")
+                & e["observation_timestamp"].notna()
+                & e["_alert_timestamp"].notna()
+                & (e["_alert_timestamp"] <= e["observation_timestamp"])
+            ]
+            e = e[
+                e["observation_timestamp"].map(lambda x: _matches_source_snapshot(x, source_times))
+                & e["_alert_timestamp"].map(lambda x: _matches_source_snapshot(x, source_times))
+            ]
+            if cutoff is not None:
+                e = e[e["_alert_timestamp"] <= cutoff]
+            if not e.empty:
+                for symbol, ts in e.groupby("Symbol")["_alert_timestamp"].min().items():
+                    # Durable state wins when both sources contain a value.
+                    result.setdefault(symbol, pd.Timestamp(ts))
+
+    return result
 
 
 @st.cache_data(ttl=60, show_spinner=False)
-def breakout_event_map(trading_date: str | None = None) -> dict[str, pd.Timestamp]:
+def breakout_event_map(
+    trading_date: str | None = None,
+    cutoff_ts: pd.Timestamp | None = None,
+) -> dict[str, pd.Timestamp]:
     """Return the first factual breakout observed in the real source snapshots.
 
     BREAKOUT TIME is reconstructed only from the existing SDL pipeline's
@@ -955,6 +1413,9 @@ def breakout_event_map(trading_date: str | None = None) -> dict[str, pd.Timestam
         ts = observation_ts(path)
         if pd.isna(ts):
             continue
+        if cutoff_ts is not None and pd.notna(cutoff_ts):
+            if pd.Timestamp(ts) > pd.Timestamp(cutoff_ts):
+                break
 
         try:
             snapshot, _ = load_primary_snapshot(path, ts)
@@ -1007,17 +1468,43 @@ def breakout_event_map(trading_date: str | None = None) -> dict[str, pd.Timestam
 
     return source_breakouts
 
-def add_first_times(df: pd.DataFrame, trading_date: str | None = None) -> pd.DataFrame:
+def add_first_times(
+    df: pd.DataFrame,
+    trading_date: str | None = None,
+    cutoff_ts: pd.Timestamp | None = None,
+) -> pd.DataFrame:
     if df is None or df.empty:
         return df
     out = df.copy()
-    out["first_trigger_timestamp"] = out["symbol"].map(first_alert_map(trading_date))
-    out["breakout_timestamp"] = out["symbol"].map(breakout_event_map(trading_date))
+    out["first_trigger_timestamp"] = out["symbol"].map(
+        first_alert_map(trading_date, cutoff_ts)
+    )
+    out["breakout_timestamp"] = out["symbol"].map(
+        breakout_event_map(trading_date, cutoff_ts)
+    )
+
+    # Point-in-time invariant: no carried event may be later than the
+    # selected source snapshot.  Invalid future timestamps are suppressed,
+    # never shifted, rounded, or replaced with the current time.
+    if cutoff_ts is not None and pd.notna(cutoff_ts):
+        cutoff = pd.Timestamp(cutoff_ts)
+        for column in ("first_trigger_timestamp", "breakout_timestamp"):
+            if column in out.columns:
+                # A symbol-map with no matching event can create a float64
+                # column containing NaN. Convert it to datetime64 before the
+                # point-in-time mask so pandas never receives NaT in float64.
+                values = pd.to_datetime(out[column], errors="coerce")
+                out[column] = values
+                out[column] = values.mask(values > cutoff, pd.NaT)
     return out
 
 
 def first_seen(row: pd.Series) -> pd.Timestamp:
-    """Display fallback: historical first trigger, then current observation."""
+    """Return only an explicit carried first-alert timestamp.
+
+    Never fall back to the current observation timestamp: that would make a
+    missing alert look like an alert occurring at the selected snapshot.
+    """
     for key in (
         "first_trigger_timestamp",
         "first_alert_timestamp",
@@ -1025,7 +1512,8 @@ def first_seen(row: pd.Series) -> pd.Timestamp:
         "first_detection_timestamp",
         "trigger_timestamp",
         "decision_timestamp",
-        "observation_timestamp",
+        "alert_timestamp",
+        "alert_time",
     ):
         value = pd.to_datetime(row.get(key), errors="coerce")
         if pd.notna(value):
@@ -1064,6 +1552,7 @@ def candidates(
     df: pd.DataFrame,
     base: dict | None = None,
     snapshot_ts: pd.Timestamp | None = None,
+    snapshot_path: Path | None = None,
 ) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
@@ -1131,8 +1620,8 @@ def candidates(
         if not ts.empty:
             day = ts.iloc[0].date().isoformat()
 
-    return add_first_times(out, day)
 
+    return add_first_times(out, day, snapshot_ts)
 
 def normalize_dashboard_predictions(df: pd.DataFrame) -> pd.DataFrame:
     """Normalize compatible prediction fields for dashboard presentation only."""
@@ -1208,6 +1697,76 @@ def breakout_series(df: pd.DataFrame) -> pd.Series:
 # FILTERS — DIRECTLY ABOVE THE QUEUE THEY CONTROL
 # ============================================================================
 
+def _parse_optional_number(value: str):
+    try:
+        text = str(value).strip().replace(",", "")
+        return float(text) if text else None
+    except (TypeError, ValueError):
+        return None
+
+
+def apply_data_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
+    """Optional numeric filters for the requested OI/PCR table fields only."""
+    if df is None or df.empty:
+        return df
+
+    with st.expander("DATA FILTERS · OI / PCR", expanded=False):
+        cols = st.columns(3)
+        specs = [
+            (cols[0], "FUTURES OI CHANGE", "futures_oi_chg", [
+                "futures_oi_chg", "Futures OI Change", "Future OI Change",
+                "Futures OI Δ", "Future OI Δ", "futures_oi_change", "future_oi_change",
+            ]),
+            (cols[1], "OPTION OI CHANGE", "pe_minus_ce_oi_chg", [
+                "pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change",
+                "PE−CE OI Change", "PE-CE OI Δ", "PE−CE OI Δ", "pe_minus_ce_oi",
+                "pe_ce_oi_change", "pe_minus_ce_oi_change",
+            ]),
+            (cols[2], "PCR CHANGE %", "pcr_chg_pct", [
+                "pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Δ %", "PCR_Chg_Pct",
+                "pcr_change_pct",
+            ]),
+        ]
+        filters = {}
+        for col, label, canonical, aliases in specs:
+            with col:
+                st.markdown(f'<div class="filter-title">{label}</div>', unsafe_allow_html=True)
+                source = next((a for a in aliases if a in df.columns), None)
+                if source is None:
+                    st.caption("No data")
+                    filters[canonical] = (None, None)
+                    continue
+                vals = pd.to_numeric(df[source], errors="coerce").dropna()
+                if vals.empty:
+                    st.caption("No data")
+                    filters[canonical] = (None, None)
+                    continue
+                a, b = st.columns(2)
+                with a:
+                    lo = st.text_input("Min", key=f"{key_prefix}_{canonical}_min", placeholder="Min", label_visibility="collapsed")
+                with b:
+                    hi = st.text_input("Max", key=f"{key_prefix}_{canonical}_max", placeholder="Max", label_visibility="collapsed")
+                filters[canonical] = (_parse_optional_number(lo), _parse_optional_number(hi))
+
+    aliases_by_canonical = {
+        "futures_oi_chg": ["futures_oi_chg", "Futures OI Change", "Future OI Change", "Futures OI Δ", "Future OI Δ", "futures_oi_change", "future_oi_change"],
+        "pe_minus_ce_oi_chg": ["pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change", "PE−CE OI Change", "PE-CE OI Δ", "PE−CE OI Δ", "pe_minus_ce_oi", "pe_ce_oi_change", "pe_minus_ce_oi_change"],
+        "pcr_chg_pct": ["pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Δ %", "PCR_Chg_Pct", "pcr_change_pct"],
+    }
+    out = df.copy()
+    for canonical, (lo, hi) in filters.items():
+        source = next((a for a in aliases_by_canonical[canonical] if a in out.columns), None)
+        if source is None:
+            continue
+        values = pd.to_numeric(out[source], errors="coerce")
+        if lo is not None:
+            out = out[values.ge(lo)]
+        if hi is not None:
+            values = pd.to_numeric(out[source], errors="coerce")
+            out = out[values.le(hi)]
+    return out
+
+
 def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
     """Render the Live Queue title and its four filters as one aligned header.
 
@@ -1276,7 +1835,7 @@ def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
         else:
             threshold = float(selections["progress"].replace("%+", ""))
             out = out[progress.ge(threshold)]
-    return out
+    return apply_data_filters(out, "live")
 
 
 def render_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
@@ -1404,6 +1963,7 @@ def render_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
         elif stage == "75–<100% APPROACHING":
             out = out[(p >= 75) & (p < 100)]
 
+    out = apply_data_filters(out, key_prefix)
     return out.reset_index(drop=True)
 
 
@@ -1449,6 +2009,34 @@ def queue_html(df: pd.DataFrame) -> str:
         price = pd.to_numeric(row.get("signed_price_move_pct"), errors="coerce")
         progress = pd.to_numeric(row.get("progress"), errors="coerce")
         strength = pd.to_numeric(row.get("strength"), errors="coerce")
+        futures_oi = metric(row, [
+            "futures_oi_chg", "Futures OI Change", "Future OI Change",
+            "Futures OI Δ", "Future OI Δ", "futures_oi_change", "future_oi_change",
+        ])
+        option_oi = metric(row, [
+            "pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change",
+            "PE−CE OI Change", "PE-CE OI Δ", "PE−CE OI Δ", "pe_minus_ce_oi",
+            "pe_ce_oi_change", "pe_minus_ce_oi_change",
+        ])
+        pcr_change = metric(row, [
+            "pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Δ %", "PCR_Chg_Pct",
+            "pcr_change_pct",
+        ])
+
+        def fmt_oi(value):
+            if value is None or pd.isna(value):
+                return "—"
+            return f"{float(value):+,.0f}"
+
+        def fmt_pct_value(value):
+            if value is None or pd.isna(value):
+                return "—"
+            return f"{float(value):+.2f}%"
+
+        def change_class(value):
+            if value is None or pd.isna(value):
+                return ""
+            return "up" if float(value) > 0 else "down" if float(value) < 0 else ""
 
         direction = str(row.get("direction_label", "—"))
         strength_label = str(row.get("strength_label", "—"))
@@ -1494,6 +2082,9 @@ def queue_html(df: pd.DataFrame) -> str:
         else:
             confirmation = str(confirmation_value)
 
+        futures_delayed = bool(row.get("futures_oi_delayed", False))
+        futures_suffix = " D" if futures_delayed and futures_oi is not None and not pd.isna(futures_oi) else ""
+
         rows.append(
             "<tr>"
             f"<td>{i}</td>"
@@ -1503,6 +2094,9 @@ def queue_html(df: pd.DataFrame) -> str:
             f'{safe_text(direction.title())} · '
             f'{safe_text(strength_label.title())}</span></td>'
             f'<td class="{price_class}">{pct(price)}</td>'
+            f'<td class="{change_class(futures_oi)}">{fmt_oi(futures_oi)}{futures_suffix}</td>'
+            f'<td class="{change_class(option_oi)}">{fmt_oi(option_oi)}</td>'
+            f'<td class="{change_class(pcr_change)}">{fmt_pct_value(pcr_change)}</td>'
             f'<td><b>{progress:.1f}%</b>'
             f'<span class="rail"><span class="rail-fill '
             f'{"break" if breakout else ""}" '
@@ -1524,8 +2118,11 @@ def queue_html(df: pd.DataFrame) -> str:
         '<th style="width:3%">#</th>'
         '<th style="width:12%">STOCK</th>'
         '<th style="width:15%">DIRECTION / STRENGTH</th>'
-        '<th style="width:7%">MOMENTUM</th>'
-        '<th style="width:12%">STRADDLE PROGRESS</th>'
+        '<th style="width:6%">MOMENTUM</th>'
+        '<th style="width:7%">FUTURES OI CHG</th>'
+        '<th style="width:7%">OPTION OI CHG</th>'
+        '<th style="width:7%">PCR CHG %</th>'
+        '<th style="width:10%">STRADDLE PROGRESS</th>'
         '<th style="width:11%">STAGE</th>'
         '<th style="width:9%">CONFIRMATION</th>'
         '<th style="width:5%">STRENGTH</th>'
@@ -1656,22 +2253,28 @@ def render_stock_detail(
         fut = metric(
             row,
             [
+                "Futures OI Change",
+                "Future OI Change",
+                "Futures OI Δ",
+                "Future OI Δ",
+                "futures_oi_change",
+                "future_oi_change",
+                "futures_oi_chg",
+                "future_oi_chg",
+            ],
+        )
+        fut_pct = metric(
+            row,
+            [
                 "Futures OI Chg %",
                 "Future OI Chg %",
                 "Futures OI Change %",
                 "Future OI Change %",
                 "Futures OI Δ %",
                 "Future OI Δ %",
-                "Futures OI Change %",
-                "Future OI Change %",
-                "Futures OI Δ %",
-                "Future OI Δ %",
-                "Futures OI Change",
-                "Future OI Change",
                 "futures_oi_chg_pct",
                 "future_oi_chg_pct",
                 "fut_oi_chg_pct",
-                "_futures_oi",
             ],
         )
         pcr = metric(
@@ -1703,6 +2306,19 @@ def render_stock_detail(
         pe_ce = metric(
             row,
             [
+                "PE_CE_OI_Chg",
+                "PE-CE OI Change",
+                "PE−CE OI Change",
+                "PE-CE OI Δ",
+                "PE−CE OI Δ",
+                "pe_minus_ce_oi",
+                "pe_ce_oi_change",
+                "pe_minus_ce_oi_change",
+            ],
+        )
+        pe_ce_pct = metric(
+            row,
+            [
                 "PE−CE OI Chg %",
                 "PE-CE OI Chg %",
                 "PE−CE OI Change %",
@@ -1712,8 +2328,6 @@ def render_stock_detail(
                 "Tot PE-CE OI Chg %",
                 "pe_minus_ce_oi_chg_pct",
                 "pe_ce_oi_chg_pct",
-                "PE_CE_OI_Chg",
-                "pe_minus_ce_oi",
             ],
         )
 
@@ -1780,32 +2394,63 @@ def render_stock_detail(
             )
         st.markdown(f'<div class="snapshot-context-grid">{"".join(snapshot_html)}</div>', unsafe_allow_html=True)
 
+        fut = metric(row, ["futures_oi_chg", "Futures OI Change", "Future OI Change", "Futures OI Δ", "Future OI Δ", "futures_oi_change", "future_oi_change", "futures_oi_chg", "future_oi_chg"])
+        fut_pct = metric(row, ["futures_oi_chg_pct", "Futures OI Chg %", "Future OI Chg %", "Futures OI Change %", "Future OI Change %", "futures_oi_chg_pct", "future_oi_chg_pct", "fut_oi_chg_pct"])
+        pcr_pct = metric(row, ["pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Δ %", "PCR_Chg_Pct", "pcr_change_pct"])
+        pe_ce = metric(row, ["pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change", "PE−CE OI Change", "PE-CE OI Δ", "PE−CE OI Δ", "pe_minus_ce_oi", "pe_ce_oi_change", "pe_minus_ce_oi_change"])
+        pe_ce_pct = metric(row, ["pe_minus_ce_oi_chg_pct", "PE−CE OI Chg %", "PE-CE OI Chg %", "PE−CE OI Change %", "PE-CE OI Change %", "PE−CE OI Δ %", "PE-CE OI Δ %", "pe_minus_ce_oi_chg_pct", "pe_ce_oi_chg_pct"])
+
         cards = [
-            ("FUTURES OI Δ", fut),
-            ("PCR Δ", pcr),
-            ("IV Δ", iv),
-            ("PE−CE OI Δ", pe_ce),
-            ("SUPPORT", support),
-            ("RESISTANCE", resistance),
+            ("FUTURES OI CHANGE", fut, fut_pct),
+            ("PCR CHANGE %", pcr_pct, None),
+            ("IV Δ", iv, None),
+            ("PE−CE OI CHANGE", pe_ce, pe_ce_pct),
+            ("SUPPORT", support, None),
+            ("RESISTANCE", resistance, None),
         ]
 
         card_html = []
 
-        for label, value in cards:
+        for label, value, value_pct in cards:
             if value is None or pd.isna(value):
                 shown = "—"
+                value_cls = ""
+                secondary = ""
                 note = "Not supplied by current primary snapshot"
             elif label in {"SUPPORT", "RESISTANCE"}:
                 shown = safe_text(value)
+                value_cls = ""
+                secondary = ""
                 note = "Primary snapshot field"
             else:
-                shown = f"{float(value):+.2f}%"
+                numeric_value = float(value)
+                value_cls = (
+                    "up" if numeric_value > 0
+                    else "down" if numeric_value < 0
+                    else "flat"
+                )
+                shown = f"{numeric_value:+,.0f}"
+                if label == "FUTURES OI CHANGE" and bool(row.get("futures_oi_delayed", False)):
+                    shown += " D"
+                if value_pct is not None and pd.notna(value_pct):
+                    pct_value = float(value_pct)
+                    pct_cls = (
+                        "up" if pct_value > 0
+                        else "down" if pct_value < 0
+                        else "flat"
+                    )
+                    secondary = (
+                        f'<span class="trader-secondary-change {pct_cls}">'
+                        f'({pct_value:+.2f}%)</span>'
+                    )
+                else:
+                    secondary = ""
                 note = "Primary snapshot field"
 
             card_html.append(
                 f'<div class="trader-card">'
                 f'<div class="trader-label">{label}</div>'
-                f'<div class="trader-value">{shown}</div>'
+                f'<div class="trader-value {value_cls}">{shown}{secondary}</div>'
                 f'<div class="trader-note">{note}</div>'
                 f'</div>'
             )
@@ -2344,41 +2989,137 @@ def historical_view() -> None:
 # READ-ONLY REPLAY — DIFFERENT FROM HISTORICAL EVIDENCE
 # ============================================================================
 
+
+def _process_single_snapshot_for_dashboard(
+    path: Path,
+    ts: pd.Timestamp,
+    df: pd.DataFrame,
+    message: str = "",
+) -> tuple[pd.DataFrame, str]:
+    """Materialize one snapshot for both LIVE and Replay using one evidence path."""
+    ts = pd.to_datetime(ts, errors="coerce")
+    if path is None or pd.isna(ts) or df is None or df.empty:
+        return pd.DataFrame(), "No current snapshot."
+
+    day = ts.date().isoformat()
+    state = load_state(STATE_JSON)
+    base = state.get("daily_opening_straddles", {}).get(day) if isinstance(state, dict) else None
+    if not base:
+        base = frozen_base_from_df(derive_straddle_values(df))
+
+    raw = derive_straddle_values(df)
+    pred = candidates(raw, base or {}, snapshot_ts=ts, snapshot_path=None)
+    option_evidence = _day_option_evidence(raw)
+    futures_evidence = _read_ivrp_for_timestamp(day, ts)
+    pred, evidence = _merge_snapshot_evidence(pred, option_evidence, futures_evidence)
+    futures_available = _futures_evidence_available(futures_evidence)
+
+    _upsert_day_point_cache_entry(
+        day, ts, path, pred, evidence,
+        "complete" if futures_available else "pending",
+    )
+    return pred, str(message or "")
+
+
+def _futures_evidence_available(evidence: pd.DataFrame | None) -> bool:
+    if evidence is None or evidence.empty:
+        return False
+    return (
+        "futures_oi_chg" in evidence.columns
+        and pd.to_numeric(evidence["futures_oi_chg"], errors="coerce").notna().any()
+    ) or (
+        "futures_oi_chg_pct" in evidence.columns
+        and pd.to_numeric(evidence["futures_oi_chg_pct"], errors="coerce").notna().any()
+    )
+
+
+def _upsert_day_point_cache_entry(
+    day: str,
+    ts: pd.Timestamp,
+    path: Path,
+    pred: pd.DataFrame,
+    evidence: pd.DataFrame,
+    evidence_status: str,
+) -> None:
+    """Persist exactly one point-in-time record without rebuilding the day."""
+    try:
+        cache = _load_day_point_cache()
+        day_cache = cache.get(day, {}) if isinstance(cache.get(day), dict) else {}
+        entries = day_cache.get("snapshots", {}) if isinstance(day_cache.get("snapshots"), dict) else {}
+        key = pd.Timestamp(ts).isoformat()
+        entries[key] = {
+            "timestamp": key,
+            "source_path": str(path),
+            "pred": pred.copy(),
+            "evidence": evidence.copy() if isinstance(evidence, pd.DataFrame) else pd.DataFrame(),
+            "evidence_status": str(evidence_status or "pending"),
+        }
+        ordered = dict(sorted(entries.items(), key=lambda kv: kv[0]))
+        cache[day] = {
+            "cache_schema": DAY_POINT_CACHE_SCHEMA,
+            "trading_date": day,
+            "latest_timestamp": next(reversed(ordered), None) if ordered else None,
+            "snapshots": ordered,
+            "source_count": day_cache.get("source_count", 0),
+        }
+        _save_day_point_cache(cache)
+    except Exception:
+        pass
+
 @st.cache_data(ttl=300, show_spinner=False)
 def replay_snapshot_frame(
     path: Path,
+    snapshot_ts: pd.Timestamp | None = None,
 ) -> tuple[pd.DataFrame, pd.Timestamp]:
-    df, ts = load_primary_snapshot(
-        path,
-        observation_ts(path),
-    )
+    ts = pd.to_datetime(snapshot_ts, errors="coerce")
+    if pd.isna(ts):
+        ts = observation_ts(path)
+    day = pd.Timestamp(ts).date().isoformat() if pd.notna(ts) else ""
+    key = pd.Timestamp(ts).isoformat() if pd.notna(ts) else ""
 
+    cache = _load_day_point_cache()
+    day_cache = cache.get(day, {}) if isinstance(cache, dict) else {}
+    entries = day_cache.get("snapshots", {}) if isinstance(day_cache.get("snapshots"), dict) else {}
+    entry = entries.get(key)
+
+    if isinstance(entry, dict) and isinstance(entry.get("pred"), pd.DataFrame):
+        replay_pred = entry["pred"].copy()
+        status = str(entry.get("evidence_status", "pending")).lower()
+        # Pending means the Daywise snapshot is known but IVR/IVP had not yet
+        # arrived. Retry only the same authoritative companion resolver.
+        if status != "complete":
+            futures_evidence = _read_ivrp_for_timestamp(day, pd.Timestamp(ts))
+            if not futures_evidence.empty:
+                option_evidence = entry.get("evidence")
+                replay_pred, evidence = _merge_snapshot_evidence(
+                    replay_pred,
+                    option_evidence if isinstance(option_evidence, pd.DataFrame) else pd.DataFrame(),
+                    futures_evidence,
+                )
+                status = "complete" if _futures_evidence_available(futures_evidence) else "pending"
+                _upsert_day_point_cache_entry(day, pd.Timestamp(ts), path, replay_pred, evidence, status)
+        return replay_pred, pd.Timestamp(entry.get("timestamp", ts))
+
+    # Uncached point: materialize it through the exact same path used by LIVE.
+    df, loaded_ts = load_primary_snapshot(path, ts)
+    ts = pd.to_datetime(loaded_ts, errors="coerce")
+    if pd.isna(ts):
+        return pd.DataFrame(), pd.NaT
     state = load_state(STATE_JSON)
-    day = ts.date().isoformat()
-
-    base = (
-        state.get("daily_opening_straddles", {}).get(day)
-        if isinstance(state, dict)
-        else None
-    )
-
-    # Display-only fallback. Nothing is persisted.
+    base = state.get("daily_opening_straddles", {}).get(day) if isinstance(state, dict) else None
     if not base:
         files = snapshot_files(day)
-
         if files:
-            first_df, _first_ts = load_primary_snapshot(
-                files[0],
-                observation_ts(files[0]),
-            )
-            first_df = derive_straddle_values(first_df)
-            base = frozen_base_from_df(first_df)
-
-    df = derive_straddle_values(df)
-    pred = candidates(df, base or {}, snapshot_ts=ts)
-
-    return pred, ts
-
+            first_df, _ = load_primary_snapshot(files[0], observation_ts(files[0]))
+            base = frozen_base_from_df(derive_straddle_values(first_df))
+    raw = derive_straddle_values(df)
+    pred = candidates(raw, base or {}, snapshot_ts=ts, snapshot_path=None)
+    option_evidence = _day_option_evidence(raw)
+    futures_evidence = _read_ivrp_for_timestamp(day, ts)
+    pred, evidence = _merge_snapshot_evidence(pred, option_evidence, futures_evidence)
+    status = "complete" if _futures_evidence_available(futures_evidence) else "pending"
+    _upsert_day_point_cache_entry(day, pd.Timestamp(ts), path, pred, evidence, status)
+    return pred, pd.Timestamp(ts)
 
 def replay_view() -> None:
     with st.expander(
@@ -2439,7 +3180,10 @@ def replay_view() -> None:
 
         path = day_files[int(selected_idx)]
 
-        pred, ts = replay_snapshot_frame(path)
+        pred, ts = replay_snapshot_frame(
+            path,
+            observation_ts(path),
+        )
 
         replay_ts_text = fmt_time(ts, full=True)
         st.caption(
@@ -2461,6 +3205,8 @@ def replay_view() -> None:
             unsafe_allow_html=True,
         )
 
+        # Replay uses the same presentation/filter layer as Live Queue.
+        # The underlying prediction snapshot remains immutable.
         filtered = render_filters(pred, "replay")
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -2491,6 +3237,169 @@ def replay_view() -> None:
 # ============================================================================
 # LIVE DATA
 # ============================================================================
+def _hydrate_live_from_point_cache(
+    day: str,
+    ts: pd.Timestamp,
+    pred: pd.DataFrame,
+) -> tuple[pd.DataFrame, str]:
+    """Use the exact persisted snapshot record as the LIVE presentation source."""
+    if pred is None or pred.empty or pd.isna(ts):
+        return pred, "pending"
+    try:
+        cache = _load_day_point_cache()
+        day_cache = cache.get(day, {}) if isinstance(cache, dict) else {}
+        entries = day_cache.get("snapshots", {}) if isinstance(day_cache.get("snapshots"), dict) else {}
+        entry = entries.get(pd.Timestamp(ts).isoformat())
+        if not isinstance(entry, dict):
+            return pred, "pending"
+        cached_pred = entry.get("pred")
+        if not isinstance(cached_pred, pd.DataFrame) or cached_pred.empty:
+            return pred, str(entry.get("evidence_status", "pending"))
+        status = str(entry.get("evidence_status", "pending")).lower()
+        # Cached record is authoritative for this exact snapshot. It already
+        # contains the unified Daywise + IVR/IVP materialization.
+        return cached_pred.copy(), ("complete" if _futures_evidence_available(entry.get("evidence")) else status)
+    except Exception:
+        return pred, "pending"
+
+# ============================================================================
+# LIVE-ONLY FUTURES / IVR-IVP RESOLVER
+# ============================================================================
+# Replay remains frozen on _read_ivrp_for_timestamp(). LIVE is allowed to use
+# the nearest IVR/IVP workbook that has actually arrived by wall-clock time.
+LIVE_IVRP_LOOKBACK_SECONDS = 900
+LIVE_IVRP_LOOKAHEAD_SECONDS = 900
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _read_ivrp_for_live_timestamp(day: str, target: pd.Timestamp) -> pd.DataFrame:
+    """Resolve LIVE Futures OI from the nearest already-arrived IVR/IVP file."""
+    if not day or target is None or pd.isna(target):
+        return pd.DataFrame()
+    candidates = _day_ivrp_candidates(str(day)[:10])
+    if not candidates:
+        return pd.DataFrame()
+    target = pd.Timestamp(target)
+    now = pd.Timestamp.now()
+    ranked = []
+    for path in candidates:
+        ts = observation_ts(path)
+        if pd.isna(ts) or pd.Timestamp(ts) > now:
+            continue
+        delta = (pd.Timestamp(ts) - target).total_seconds()
+        if delta <= 0 and abs(delta) <= LIVE_IVRP_LOOKBACK_SECONDS:
+            ranked.append((abs(delta), 0, -pd.Timestamp(ts).value, path))
+        elif delta > 0 and delta <= LIVE_IVRP_LOOKAHEAD_SECONDS:
+            ranked.append((delta, 1, -pd.Timestamp(ts).value, path))
+    if not ranked:
+        return pd.DataFrame()
+    _, _, _, path = sorted(ranked, key=lambda x: (x[0], x[1], x[2], str(x[3]).lower()))[0]
+    try:
+        raw = _normalize_ivrp_export(pd.read_excel(path))
+        symbol_col = _named_column(raw, "Symbol", "symbol", "Ticker", "ticker")
+        oi_col = _named_column(raw, "Total OI Chg", "Total OI Change", "total_oi_chg", "Fut OI Chg", "Futures OI Chg", "Future OI Chg", "fut_oi_chg", "futures_oi_chg")
+        oi_pct_col = _named_column(raw, "Total OI Chg (%)", "Total OI Chg %", "Total OI Change (%)", "Total OI Change %", "total_oi_chg_pct", "Fut OI Chg %", "Futures OI Chg %", "Future OI Chg %", "fut_oi_chg_pct", "futures_oi_chg_pct")
+        if symbol_col is None:
+            return pd.DataFrame()
+        out = pd.DataFrame({
+            "symbol": raw[symbol_col].astype(str).str.strip().str.upper(),
+            "futures_oi_chg": _numeric_series(raw, oi_col),
+            "futures_oi_chg_pct": _numeric_series(raw, oi_pct_col),
+        })
+        out = out[out["symbol"].ne("") & out["symbol"].ne("NAN")].copy()
+        return out.drop_duplicates("symbol")
+    except Exception:
+        return pd.DataFrame()
+
+# ============================================================================
+# LIVE FUTURES / IVR-IVP DELAY DISPLAY POLICY
+# ============================================================================
+LIVE_FUTURES_DELAY_SECONDS = 300
+LIVE_FUTURES_STATE_FILE = Path(__file__).resolve().parent / ".sdl_live_futures_state.pkl"
+
+
+def _load_live_futures_state() -> dict:
+    try:
+        if not LIVE_FUTURES_STATE_FILE.exists():
+            return {}
+        obj = pd.read_pickle(LIVE_FUTURES_STATE_FILE)
+        return obj if isinstance(obj, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_live_futures_state(state: dict) -> None:
+    try:
+        tmp = LIVE_FUTURES_STATE_FILE.with_suffix(".tmp")
+        pd.to_pickle(state, tmp)
+        tmp.replace(LIVE_FUTURES_STATE_FILE)
+    except Exception:
+        pass
+
+
+def _live_futures_present(df: pd.DataFrame) -> bool:
+    if df is None or df.empty:
+        return False
+    cols = [c for c in ("futures_oi_chg", "futures_oi_chg_pct") if c in df.columns]
+    return bool(cols) and any(
+        pd.to_numeric(df[c], errors="coerce").notna().any() for c in cols
+    )
+
+
+def _apply_live_futures_delay_policy(
+    pred: pd.DataFrame,
+    snapshot_ts: pd.Timestamp,
+    futures_fresh: bool = False,
+) -> pd.DataFrame:
+    """LIVE-only: after 300s without new Futures data, retain last value and flag D."""
+    if pred is None or pred.empty:
+        return pred
+
+    out = pred.copy()
+    state = _load_live_futures_state()
+
+    if futures_fresh and _live_futures_present(out):
+        cols = [c for c in ("futures_oi_chg", "futures_oi_chg_pct") if c in out.columns]
+        if "symbol" in out.columns:
+            state = {
+                "status": "FRESH",
+                "processed_snapshot_ts": str(snapshot_ts),
+                "values": out[["symbol"] + cols].to_dict("records"),
+            }
+            _save_live_futures_state(state)
+        out["futures_oi_status"] = "FRESH"
+        out["futures_oi_delayed"] = False
+        return out
+
+    last_ts = (
+        pd.to_datetime(state.get("processed_snapshot_ts"), errors="coerce")
+        if state.get("processed_snapshot_ts") else pd.NaT
+    )
+    age = (
+        (pd.Timestamp(snapshot_ts) - last_ts).total_seconds()
+        if pd.notna(last_ts) and pd.notna(snapshot_ts) else None
+    )
+    delayed = age is not None and age > LIVE_FUTURES_DELAY_SECONDS
+
+    if delayed and state.get("values") and "symbol" in out.columns:
+        saved = pd.DataFrame(state["values"])
+        if not saved.empty and "symbol" in saved.columns:
+            saved = saved.drop_duplicates("symbol").set_index("symbol")
+            idx = out["symbol"].astype(str)
+            for col in ("futures_oi_chg", "futures_oi_chg_pct"):
+                if col in saved.columns:
+                    restored = idx.map(saved[col])
+                    current = (
+                        pd.to_numeric(out[col], errors="coerce")
+                        if col in out.columns
+                        else pd.Series(index=out.index, dtype=float)
+                    )
+                    out[col] = pd.to_numeric(restored, errors="coerce").combine_first(current)
+
+    out["futures_oi_status"] = "DELAYED" if delayed else "PENDING"
+    out["futures_oi_delayed"] = delayed
+    return out
+
+
 
 def latest_live() -> tuple[
     Path | None,
@@ -2498,69 +3407,226 @@ def latest_live() -> tuple[
     pd.Timestamp,
     str,
 ]:
+    """Return the latest dashboard snapshot with bounded LIVE work.
+
+    LIVE never rebuilds the complete trading-day cache. A genuinely new
+    observation is processed once. If the same observation is still pending
+    IVR/IVP evidence, only the lightweight companion lookup is retried.
+    """
     try:
-        result = process_latest_snapshot_for_today()
+        available = [
+            path for path in snapshot_files()
+            if pd.notna(observation_ts(path))
+        ]
 
-        if not result or len(result) != 4:
-            result = None
+        persisted = _load_persisted_live_snapshot()
 
-        if result is not None:
-            path, _events, df, message = result
+        if not available:
+            if persisted and persisted.get("pred") is not None:
+                ts = pd.to_datetime(
+                    persisted.get("observation_timestamp"), errors="coerce"
+                )
+                path = (
+                    Path(persisted["source_path"])
+                    if persisted.get("source_path") else None
+                )
+                return path, persisted["pred"], ts, persisted.get("message", "")
+            return None, pd.DataFrame(), pd.NaT, "No current snapshot."
 
-            if path is not None:
-                path = Path(path)
-                ts = observation_ts(path)
-                pred = candidates(df, snapshot_ts=ts)
-                return path, pred, ts, message
+        latest = available[-1]
+        latest_ts = observation_ts(latest)
+        persisted_ts = (
+            pd.to_datetime(
+                persisted.get("observation_timestamp"), errors="coerce"
+            )
+            if persisted else pd.NaT
+        )
 
-            # Calendar-day rollover rule:
-            # Until the next trading day's first source snapshot arrives,
-            # keep the most recent completed session visible. This is a
-            # display-only fallback and must never process/write that prior
-            # session through the live pipeline again. Once today's source
-            # data exists, the normal current-day path above takes over.
-            available = snapshot_files()
-            available = [
-                path for path in available
-                if pd.notna(observation_ts(path))
-            ]
+        # Same observation: return immediately when already complete.
+        if (
+            persisted
+            and pd.notna(persisted_ts)
+            and pd.notna(latest_ts)
+            and pd.Timestamp(persisted_ts) == pd.Timestamp(latest_ts)
+            and isinstance(persisted.get("pred"), pd.DataFrame)
+        ):
+            persisted_pred = persisted["pred"].copy()
+            status = str(persisted.get("evidence_status", "")).lower()
 
-            if available:
-                fallback_path = available[-1]
-                fallback_ts = observation_ts(fallback_path)
-                fallback_pred, _ = replay_snapshot_frame(fallback_path)
-                fallback_day = fallback_ts.strftime("%d %b %Y")
+            # First consult the exact persistent point-in-time cache. This is
+            # the bridge that keeps LIVE identical to Snapshot Replay when
+            # Replay has already obtained the IVR/IVP Futures OI companion.
+            hydrated_pred, hydrated_status = _hydrate_live_from_point_cache(
+                pd.Timestamp(latest_ts).date().isoformat(),
+                pd.Timestamp(latest_ts),
+                persisted_pred,
+            )
+            if hydrated_status == "complete":
+                _save_persisted_live_snapshot(
+                    latest,
+                    pd.Timestamp(latest_ts),
+                    hydrated_pred,
+                    persisted.get("message", ""),
+                )
+                try:
+                    with PROCESSED_LIVE_SNAPSHOT_FILE.open("rb") as handle:
+                        payload = pickle.load(handle)
+                    if isinstance(payload, dict):
+                        payload["evidence_status"] = "complete"
+                        tmp = PROCESSED_LIVE_SNAPSHOT_FILE.with_suffix(".tmp")
+                        with tmp.open("wb") as handle:
+                            pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        tmp.replace(PROCESSED_LIVE_SNAPSHOT_FILE)
+                except Exception:
+                    pass
+                hydrated_pred = _apply_live_futures_delay_policy(
+                    hydrated_pred, pd.Timestamp(latest_ts)
+                )
                 return (
-                    fallback_path,
-                    fallback_pred,
-                    fallback_ts,
-                    f"No Daywise snapshot found for today. "
-                    f"Showing last available session: {fallback_day}. "
-                    f"Live Queue and Replay remain preserved until new "
-                    f"today data arrives.",
+                    latest, hydrated_pred, pd.Timestamp(latest_ts),
+                    persisted.get("message", ""),
                 )
 
+            persisted_pred = hydrated_pred
+            status = hydrated_status
+
+            if status == "complete":
+                persisted_pred = _apply_live_futures_delay_policy(
+                    persisted_pred, pd.Timestamp(latest_ts)
+                )
+                return (
+                    latest, persisted_pred, pd.Timestamp(latest_ts),
+                    persisted.get("message", ""),
+                )
+
+            # Pending/missing evidence: retry only the IVR/IVP companion.
+            # No Daywise rebuild and no full-day replay cache build.
+            day = pd.Timestamp(latest_ts).date().isoformat()
+            futures_evidence = _read_ivrp_for_live_timestamp(day, pd.Timestamp(latest_ts))
+            if futures_evidence is not None and not futures_evidence.empty:
+                cache = _load_day_point_cache()
+                day_cache = cache.get(day, {}) if isinstance(cache, dict) else {}
+                entries = day_cache.get("snapshots", {}) if isinstance(day_cache.get("snapshots"), dict) else {}
+                cached_entry = entries.get(pd.Timestamp(latest_ts).isoformat())
+                cached_option = cached_entry.get("evidence") if isinstance(cached_entry, dict) else pd.DataFrame()
+                refreshed, evidence = _merge_snapshot_evidence(
+                    persisted_pred,
+                    cached_option if isinstance(cached_option, pd.DataFrame) else pd.DataFrame(),
+                    futures_evidence,
+                )
+                futures_available = _futures_evidence_available(futures_evidence)
+                _upsert_day_point_cache_entry(
+                    day, pd.Timestamp(latest_ts), latest, refreshed, evidence,
+                    "complete" if futures_available else "pending",
+                )
+                _save_persisted_live_snapshot(
+                    latest,
+                    pd.Timestamp(latest_ts),
+                    refreshed,
+                    persisted.get("message", ""),
+                )
+                # Preserve pending/complete state in the persisted payload
+                try:
+                    with PROCESSED_LIVE_SNAPSHOT_FILE.open("rb") as handle:
+                        payload = pickle.load(handle)
+                    if isinstance(payload, dict):
+                        payload["evidence_status"] = (
+                            "complete" if futures_available else "pending"
+                        )
+                        tmp = PROCESSED_LIVE_SNAPSHOT_FILE.with_suffix(".tmp")
+                        with tmp.open("wb") as handle:
+                            pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        tmp.replace(PROCESSED_LIVE_SNAPSHOT_FILE)
+                except Exception:
+                    pass
+                refreshed = _apply_live_futures_delay_policy(
+                    refreshed, pd.Timestamp(latest_ts), futures_fresh=futures_available
+                )
+                return (
+                    latest, refreshed, pd.Timestamp(latest_ts),
+                    persisted.get("message", ""),
+                )
+
+            persisted_pred = _apply_live_futures_delay_policy(
+                persisted_pred, pd.Timestamp(latest_ts), futures_fresh=False
+            )
             return (
-                None,
-                pd.DataFrame(),
-                pd.NaT,
-                message or "No current snapshot.",
+                latest, persisted_pred, pd.Timestamp(latest_ts),
+                persisted.get("message", ""),
             )
 
+        # Genuinely newer observation: authoritative frozen pipeline is run
+        # once for that observation only.
+        result = process_latest_snapshot_for_today()
+        if not result or len(result) != 4:
+            return None, pd.DataFrame(), pd.NaT, "No current snapshot."
+
+        path, _events, df, message = result
+        if path is not None and df is not None and not df.empty:
+            path = Path(path)
+            ts = observation_ts(path)
+            if pd.notna(ts):
+                pred, msg = _process_single_snapshot_for_dashboard(
+                    path, pd.Timestamp(ts), df, message
+                )
+                live_futures = _read_ivrp_for_live_timestamp(
+                    pd.Timestamp(ts).date().isoformat(), pd.Timestamp(ts)
+                )
+                if live_futures is not None and not live_futures.empty:
+                    live_option = _day_option_evidence(derive_straddle_values(df))
+                    pred, _live_evidence = _merge_snapshot_evidence(
+                        pred, live_option, live_futures
+                    )
+                    futures_available = _futures_evidence_available(live_futures)
+                else:
+                    futures_available = False
+                futures_available = (
+                    "futures_oi_chg" in pred.columns
+                    and pd.to_numeric(
+                        pred["futures_oi_chg"], errors="coerce"
+                    ).notna().any()
+                ) or (
+                    "futures_oi_chg_pct" in pred.columns
+                    and pd.to_numeric(
+                        pred["futures_oi_chg_pct"], errors="coerce"
+                    ).notna().any()
+                )
+                _save_persisted_live_snapshot(path, ts, pred, msg)
+                try:
+                    with PROCESSED_LIVE_SNAPSHOT_FILE.open("rb") as handle:
+                        payload = pickle.load(handle)
+                    if isinstance(payload, dict):
+                        payload["evidence_status"] = (
+                            "complete" if futures_available else "pending"
+                        )
+                        tmp = PROCESSED_LIVE_SNAPSHOT_FILE.with_suffix(".tmp")
+                        with tmp.open("wb") as handle:
+                            pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        tmp.replace(PROCESSED_LIVE_SNAPSHOT_FILE)
+                except Exception:
+                    pass
+                pred = _apply_live_futures_delay_policy(
+                    pred, pd.Timestamp(ts), futures_fresh=futures_available
+                )
+                return path, pred, ts, msg
+
+        # Preserve rollover fallback, but keep it lazy.
+        fallback_path = latest
+        fallback_ts = latest_ts
+        fallback_pred, _ = replay_snapshot_frame(
+            fallback_path, fallback_ts
+        )
+        fallback_day = fallback_ts.strftime("%d %b %Y")
         return (
-            None,
-            pd.DataFrame(),
-            pd.NaT,
-            "No current snapshot.",
+            fallback_path,
+            fallback_pred,
+            fallback_ts,
+            message or f"Showing last available session: {fallback_day}.",
         )
 
     except Exception as exc:
-        return (
-            None,
-            pd.DataFrame(),
-            pd.NaT,
-            f"{type(exc).__name__}: {exc}",
-        )
+        return None, pd.DataFrame(), pd.NaT, f"{type(exc).__name__}: {exc}"
+
 
 
 def render_live() -> None:

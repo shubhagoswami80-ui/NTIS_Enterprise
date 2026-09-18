@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 from functools import lru_cache
 import re
+from zipfile import BadZipFile, ZipFile
 
 import pandas as pd
 import streamlit as st
@@ -22,12 +23,88 @@ from source_loader import (
     parse_observation_timestamp,
     read_source,
 )
-from storage import load_state, save_state
+from storage import load_state, save_state as _storage_save_state
 from signal_engine import build_signal
 from decision_evidence import merge_evidence, enrich_decision
 
 STATE_KEY = "derivative_signal"
 STATE_JSON = Path(__file__).resolve().parent / "data" / "output" / "state" / "processing_state.json"
+
+_STATE_WRITE_LOCK = STATE_JSON.with_name(f".{STATE_JSON.name}.lock")
+
+
+def save_state(state: dict[str, Any], path: str | Path) -> None:
+    """Persist state safely when AUTO LIVE and another dashboard action overlap.
+
+    The original storage helper uses one fixed ``.processing_state.json.tmp``.
+    On Windows, overlapping Streamlit executions can collide on that filename
+    and raise WinError 5 during ``replace``. This dashboard-local wrapper keeps
+    the JSON schema unchanged while providing:
+      * a cross-process lock,
+      * a unique temporary filename per writer,
+      * retry handling for transient Windows file locks,
+      * cleanup on success/failure.
+    """
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = target.with_name(f".{target.name}.lock")
+    token = f"{os.getpid()}:{time.time_ns()}\n"
+    acquired = False
+    temp_path = target.with_name(
+        f".{target.name}.{os.getpid()}.{time.time_ns()}.tmp"
+    )
+
+    # Do not call the original helper: it uses the single fixed temp filename
+    # that caused the observed WinError 5.
+    for _ in range(60):
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(token)
+                handle.flush()
+                os.fsync(handle.fileno())
+            acquired = True
+            break
+        except FileExistsError:
+            time.sleep(0.1)
+
+    if not acquired:
+        raise PermissionError(
+            f"Timed out acquiring state write lock: {lock_path}"
+        )
+
+    try:
+        import json
+
+        with temp_path.open("w", encoding="utf-8") as handle:
+            json.dump(state, handle, ensure_ascii=False, indent=2, default=str)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        last_error: Exception | None = None
+        for _ in range(30):
+            try:
+                os.replace(str(temp_path), str(target))
+                last_error = None
+                break
+            except PermissionError as exc:
+                last_error = exc
+                time.sleep(0.1)
+
+        if last_error is not None:
+            raise last_error
+    finally:
+        try:
+            if temp_path.exists():
+                temp_path.unlink()
+        except OSError:
+            pass
+        if acquired:
+            try:
+                lock_path.unlink()
+            except OSError:
+                pass
+
 REPLAY_CACHE_ROOT = STATE_JSON.parent / "replay_cache"
 REPLAY_CACHE_VERSION = 3
 
@@ -48,12 +125,13 @@ QUALIFIED_STATES = CONFIRMED_STATES | DEVELOPING_STATES
 MARKET_OPEN_TIME = (9, 15)
 MARKET_CLOSE_TIME = (15, 30)
 
-# LIVE source assembly: several physical reports can belong to one downloader
-# capture. The threshold is only for grouping reports within the same burst; it
-# does not define the downloader cadence. Override with an environment variable
-# if the downloader's per-capture file burst is wider.
-LIVE_SNAPSHOT_GROUP_MAX_GAP_SECONDS = max(1, int(os.environ.get("NTIS_LIVE_SNAPSHOT_GROUP_MAX_GAP_SECONDS", "90")))
+# LIVE source assembly is cadence-agnostic. A logical snapshot is anchored
+# by each valid BASE/Daywise observation; report-family cadence is metadata,
+# not a universal five-minute grouping rule. Supporting files are optional
+# and are attributed by their own embedded/event timestamp when available.
 LIVE_SNAPSHOT_GROUP_SETTLE_SECONDS = max(0, int(os.environ.get("NTIS_LIVE_SNAPSHOT_GROUP_SETTLE_SECONDS", "15")))
+LIVE_CAPTURE_RESOLUTION_VERSION = 3
+LIVE_OBSERVATION_LEDGER_VERSION = 1
 
 def _market_session_status(trading_date: str) -> tuple[bool, bool]:
     """Return (is_market_day, is_market_open) using the selected trading date.
@@ -1589,14 +1667,83 @@ def _process_and_cache_day(
     return latest, timeline, snapshots
 
 
+def _live_replay_cache_coverage(
+    trading_date: str,
+    groups: list[list[Path]],
+    cache: dict[str, Any] | None = None,
+) -> tuple[int, int, bool]:
+    """Return replay coverage in logical LIVE-capture units.
+
+    Historical replay counts physical Daywise observations. LIVE current-day
+    status instead counts BASE-anchored logical captures. This prevents a
+    six-file burst from being reported as six independent LIVE timestamps.
+    """
+    current = cache if isinstance(cache, dict) else _get_replay_cache(trading_date)
+    snapshots = current.get("snapshots", {}) if isinstance(current, dict) else {}
+    if not isinstance(snapshots, dict):
+        snapshots = {}
+    expected = [pd.Timestamp(_live_group_timestamp(group)).floor("s") for group in groups]
+    expected = [ts for ts in expected if pd.notna(ts)]
+    if not expected:
+        return 0, 0, False
+
+    cached_times: set[pd.Timestamp] = set()
+    logical_keys: set[str] = set()
+    for key, frame in snapshots.items():
+        key_text = str(key)
+        if key_text.startswith("logical::"):
+            logical_keys.add(key_text.split("logical::", 1)[1])
+        ts = _replay_frame_timestamp(frame)
+        if ts is not None:
+            cached_times.add(pd.Timestamp(ts).floor("s"))
+
+    matched = 0
+    for ts in expected:
+        logical_key = f"logical::{ts.isoformat()}"
+        if logical_key in snapshots or ts.isoformat() in logical_keys or ts in cached_times:
+            matched += 1
+    return matched, len(expected), matched == len(expected)
+
+
+def _historical_cache_complete_for_live_groups(
+    trading_date: str,
+    groups: list[list[Path]],
+) -> bool:
+    """Return True only when the current-day logical capture chain is complete."""
+    cached, total, complete = _live_replay_cache_coverage(trading_date, groups)
+    if not complete or cached != total:
+        return False
+    cache = _get_replay_cache(trading_date)
+    point_cache = cache.get("point_in_time_cache", {}) if isinstance(cache, dict) else {}
+    if not isinstance(point_cache, dict):
+        return False
+    # A logical key or an event-time point is sufficient; physical aliases are
+    # deliberately not required for current-day completeness.
+    point_times = set()
+    for value in point_cache.values():
+        if not isinstance(value, dict):
+            continue
+        ts = pd.to_datetime(value.get("source_timestamp"), errors="coerce")
+        if pd.notna(ts):
+            point_times.add(pd.Timestamp(ts).floor("s"))
+    return all(
+        f"logical::{pd.Timestamp(_live_group_timestamp(group)).isoformat()}" in cache.get("snapshots", {})
+        or pd.Timestamp(_live_group_timestamp(group)).floor("s") in point_times
+        for group in groups
+    )
+
+
 def _live_checkpoint_info(
     sources: list[Path],
     trading_date: str,
 ) -> tuple[pd.Timestamp | None, bool, str]:
-    """Return the durable LIVE checkpoint and whether it is valid for this source set.
+    """Return a LIVE checkpoint normalized onto the logical BASE timeline.
 
-    A missing checkpoint is NOT treated as "all snapshots pending".  That state
-    is ambiguous and must be initialized explicitly by the backlog controller.
+    Older builds stored filesystem-arrival timestamps. If such a checkpoint is
+    still present, map it to the last logical BASE at or before that checkpoint
+    (or to the checkpoint's persisted source group when available). This lets
+    the resolver change timestamp semantics without reprocessing a completed
+    prefix unnecessarily.
     """
     state = load_state(STATE_JSON)
     day = state.get(STATE_KEY, {}).get(trading_date, {}) or {}
@@ -1609,37 +1756,84 @@ def _live_checkpoint_info(
     if pd.isna(checkpoint):
         return None, False, "NO_DURABLE_CHECKPOINT"
 
-    checkpoint = pd.Timestamp(checkpoint)
-    ordered = _sort_sources(sources)
-    if not ordered:
-        return checkpoint, True, "EMPTY_SOURCE_SET"
+    groups = _live_logical_snapshot_groups(sources)
+    if not groups:
+        return pd.Timestamp(checkpoint), True, "EMPTY_SOURCE_SET"
+    group_times = [pd.Timestamp(_live_group_timestamp(group)) for group in groups]
 
-    source_times = [pd.Timestamp(parse_observation_timestamp(p)) for p in ordered]
-    if checkpoint < source_times[0]:
+    saved_source = str(saved.get("source_file", day.get("source_file", ""))).strip()
+    if saved_source:
+        saved_path = Path(saved_source)
+        saved_key = _source_key(saved_path) if saved_path.exists() else saved_source
+        for group in groups:
+            if any(_source_key(path) == saved_key or str(path) == saved_source for path in group):
+                return pd.Timestamp(_live_group_timestamp(group)), True, "NORMALIZED_FROM_SOURCE"
+
+    checkpoint = pd.Timestamp(checkpoint)
+    prior = [ts for ts in group_times if ts <= checkpoint]
+    if not prior:
         return checkpoint, False, "CHECKPOINT_BEFORE_SOURCE_RANGE"
-    if checkpoint > source_times[-1]:
-        return checkpoint, False, "CHECKPOINT_AFTER_SOURCE_RANGE"
-    return checkpoint, True, "VALID"
+    normalized = max(prior)
+    if normalized != checkpoint:
+        return normalized, True, "NORMALIZED_TO_LOGICAL_TIMELINE"
+    return normalized, True, "VALID"
+
+
+def _pending_live_groups(
+    sources: list[Path],
+    trading_date: str,
+) -> list[list[Path]]:
+    """Return logical LIVE captures strictly after the durable checkpoint."""
+    groups = _live_logical_snapshot_groups(sources)
+    if not groups:
+        return []
+    checkpoint, valid, _reason = _live_checkpoint_info(sources, trading_date)
+    if checkpoint is None or not valid:
+        return []
+    return [
+        group for group in groups
+        if pd.Timestamp(_live_group_timestamp(group)) > checkpoint
+    ]
 
 
 def _pending_live_sources(
     sources: list[Path],
     trading_date: str,
 ) -> list[Path]:
-    """Return only snapshots beyond a valid durable LIVE checkpoint.
-
-    Never manufacture a pending list from an absent/ambiguous checkpoint.
-    """
-    ordered = _sort_sources(sources)
-    if not ordered:
-        return []
-    checkpoint, valid, _reason = _live_checkpoint_info(ordered, trading_date)
-    if checkpoint is None or not valid:
-        return []
+    """Return BASE representatives for pending logical LIVE captures."""
     return [
-        p for p in ordered
-        if pd.Timestamp(parse_observation_timestamp(p)) > checkpoint
+        next((path for path in group if _live_report_family(path) == "BASE"), group[0])
+        for group in _pending_live_groups(sources, trading_date)
+        if group
     ]
+
+def _live_processing_coverage(
+    sources: list[Path],
+    trading_date: str,
+) -> tuple[int, int, bool]:
+    """Return LIVE processing coverage from the durable logical checkpoint.
+
+    The durable LIVE checkpoint is authoritative for current-day processing.
+    Replay-cache coverage is deliberately NOT used here because a replay cache
+    can be incomplete for historical/PIT purposes while the LIVE processor has
+    already safely advanced through those logical captures.  The checkpoint
+    advances monotonically only after a logical BASE-anchored capture finishes,
+    so every logical capture at or before it is processed.
+    """
+    groups = _live_logical_snapshot_groups(_sort_sources(sources))
+    total = len(groups)
+    if total == 0:
+        return 0, 0, False
+    checkpoint, valid, _reason = _live_checkpoint_info(sources, trading_date)
+    if not valid or checkpoint is None or pd.isna(checkpoint):
+        return 0, total, False
+    checkpoint = pd.Timestamp(checkpoint)
+    processed = sum(
+        1
+        for group in groups
+        if pd.Timestamp(_live_group_timestamp(group)) <= checkpoint
+    )
+    return processed, total, processed == total
 
 
 def _promote_replay_cache_to_live(
@@ -1747,86 +1941,369 @@ def _initialize_live_day_from_backlog(
     progress_callback: Any | None = None,
     retracement_enabled: bool | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, bool, bool]:
-    """Reconcile a current day: complete replay if needed, otherwise promote it."""
+    """Reconcile the current-day LIVE stream without resetting durable state.
+
+    This is intentionally a LIVE backlog processor, not a historical replay
+    rebuild.  An existing durable checkpoint is authoritative and is never
+    rolled backward merely because the PIT/replay cache is incomplete.  The
+    processor advances through pending BASE-anchored logical captures in order.
+    Supporting reports remain optional and cannot block progress.
+    """
     ordered = _sort_sources(sources)
-    if not ordered:
+    groups = _live_logical_snapshot_groups(ordered)
+    if not groups:
         return pd.DataFrame(), pd.DataFrame(), False, False
 
-    cache = _get_replay_cache(trading_date)
-    if _historical_cache_complete_for_sources(trading_date, ordered):
-        latest, timeline, changed = _promote_replay_cache_to_live(
-            trading_date, ordered, cache=cache
-        )
-        return latest, timeline, changed, False
+    latest = pd.DataFrame()
+    timeline = pd.DataFrame()
+    processed_any = False
+    guard = 0
+    total = len(groups)
 
-    latest, timeline, snapshots = _build_replay_day_in_memory(
-        ordered,
-        trading_date,
-        selected_index=None,
-        progress_callback=progress_callback,
-        run_retracement=(
-            bool(st.session_state.get("ds_live_retracement_enabled", False))
-            if retracement_enabled is None else bool(retracement_enabled)
-        ),
-    )
-    cached_count, source_count, complete = _replay_cache_coverage(
-        trading_date, ordered, cache={"snapshots": snapshots, "timeline": timeline}
-    )
-    if not complete:
-        raise RuntimeError(
-            f"Chronological backlog reconstruction remained incomplete: {cached_count}/{source_count} snapshots."
+    while guard < total + 2:
+        guard += 1
+        current_sources = _discover_sources(trading_date, ordered[0].parent)
+        if not current_sources:
+            current_sources = ordered
+        latest, timeline, changed = _auto_process_new_snapshots(
+            current_sources,
+            trading_date,
+            max_batch=1,
+            progress_callback=progress_callback,
+            retracement_enabled=retracement_enabled,
+            older_groups_require_settle=False,
         )
+        processed_any = processed_any or bool(changed)
+        if not changed:
+            break
+        checkpoint, valid, _reason = _live_checkpoint_info(current_sources, trading_date)
+        current_groups = _live_logical_snapshot_groups(current_sources)
+        if valid and checkpoint is not None and current_groups:
+            remaining = [
+                group for group in current_groups
+                if pd.Timestamp(_live_group_timestamp(group)) > pd.Timestamp(checkpoint)
+            ]
+            if not remaining:
+                break
 
-    promoted, promoted_timeline, changed = _promote_replay_cache_to_live(
-        trading_date, ordered, cache=_get_replay_cache(trading_date)
+    final_sources = _discover_sources(trading_date, ordered[0].parent) or ordered
+    processed_count, total_count, complete = _live_processing_coverage(
+        final_sources, trading_date
     )
-    if promoted.empty and isinstance(latest, pd.DataFrame):
-        promoted = latest
-    if promoted_timeline.empty and isinstance(timeline, pd.DataFrame):
-        promoted_timeline = timeline
-    return promoted, promoted_timeline, True, True
+    if complete:
+        restored = _restore_last_complete_state(trading_date)
+        if restored is not None:
+            latest, timeline, _source, _timestamp = restored
+    return latest, timeline, processed_any, complete
+
+LIVE_EXPECTED_REPORT_FAMILIES = (
+    "BASE",
+    "IV",
+    "SECTOR",
+    "VOLUME",
+    "SUPPORT",
+    "RESISTANCE",
+)
+
+
+def _live_report_family(path: Path) -> str | None:
+    """Classify one physical downloader report into the six LIVE families."""
+    name = re.sub(r"[^a-z0-9]+", "", path.name.lower())
+    if name.startswith("daywisepriceandoisummary") or name.startswith("daywisepriceandoi"):
+        return "BASE"
+    if "ivrivp" in name:
+        return "IV"
+    if "sectorsummary" in name:
+        return "SECTOR"
+    if "volumeandoispikesscans" in name:
+        return "VOLUME"
+    # Check Support_Resistance before generic Resistance because the former
+    # necessarily contains the word "resistance".
+    if "supportresistance" in name:
+        return "SUPPORT"
+    if name.startswith("resistance") or "resistance" in name:
+        return "RESISTANCE"
+    return None
+
+
+def _live_physical_inventory(sources: list[Path]) -> list[Path]:
+    """Expand Daywise seed sources to the physical reports in their day folder."""
+    ordered_seeds = _sort_sources(sources)
+    if not ordered_seeds:
+        return []
+
+    directories = {p.parent for p in ordered_seeds}
+    physical: list[Path] = []
+    for directory in sorted(directories, key=lambda x: str(x).lower()):
+        try:
+            physical.extend(
+                q for q in directory.iterdir()
+                if q.is_file()
+                and q.suffix.lower() in {".xlsx", ".xls", ".xlsm"}
+                and not q.name.startswith("~$")
+                and _live_report_family(q) is not None
+            )
+        except OSError:
+            continue
+
+    # Preserve only the physical files belonging to the requested seed day.
+    seed_dates = {
+        parse_observation_timestamp(p).date()
+        for p in ordered_seeds
+        if parse_observation_timestamp(p) != datetime.min
+    }
+    if seed_dates:
+        filtered = []
+        for q in physical:
+            q_ts = parse_observation_timestamp(q)
+            if q_ts != datetime.min and q_ts.date() in seed_dates:
+                filtered.append(q)
+        physical = filtered
+
+    # De-duplicate by resolved path while retaining deterministic ordering.
+    unique = {str(q.resolve()).lower(): q for q in physical}
+    return _sort_sources(list(unique.values()))
+
+
+def _live_group_family_map(group: list[Path]) -> dict[str, Path]:
+    """Return the best physical file per family for one logical capture.
+
+    If duplicate family files are present, choose the one closest to the BASE
+    event time, then the earliest arrival.
+    """
+    result: dict[str, Path] = {}
+    base = next(
+        (path for path in group if _live_report_family(path) == "BASE"),
+        None,
+    )
+    base_ts = pd.Timestamp(_live_event_timestamp(base)) if base is not None else pd.NaT
+    candidates: dict[str, list[Path]] = {}
+    for path in group:
+        family = _live_report_family(path)
+        if family is not None:
+            candidates.setdefault(family, []).append(path)
+    for family, paths in candidates.items():
+        result[family] = min(
+            paths,
+            key=lambda p: (
+                abs((pd.Timestamp(_live_event_timestamp(p)) - base_ts).total_seconds())
+                if pd.notna(base_ts) else float("inf"),
+                pd.Timestamp(parse_observation_timestamp(p)),
+                p.name.lower(),
+            ),
+        )
+    return result
+
+def _live_group_complete(group: list[Path]) -> bool:
+    """Return True when the logical capture has its BASE/Daywise anchor.
+
+    Auxiliary report families are optional.  A missing IV/SECTOR/VOLUME/
+    SUPPORT/RESISTANCE file must never block the capture or cause evidence to
+    be borrowed from another downloader cycle.  BASE is the minimum anchor for
+    a normal SDL decision snapshot.
+    """
+    return "BASE" in _live_group_family_map(group)
+
+
+def _extract_embedded_report_timestamp(path: Path) -> datetime | None:
+    """Extract a report-generation timestamp embedded in a downloader filename.
+
+    Current downloader names contain forms such as ``20260918_132919``. The
+    filename timestamp represents the report's observation/capture time more
+    directly than Windows ctime, which is only when the file arrived on disk.
+    Common compact and separated forms are accepted.
+    """
+    name = Path(path).name
+    patterns = (
+        r"(?<!\d)(20\d{2})(\d{2})(\d{2})[_-]?([01]\d|2[0-3])([0-5]\d)([0-5]\d)(?!\d)",
+        r"(?<!\d)(20\d{2})[-_](\d{2})[-_](\d{2})[T _-]+([01]\d|2[0-3])[:_-]?([0-5]\d)[:_-]?([0-5]\d)(?!\d)",
+    )
+    matches: list[datetime] = []
+    for pattern in patterns:
+        for match in re.finditer(pattern, name):
+            try:
+                year, month, day, hour, minute, second = (
+                    int(part) for part in match.groups()
+                )
+                matches.append(datetime(year, month, day, hour, minute, second))
+            except (TypeError, ValueError):
+                continue
+    return matches[-1] if matches else None
+
+
+def _live_event_timestamp(path: Path) -> datetime:
+    """Return event/capture time, falling back to filesystem arrival time."""
+    embedded = _extract_embedded_report_timestamp(path)
+    return embedded if embedded is not None else parse_observation_timestamp(path)
+
+
+def _live_base_candidate_ready(path: Path, *, require_settle: bool = True) -> bool:
+    """Accept only a stable, structurally valid BASE workbook.
+
+    This is deliberately cadence-agnostic. A scheduler interrupted during a
+    download may leave a partial XLSX on disk; that file must not create a new
+    logical observation or advance the durable checkpoint. Readiness is based on
+    workbook structure and file stability, never on a fixed file-size threshold
+    or a five-minute timing assumption.
+    """
+    try:
+        first = path.stat()
+        if first.st_size <= 0:
+            return False
+        if require_settle and (time.time() - first.st_mtime) < LIVE_SNAPSHOT_GROUP_SETTLE_SECONDS:
+            return False
+        with ZipFile(path, "r") as archive:
+            names = set(archive.namelist())
+            if "[Content_Types].xml" not in names or "xl/workbook.xml" not in names:
+                return False
+            if not any(
+                name.startswith("xl/worksheets/") and name.endswith(".xml")
+                for name in names
+            ):
+                return False
+        second = path.stat()
+        if first.st_size != second.st_size or first.st_mtime_ns != second.st_mtime_ns:
+            return False
+    except (OSError, BadZipFile, ValueError, KeyError):
+        return False
+    return True
 
 
 def _live_logical_snapshot_groups(sources: list[Path]) -> list[list[Path]]:
-    """Group physical reports into chronological downloader capture bursts.
+    """Resolve physical reports into cadence-agnostic logical captures.
 
-    A logical snapshot is the unit consumed by LIVE. Physical files are ordered
-    by their immutable observation timestamp. Files arriving within the
-    configured burst gap belong to the same capture group. A large gap starts a
-    new logical snapshot, so changing the downloader cycle does not require a
-    matching dashboard cadence setting.
+    Every valid BASE/Daywise observation creates one logical snapshot. There is
+    deliberately no five-minute assumption and no universal inter-file gap.
+    Supporting files are optional and are attributed independently. Filename
+    event timestamps are preferred; files without one use conservative arrival
+    ordering. A late arrival that has already crossed a later BASE boundary is
+    left unassigned rather than borrowed into the wrong capture.
+
+    This remains valid for mixed 5/15/30-minute sources and for a BASE cadence
+    that changes during the trading day.
     """
-    ordered = _sort_sources(sources)
-    if not ordered:
+    physical = _live_physical_inventory(sources)
+    if not physical:
         return []
 
-    groups: list[list[Path]] = [[ordered[0]]]
-    previous_ts = pd.Timestamp(parse_observation_timestamp(ordered[0]))
-    for path in ordered[1:]:
-        current_ts = pd.Timestamp(parse_observation_timestamp(path))
-        gap = (current_ts - previous_ts).total_seconds()
-        if gap < 0:
-            gap = 0
-        if gap <= LIVE_SNAPSHOT_GROUP_MAX_GAP_SECONDS:
-            groups[-1].append(path)
+    ordered = sorted(
+        physical,
+        key=lambda p: (
+            _live_event_timestamp(p),
+            parse_observation_timestamp(p),
+            p.name.lower(),
+        ),
+    )
+    bases = [
+        p for p in ordered
+        if _live_report_family(p) == "BASE"
+        and _live_base_candidate_ready(p, require_settle=False)
+    ]
+    if not bases:
+        return []
+    bases = sorted(
+        bases,
+        key=lambda p: (
+            _live_event_timestamp(p),
+            parse_observation_timestamp(p),
+            p.name.lower(),
+        ),
+    )
+
+    groups: list[list[Path]] = [[base] for base in bases]
+    base_events = [pd.Timestamp(_live_event_timestamp(base)) for base in bases]
+    base_arrivals = [pd.Timestamp(parse_observation_timestamp(base)) for base in bases]
+
+    def _latest_base_by_event(event_ts: pd.Timestamp) -> int | None:
+        """Assign event-time evidence only to the latest BASE at/before it.
+
+        This is causal attribution: a support report generated after BASE A
+        but before BASE B belongs to A, even when it is temporally closer to B.
+        A late report is therefore never pulled forward into a future BASE
+        observation merely because of nearest-neighbour distance.
+        """
+        if pd.isna(event_ts) or not base_events:
+            return None
+        eligible = [idx for idx, candidate in enumerate(base_events) if candidate <= event_ts]
+        return eligible[-1] if eligible else None
+
+    def _arrival_window_base(arrival_ts: pd.Timestamp) -> int | None:
+        if pd.isna(arrival_ts) or not base_arrivals:
+            return None
+        for idx, base_arrival in enumerate(base_arrivals):
+            next_arrival = base_arrivals[idx + 1] if idx + 1 < len(base_arrivals) else None
+            if arrival_ts >= base_arrival and (
+                next_arrival is None or arrival_ts < next_arrival
+            ):
+                return idx
+        return None
+
+    for path in ordered:
+        family = _live_report_family(path)
+        if family is None or family == "BASE":
+            continue
+
+        embedded = _extract_embedded_report_timestamp(path)
+        if embedded is not None:
+            target_idx = _latest_base_by_event(pd.Timestamp(embedded))
         else:
-            groups.append([path])
-        previous_ts = current_ts
+            # Arrival-only attribution is intentionally conservative. Once the
+            # next BASE has arrived, a late file has no safe capture identity.
+            target_idx = _arrival_window_base(
+                pd.Timestamp(parse_observation_timestamp(path))
+            )
+
+        if target_idx is not None:
+            groups[target_idx].append(path)
+
+    for idx, group in enumerate(groups):
+        base = bases[idx]
+        groups[idx] = sorted(
+            group,
+            key=lambda p: (
+                0 if _source_key(p) == _source_key(base) else 1,
+                _live_event_timestamp(p),
+                parse_observation_timestamp(p),
+                p.name.lower(),
+            ),
+        )
     return groups
 
 
 def _live_group_timestamp(group: list[Path]) -> pd.Timestamp:
-    """Return the latest physical observation timestamp in one logical group."""
-    return max(
-        (pd.Timestamp(parse_observation_timestamp(path)) for path in group),
+    """Return the logical event timestamp of the BASE anchor."""
+    base = next(
+        (path for path in group if _live_report_family(path) == "BASE"),
+        None,
+    )
+    if base is not None:
+        return pd.Timestamp(_live_event_timestamp(base))
+    return min(
+        (pd.Timestamp(_live_event_timestamp(path)) for path in group if path.is_file()),
         default=pd.Timestamp.min,
     )
 
+def _live_group_stable(
+    group: list[Path],
+    *,
+    require_settle: bool = True,
+) -> bool:
+    """Return True when a logical capture group is safe to process.
 
-def _live_group_stable(group: list[Path]) -> bool:
-    """Return True when the newest physical report has settled on disk."""
+    AUTO LIVE requires the normal on-disk settle interval. Manual backlog is
+    explicitly allowed to bypass that delay because its source inventory is
+    already present on disk; atomic group completeness remains enforced by the
+    caller.
+    """
     if not group:
         return False
+    if not _live_group_complete(group):
+        return False
+    base_path = next((p for p in group if _live_report_family(p) == "BASE"), None)
+    if base_path is None or not _live_base_candidate_ready(base_path, require_settle=require_settle):
+        return False
+    if not require_settle:
+        return True
     try:
         newest_mtime = max(path.stat().st_mtime for path in group if path.is_file())
     except (OSError, ValueError):
@@ -1838,58 +2315,187 @@ def _assemble_live_logical_snapshot(
     group: list[Path],
     trading_date: str,
 ) -> tuple[pd.DataFrame, dict[str, str]]:
-    """Read/merge all physical reports belonging to one logical snapshot."""
-    frames: list[pd.DataFrame] = []
-    source_map: dict[str, str] = {}
+    """Assemble one logical capture using only files from that capture.
 
-    for path in group:
-        frame, evidence = merge_evidence(path, trading_date)
-        if isinstance(frame, pd.DataFrame) and not frame.empty:
-            frames.append(frame)
-        if isinstance(evidence, dict):
-            source_map.update({str(k): str(v) for k, v in evidence.items()})
+    BASE/Daywise is mandatory for normal decision processing.  Every auxiliary
+    family is opportunistic: when present it is merged; when absent the capture
+    is still processed and the missing family is recorded in provenance.
+    """
+    family_map = _live_group_family_map(group)
+    base_path = family_map.get("BASE")
+    if base_path is None:
+        return pd.DataFrame(), {
+            family: "" for family in LIVE_EXPECTED_REPORT_FAMILIES
+        }
 
-    if not frames:
-        return pd.DataFrame(), source_map
+    role_paths: dict[str, Path] = {
+        role: family_map[role]
+        for role in ("BASE", "IV", "SUPPORT", "RESISTANCE", "VOLUME")
+        if role in family_map
+    }
 
-    combined = pd.concat(frames, ignore_index=True, sort=False)
-    symbol_col = next(
-        (c for c in ("symbol", "Symbol") if c in combined.columns),
+    source_map: dict[str, str] = {
+        family: str(family_map[family]) if family in family_map else ""
+        for family in LIVE_EXPECTED_REPORT_FAMILIES
+    }
+
+    frames: list[tuple[str, pd.DataFrame]] = []
+    for role, path in role_paths.items():
+        try:
+            frame = _replay_read_canonical_source(
+                str(path),
+                role,
+                path.stat().st_mtime_ns,
+            )
+        except Exception:
+            continue
+        if isinstance(frame, pd.DataFrame) and not frame.empty and "symbol" in frame.columns:
+            frames.append((role, frame))
+
+    # BASE is the minimum processing anchor.  If the BASE file exists but is
+    # unreadable/empty, do not silently promote an auxiliary report into the
+    # decision stream.
+    base = next(
+        (frame for role, frame in frames if role == "BASE"),
         None,
     )
-    if symbol_col is None:
-        return combined, source_map
+    if base is None or base.empty:
+        return pd.DataFrame(), source_map
 
-    if symbol_col != "symbol":
-        combined["symbol"] = combined[symbol_col]
-    combined["symbol"] = combined["symbol"].astype(str).str.strip().str.upper()
-    combined = combined.loc[combined["symbol"].ne("")].copy()
+    merged = _replay_adapter._clean(
+        base.drop(columns=["_role"], errors="ignore").copy()
+    )
+    merged["_source_BASE"] = True
 
-    # Merge by symbol without inventing values. For each field, retain the first
-    # non-null/non-empty observation in deterministic physical-file order.
-    merged_rows: list[dict[str, Any]] = []
-    for symbol, rows in combined.groupby("symbol", sort=False, dropna=False):
-        merged_row: dict[str, Any] = {"symbol": str(symbol).strip().upper()}
-        for column in combined.columns:
-            if column == "symbol":
-                continue
-            selected = None
-            for value in rows[column].tolist():
-                if value is None:
-                    continue
-                try:
-                    if pd.isna(value):
-                        continue
-                except (TypeError, ValueError):
-                    pass
-                if isinstance(value, str) and not value.strip():
-                    continue
-                selected = value
-                break
-            merged_row[column] = selected
-        merged_rows.append(merged_row)
+    for role, frame in frames:
+        if role != "BASE":
+            merged = _replay_adapter._coalesce(merged, frame, role)
 
-    return pd.DataFrame(merged_rows), source_map
+    # Sector Summary is intentionally capture provenance only.  The frozen
+    # decision schema has no SECTOR role in the Git adapter, so it is not
+    # injected into decision-bearing columns.
+    return merged, source_map
+
+def _manual_process_current_day_backlog(
+    sources: list[Path],
+    trading_date: str,
+    max_batch: int | None = None,
+    progress_callback: Any | None = None,
+    retracement_enabled: bool | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, bool]:
+    """Process logical captures sequentially at backlog speed.
+
+    Already-formed older captures are consumed back-to-back with no artificial
+    settle delay.  The newest capture still uses the normal short settle gate
+    so a manual click during an active downloader burst cannot checkpoint a
+    partial live capture and permanently miss its later-arriving evidence.
+    """
+    ordered = _sort_sources(sources)
+    if not ordered:
+        return pd.DataFrame(), pd.DataFrame(), False
+
+    return _auto_process_new_snapshots(
+        ordered,
+        trading_date,
+        max_batch=max_batch,
+        progress_callback=progress_callback,
+        retracement_enabled=retracement_enabled,
+        older_groups_require_settle=False,
+    )
+
+
+def _live_observation_id(timestamp: Any) -> str:
+    ts = pd.to_datetime(timestamp, errors="coerce")
+    if pd.isna(ts):
+        return ""
+    return f"logical::{pd.Timestamp(ts).isoformat()}"
+
+
+def _live_observation_ledger_entry(
+    group: list[Path],
+    *,
+    state: str = "DISCOVERED",
+) -> dict[str, Any]:
+    """Build one immutable-ish ledger record for a logical BASE observation.
+
+    The ledger describes what was actually observed on disk. It does not make
+    auxiliary completeness a processing gate and never invents a missing file.
+    """
+    family_map = _live_group_family_map(group)
+    base = family_map.get("BASE")
+    timestamp = _live_group_timestamp(group)
+    arrival_values = [
+        parse_observation_timestamp(path)
+        for path in group
+        if path.is_file()
+    ]
+    arrival_values = [value for value in arrival_values if value != datetime.min]
+    available = {family: bool(family_map.get(family)) for family in LIVE_EXPECTED_REPORT_FAMILIES}
+    return {
+        "observation_id": _live_observation_id(timestamp),
+        "event_timestamp": timestamp.isoformat() if pd.notna(timestamp) else "",
+        "anchor_source": "BASE",
+        "anchor_file": str(base) if base else "",
+        "anchor_valid": bool(base and _live_base_candidate_ready(base, require_settle=False)),
+        "available_sources": available,
+        "missing_sources": [family for family, present in available.items() if not present],
+        "physical_files": [str(path) for path in group],
+        "first_arrival": min(arrival_values).isoformat() if arrival_values else "",
+        "last_arrival": max(arrival_values).isoformat() if arrival_values else "",
+        "processing_state": state,
+        "processing_started_at": "",
+        "processing_completed_at": "",
+        "processing_seconds": None,
+        "assemble_seconds": None,
+        "decision_seconds": None,
+        "retracement_seconds": None,
+        "persist_seconds": None,
+        "result_rows": 0,
+        "decision_rows": 0,
+    }
+
+
+def _live_record_discovered_observations(
+    state: dict[str, Any],
+    trading_date: str,
+    groups: list[list[Path]],
+) -> dict[str, dict[str, Any]]:
+    """Reconcile current source discovery into the durable LIVE ledger."""
+    day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
+    ledger = day.get("live_observation_ledger", {}) or {}
+    if not isinstance(ledger, dict):
+        ledger = {}
+    for group in groups:
+        timestamp = _live_group_timestamp(group)
+        obs_id = _live_observation_id(timestamp)
+        if not obs_id:
+            continue
+        fresh = _live_observation_ledger_entry(group)
+        existing = ledger.get(obs_id)
+        if isinstance(existing, dict):
+            # Source discovery may gain late auxiliary files. Preserve processing
+            # state/timings while refreshing physical provenance only.
+            for key in ("processing_state", "processing_started_at", "processing_completed_at",
+                        "processing_seconds", "assemble_seconds", "decision_seconds",
+                        "retracement_seconds", "persist_seconds", "result_rows", "decision_rows"):
+                fresh[key] = existing.get(key, fresh.get(key))
+        ledger[obs_id] = fresh
+    day["live_observation_ledger"] = ledger
+    day["live_observation_ledger_version"] = LIVE_OBSERVATION_LEDGER_VERSION
+    return ledger
+
+
+def _live_update_observation_ledger(
+    state: dict[str, Any],
+    trading_date: str,
+    observation_id: str,
+    **updates: Any,
+) -> None:
+    day = state.setdefault(STATE_KEY, {}).setdefault(trading_date, {})
+    ledger = day.setdefault("live_observation_ledger", {})
+    entry = ledger.setdefault(observation_id, {"observation_id": observation_id})
+    entry.update(updates)
+    day["live_observation_ledger_version"] = LIVE_OBSERVATION_LEDGER_VERSION
 
 
 def _auto_process_new_snapshots(
@@ -1898,6 +2504,7 @@ def _auto_process_new_snapshots(
     max_batch: int | None = 1,
     progress_callback: Any | None = None,
     retracement_enabled: bool | None = None,
+    older_groups_require_settle: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame, bool]:
     """Process complete logical LIVE snapshots strictly after the durable checkpoint.
 
@@ -1920,6 +2527,7 @@ def _auto_process_new_snapshots(
         return pd.DataFrame(), pd.DataFrame(), False
 
     state = _live_state_cached()
+    _live_record_discovered_observations(state, trading_date, groups)
     day = state.get(STATE_KEY, {}).get(trading_date, {}) or {}
     saved = day.get("last_complete_state", {}) or {}
 
@@ -1933,18 +2541,8 @@ def _auto_process_new_snapshots(
     if pd.notna(checkpoint_timestamp):
         checkpoint_timestamp = pd.Timestamp(checkpoint_timestamp)
 
-    # Complete replay can be promoted without reprocessing, but only when the
-    # existing cache is genuinely complete for the current source inventory.
+    # NEW-DAY bootstrap: establish exactly the first logical capture group.
     if pd.isna(checkpoint_timestamp):
-        cache = _get_replay_cache(trading_date)
-        if _historical_cache_complete_for_sources(trading_date, ordered):
-            promoted, promoted_timeline, changed = _promote_replay_cache_to_live(
-                trading_date, ordered, cache=cache
-            )
-            if changed or not promoted.empty:
-                return promoted, promoted_timeline, changed
-
-        # NEW-DAY bootstrap: establish exactly the first logical capture group.
         # Never treat the remaining groups as pending until this checkpoint is
         # durable. This preserves the safety invariant from _pending_live_sources.
         first_group = groups[0]
@@ -1957,7 +2555,10 @@ def _auto_process_new_snapshots(
         logical_frame, source_map = _assemble_live_logical_snapshot(
             first_group, trading_date
         )
-        representative = first_group[-1]
+        representative = next(
+            (path for path in first_group if _live_report_family(path) == "BASE"),
+            first_group[0],
+        )
         first_timestamp = _live_group_timestamp(first_group).to_pydatetime()
         previous = _snapshot_rows(logical_frame)
 
@@ -2029,7 +2630,13 @@ def _auto_process_new_snapshots(
     # consumed even while the downloader is producing the next capture.
     stable_groups: list[list[Path]] = []
     for group in pending_groups:
-        if group is pending_groups[-1] and not _live_group_stable(group):
+        # AUTO treats the newest capture as potentially still arriving. Manual
+        # backlog processing bypasses settle for older captures because they
+        # are already on disk, but retains the short gate for the live edge.
+        if group is pending_groups[-1]:
+            if not _live_group_stable(group, require_settle=True):
+                break
+        elif older_groups_require_settle and not _live_group_stable(group, require_settle=True):
             break
         stable_groups.append(group)
 
@@ -2095,15 +2702,29 @@ def _auto_process_new_snapshots(
     processed_count = 0
 
     for group_index, group in enumerate(stable_groups, start=1):
-        representative = group[-1]
+        observation_id = _live_observation_id(_live_group_timestamp(group))
+        processing_started_wall = datetime.now()
+        processing_started = time.perf_counter()
+        _live_update_observation_ledger(
+            state, trading_date, observation_id,
+            processing_state="PROCESSING",
+            processing_started_at=processing_started_wall.isoformat(),
+        )
+        representative = next(
+            (path for path in group if _live_report_family(path) == "BASE"),
+            group[0],
+        )
         timestamp = _live_group_timestamp(group).to_pydatetime()
+        assemble_started = time.perf_counter()
         logical_frame, source_map = _assemble_live_logical_snapshot(
             group, trading_date
         )
+        assemble_seconds = time.perf_counter() - assemble_started
 
         evidence_cache = {
             _source_key(representative): (logical_frame, source_map)
         }
+        decision_started = time.perf_counter()
         result = _process_snapshot(
             representative,
             trading_date,
@@ -2111,6 +2732,7 @@ def _auto_process_new_snapshots(
             first_range,
             evidence_cache=evidence_cache,
         )
+        decision_seconds = time.perf_counter() - decision_started
         result = _attach_snapshot_metadata(result, representative)
         result["source_timestamp"] = pd.Timestamp(timestamp)
         result["observation_timestamp"] = pd.Timestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
@@ -2134,15 +2756,19 @@ def _auto_process_new_snapshots(
             # _rank(result) eligibility boundary. Failures are contained so the
             # frozen LIVE decision/dashboard path remains usable. The LIVE toggle
             # can disable this entire layer for tomorrow's diagnostic test.
+            retracement_seconds = 0.0
             if retracement_enabled:
                 try:
+                    retracement_started = time.perf_counter()
                     retracement_result = _update_retracement_alerts(
                         state, trading_date, result, cached_snapshots,
                         history_by_symbol=history_by_symbol, durable_state=state,
                     )
                     if isinstance(retracement_result, pd.DataFrame):
                         result = retracement_result
+                    retracement_seconds = time.perf_counter() - retracement_started
                 except Exception as exc:
+                    retracement_seconds = time.perf_counter() - retracement_started
                     result.attrs["retracement_isolated_error"] = str(exc)[:240]
             else:
                 result.attrs["retracement_disabled_for_live"] = True
@@ -2191,6 +2817,16 @@ def _auto_process_new_snapshots(
                 if str(row.get("symbol", "")).strip()
             }
 
+        # Every successfully processed logical capture gets a logical cache
+        # marker, even when the decision engine returns zero rows. This is
+        # separate from the last_complete_state, which remains decision-bearing.
+        logical_key = f"logical::{pd.Timestamp(timestamp).isoformat()}"
+        cached_snapshots[logical_key] = result.copy() if isinstance(result, pd.DataFrame) else pd.DataFrame()
+        cached_snapshots[logical_key]["source_timestamp"] = pd.Timestamp(timestamp)
+        cached_snapshots[logical_key]["observation_timestamp"] = pd.Timestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+        cached_snapshots[logical_key]["source_file"] = representative.name
+        cached_snapshots[logical_key]["source_path"] = str(representative)
+
         previous = _snapshot_rows(logical_frame)
         day["previous_snapshot"] = previous
         day["source_file"] = str(representative)
@@ -2223,6 +2859,7 @@ def _auto_process_new_snapshots(
         point_in_time_cache.update(_build_replay_point_in_time_cache(new_point_frames))
 
         state.setdefault(STATE_KEY, {})[trading_date] = day
+        processing_seconds = time.perf_counter() - processing_started
         if not result.empty:
             day["last_complete_state"] = {
                 "source_file": str(representative),
@@ -2235,7 +2872,32 @@ def _auto_process_new_snapshots(
                     if timeline_rows else []
                 ),
             }
+
+        # Commit the completed observation ONCE. The old V20 path wrote the
+        # state once as CHECKPOINT_PENDING and immediately again as PROCESSED.
+        # Under Windows/Streamlit this doubled JSON serialization, locking and
+        # replace contention for every logical snapshot. The authoritative
+        # checkpoint is now committed atomically only after all processing work
+        # for this observation has completed.
+        _live_update_observation_ledger(
+            state, trading_date, observation_id,
+            processing_state="PROCESSED",
+            processing_completed_at=datetime.now().isoformat(),
+            processing_seconds=round(float(processing_seconds), 6),
+            persist_seconds=None,
+            result_rows=int(len(result)) if isinstance(result, pd.DataFrame) else 0,
+            decision_rows=int(len(_rank(result))) if isinstance(result, pd.DataFrame) and not result.empty else 0,
+            assemble_seconds=round(float(assemble_seconds), 6),
+            decision_seconds=round(float(decision_seconds), 6),
+            retracement_seconds=round(float(retracement_seconds), 6),
+        )
+        persist_started = time.perf_counter()
         save_state(state, STATE_JSON)
+        persist_seconds = time.perf_counter() - persist_started
+        # Exact checkpoint-write timing is useful for this process run but does
+        # not require a second durable state write. Keep it in the live session
+        # telemetry; the durable ledger remains a single-commit record.
+        st.session_state["ds_last_checkpoint_write_seconds"] = round(float(persist_seconds), 6)
         _live_state_memo_store(state)
         st.session_state[history_session_key] = history_by_symbol
         st.session_state[history_checkpoint_key] = pd.Timestamp(timestamp).isoformat()
@@ -2251,6 +2913,30 @@ def _auto_process_new_snapshots(
                 )
             except Exception:
                 pass
+
+    # Compact processor telemetry for the dashboard. Values are observational
+    # only and never participate in SDL qualification/ranking/decision logic.
+    ledger = state.get(STATE_KEY, {}).get(trading_date, {}).get("live_observation_ledger", {}) or {}
+    recent_metrics = []
+    if isinstance(ledger, dict):
+        for entry in ledger.values():
+            if isinstance(entry, dict) and entry.get("processing_state") == "PROCESSED":
+                recent_metrics.append(entry)
+    recent_metrics = sorted(recent_metrics, key=lambda item: str(item.get("event_timestamp", "")))[-20:]
+    if recent_metrics:
+        def _avg(key: str) -> float:
+            vals = [float(item[key]) for item in recent_metrics if item.get(key) is not None]
+            return round(sum(vals) / len(vals), 6) if vals else 0.0
+        day["live_processing_metrics"] = {
+            "sample_count": len(recent_metrics),
+            "avg_processing_seconds": _avg("processing_seconds"),
+            "avg_assemble_seconds": _avg("assemble_seconds"),
+            "avg_decision_seconds": _avg("decision_seconds"),
+            "avg_retracement_seconds": _avg("retracement_seconds"),
+            "avg_persist_seconds": _avg("persist_seconds"),
+            "last_processing_seconds": recent_metrics[-1].get("processing_seconds"),
+            "last_observation_id": recent_metrics[-1].get("observation_id", ""),
+        }
 
     timeline = pd.DataFrame(timeline_rows)
     _store_replay_cache(
@@ -4919,6 +5605,7 @@ def _render_processing_output(
     processed_time: datetime,
     source_path: Path,
     snapshot_results: dict[str, pd.DataFrame] | None = None,
+    processing_checkpoint_time: datetime | None = None,
 ) -> None:
     """Show the actual output produced from the latest processed snapshot.
 
@@ -4937,8 +5624,15 @@ def _render_processing_output(
         ).map(_bool).sum()
     )
 
+    effective_processed_time = processing_checkpoint_time or processed_time
+    title_suffix = (
+        f" • decision-bearing display {processed_time:%H:%M:%S}"
+        if processing_checkpoint_time is not None
+        and processing_checkpoint_time != processed_time
+        else ""
+    )
     with st.expander(
-        f"Processing Output • {processed_time:%H:%M:%S} • latest processed snapshot",
+        f"Processing Output • {effective_processed_time:%H:%M:%S} • latest processed snapshot{title_suffix}",
         expanded=False,
     ):
         c1, c2, c3, c4 = st.columns(4)
@@ -4953,26 +5647,20 @@ def _render_processing_output(
         )
         st.caption(f"Source: {source_path.name}")
 
+        # CRITICAL PERFORMANCE BOUNDARY:
+        # Processing Output is the first visible surface after LIVE processing.
+        # Do not execute historical/lifecycle diagnostics here.  Streamlit
+        # executes Python inside collapsed expanders too, so the old code
+        # calculated _break_quality_diagnostic() hundreds of times before the
+        # lower decision board could render.  The initial table therefore uses
+        # only fields already present in the frozen engine result.
         preferred = [
             'observation_timestamp', 'first_alert_timestamp', 'symbol',
             'price_change_pct', 'decision_direction', 'decision_state',
             'decision_score', 'decision_strength', 'confirmation_count',
             'conflict_count', 'sr_status', 'gate_passed',
-            '_setup_readiness', '_break_confirmation', '_diagnostic_quality',
         ]
         display_source = candidates.copy()
-        display_source['_setup_readiness'] = display_source.apply(
-            lambda row: _setup_readiness_diagnostic(row, snapshot_results).get('readiness', 0),
-            axis=1,
-        )
-        display_source['_break_confirmation'] = display_source.apply(
-            lambda row: _break_quality_diagnostic(row, snapshot_results).get('sustain_label', '—'),
-            axis=1,
-        )
-        display_source['_diagnostic_quality'] = display_source.apply(
-            lambda row: _break_quality_diagnostic(row, snapshot_results).get('quality', 0),
-            axis=1,
-        )
         columns = [c for c in preferred if c in display_source.columns]
         if columns:
             # IMPORTANT: Processing Output is a dashboard presentation surface.
@@ -4994,12 +5682,8 @@ def _render_processing_output(
                 "conflict_count": "Conflict",
                 "sr_status": "S/R",
                 "gate_passed": "Gate",
-                "_setup_readiness": "Setup Readiness",
-                "_break_confirmation": "Break Confirmation",
-                "_diagnostic_quality": "Break Quality",
             }
             output = output.rename(columns=rename)
-            output["Reason"] = output_source.apply(lambda row: _break_quality_diagnostic(row, snapshot_results).get("reason", "Existing engine evidence only"), axis=1).values
             for timestamp_col in ["Time", "First Alert"]:
                 if timestamp_col in output.columns:
                     output[timestamp_col] = (
@@ -5033,7 +5717,7 @@ def _render_processing_output(
                     ratio = quality / 100.0 * 0.72
                     bg = "#{:02x}{:02x}{:02x}".format(*tuple(round(base[i] + (hi[i] - base[i]) * ratio) for i in range(3)))
                     styles = [f"background-color:{bg};color:#0f172a;font-weight:650"] * len(row)
-                    for col in ["Direction", "Decision", "S/R", "Move %", "Break Quality"]:
+                    for col in ["Direction", "Decision", "S/R", "Move %"]:
                         if col in row.index:
                             styles[row.index.get_loc(col)] = f"background-color:{bg};color:{accent};font-weight:900"
                     if "Gate" in row.index:
@@ -5052,39 +5736,76 @@ def _render_processing_output(
                 hide_index=True,
             )
 
-            with st.expander(
-                f"Full engine evaluation audit • {len(result)} rows",
-                expanded=False,
+            # Historical break diagnostics are intentionally opt-in.  A
+            # collapsed Streamlit expander is NOT lazy; putting the calculation
+            # inside one was the main render bottleneck.
+            diagnostic_key = f"show_processing_diagnostics_{str(processed_time).replace(':', '').replace(' ', '_')}"
+            if st.button(
+                "Load Processing Diagnostics",
+                key=diagnostic_key,
+                help=(
+                    "Runs the presentation-only readiness/break diagnostics after "
+                    "the main dashboard is already rendered. It does not alter SDL "
+                    "qualification, ranking, scoring, signals, or retracement state."
+                ),
+                use_container_width=True,
             ):
-                st.caption(
-                    "Audit only. These are all rows processed by the existing SDL engine; "
-                    "they are not the dashboard decision pool."
-                )
-                # Build the audit view from the full engine result.  The
-                # diagnostic column exists only on the dashboard display copy,
-                # so add it explicitly before selecting audit columns.
-                audit_source = result.copy()
-                audit_source['_diagnostic_quality'] = audit_source.apply(
-                    lambda row: _break_quality_diagnostic(row, snapshot_results).get('quality', 0),
-                    axis=1,
-                )
-                audit_columns = [c for c in columns if c in audit_source.columns]
-                if 'decision_reason' in result.columns and 'decision_reason' not in audit_columns:
-                    audit_columns.append('decision_reason')
-                audit = audit_source.loc[:, audit_columns].copy()
-                audit = audit.rename(columns=rename)
-                for timestamp_col in ["Time", "First Alert"]:
-                    if timestamp_col in audit.columns:
-                        audit[timestamp_col] = (
-                            pd.to_datetime(audit[timestamp_col], errors="coerce")
-                            .dt.strftime("%H:%M:%S")
-                            .fillna("—")
-                        )
-                st.dataframe(
-                    audit,
+                with st.spinner("Calculating processing diagnostics…"):
+                    diagnostic_source = candidates.copy()
+                    diagnostic_source['_setup_readiness'] = diagnostic_source.apply(
+                        lambda row: _setup_readiness_diagnostic(row, snapshot_results).get('readiness', 0),
+                        axis=1,
+                    )
+                    diagnostic_source['_break_confirmation'] = diagnostic_source.apply(
+                        lambda row: _break_quality_diagnostic(row, snapshot_results).get('sustain_label', '—'),
+                        axis=1,
+                    )
+                    diagnostic_source['_diagnostic_quality'] = diagnostic_source.apply(
+                        lambda row: _break_quality_diagnostic(row, snapshot_results).get('quality', 0),
+                        axis=1,
+                    )
+                    diagnostic_source['Reason'] = diagnostic_source.apply(
+                        lambda row: _break_quality_diagnostic(row, snapshot_results).get('reason', 'Existing engine evidence only'),
+                        axis=1,
+                    )
+                    diagnostic_cols = [c for c in columns if c in diagnostic_source.columns]
+                    diagnostic_cols += [
+                        c for c in ['_setup_readiness', '_break_confirmation', '_diagnostic_quality', 'Reason']
+                        if c not in diagnostic_cols
+                    ]
+                    diagnostic = diagnostic_source.loc[:, diagnostic_cols].copy()
+                    diagnostic = diagnostic.rename(columns={
+                        **rename,
+                        '_setup_readiness': 'Setup Readiness',
+                        '_break_confirmation': 'Break Confirmation',
+                        '_diagnostic_quality': 'Break Quality',
+                    })
+                    st.dataframe(diagnostic, use_container_width=True, hide_index=True)
+
+                # The full 219-row engine audit is also explicitly opt-in.
+                audit_key = f"show_processing_full_audit_{str(processed_time).replace(':', '').replace(' ', '_')}"
+                if st.button(
+                    f"Load Full Engine Evaluation Audit • {len(result)} rows",
+                    key=audit_key,
                     use_container_width=True,
-                    hide_index=True,
-                )
+                ):
+                    audit_source = result.copy()
+                    audit_source['_diagnostic_quality'] = audit_source.apply(
+                        lambda row: _break_quality_diagnostic(row, snapshot_results).get('quality', 0),
+                        axis=1,
+                    )
+                    audit_columns = [c for c in columns if c in audit_source.columns]
+                    audit_columns += [c for c in ['_diagnostic_quality'] if c not in audit_columns]
+                    audit = audit_source.loc[:, audit_columns].copy()
+                    audit = audit.rename(columns={**rename, '_diagnostic_quality': 'Break Quality'})
+                    for timestamp_col in ["Time", "First Alert"]:
+                        if timestamp_col in audit.columns:
+                            audit[timestamp_col] = (
+                                pd.to_datetime(audit[timestamp_col], errors="coerce")
+                                .dt.strftime("%H:%M:%S")
+                                .fillna("—")
+                            )
+                    st.dataframe(audit, use_container_width=True, hide_index=True)
         else:
             st.dataframe(
                 candidates,
@@ -6415,7 +7136,6 @@ def _render_current_result(
         _live_audit_controls()
 
 
-@st.fragment
 def _live_audit_controls() -> None:
     """Small interaction-only LIVE audit fragment.
 
@@ -6722,11 +7442,13 @@ def _restore_last_complete_state(
     return result, timeline, source_file, observation_timestamp
 
 
+@st.fragment(run_every=15)
 def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bool = False) -> None:
-        # LIVE controls are intentionally handled in the normal Streamlit render
-        # path for this diagnostic build. There is no scheduled LIVE fragment,
-        # preventing periodic UI flicker/full redraws while the cache path is
-        # being validated.
+        # LIVE processing runs in an isolated scheduled fragment. This gives
+        # AUTO LIVE an actual polling cadence without rerunning the full
+        # dashboard. The fragment processes all already-complete logical
+        # six-report captures in one tick; the newest unsettled capture remains
+        # protected by the atomic group settle gate.
         backlog_status = str(st.session_state.get("ds_current_day_backlog_status", "READY")).upper()
 
         # A callback runs before the next script execution, so it is the safe
@@ -6792,34 +7514,30 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                     current_sources, trading_date
                 )
                 pending_sources = _pending_live_sources(current_sources, trading_date)
-                replay_cached, replay_total, _snapshot_complete = _replay_cache_coverage(
-                    trading_date, current_sources
+                current_groups = _live_logical_snapshot_groups(current_sources)
+                processed_cached, processed_total, processed_complete = _live_processing_coverage(
+                    current_sources, trading_date
                 )
-                replay_complete = _historical_cache_complete_for_sources(
-                    trading_date, current_sources
-                ) if current_sources else False
             except Exception:
                 pending_sources = []
                 current_sources = []
                 checkpoint_valid = False
                 checkpoint_reason = "CHECKPOINT_CHECK_FAILED"
-                replay_cached = replay_total = 0
-                replay_complete = False
+                processed_cached = processed_total = 0
+                processed_complete = False
 
-            replay_incomplete = bool(current_sources) and not replay_complete
+            # LIVE backlog availability is determined ONLY by the durable logical
+            # checkpoint. PIT/replay-cache gaps are diagnostic state and must not
+            # cause LIVE to re-run an already processed prefix.
             backlog_available = bool(current_sources) and (
                 bool(pending_sources)
-                or replay_incomplete
                 or (not checkpoint_valid and checkpoint_reason == "NO_DURABLE_CHECKPOINT")
             )
 
             if not current_sources:
                 backlog_label = "Today's Intraday Backlog • No snapshots"
             elif not checkpoint_valid and checkpoint_reason == "NO_DURABLE_CHECKPOINT":
-                backlog_label = f"Initialize & Complete Today's Intraday State ({len(current_sources)} snapshots)"
-            elif replay_incomplete:
-                missing = max(0, len(current_sources) - replay_cached)
-                backlog_label = f"Complete Today's Intraday Backlog ({missing} replay snapshots missing)"
+                backlog_label = f"Initialize Today's Intraday State ({processed_total or len(current_groups)} snapshots)"
             elif pending_sources:
                 backlog_label = f"Process Today's Intraday Backlog ({len(pending_sources)} pending)"
             else:
@@ -6830,24 +7548,22 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                 type="primary" if backlog_available else "secondary",
                 disabled=not backlog_available,
                 help=(
-                    "Pause LIVE and build the complete chronological point-in-time chain. Existing complete replay state is reused without source reprocessing."
-                    if backlog_available and replay_incomplete else
-                    "Pause LIVE and process only today's durable LIVE backlog chronologically."
+                    "Pause LIVE and process only logical snapshots after the durable current-day checkpoint. Missing replay/PIT cache entries do not block LIVE processing."
                     if backlog_available else
-                    "No unprocessed current-day snapshots and the point-in-time replay chain is complete."
+                    "No unprocessed current-day snapshots. LIVE is already at the durable logical checkpoint."
                 ),
                 key="ds_current_day_backlog_button",
                 on_click=_request_current_day_backlog if backlog_available else None,
             )
             if current_sources:
-                if replay_complete:
+                if processed_complete:
                     st.markdown(
-                        f'<div style="padding:8px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #22c55e;color:#166534;font-weight:700;">🟢 CURRENT-DAY REPLAY • {replay_cached}/{replay_total} timestamps complete</div>',
+                        f'<div style="padding:8px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #22c55e;color:#166534;font-weight:700;">🟢 CURRENT-DAY REPLAY • {processed_cached}/{processed_total} timestamps processed</div>',
                         unsafe_allow_html=True,
                     )
                 else:
                     st.markdown(
-                        f'<div style="padding:8px 12px;border-radius:8px;background:#fff7ed;border:1px solid #f59e0b;color:#9a3412;font-weight:700;">🟠 CURRENT-DAY REPLAY • {replay_cached}/{replay_total} timestamps complete • {max(0, replay_total - replay_cached)} missing</div>',
+                        f'<div style="padding:8px 12px;border-radius:8px;background:#fff7ed;border:1px solid #f59e0b;color:#9a3412;font-weight:700;">🟠 CURRENT-DAY REPLAY • {processed_cached}/{processed_total} timestamps processed • {max(0, processed_total - processed_cached)} pending</div>',
                         unsafe_allow_html=True,
                     )
 
@@ -6867,16 +7583,11 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         st.success(f"CURRENT-DAY BACKLOG • {trading_date} • no snapshots available")
                         st.rerun()
 
-                    current_cached, current_total, _snapshot_complete = _replay_cache_coverage(
-                        trading_date, live_sources_now
-                    )
-                    current_complete = _historical_cache_complete_for_sources(
-                        trading_date, live_sources_now
-                    )
-                    checkpoint_now, checkpoint_ok, checkpoint_reason_now = _live_checkpoint_info(
+                    live_groups_now = _live_logical_snapshot_groups(live_sources_now)
+                    processed_now, total_now, _processed_complete_now = _live_processing_coverage(
                         live_sources_now, trading_date
                     )
-                    progress = st.progress(0, text=f"Current-day backlog: {current_cached}/{current_total} replay snapshots available")
+                    progress = st.progress(0, text=f"Current-day backlog: {processed_now}/{total_now} logical snapshots processed")
                     detail = st.empty()
 
                     def _backlog_progress(done: int, count: int, path: Path, timestamp: datetime) -> None:
@@ -6887,74 +7598,26 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         detail.caption(f"🔴 LIVE PAUSED • snapshot {done}/{count} • {path.name}")
 
                     # Manual current-day backlog is the explicit reconciliation
-                    # point. If replay is incomplete, rebuild the complete
-                    # chronological chain first; this repairs gaps between the
-                    # LIVE checkpoint and the historical cache. If replay is
-                    # already complete, promote it without source reprocessing.
-                    if not current_complete:
-                        progress.progress(0, text=f"Rebuilding complete point-in-time chain: 0 / {len(live_sources_now)}")
-                        _latest, _timeline, changed, processed = _initialize_live_day_from_backlog(
-                            live_sources_now, trading_date, progress_callback=_backlog_progress, retracement_enabled=retracement_enabled
-                        )
-                        final_cached, final_total, _snapshot_complete = _replay_cache_coverage(
-                            trading_date, live_sources_now
-                        )
-                        final_complete = _historical_cache_complete_for_sources(
-                            trading_date, live_sources_now
-                        )
-                        if not final_complete:
-                            raise RuntimeError(
-                                f"Backlog finished without a complete point-in-time chain: {final_cached}/{final_total}."
-                            )
-                        progress.progress(1.0, text=f"Current-day backlog: {final_cached} / {final_total} • COMPLETE")
-                        st.success(
-                            f"CURRENT-DAY BACKLOG COMPLETE • {trading_date} • {final_cached}/{final_total} chronological snapshots available • LIVE reconciled to latest state • {'source chain rebuilt' if processed else 'existing replay reused'} • LIVE will resume automatically."
-                        )
-                    elif not checkpoint_ok and checkpoint_reason_now == "NO_DURABLE_CHECKPOINT":
-                        _latest, _timeline, changed, _processed = _initialize_live_day_from_backlog(
-                            live_sources_now, trading_date, progress_callback=_backlog_progress, retracement_enabled=retracement_enabled
-                        )
-                        if not changed:
-                            raise RuntimeError("LIVE checkpoint could not be established from the complete replay chain.")
-                        progress.progress(1.0, text=f"Current-day backlog: {current_total} / {current_total} • COMPLETE")
-                        st.success(
-                            f"CURRENT-DAY BACKLOG COMPLETE • {trading_date} • existing complete replay promoted; no source reprocessing required • LIVE will resume automatically."
-                        )
-                    elif not checkpoint_ok:
+                    # point. It processes only captures after the durable LIVE
+                    # checkpoint. It does NOT reset state or rebuild the PIT cache.
+                    _latest, _timeline, changed, processed = _initialize_live_day_from_backlog(
+                        live_sources_now,
+                        trading_date,
+                        progress_callback=_backlog_progress,
+                        retracement_enabled=retracement_enabled,
+                    )
+                    final_sources = _discover_sources(trading_date, source_root)
+                    final_cached, final_total, final_complete = _live_processing_coverage(
+                        final_sources, trading_date
+                    )
+                    if not final_complete:
                         raise RuntimeError(
-                            f"LIVE checkpoint is invalid ({checkpoint_reason_now}); processing was refused for safety."
+                            f"Current-day backlog stopped before the durable processing frontier: {final_cached}/{final_total}."
                         )
-                    else:
-                        pending_now = _pending_live_sources(live_sources_now, trading_date)
-                        if pending_now:
-                            _latest, _timeline, _changed = _auto_process_new_snapshots(
-                                pending_now, trading_date, max_batch=None, progress_callback=_backlog_progress, retracement_enabled=retracement_enabled
-                            )
-                        # A LIVE-only catch-up can leave replay gaps when older
-                        # snapshots were processed before replay persistence was
-                        # repaired. Complete that chain before reporting success.
-                        final_sources = _discover_sources(trading_date, source_root)
-                        final_cached, final_total, _snapshot_complete = _replay_cache_coverage(
-                            trading_date, final_sources
-                        )
-                        final_complete = _historical_cache_complete_for_sources(
-                            trading_date, final_sources
-                        )
-                        if not final_complete:
-                            _latest, _timeline, _changed, _processed = _initialize_live_day_from_backlog(
-                                final_sources, trading_date, progress_callback=_backlog_progress, retracement_enabled=retracement_enabled
-                            )
-                            final_cached, final_total, final_complete = _replay_cache_coverage(
-                                trading_date, final_sources
-                            )
-                        if not final_complete:
-                            raise RuntimeError(
-                                f"Current-day backlog did not complete the replay chain: {final_cached}/{final_total}."
-                            )
-                        progress.progress(1.0, text=f"Current-day backlog: {final_cached} / {final_total} • COMPLETE")
-                        st.success(
-                            f"CURRENT-DAY BACKLOG COMPLETE • {trading_date} • {final_cached}/{final_total} chronological snapshots available • LIVE will resume automatically."
-                        )
+                    progress.progress(1.0, text=f"Current-day backlog: {final_cached} / {final_total} • COMPLETE")
+                    st.success(
+                        f"CURRENT-DAY BACKLOG COMPLETE • {trading_date} • {final_cached}/{final_total} logical snapshots processed • LIVE reconciled to latest durable state • LIVE will resume automatically."
+                    )
 
                     st.session_state["ds_current_day_backlog_status"] = "COMPLETE"
                     st.session_state["ds_current_day_backlog_active"] = False
@@ -7026,7 +7689,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                     restored_ts_for_rollover = pd.to_datetime(
                         restored_timestamp_for_rollover, errors="coerce"
                     )
-                source_latest_for_rollover = parse_observation_timestamp(sources[-1])
+                source_latest_for_rollover = pd.Timestamp(_live_event_timestamp(sources[-1]))
                 rollover_backlog_pending = (
                     pd.notna(restored_ts_for_rollover)
                     and pd.Timestamp(restored_ts_for_rollover) < pd.Timestamp(source_latest_for_rollover)
@@ -7084,7 +7747,12 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                     latest, timeline, state_changed_any = _auto_process_new_snapshots(
                         sources,
                         trading_date,
-                        # One complete logical snapshot group per LIVE tick.
+                        # AUTO LIVE intentionally processes ONE logical observation
+                        # per Streamlit execution. This prevents a backlog from
+                        # monopolizing one execution while still allowing the next
+                        # scheduled cycle to continue immediately. The resolver is
+                        # cadence-agnostic; this is a UI/throughput boundary, not a
+                        # five/ten/fifteen-minute source interval.
                         max_batch=1,
                         retracement_enabled=retracement_enabled,
                     )
@@ -7140,7 +7808,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                     ).dropna()
                     if not processed_times.empty:
                         latest_time = processed_times.max().to_pydatetime()
-            source_latest_time = parse_observation_timestamp(sources[-1])
+            source_latest_time = pd.Timestamp(_live_event_timestamp(sources[-1]))
             durable_checkpoint_time = pd.to_datetime(
                 _live_state_cached()
                 .get(STATE_KEY, {})
@@ -7152,7 +7820,17 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                 durable_checkpoint_time = pd.Timestamp(durable_checkpoint_time).to_pydatetime()
             else:
                 durable_checkpoint_time = None
-            if auto_update and latest_time < source_latest_time:
+            # IMPORTANT: processing progress and decision-bearing display are
+            # separate concepts. A valid logical snapshot may contain zero
+            # qualified/decision rows. In that case the durable processing
+            # checkpoint MUST advance, while the visible decision board remains
+            # on the last non-empty decision-bearing snapshot.
+            processing_time = (
+                durable_checkpoint_time
+                if durable_checkpoint_time is not None
+                else latest_time
+            )
+            if auto_update and processing_time < source_latest_time:
                 status = (
                     "LIVE FEED • processing catch-up • "
                     "chronologically monitored"
@@ -7169,25 +7847,35 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         "LAST AVAILABLE SNAPSHOT"
                     )
             elif auto_update:
-                if latest_time < source_latest_time:
+                if processing_time < source_latest_time:
                     status = (
                         "LIVE FEED • processing catch-up • "
                         "chronologically monitored"
                     )
                 else:
                     status = (
-                        "LIVE FEED • last available snapshot • "
+                        "LIVE FEED • last processed snapshot • "
                         "chronologically monitored"
                     )
             else:
                 status = "LIVE FEED • last processed snapshot • Auto-update OFF"
 
-            if durable_checkpoint_time is not None and durable_checkpoint_time > latest_time:
-                st.caption(
-                    f"{status} • processing checkpoint {durable_checkpoint_time:%H:%M:%S} • "
-                    f"last decision-bearing snapshot {latest_time:%H:%M:%S} • "
-                    f"source latest {source_latest_time:%H:%M:%S}"
-                )
+            if durable_checkpoint_time is not None:
+                if latest_time != processing_time:
+                    st.caption(
+                        f"{status} • processed {processing_time:%H:%M:%S} / "
+                        f"last decision-bearing snapshot {latest_time:%H:%M:%S} • "
+                        f"source latest {source_latest_time:%H:%M:%S}"
+                    )
+                elif processing_time < source_latest_time:
+                    st.caption(
+                        f"{status} • processed {processing_time:%H:%M:%S} / "
+                        f"source latest {source_latest_time:%H:%M:%S} • {latest_path.name}"
+                    )
+                else:
+                    st.caption(
+                        f"{status} • processed {processing_time:%H:%M:%S} • {latest_path.name}"
+                    )
             elif latest_time < source_latest_time:
                 st.caption(
                     f"{status} • processed {latest_time:%H:%M:%S} / "
@@ -7236,9 +7924,13 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
         except Exception as exc:
             st.error(f"Live processing failed: {type(exc).__name__}: {exc}")
 
-        # LIVE source processing and the interactive decision board are isolated so decision clicks do not re-enter source processing.
-        # This prevents the staggered second fragment from causing visual flicker.
-        _live_decision_panel()
+        # IMPORTANT: do not render the interactive decision board from inside
+        # the scheduled LIVE-processing fragment.  The decision board contains
+        # widgets and its own audit interactions; rendering it here makes the
+        # entire dashboard below LIVE become part of the 15-second fragment and
+        # can leave the lower dashboard surfaces absent/stale after fragment
+        # reruns.  The decision board is rendered by its own fragment from the
+        # parent render() below the LIVE Feed & Session expander.
 
 
 def _request_replay_snapshot(trading_date: str, selected_index: int) -> None:
@@ -7748,7 +8440,7 @@ def _load_day_for_snapshot_view(sources: list[Path], trading_date: str) -> tuple
 
 
 def _live_decision_panel() -> None:
-    """Render the interactive LIVE decision board in an isolated fragment.
+    """Render the interactive LIVE decision board in its own fragment.
 
     Interactions here must never re-run the LIVE source-processing controller.
     This keeps evolution/audit clicks responsive and prevents whole-dashboard
@@ -7780,14 +8472,17 @@ def _live_decision_panel() -> None:
         )
     )
 
+    checkpoint_text = str(live_render_state.get("processed_checkpoint_time", "")).strip()
+    checkpoint_time = pd.to_datetime(checkpoint_text, errors="coerce")
     _render_processing_output(
         live_latest,
         live_latest_time,
         live_latest_path,
         live_snapshot_results,
+        processing_checkpoint_time=(
+            checkpoint_time.to_pydatetime() if pd.notna(checkpoint_time) else None
+        ),
     )
-    checkpoint_text = str(live_render_state.get("processed_checkpoint_time", "")).strip()
-    checkpoint_time = pd.to_datetime(checkpoint_text, errors="coerce")
     if pd.notna(checkpoint_time) and pd.Timestamp(checkpoint_time) > pd.Timestamp(live_latest_time):
         st.caption(
             f"LIVE processing checkpoint: {pd.Timestamp(checkpoint_time):%H:%M:%S} • "
@@ -7887,14 +8582,16 @@ def render() -> None:
     # controls and lifecycle state lookups.
     st.session_state["ds_trading_date"] = trading_date
 
-    latest_path = sources[-1]
-    latest_time = parse_observation_timestamp(latest_path)
     logical_groups = _live_logical_snapshot_groups(sources)
+    physical_report_count = sum(len(group) for group in logical_groups)
+    latest_path = sources[-1]
+    latest_time = _live_group_timestamp(logical_groups[-1]) if logical_groups else parse_observation_timestamp(latest_path)
     first_logical_time = _live_group_timestamp(logical_groups[0]) if logical_groups else latest_time
     latest_logical_time = _live_group_timestamp(logical_groups[-1]) if logical_groups else latest_time
+    complete_group_count = sum(1 for group in logical_groups if _live_group_complete(group))
     st.markdown(
-        f'<div class="snapshot"><b>Reports:</b> {len(sources)} &nbsp;|&nbsp; '
-        f'<b>Logical Snapshots:</b> {len(logical_groups)} &nbsp;|&nbsp; '
+        f'<div class="snapshot"><b>Physical Reports:</b> {physical_report_count} &nbsp;|&nbsp; '
+        f'<b>Logical Snapshots:</b> {complete_group_count}/{len(logical_groups)} &nbsp;|&nbsp; '
         f'<b>First:</b> {first_logical_time:%H:%M:%S} &nbsp;|&nbsp; '
         f'<b>Latest:</b> {latest_logical_time:%H:%M:%S}</div>',
         unsafe_allow_html=True,
@@ -7945,6 +8642,11 @@ def render() -> None:
                 trading_date,
                 rollover_fallback=(trading_date != selected_calendar_date),
             )
+    # Interactive LIVE decision board is intentionally outside the scheduled
+    # source-processing fragment.  It reads the durable/display state produced
+    # by _live_auto_panel and refreshes independently every 15 seconds.
+    _live_decision_panel()
+
     # Independent point-in-time controller. It does not change the main LIVE context.
     @st.fragment
     def _replay_panel() -> None:
