@@ -106,7 +106,7 @@ def save_state(state: dict[str, Any], path: str | Path) -> None:
                 pass
 
 REPLAY_CACHE_ROOT = STATE_JSON.parent / "replay_cache"
-REPLAY_CACHE_VERSION = 3
+REPLAY_CACHE_VERSION = 4
 
 CONFIRMED_STATES = {
     "STRONG_BULLISH",
@@ -1522,6 +1522,7 @@ def _store_replay_cache(
     point_in_time_cache: dict[str, dict[str, Any]] | None = None,
     sources: list[Path] | None = None,
     resume_state: dict[str, Any] | None = None,
+    live_compact: bool = False,
 ) -> None:
     """Persist cumulative replay state, including safe interruption checkpoints.
 
@@ -1562,20 +1563,58 @@ def _store_replay_cache(
     if not isinstance(point_in_time_cache, dict):
         point_in_time_cache = {}
 
+    # LIVE persistence is latency-sensitive.  The in-memory cache retains the
+    # complete physical evidence aliases, but the durable LIVE replay file does
+    # not need six copies of every logical observation.  Persist only the
+    # authoritative logical::<timestamp> frames and their matching PIT entries.
+    # The durable LIVE checkpoint remains processing_state.json and is written
+    # after every observation; the replay file is a recovery/replay artifact.
+    # Historical/full-day replay keeps the original physical-source cache.
+    persist_snapshots = snapshot_results
+    persist_point_cache = point_in_time_cache
+    persist_source_keys = source_keys
+    persist_source_timestamps = source_timestamps
+    persist_source_count = source_count
+    if live_compact:
+        persist_snapshots = {
+            str(key): frame
+            for key, frame in snapshot_results.items()
+            if str(key).startswith("logical::") and isinstance(frame, pd.DataFrame)
+        }
+        persist_point_cache = {
+            str(key): value
+            for key, value in (point_in_time_cache or {}).items()
+            if str(key).startswith("logical::")
+        }
+        logical_times = []
+        for key, frame in persist_snapshots.items():
+            ts = _replay_frame_timestamp(frame)
+            if ts is not None:
+                logical_times.append(pd.Timestamp(ts).isoformat())
+        logical_times = sorted(set(logical_times))
+        persist_source_keys = list(persist_snapshots.keys())
+        persist_source_timestamps = logical_times
+        persist_source_count = len(logical_times)
+
     value = {
         "version": REPLAY_CACHE_VERSION,
         "trading_date": trading_date,
-        "snapshots": snapshot_results,
+        "snapshots": persist_snapshots,
         "timeline": timeline if isinstance(timeline, pd.DataFrame) else pd.DataFrame(),
-        "point_in_time_cache": point_in_time_cache,
-        "source_count": int(source_count),
-        "source_keys": source_keys,
-        "source_timestamps": source_timestamps,
+        "point_in_time_cache": persist_point_cache,
+        "source_count": int(persist_source_count),
+        "source_keys": persist_source_keys,
+        "source_timestamps": persist_source_timestamps,
         "complete": complete,
     }
+    persisted_complete = complete
+    if live_compact:
+        persisted_complete = bool(persist_source_count and len(persist_source_timestamps) >= persist_source_count)
     if isinstance(resume_state, dict) and resume_state:
-        value["resume_state"] = resume_state
-    elif complete:
+        value["resume_state"] = dict(resume_state)
+        if live_compact:
+            value["resume_state"]["logical_snapshot_count"] = int(persist_source_count)
+    elif persisted_complete:
         value["resume_state"] = {
             "processed_count": int(source_count),
             "source_timestamps": source_timestamps,
@@ -2605,6 +2644,7 @@ def _auto_process_new_snapshots(
                 "complete": False,
                 "logical_snapshot_count": 1,
             },
+            live_compact=True,
         )
         if callable(progress_callback):
             try:
@@ -2957,6 +2997,7 @@ def _auto_process_new_snapshots(
             "complete": False,
             "logical_snapshot_count": len(groups),
         },
+        live_compact=True,
     )
 
     return latest_result, timeline, state_changed_any
@@ -7653,7 +7694,6 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
             skip_processing_once = bool(
                 st.session_state.pop("ds_live_skip_processing_once", False)
             )
-
             _, market_open = _market_session_status(trading_date)
             state_changed_any = False
             # A current-day manual backlog owns the chronological processor until
@@ -7772,6 +7812,19 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                 )
                 persisted_source = ""
                 persisted_timestamp = ""
+
+            # The scheduled LIVE fragment owns source processing, while the
+            # Processing Output / decision board are rendered by the parent app.
+            # After a snapshot is actually committed, publish that new state to
+            # the parent render exactly once.  The skip flag prevents the full-app
+            # rerun from immediately consuming the next logical observation.
+            # This fixes the observed case where LIVE showed 09:52/10:02 processed
+            # but Processing Output remained at 09:47 until the user clicked
+            # Refresh.
+            if state_changed_any and not skip_processing_once:
+                st.session_state["ds_live_skip_processing_once"] = True
+                st.rerun()
+
             session_state["finalized"] = not market_open
 
             if latest is None or latest.empty:

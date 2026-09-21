@@ -1,0 +1,8 @@
+NTIS Stock State Composer Bundle V4
+Git baseline: f052e8390f1da69fefdcf83956a6c19cc50d91ca
+Layer: Stock State Composer
+Scope: SDL + Retracement/Re-entry + RSI/MTF descriptive evidence composition
+Selection gate changes: NONE
+Dashboard replacement: NONE
+Git writes: NONE
+Tests: 5
