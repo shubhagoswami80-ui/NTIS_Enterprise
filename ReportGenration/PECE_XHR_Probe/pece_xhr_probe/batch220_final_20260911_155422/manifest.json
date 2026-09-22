@@ -1,0 +1,3121 @@
+{
+  "status": "completed",
+  "started_at": "2026-09-11T15:54:22",
+  "target_url": "https://www.icharts.in/opt/TotalPECEOIDiff_Beta.php",
+  "completed_count": 219,
+  "success_count": 216,
+  "failed_count": 3,
+  "errors": [
+    {
+      "sequence": 7,
+      "symbol": "SENSEX",
+      "text": "SENSEX",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 246.6,
+      "rows": 0,
+      "error": "HTTP/non-data response"
+    },
+    {
+      "sequence": 8,
+      "symbol": "BANKEX",
+      "text": "BANKEX",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 219.9,
+      "rows": 0,
+      "error": "HTTP/non-data response"
+    },
+    {
+      "sequence": 9,
+      "symbol": "FOCIT",
+      "text": "FOCIT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 256.6,
+      "rows": 0,
+      "error": "HTTP/non-data response"
+    }
+  ],
+  "results": [
+    {
+      "sequence": 1,
+      "symbol": "NIFTY",
+      "text": "NIFTY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 908.1,
+      "rows": 77,
+      "file": "001_NIFTY.json"
+    },
+    {
+      "sequence": 2,
+      "symbol": "BANKNIFTY",
+      "text": "BANKNIFTY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 924.5,
+      "rows": 77,
+      "file": "002_BANKNIFTY.json"
+    },
+    {
+      "sequence": 3,
+      "symbol": "FINNIFTY",
+      "text": "FINNIFTY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 623.9,
+      "rows": 77,
+      "file": "003_FINNIFTY.json"
+    },
+    {
+      "sequence": 4,
+      "symbol": "MIDCPNIFTY",
+      "text": "MIDCPNIFTY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 807.6,
+      "rows": 77,
+      "file": "004_MIDCPNIFTY.json"
+    },
+    {
+      "sequence": 5,
+      "symbol": "NIFTYNXT50",
+      "text": "NIFTYNXT50",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 439.5,
+      "rows": 77,
+      "file": "005_NIFTYNXT50.json"
+    },
+    {
+      "sequence": 6,
+      "symbol": "NIFTYFPI",
+      "text": "NIFTYFPI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 539.2,
+      "rows": 77,
+      "file": "006_NIFTYFPI.json"
+    },
+    {
+      "sequence": 7,
+      "symbol": "SENSEX",
+      "text": "SENSEX",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 246.6,
+      "rows": 0,
+      "error": "HTTP/non-data response"
+    },
+    {
+      "sequence": 8,
+      "symbol": "BANKEX",
+      "text": "BANKEX",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 219.9,
+      "rows": 0,
+      "error": "HTTP/non-data response"
+    },
+    {
+      "sequence": 9,
+      "symbol": "FOCIT",
+      "text": "FOCIT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 256.6,
+      "rows": 0,
+      "error": "HTTP/non-data response"
+    },
+    {
+      "sequence": 10,
+      "symbol": "360ONE",
+      "text": "360ONE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 632.2,
+      "rows": 77,
+      "file": "010_360ONE.json"
+    },
+    {
+      "sequence": 11,
+      "symbol": "ABB",
+      "text": "ABB",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 611.7,
+      "rows": 77,
+      "file": "011_ABB.json"
+    },
+    {
+      "sequence": 12,
+      "symbol": "ABCAPITAL",
+      "text": "ABCAPITAL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 572.7,
+      "rows": 77,
+      "file": "012_ABCAPITAL.json"
+    },
+    {
+      "sequence": 13,
+      "symbol": "ADANIENSOL",
+      "text": "ADANIENSOL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 567.9,
+      "rows": 77,
+      "file": "013_ADANIENSOL.json"
+    },
+    {
+      "sequence": 14,
+      "symbol": "ADANIENT",
+      "text": "ADANIENT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 606.2,
+      "rows": 77,
+      "file": "014_ADANIENT.json"
+    },
+    {
+      "sequence": 15,
+      "symbol": "ADANIGREEN",
+      "text": "ADANIGREEN",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 557.5,
+      "rows": 77,
+      "file": "015_ADANIGREEN.json"
+    },
+    {
+      "sequence": 16,
+      "symbol": "ADANIPORTS",
+      "text": "ADANIPORTS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 621.5,
+      "rows": 77,
+      "file": "016_ADANIPORTS.json"
+    },
+    {
+      "sequence": 17,
+      "symbol": "ADANIPOWER",
+      "text": "ADANIPOWER",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 605.4,
+      "rows": 77,
+      "file": "017_ADANIPOWER.json"
+    },
+    {
+      "sequence": 18,
+      "symbol": "ALKEM",
+      "text": "ALKEM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 532.0,
+      "rows": 77,
+      "file": "018_ALKEM.json"
+    },
+    {
+      "sequence": 19,
+      "symbol": "AMBER",
+      "text": "AMBER",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 575.4,
+      "rows": 77,
+      "file": "019_AMBER.json"
+    },
+    {
+      "sequence": 20,
+      "symbol": "AMBUJACEM",
+      "text": "AMBUJACEM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 533.3,
+      "rows": 77,
+      "file": "020_AMBUJACEM.json"
+    },
+    {
+      "sequence": 21,
+      "symbol": "ANGELONE",
+      "text": "ANGELONE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 648.5,
+      "rows": 77,
+      "file": "021_ANGELONE.json"
+    },
+    {
+      "sequence": 22,
+      "symbol": "APLAPOLLO",
+      "text": "APLAPOLLO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 893.0,
+      "rows": 77,
+      "file": "022_APLAPOLLO.json"
+    },
+    {
+      "sequence": 23,
+      "symbol": "APOLLOHOSP",
+      "text": "APOLLOHOSP",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 631.9,
+      "rows": 77,
+      "file": "023_APOLLOHOSP.json"
+    },
+    {
+      "sequence": 24,
+      "symbol": "ASHOKLEY",
+      "text": "ASHOKLEY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 738.4,
+      "rows": 77,
+      "file": "024_ASHOKLEY.json"
+    },
+    {
+      "sequence": 25,
+      "symbol": "ASIANPAINT",
+      "text": "ASIANPAINT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 663.0,
+      "rows": 77,
+      "file": "025_ASIANPAINT.json"
+    },
+    {
+      "sequence": 26,
+      "symbol": "ASTRAL",
+      "text": "ASTRAL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 644.6,
+      "rows": 77,
+      "file": "026_ASTRAL.json"
+    },
+    {
+      "sequence": 27,
+      "symbol": "ATHERENERG",
+      "text": "ATHERENERG",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 657.7,
+      "rows": 77,
+      "file": "027_ATHERENERG.json"
+    },
+    {
+      "sequence": 28,
+      "symbol": "AUBANK",
+      "text": "AUBANK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 625.6,
+      "rows": 77,
+      "file": "028_AUBANK.json"
+    },
+    {
+      "sequence": 29,
+      "symbol": "AUROPHARMA",
+      "text": "AUROPHARMA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 618.3,
+      "rows": 77,
+      "file": "029_AUROPHARMA.json"
+    },
+    {
+      "sequence": 30,
+      "symbol": "AXISBANK",
+      "text": "AXISBANK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 589.8,
+      "rows": 77,
+      "file": "030_AXISBANK.json"
+    },
+    {
+      "sequence": 31,
+      "symbol": "BAJAJ-AUTO",
+      "text": "BAJAJ-AUTO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 569.5,
+      "rows": 77,
+      "file": "031_BAJAJ-AUTO.json"
+    },
+    {
+      "sequence": 32,
+      "symbol": "BAJAJFINSV",
+      "text": "BAJAJFINSV",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 575.6,
+      "rows": 77,
+      "file": "032_BAJAJFINSV.json"
+    },
+    {
+      "sequence": 33,
+      "symbol": "BAJAJHLDNG",
+      "text": "BAJAJHLDNG",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 602.2,
+      "rows": 77,
+      "file": "033_BAJAJHLDNG.json"
+    },
+    {
+      "sequence": 34,
+      "symbol": "BAJFINANCE",
+      "text": "BAJFINANCE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 658.2,
+      "rows": 77,
+      "file": "034_BAJFINANCE.json"
+    },
+    {
+      "sequence": 35,
+      "symbol": "BANDHANBNK",
+      "text": "BANDHANBNK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 603.5,
+      "rows": 77,
+      "file": "035_BANDHANBNK.json"
+    },
+    {
+      "sequence": 36,
+      "symbol": "BANKBARODA",
+      "text": "BANKBARODA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 610.2,
+      "rows": 77,
+      "file": "036_BANKBARODA.json"
+    },
+    {
+      "sequence": 37,
+      "symbol": "BANKINDIA",
+      "text": "BANKINDIA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 567.8,
+      "rows": 77,
+      "file": "037_BANKINDIA.json"
+    },
+    {
+      "sequence": 38,
+      "symbol": "BDL",
+      "text": "BDL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 586.7,
+      "rows": 77,
+      "file": "038_BDL.json"
+    },
+    {
+      "sequence": 39,
+      "symbol": "BEL",
+      "text": "BEL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 601.8,
+      "rows": 77,
+      "file": "039_BEL.json"
+    },
+    {
+      "sequence": 40,
+      "symbol": "BHARATFORG",
+      "text": "BHARATFORG",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 592.7,
+      "rows": 77,
+      "file": "040_BHARATFORG.json"
+    },
+    {
+      "sequence": 41,
+      "symbol": "BHARTIARTL",
+      "text": "BHARTIARTL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 753.8,
+      "rows": 77,
+      "file": "041_BHARTIARTL.json"
+    },
+    {
+      "sequence": 42,
+      "symbol": "BHEL",
+      "text": "BHEL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 817.3,
+      "rows": 77,
+      "file": "042_BHEL.json"
+    },
+    {
+      "sequence": 43,
+      "symbol": "BIOCON",
+      "text": "BIOCON",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 636.5,
+      "rows": 77,
+      "file": "043_BIOCON.json"
+    },
+    {
+      "sequence": 44,
+      "symbol": "BLUESTARCO",
+      "text": "BLUESTARCO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 658.3,
+      "rows": 77,
+      "file": "044_BLUESTARCO.json"
+    },
+    {
+      "sequence": 45,
+      "symbol": "BOSCHLTD",
+      "text": "BOSCHLTD",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 674.9,
+      "rows": 77,
+      "file": "045_BOSCHLTD.json"
+    },
+    {
+      "sequence": 46,
+      "symbol": "BPCL",
+      "text": "BPCL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 646.7,
+      "rows": 77,
+      "file": "046_BPCL.json"
+    },
+    {
+      "sequence": 47,
+      "symbol": "BRITANNIA",
+      "text": "BRITANNIA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 644.1,
+      "rows": 77,
+      "file": "047_BRITANNIA.json"
+    },
+    {
+      "sequence": 48,
+      "symbol": "BSE",
+      "text": "BSE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 633.6,
+      "rows": 77,
+      "file": "048_BSE.json"
+    },
+    {
+      "sequence": 49,
+      "symbol": "CAMS",
+      "text": "CAMS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 644.2,
+      "rows": 77,
+      "file": "049_CAMS.json"
+    },
+    {
+      "sequence": 50,
+      "symbol": "CANBK",
+      "text": "CANBK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 621.6,
+      "rows": 77,
+      "file": "050_CANBK.json"
+    },
+    {
+      "sequence": 51,
+      "symbol": "CDSL",
+      "text": "CDSL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 582.4,
+      "rows": 77,
+      "file": "051_CDSL.json"
+    },
+    {
+      "sequence": 52,
+      "symbol": "CGPOWER",
+      "text": "CGPOWER",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 547.1,
+      "rows": 77,
+      "file": "052_CGPOWER.json"
+    },
+    {
+      "sequence": 53,
+      "symbol": "CHOLAFIN",
+      "text": "CHOLAFIN",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 598.6,
+      "rows": 77,
+      "file": "053_CHOLAFIN.json"
+    },
+    {
+      "sequence": 54,
+      "symbol": "CIPLA",
+      "text": "CIPLA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 569.9,
+      "rows": 77,
+      "file": "054_CIPLA.json"
+    },
+    {
+      "sequence": 55,
+      "symbol": "COALINDIA",
+      "text": "COALINDIA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 582.7,
+      "rows": 77,
+      "file": "055_COALINDIA.json"
+    },
+    {
+      "sequence": 56,
+      "symbol": "COCHINSHIP",
+      "text": "COCHINSHIP",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 615.0,
+      "rows": 77,
+      "file": "056_COCHINSHIP.json"
+    },
+    {
+      "sequence": 57,
+      "symbol": "COFORGE",
+      "text": "COFORGE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 621.2,
+      "rows": 77,
+      "file": "057_COFORGE.json"
+    },
+    {
+      "sequence": 58,
+      "symbol": "COLPAL",
+      "text": "COLPAL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 580.5,
+      "rows": 77,
+      "file": "058_COLPAL.json"
+    },
+    {
+      "sequence": 59,
+      "symbol": "CONCOR",
+      "text": "CONCOR",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 581.5,
+      "rows": 77,
+      "file": "059_CONCOR.json"
+    },
+    {
+      "sequence": 60,
+      "symbol": "CROMPTON",
+      "text": "CROMPTON",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 570.0,
+      "rows": 77,
+      "file": "060_CROMPTON.json"
+    },
+    {
+      "sequence": 61,
+      "symbol": "CUMMINSIND",
+      "text": "CUMMINSIND",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 671.1,
+      "rows": 77,
+      "file": "061_CUMMINSIND.json"
+    },
+    {
+      "sequence": 62,
+      "symbol": "DABUR",
+      "text": "DABUR",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 603.6,
+      "rows": 77,
+      "file": "062_DABUR.json"
+    },
+    {
+      "sequence": 63,
+      "symbol": "DELHIVERY",
+      "text": "DELHIVERY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 625.5,
+      "rows": 77,
+      "file": "063_DELHIVERY.json"
+    },
+    {
+      "sequence": 64,
+      "symbol": "DIVISLAB",
+      "text": "DIVISLAB",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 642.7,
+      "rows": 77,
+      "file": "064_DIVISLAB.json"
+    },
+    {
+      "sequence": 65,
+      "symbol": "DIXON",
+      "text": "DIXON",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 662.3,
+      "rows": 77,
+      "file": "065_DIXON.json"
+    },
+    {
+      "sequence": 66,
+      "symbol": "DLF",
+      "text": "DLF",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 629.5,
+      "rows": 77,
+      "file": "066_DLF.json"
+    },
+    {
+      "sequence": 67,
+      "symbol": "DMART",
+      "text": "DMART",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 655.7,
+      "rows": 77,
+      "file": "067_DMART.json"
+    },
+    {
+      "sequence": 68,
+      "symbol": "DRREDDY",
+      "text": "DRREDDY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 651.0,
+      "rows": 77,
+      "file": "068_DRREDDY.json"
+    },
+    {
+      "sequence": 69,
+      "symbol": "EICHERMOT",
+      "text": "EICHERMOT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 629.0,
+      "rows": 77,
+      "file": "069_EICHERMOT.json"
+    },
+    {
+      "sequence": 70,
+      "symbol": "ETERNAL",
+      "text": "ETERNAL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 652.9,
+      "rows": 77,
+      "file": "070_ETERNAL.json"
+    },
+    {
+      "sequence": 71,
+      "symbol": "FEDERALBNK",
+      "text": "FEDERALBNK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 581.5,
+      "rows": 77,
+      "file": "071_FEDERALBNK.json"
+    },
+    {
+      "sequence": 72,
+      "symbol": "FORCEMOT",
+      "text": "FORCEMOT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 573.8,
+      "rows": 77,
+      "file": "072_FORCEMOT.json"
+    },
+    {
+      "sequence": 73,
+      "symbol": "FORTIS",
+      "text": "FORTIS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 687.2,
+      "rows": 77,
+      "file": "073_FORTIS.json"
+    },
+    {
+      "sequence": 74,
+      "symbol": "GAIL",
+      "text": "GAIL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 575.2,
+      "rows": 77,
+      "file": "074_GAIL.json"
+    },
+    {
+      "sequence": 75,
+      "symbol": "GLENMARK",
+      "text": "GLENMARK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 576.3,
+      "rows": 77,
+      "file": "075_GLENMARK.json"
+    },
+    {
+      "sequence": 76,
+      "symbol": "GMRAIRPORT",
+      "text": "GMRAIRPORT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 545.3,
+      "rows": 77,
+      "file": "076_GMRAIRPORT.json"
+    },
+    {
+      "sequence": 77,
+      "symbol": "GODFRYPHLP",
+      "text": "GODFRYPHLP",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 542.4,
+      "rows": 77,
+      "file": "077_GODFRYPHLP.json"
+    },
+    {
+      "sequence": 78,
+      "symbol": "GODREJCP",
+      "text": "GODREJCP",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 581.1,
+      "rows": 77,
+      "file": "078_GODREJCP.json"
+    },
+    {
+      "sequence": 79,
+      "symbol": "GODREJPROP",
+      "text": "GODREJPROP",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 727.8,
+      "rows": 77,
+      "file": "079_GODREJPROP.json"
+    },
+    {
+      "sequence": 80,
+      "symbol": "GRASIM",
+      "text": "GRASIM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 663.4,
+      "rows": 77,
+      "file": "080_GRASIM.json"
+    },
+    {
+      "sequence": 81,
+      "symbol": "GVT&D",
+      "text": "GVT&D",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 649.2,
+      "rows": 77,
+      "file": "081_GVT_D.json"
+    },
+    {
+      "sequence": 82,
+      "symbol": "HAL",
+      "text": "HAL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 650.5,
+      "rows": 77,
+      "file": "082_HAL.json"
+    },
+    {
+      "sequence": 83,
+      "symbol": "HAVELLS",
+      "text": "HAVELLS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 646.8,
+      "rows": 77,
+      "file": "083_HAVELLS.json"
+    },
+    {
+      "sequence": 84,
+      "symbol": "HCLTECH",
+      "text": "HCLTECH",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 669.0,
+      "rows": 77,
+      "file": "084_HCLTECH.json"
+    },
+    {
+      "sequence": 85,
+      "symbol": "HDFCAMC",
+      "text": "HDFCAMC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 635.0,
+      "rows": 77,
+      "file": "085_HDFCAMC.json"
+    },
+    {
+      "sequence": 86,
+      "symbol": "HDFCBANK",
+      "text": "HDFCBANK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 706.0,
+      "rows": 77,
+      "file": "086_HDFCBANK.json"
+    },
+    {
+      "sequence": 87,
+      "symbol": "HDFCLIFE",
+      "text": "HDFCLIFE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 652.9,
+      "rows": 77,
+      "file": "087_HDFCLIFE.json"
+    },
+    {
+      "sequence": 88,
+      "symbol": "HEROMOTOCO",
+      "text": "HEROMOTOCO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 608.8,
+      "rows": 77,
+      "file": "088_HEROMOTOCO.json"
+    },
+    {
+      "sequence": 89,
+      "symbol": "HINDALCO",
+      "text": "HINDALCO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 629.0,
+      "rows": 77,
+      "file": "089_HINDALCO.json"
+    },
+    {
+      "sequence": 90,
+      "symbol": "HINDPETRO",
+      "text": "HINDPETRO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 595.5,
+      "rows": 77,
+      "file": "090_HINDPETRO.json"
+    },
+    {
+      "sequence": 91,
+      "symbol": "HINDUNILVR",
+      "text": "HINDUNILVR",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 625.8,
+      "rows": 77,
+      "file": "091_HINDUNILVR.json"
+    },
+    {
+      "sequence": 92,
+      "symbol": "HINDZINC",
+      "text": "HINDZINC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 684.2,
+      "rows": 77,
+      "file": "092_HINDZINC.json"
+    },
+    {
+      "sequence": 93,
+      "symbol": "HYUNDAI",
+      "text": "HYUNDAI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 581.5,
+      "rows": 77,
+      "file": "093_HYUNDAI.json"
+    },
+    {
+      "sequence": 94,
+      "symbol": "ICICIBANK",
+      "text": "ICICIBANK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 662.0,
+      "rows": 77,
+      "file": "094_ICICIBANK.json"
+    },
+    {
+      "sequence": 95,
+      "symbol": "ICICIGI",
+      "text": "ICICIGI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 556.1,
+      "rows": 77,
+      "file": "095_ICICIGI.json"
+    },
+    {
+      "sequence": 96,
+      "symbol": "ICICIPRULI",
+      "text": "ICICIPRULI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 664.2,
+      "rows": 77,
+      "file": "096_ICICIPRULI.json"
+    },
+    {
+      "sequence": 97,
+      "symbol": "IDEA",
+      "text": "IDEA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 562.0,
+      "rows": 77,
+      "file": "097_IDEA.json"
+    },
+    {
+      "sequence": 98,
+      "symbol": "IDFCFIRSTB",
+      "text": "IDFCFIRSTB",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 561.3,
+      "rows": 77,
+      "file": "098_IDFCFIRSTB.json"
+    },
+    {
+      "sequence": 99,
+      "symbol": "IEX",
+      "text": "IEX",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 672.0,
+      "rows": 77,
+      "file": "099_IEX.json"
+    },
+    {
+      "sequence": 100,
+      "symbol": "INDHOTEL",
+      "text": "INDHOTEL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 635.7,
+      "rows": 77,
+      "file": "100_INDHOTEL.json"
+    },
+    {
+      "sequence": 101,
+      "symbol": "INDIANB",
+      "text": "INDIANB",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 652.3,
+      "rows": 77,
+      "file": "101_INDIANB.json"
+    },
+    {
+      "sequence": 102,
+      "symbol": "INDIGO",
+      "text": "INDIGO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 646.8,
+      "rows": 77,
+      "file": "102_INDIGO.json"
+    },
+    {
+      "sequence": 103,
+      "symbol": "INDUSINDBK",
+      "text": "INDUSINDBK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 643.9,
+      "rows": 77,
+      "file": "103_INDUSINDBK.json"
+    },
+    {
+      "sequence": 104,
+      "symbol": "INDUSTOWER",
+      "text": "INDUSTOWER",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 681.6,
+      "rows": 77,
+      "file": "104_INDUSTOWER.json"
+    },
+    {
+      "sequence": 105,
+      "symbol": "INFY",
+      "text": "INFY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 646.0,
+      "rows": 77,
+      "file": "105_INFY.json"
+    },
+    {
+      "sequence": 106,
+      "symbol": "INOXWIND",
+      "text": "INOXWIND",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 577.9,
+      "rows": 77,
+      "file": "106_INOXWIND.json"
+    },
+    {
+      "sequence": 107,
+      "symbol": "IOC",
+      "text": "IOC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 584.0,
+      "rows": 77,
+      "file": "107_IOC.json"
+    },
+    {
+      "sequence": 108,
+      "symbol": "IREDA",
+      "text": "IREDA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 532.9,
+      "rows": 77,
+      "file": "108_IREDA.json"
+    },
+    {
+      "sequence": 109,
+      "symbol": "IRFC",
+      "text": "IRFC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 542.7,
+      "rows": 77,
+      "file": "109_IRFC.json"
+    },
+    {
+      "sequence": 110,
+      "symbol": "ITC",
+      "text": "ITC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 605.6,
+      "rows": 77,
+      "file": "110_ITC.json"
+    },
+    {
+      "sequence": 111,
+      "symbol": "JINDALSTEL",
+      "text": "JINDALSTEL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 585.6,
+      "rows": 77,
+      "file": "111_JINDALSTEL.json"
+    },
+    {
+      "sequence": 112,
+      "symbol": "JIOFIN",
+      "text": "JIOFIN",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 571.9,
+      "rows": 77,
+      "file": "112_JIOFIN.json"
+    },
+    {
+      "sequence": 113,
+      "symbol": "JSWENERGY",
+      "text": "JSWENERGY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 556.8,
+      "rows": 77,
+      "file": "113_JSWENERGY.json"
+    },
+    {
+      "sequence": 114,
+      "symbol": "JSWSTEEL",
+      "text": "JSWSTEEL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 670.2,
+      "rows": 77,
+      "file": "114_JSWSTEEL.json"
+    },
+    {
+      "sequence": 115,
+      "symbol": "JUBLFOOD",
+      "text": "JUBLFOOD",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 590.2,
+      "rows": 77,
+      "file": "115_JUBLFOOD.json"
+    },
+    {
+      "sequence": 116,
+      "symbol": "KALYANKJIL",
+      "text": "KALYANKJIL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 622.3,
+      "rows": 77,
+      "file": "116_KALYANKJIL.json"
+    },
+    {
+      "sequence": 117,
+      "symbol": "KAYNES",
+      "text": "KAYNES",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 525.6,
+      "rows": 77,
+      "file": "117_KAYNES.json"
+    },
+    {
+      "sequence": 118,
+      "symbol": "KEI",
+      "text": "KEI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 598.3,
+      "rows": 77,
+      "file": "118_KEI.json"
+    },
+    {
+      "sequence": 119,
+      "symbol": "KFINTECH",
+      "text": "KFINTECH",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 612.6,
+      "rows": 77,
+      "file": "119_KFINTECH.json"
+    },
+    {
+      "sequence": 120,
+      "symbol": "KOTAKBANK",
+      "text": "KOTAKBANK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 594.4,
+      "rows": 77,
+      "file": "120_KOTAKBANK.json"
+    },
+    {
+      "sequence": 121,
+      "symbol": "KPITTECH",
+      "text": "KPITTECH",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 593.7,
+      "rows": 77,
+      "file": "121_KPITTECH.json"
+    },
+    {
+      "sequence": 122,
+      "symbol": "LAURUSLABS",
+      "text": "LAURUSLABS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 655.4,
+      "rows": 77,
+      "file": "122_LAURUSLABS.json"
+    },
+    {
+      "sequence": 123,
+      "symbol": "LICHSGFIN",
+      "text": "LICHSGFIN",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 610.6,
+      "rows": 77,
+      "file": "123_LICHSGFIN.json"
+    },
+    {
+      "sequence": 124,
+      "symbol": "LICI",
+      "text": "LICI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 604.8,
+      "rows": 77,
+      "file": "124_LICI.json"
+    },
+    {
+      "sequence": 125,
+      "symbol": "LODHA",
+      "text": "LODHA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 653.2,
+      "rows": 77,
+      "file": "125_LODHA.json"
+    },
+    {
+      "sequence": 126,
+      "symbol": "LT",
+      "text": "LT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 633.4,
+      "rows": 77,
+      "file": "126_LT.json"
+    },
+    {
+      "sequence": 127,
+      "symbol": "LTF",
+      "text": "LTF",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 650.0,
+      "rows": 77,
+      "file": "127_LTF.json"
+    },
+    {
+      "sequence": 128,
+      "symbol": "LTM",
+      "text": "LTM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 601.9,
+      "rows": 77,
+      "file": "128_LTM.json"
+    },
+    {
+      "sequence": 129,
+      "symbol": "LUPIN",
+      "text": "LUPIN",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 602.4,
+      "rows": 77,
+      "file": "129_LUPIN.json"
+    },
+    {
+      "sequence": 130,
+      "symbol": "M&M",
+      "text": "M&M",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 573.3,
+      "rows": 77,
+      "file": "130_M_M.json"
+    },
+    {
+      "sequence": 131,
+      "symbol": "MAHABANK",
+      "text": "MAHABANK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 564.4,
+      "rows": 77,
+      "file": "131_MAHABANK.json"
+    },
+    {
+      "sequence": 132,
+      "symbol": "MANAPPURAM",
+      "text": "MANAPPURAM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 509.7,
+      "rows": 77,
+      "file": "132_MANAPPURAM.json"
+    },
+    {
+      "sequence": 133,
+      "symbol": "MANKIND",
+      "text": "MANKIND",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 736.1,
+      "rows": 77,
+      "file": "133_MANKIND.json"
+    },
+    {
+      "sequence": 134,
+      "symbol": "MARICO",
+      "text": "MARICO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 602.5,
+      "rows": 77,
+      "file": "134_MARICO.json"
+    },
+    {
+      "sequence": 135,
+      "symbol": "MARUTI",
+      "text": "MARUTI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 730.2,
+      "rows": 77,
+      "file": "135_MARUTI.json"
+    },
+    {
+      "sequence": 136,
+      "symbol": "MAXHEALTH",
+      "text": "MAXHEALTH",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 631.4,
+      "rows": 77,
+      "file": "136_MAXHEALTH.json"
+    },
+    {
+      "sequence": 137,
+      "symbol": "MAZDOCK",
+      "text": "MAZDOCK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 1034.6,
+      "rows": 77,
+      "file": "137_MAZDOCK.json"
+    },
+    {
+      "sequence": 138,
+      "symbol": "MCX",
+      "text": "MCX",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 597.4,
+      "rows": 77,
+      "file": "138_MCX.json"
+    },
+    {
+      "sequence": 139,
+      "symbol": "MFSL",
+      "text": "MFSL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 563.2,
+      "rows": 77,
+      "file": "139_MFSL.json"
+    },
+    {
+      "sequence": 140,
+      "symbol": "MOTHERSON",
+      "text": "MOTHERSON",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 556.8,
+      "rows": 77,
+      "file": "140_MOTHERSON.json"
+    },
+    {
+      "sequence": 141,
+      "symbol": "MOTILALOFS",
+      "text": "MOTILALOFS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 639.4,
+      "rows": 77,
+      "file": "141_MOTILALOFS.json"
+    },
+    {
+      "sequence": 142,
+      "symbol": "MPHASIS",
+      "text": "MPHASIS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 636.7,
+      "rows": 77,
+      "file": "142_MPHASIS.json"
+    },
+    {
+      "sequence": 143,
+      "symbol": "MUTHOOTFIN",
+      "text": "MUTHOOTFIN",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 685.4,
+      "rows": 77,
+      "file": "143_MUTHOOTFIN.json"
+    },
+    {
+      "sequence": 144,
+      "symbol": "NAM-INDIA",
+      "text": "NAM-INDIA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 622.8,
+      "rows": 77,
+      "file": "144_NAM-INDIA.json"
+    },
+    {
+      "sequence": 145,
+      "symbol": "NATIONALUM",
+      "text": "NATIONALUM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 645.5,
+      "rows": 77,
+      "file": "145_NATIONALUM.json"
+    },
+    {
+      "sequence": 146,
+      "symbol": "NAUKRI",
+      "text": "NAUKRI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 623.8,
+      "rows": 77,
+      "file": "146_NAUKRI.json"
+    },
+    {
+      "sequence": 147,
+      "symbol": "NBCC",
+      "text": "NBCC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 616.1,
+      "rows": 77,
+      "file": "147_NBCC.json"
+    },
+    {
+      "sequence": 148,
+      "symbol": "NESTLEIND",
+      "text": "NESTLEIND",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 735.5,
+      "rows": 77,
+      "file": "148_NESTLEIND.json"
+    },
+    {
+      "sequence": 149,
+      "symbol": "NHPC",
+      "text": "NHPC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 639.6,
+      "rows": 77,
+      "file": "149_NHPC.json"
+    },
+    {
+      "sequence": 150,
+      "symbol": "NMDC",
+      "text": "NMDC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 597.6,
+      "rows": 77,
+      "file": "150_NMDC.json"
+    },
+    {
+      "sequence": 151,
+      "symbol": "NTPC",
+      "text": "NTPC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 649.9,
+      "rows": 77,
+      "file": "151_NTPC.json"
+    },
+    {
+      "sequence": 152,
+      "symbol": "NYKAA",
+      "text": "NYKAA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 565.1,
+      "rows": 77,
+      "file": "152_NYKAA.json"
+    },
+    {
+      "sequence": 153,
+      "symbol": "OBEROIRLTY",
+      "text": "OBEROIRLTY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 1075.3,
+      "rows": 77,
+      "file": "153_OBEROIRLTY.json"
+    },
+    {
+      "sequence": 154,
+      "symbol": "OFSS",
+      "text": "OFSS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 660.6,
+      "rows": 77,
+      "file": "154_OFSS.json"
+    },
+    {
+      "sequence": 155,
+      "symbol": "OIL",
+      "text": "OIL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 671.2,
+      "rows": 77,
+      "file": "155_OIL.json"
+    },
+    {
+      "sequence": 156,
+      "symbol": "ONGC",
+      "text": "ONGC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 664.1,
+      "rows": 77,
+      "file": "156_ONGC.json"
+    },
+    {
+      "sequence": 157,
+      "symbol": "PAGEIND",
+      "text": "PAGEIND",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 582.6,
+      "rows": 77,
+      "file": "157_PAGEIND.json"
+    },
+    {
+      "sequence": 158,
+      "symbol": "PATANJALI",
+      "text": "PATANJALI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 538.1,
+      "rows": 77,
+      "file": "158_PATANJALI.json"
+    },
+    {
+      "sequence": 159,
+      "symbol": "PAYTM",
+      "text": "PAYTM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 666.4,
+      "rows": 77,
+      "file": "159_PAYTM.json"
+    },
+    {
+      "sequence": 160,
+      "symbol": "PERSISTENT",
+      "text": "PERSISTENT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 588.4,
+      "rows": 77,
+      "file": "160_PERSISTENT.json"
+    },
+    {
+      "sequence": 161,
+      "symbol": "PETRONET",
+      "text": "PETRONET",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 654.2,
+      "rows": 77,
+      "file": "161_PETRONET.json"
+    },
+    {
+      "sequence": 162,
+      "symbol": "PFC",
+      "text": "PFC",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 678.6,
+      "rows": 77,
+      "file": "162_PFC.json"
+    },
+    {
+      "sequence": 163,
+      "symbol": "PGEL",
+      "text": "PGEL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 657.8,
+      "rows": 77,
+      "file": "163_PGEL.json"
+    },
+    {
+      "sequence": 164,
+      "symbol": "PHOENIXLTD",
+      "text": "PHOENIXLTD",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 653.5,
+      "rows": 77,
+      "file": "164_PHOENIXLTD.json"
+    },
+    {
+      "sequence": 165,
+      "symbol": "PIDILITIND",
+      "text": "PIDILITIND",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 662.3,
+      "rows": 77,
+      "file": "165_PIDILITIND.json"
+    },
+    {
+      "sequence": 166,
+      "symbol": "PIIND",
+      "text": "PIIND",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 694.4,
+      "rows": 77,
+      "file": "166_PIIND.json"
+    },
+    {
+      "sequence": 167,
+      "symbol": "PNB",
+      "text": "PNB",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 651.1,
+      "rows": 77,
+      "file": "167_PNB.json"
+    },
+    {
+      "sequence": 168,
+      "symbol": "PNBHOUSING",
+      "text": "PNBHOUSING",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 708.1,
+      "rows": 77,
+      "file": "168_PNBHOUSING.json"
+    },
+    {
+      "sequence": 169,
+      "symbol": "POLICYBZR",
+      "text": "POLICYBZR",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 638.7,
+      "rows": 77,
+      "file": "169_POLICYBZR.json"
+    },
+    {
+      "sequence": 170,
+      "symbol": "POLYCAB",
+      "text": "POLYCAB",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 686.7,
+      "rows": 77,
+      "file": "170_POLYCAB.json"
+    },
+    {
+      "sequence": 171,
+      "symbol": "POWERGRID",
+      "text": "POWERGRID",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 630.5,
+      "rows": 77,
+      "file": "171_POWERGRID.json"
+    },
+    {
+      "sequence": 172,
+      "symbol": "POWERINDIA",
+      "text": "POWERINDIA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 607.2,
+      "rows": 77,
+      "file": "172_POWERINDIA.json"
+    },
+    {
+      "sequence": 173,
+      "symbol": "PREMIERENE",
+      "text": "PREMIERENE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 581.3,
+      "rows": 77,
+      "file": "173_PREMIERENE.json"
+    },
+    {
+      "sequence": 174,
+      "symbol": "PRESTIGE",
+      "text": "PRESTIGE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 949.0,
+      "rows": 77,
+      "file": "174_PRESTIGE.json"
+    },
+    {
+      "sequence": 175,
+      "symbol": "RADICO",
+      "text": "RADICO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 579.5,
+      "rows": 77,
+      "file": "175_RADICO.json"
+    },
+    {
+      "sequence": 176,
+      "symbol": "RBLBANK",
+      "text": "RBLBANK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 612.9,
+      "rows": 77,
+      "file": "176_RBLBANK.json"
+    },
+    {
+      "sequence": 177,
+      "symbol": "RECLTD",
+      "text": "RECLTD",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 551.6,
+      "rows": 77,
+      "file": "177_RECLTD.json"
+    },
+    {
+      "sequence": 178,
+      "symbol": "RELIANCE",
+      "text": "RELIANCE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 611.0,
+      "rows": 77,
+      "file": "178_RELIANCE.json"
+    },
+    {
+      "sequence": 179,
+      "symbol": "RVNL",
+      "text": "RVNL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 540.3,
+      "rows": 77,
+      "file": "179_RVNL.json"
+    },
+    {
+      "sequence": 180,
+      "symbol": "SAGILITY",
+      "text": "SAGILITY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 534.5,
+      "rows": 77,
+      "file": "180_SAGILITY.json"
+    },
+    {
+      "sequence": 181,
+      "symbol": "SAIL",
+      "text": "SAIL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 587.5,
+      "rows": 77,
+      "file": "181_SAIL.json"
+    },
+    {
+      "sequence": 182,
+      "symbol": "SBICARD",
+      "text": "SBICARD",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 637.3,
+      "rows": 77,
+      "file": "182_SBICARD.json"
+    },
+    {
+      "sequence": 183,
+      "symbol": "SBILIFE",
+      "text": "SBILIFE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 635.9,
+      "rows": 77,
+      "file": "183_SBILIFE.json"
+    },
+    {
+      "sequence": 184,
+      "symbol": "SBIN",
+      "text": "SBIN",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 708.1,
+      "rows": 77,
+      "file": "184_SBIN.json"
+    },
+    {
+      "sequence": 185,
+      "symbol": "SHREECEM",
+      "text": "SHREECEM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 596.9,
+      "rows": 77,
+      "file": "185_SHREECEM.json"
+    },
+    {
+      "sequence": 186,
+      "symbol": "SHRIRAMFIN",
+      "text": "SHRIRAMFIN",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 664.5,
+      "rows": 77,
+      "file": "186_SHRIRAMFIN.json"
+    },
+    {
+      "sequence": 187,
+      "symbol": "SIEMENS",
+      "text": "SIEMENS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 607.7,
+      "rows": 77,
+      "file": "187_SIEMENS.json"
+    },
+    {
+      "sequence": 188,
+      "symbol": "SOLARINDS",
+      "text": "SOLARINDS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 626.4,
+      "rows": 77,
+      "file": "188_SOLARINDS.json"
+    },
+    {
+      "sequence": 189,
+      "symbol": "SONACOMS",
+      "text": "SONACOMS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 572.3,
+      "rows": 77,
+      "file": "189_SONACOMS.json"
+    },
+    {
+      "sequence": 190,
+      "symbol": "SRF",
+      "text": "SRF",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 572.4,
+      "rows": 77,
+      "file": "190_SRF.json"
+    },
+    {
+      "sequence": 191,
+      "symbol": "SUNPHARMA",
+      "text": "SUNPHARMA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 552.8,
+      "rows": 77,
+      "file": "191_SUNPHARMA.json"
+    },
+    {
+      "sequence": 192,
+      "symbol": "SUPREMEIND",
+      "text": "SUPREMEIND",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 545.8,
+      "rows": 77,
+      "file": "192_SUPREMEIND.json"
+    },
+    {
+      "sequence": 193,
+      "symbol": "SUZLON",
+      "text": "SUZLON",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 563.5,
+      "rows": 77,
+      "file": "193_SUZLON.json"
+    },
+    {
+      "sequence": 194,
+      "symbol": "SWIGGY",
+      "text": "SWIGGY",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 836.9,
+      "rows": 77,
+      "file": "194_SWIGGY.json"
+    },
+    {
+      "sequence": 195,
+      "symbol": "TATACONSUM",
+      "text": "TATACONSUM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 645.1,
+      "rows": 77,
+      "file": "195_TATACONSUM.json"
+    },
+    {
+      "sequence": 196,
+      "symbol": "TATAELXSI",
+      "text": "TATAELXSI",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 573.7,
+      "rows": 77,
+      "file": "196_TATAELXSI.json"
+    },
+    {
+      "sequence": 197,
+      "symbol": "TATAPOWER",
+      "text": "TATAPOWER",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 584.3,
+      "rows": 77,
+      "file": "197_TATAPOWER.json"
+    },
+    {
+      "sequence": 198,
+      "symbol": "TATASTEEL",
+      "text": "TATASTEEL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 582.2,
+      "rows": 77,
+      "file": "198_TATASTEEL.json"
+    },
+    {
+      "sequence": 199,
+      "symbol": "TCS",
+      "text": "TCS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 706.9,
+      "rows": 77,
+      "file": "199_TCS.json"
+    },
+    {
+      "sequence": 200,
+      "symbol": "TECHM",
+      "text": "TECHM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 619.1,
+      "rows": 77,
+      "file": "200_TECHM.json"
+    },
+    {
+      "sequence": 201,
+      "symbol": "TIINDIA",
+      "text": "TIINDIA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 631.8,
+      "rows": 77,
+      "file": "201_TIINDIA.json"
+    },
+    {
+      "sequence": 202,
+      "symbol": "TITAN",
+      "text": "TITAN",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 666.4,
+      "rows": 77,
+      "file": "202_TITAN.json"
+    },
+    {
+      "sequence": 203,
+      "symbol": "TMPV",
+      "text": "TMPV",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 665.0,
+      "rows": 77,
+      "file": "203_TMPV.json"
+    },
+    {
+      "sequence": 204,
+      "symbol": "TORNTPHARM",
+      "text": "TORNTPHARM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 623.4,
+      "rows": 77,
+      "file": "204_TORNTPHARM.json"
+    },
+    {
+      "sequence": 205,
+      "symbol": "TRENT",
+      "text": "TRENT",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 662.2,
+      "rows": 77,
+      "file": "205_TRENT.json"
+    },
+    {
+      "sequence": 206,
+      "symbol": "TVSMOTOR",
+      "text": "TVSMOTOR",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 718.0,
+      "rows": 77,
+      "file": "206_TVSMOTOR.json"
+    },
+    {
+      "sequence": 207,
+      "symbol": "ULTRACEMCO",
+      "text": "ULTRACEMCO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 621.4,
+      "rows": 77,
+      "file": "207_ULTRACEMCO.json"
+    },
+    {
+      "sequence": 208,
+      "symbol": "UNIONBANK",
+      "text": "UNIONBANK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 627.8,
+      "rows": 77,
+      "file": "208_UNIONBANK.json"
+    },
+    {
+      "sequence": 209,
+      "symbol": "UNITDSPR",
+      "text": "UNITDSPR",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 576.8,
+      "rows": 77,
+      "file": "209_UNITDSPR.json"
+    },
+    {
+      "sequence": 210,
+      "symbol": "UNOMINDA",
+      "text": "UNOMINDA",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 587.8,
+      "rows": 77,
+      "file": "210_UNOMINDA.json"
+    },
+    {
+      "sequence": 211,
+      "symbol": "UPL",
+      "text": "UPL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 562.3,
+      "rows": 77,
+      "file": "211_UPL.json"
+    },
+    {
+      "sequence": 212,
+      "symbol": "VBL",
+      "text": "VBL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 727.4,
+      "rows": 77,
+      "file": "212_VBL.json"
+    },
+    {
+      "sequence": 213,
+      "symbol": "VEDL",
+      "text": "VEDL",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 614.4,
+      "rows": 77,
+      "file": "213_VEDL.json"
+    },
+    {
+      "sequence": 214,
+      "symbol": "VMM",
+      "text": "VMM",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 551.6,
+      "rows": 77,
+      "file": "214_VMM.json"
+    },
+    {
+      "sequence": 215,
+      "symbol": "VOLTAS",
+      "text": "VOLTAS",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 588.3,
+      "rows": 77,
+      "file": "215_VOLTAS.json"
+    },
+    {
+      "sequence": 216,
+      "symbol": "WAAREEENER",
+      "text": "WAAREEENER",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 589.6,
+      "rows": 77,
+      "file": "216_WAAREEENER.json"
+    },
+    {
+      "sequence": 217,
+      "symbol": "WIPRO",
+      "text": "WIPRO",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 571.3,
+      "rows": 77,
+      "file": "217_WIPRO.json"
+    },
+    {
+      "sequence": 218,
+      "symbol": "YESBANK",
+      "text": "YESBANK",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 544.1,
+      "rows": 77,
+      "file": "218_YESBANK.json"
+    },
+    {
+      "sequence": 219,
+      "symbol": "ZYDUSLIFE",
+      "text": "ZYDUSLIFE",
+      "http_status": 200,
+      "ok": true,
+      "elapsed_ms": 643.7,
+      "rows": 77,
+      "file": "219_ZYDUSLIFE.json"
+    }
+  ],
+  "symbol_count": 219,
+  "symbols": [
+    {
+      "value": "NIFTY",
+      "text": "NIFTY"
+    },
+    {
+      "value": "BANKNIFTY",
+      "text": "BANKNIFTY"
+    },
+    {
+      "value": "FINNIFTY",
+      "text": "FINNIFTY"
+    },
+    {
+      "value": "MIDCPNIFTY",
+      "text": "MIDCPNIFTY"
+    },
+    {
+      "value": "NIFTYNXT50",
+      "text": "NIFTYNXT50"
+    },
+    {
+      "value": "NIFTYFPI",
+      "text": "NIFTYFPI"
+    },
+    {
+      "value": "SENSEX",
+      "text": "SENSEX"
+    },
+    {
+      "value": "BANKEX",
+      "text": "BANKEX"
+    },
+    {
+      "value": "FOCIT",
+      "text": "FOCIT"
+    },
+    {
+      "value": "360ONE",
+      "text": "360ONE"
+    },
+    {
+      "value": "ABB",
+      "text": "ABB"
+    },
+    {
+      "value": "ABCAPITAL",
+      "text": "ABCAPITAL"
+    },
+    {
+      "value": "ADANIENSOL",
+      "text": "ADANIENSOL"
+    },
+    {
+      "value": "ADANIENT",
+      "text": "ADANIENT"
+    },
+    {
+      "value": "ADANIGREEN",
+      "text": "ADANIGREEN"
+    },
+    {
+      "value": "ADANIPORTS",
+      "text": "ADANIPORTS"
+    },
+    {
+      "value": "ADANIPOWER",
+      "text": "ADANIPOWER"
+    },
+    {
+      "value": "ALKEM",
+      "text": "ALKEM"
+    },
+    {
+      "value": "AMBER",
+      "text": "AMBER"
+    },
+    {
+      "value": "AMBUJACEM",
+      "text": "AMBUJACEM"
+    },
+    {
+      "value": "ANGELONE",
+      "text": "ANGELONE"
+    },
+    {
+      "value": "APLAPOLLO",
+      "text": "APLAPOLLO"
+    },
+    {
+      "value": "APOLLOHOSP",
+      "text": "APOLLOHOSP"
+    },
+    {
+      "value": "ASHOKLEY",
+      "text": "ASHOKLEY"
+    },
+    {
+      "value": "ASIANPAINT",
+      "text": "ASIANPAINT"
+    },
+    {
+      "value": "ASTRAL",
+      "text": "ASTRAL"
+    },
+    {
+      "value": "ATHERENERG",
+      "text": "ATHERENERG"
+    },
+    {
+      "value": "AUBANK",
+      "text": "AUBANK"
+    },
+    {
+      "value": "AUROPHARMA",
+      "text": "AUROPHARMA"
+    },
+    {
+      "value": "AXISBANK",
+      "text": "AXISBANK"
+    },
+    {
+      "value": "BAJAJ-AUTO",
+      "text": "BAJAJ-AUTO"
+    },
+    {
+      "value": "BAJAJFINSV",
+      "text": "BAJAJFINSV"
+    },
+    {
+      "value": "BAJAJHLDNG",
+      "text": "BAJAJHLDNG"
+    },
+    {
+      "value": "BAJFINANCE",
+      "text": "BAJFINANCE"
+    },
+    {
+      "value": "BANDHANBNK",
+      "text": "BANDHANBNK"
+    },
+    {
+      "value": "BANKBARODA",
+      "text": "BANKBARODA"
+    },
+    {
+      "value": "BANKINDIA",
+      "text": "BANKINDIA"
+    },
+    {
+      "value": "BDL",
+      "text": "BDL"
+    },
+    {
+      "value": "BEL",
+      "text": "BEL"
+    },
+    {
+      "value": "BHARATFORG",
+      "text": "BHARATFORG"
+    },
+    {
+      "value": "BHARTIARTL",
+      "text": "BHARTIARTL"
+    },
+    {
+      "value": "BHEL",
+      "text": "BHEL"
+    },
+    {
+      "value": "BIOCON",
+      "text": "BIOCON"
+    },
+    {
+      "value": "BLUESTARCO",
+      "text": "BLUESTARCO"
+    },
+    {
+      "value": "BOSCHLTD",
+      "text": "BOSCHLTD"
+    },
+    {
+      "value": "BPCL",
+      "text": "BPCL"
+    },
+    {
+      "value": "BRITANNIA",
+      "text": "BRITANNIA"
+    },
+    {
+      "value": "BSE",
+      "text": "BSE"
+    },
+    {
+      "value": "CAMS",
+      "text": "CAMS"
+    },
+    {
+      "value": "CANBK",
+      "text": "CANBK"
+    },
+    {
+      "value": "CDSL",
+      "text": "CDSL"
+    },
+    {
+      "value": "CGPOWER",
+      "text": "CGPOWER"
+    },
+    {
+      "value": "CHOLAFIN",
+      "text": "CHOLAFIN"
+    },
+    {
+      "value": "CIPLA",
+      "text": "CIPLA"
+    },
+    {
+      "value": "COALINDIA",
+      "text": "COALINDIA"
+    },
+    {
+      "value": "COCHINSHIP",
+      "text": "COCHINSHIP"
+    },
+    {
+      "value": "COFORGE",
+      "text": "COFORGE"
+    },
+    {
+      "value": "COLPAL",
+      "text": "COLPAL"
+    },
+    {
+      "value": "CONCOR",
+      "text": "CONCOR"
+    },
+    {
+      "value": "CROMPTON",
+      "text": "CROMPTON"
+    },
+    {
+      "value": "CUMMINSIND",
+      "text": "CUMMINSIND"
+    },
+    {
+      "value": "DABUR",
+      "text": "DABUR"
+    },
+    {
+      "value": "DELHIVERY",
+      "text": "DELHIVERY"
+    },
+    {
+      "value": "DIVISLAB",
+      "text": "DIVISLAB"
+    },
+    {
+      "value": "DIXON",
+      "text": "DIXON"
+    },
+    {
+      "value": "DLF",
+      "text": "DLF"
+    },
+    {
+      "value": "DMART",
+      "text": "DMART"
+    },
+    {
+      "value": "DRREDDY",
+      "text": "DRREDDY"
+    },
+    {
+      "value": "EICHERMOT",
+      "text": "EICHERMOT"
+    },
+    {
+      "value": "ETERNAL",
+      "text": "ETERNAL"
+    },
+    {
+      "value": "FEDERALBNK",
+      "text": "FEDERALBNK"
+    },
+    {
+      "value": "FORCEMOT",
+      "text": "FORCEMOT"
+    },
+    {
+      "value": "FORTIS",
+      "text": "FORTIS"
+    },
+    {
+      "value": "GAIL",
+      "text": "GAIL"
+    },
+    {
+      "value": "GLENMARK",
+      "text": "GLENMARK"
+    },
+    {
+      "value": "GMRAIRPORT",
+      "text": "GMRAIRPORT"
+    },
+    {
+      "value": "GODFRYPHLP",
+      "text": "GODFRYPHLP"
+    },
+    {
+      "value": "GODREJCP",
+      "text": "GODREJCP"
+    },
+    {
+      "value": "GODREJPROP",
+      "text": "GODREJPROP"
+    },
+    {
+      "value": "GRASIM",
+      "text": "GRASIM"
+    },
+    {
+      "value": "GVT&D",
+      "text": "GVT&D"
+    },
+    {
+      "value": "HAL",
+      "text": "HAL"
+    },
+    {
+      "value": "HAVELLS",
+      "text": "HAVELLS"
+    },
+    {
+      "value": "HCLTECH",
+      "text": "HCLTECH"
+    },
+    {
+      "value": "HDFCAMC",
+      "text": "HDFCAMC"
+    },
+    {
+      "value": "HDFCBANK",
+      "text": "HDFCBANK"
+    },
+    {
+      "value": "HDFCLIFE",
+      "text": "HDFCLIFE"
+    },
+    {
+      "value": "HEROMOTOCO",
+      "text": "HEROMOTOCO"
+    },
+    {
+      "value": "HINDALCO",
+      "text": "HINDALCO"
+    },
+    {
+      "value": "HINDPETRO",
+      "text": "HINDPETRO"
+    },
+    {
+      "value": "HINDUNILVR",
+      "text": "HINDUNILVR"
+    },
+    {
+      "value": "HINDZINC",
+      "text": "HINDZINC"
+    },
+    {
+      "value": "HYUNDAI",
+      "text": "HYUNDAI"
+    },
+    {
+      "value": "ICICIBANK",
+      "text": "ICICIBANK"
+    },
+    {
+      "value": "ICICIGI",
+      "text": "ICICIGI"
+    },
+    {
+      "value": "ICICIPRULI",
+      "text": "ICICIPRULI"
+    },
+    {
+      "value": "IDEA",
+      "text": "IDEA"
+    },
+    {
+      "value": "IDFCFIRSTB",
+      "text": "IDFCFIRSTB"
+    },
+    {
+      "value": "IEX",
+      "text": "IEX"
+    },
+    {
+      "value": "INDHOTEL",
+      "text": "INDHOTEL"
+    },
+    {
+      "value": "INDIANB",
+      "text": "INDIANB"
+    },
+    {
+      "value": "INDIGO",
+      "text": "INDIGO"
+    },
+    {
+      "value": "INDUSINDBK",
+      "text": "INDUSINDBK"
+    },
+    {
+      "value": "INDUSTOWER",
+      "text": "INDUSTOWER"
+    },
+    {
+      "value": "INFY",
+      "text": "INFY"
+    },
+    {
+      "value": "INOXWIND",
+      "text": "INOXWIND"
+    },
+    {
+      "value": "IOC",
+      "text": "IOC"
+    },
+    {
+      "value": "IREDA",
+      "text": "IREDA"
+    },
+    {
+      "value": "IRFC",
+      "text": "IRFC"
+    },
+    {
+      "value": "ITC",
+      "text": "ITC"
+    },
+    {
+      "value": "JINDALSTEL",
+      "text": "JINDALSTEL"
+    },
+    {
+      "value": "JIOFIN",
+      "text": "JIOFIN"
+    },
+    {
+      "value": "JSWENERGY",
+      "text": "JSWENERGY"
+    },
+    {
+      "value": "JSWSTEEL",
+      "text": "JSWSTEEL"
+    },
+    {
+      "value": "JUBLFOOD",
+      "text": "JUBLFOOD"
+    },
+    {
+      "value": "KALYANKJIL",
+      "text": "KALYANKJIL"
+    },
+    {
+      "value": "KAYNES",
+      "text": "KAYNES"
+    },
+    {
+      "value": "KEI",
+      "text": "KEI"
+    },
+    {
+      "value": "KFINTECH",
+      "text": "KFINTECH"
+    },
+    {
+      "value": "KOTAKBANK",
+      "text": "KOTAKBANK"
+    },
+    {
+      "value": "KPITTECH",
+      "text": "KPITTECH"
+    },
+    {
+      "value": "LAURUSLABS",
+      "text": "LAURUSLABS"
+    },
+    {
+      "value": "LICHSGFIN",
+      "text": "LICHSGFIN"
+    },
+    {
+      "value": "LICI",
+      "text": "LICI"
+    },
+    {
+      "value": "LODHA",
+      "text": "LODHA"
+    },
+    {
+      "value": "LT",
+      "text": "LT"
+    },
+    {
+      "value": "LTF",
+      "text": "LTF"
+    },
+    {
+      "value": "LTM",
+      "text": "LTM"
+    },
+    {
+      "value": "LUPIN",
+      "text": "LUPIN"
+    },
+    {
+      "value": "M&M",
+      "text": "M&M"
+    },
+    {
+      "value": "MAHABANK",
+      "text": "MAHABANK"
+    },
+    {
+      "value": "MANAPPURAM",
+      "text": "MANAPPURAM"
+    },
+    {
+      "value": "MANKIND",
+      "text": "MANKIND"
+    },
+    {
+      "value": "MARICO",
+      "text": "MARICO"
+    },
+    {
+      "value": "MARUTI",
+      "text": "MARUTI"
+    },
+    {
+      "value": "MAXHEALTH",
+      "text": "MAXHEALTH"
+    },
+    {
+      "value": "MAZDOCK",
+      "text": "MAZDOCK"
+    },
+    {
+      "value": "MCX",
+      "text": "MCX"
+    },
+    {
+      "value": "MFSL",
+      "text": "MFSL"
+    },
+    {
+      "value": "MOTHERSON",
+      "text": "MOTHERSON"
+    },
+    {
+      "value": "MOTILALOFS",
+      "text": "MOTILALOFS"
+    },
+    {
+      "value": "MPHASIS",
+      "text": "MPHASIS"
+    },
+    {
+      "value": "MUTHOOTFIN",
+      "text": "MUTHOOTFIN"
+    },
+    {
+      "value": "NAM-INDIA",
+      "text": "NAM-INDIA"
+    },
+    {
+      "value": "NATIONALUM",
+      "text": "NATIONALUM"
+    },
+    {
+      "value": "NAUKRI",
+      "text": "NAUKRI"
+    },
+    {
+      "value": "NBCC",
+      "text": "NBCC"
+    },
+    {
+      "value": "NESTLEIND",
+      "text": "NESTLEIND"
+    },
+    {
+      "value": "NHPC",
+      "text": "NHPC"
+    },
+    {
+      "value": "NMDC",
+      "text": "NMDC"
+    },
+    {
+      "value": "NTPC",
+      "text": "NTPC"
+    },
+    {
+      "value": "NYKAA",
+      "text": "NYKAA"
+    },
+    {
+      "value": "OBEROIRLTY",
+      "text": "OBEROIRLTY"
+    },
+    {
+      "value": "OFSS",
+      "text": "OFSS"
+    },
+    {
+      "value": "OIL",
+      "text": "OIL"
+    },
+    {
+      "value": "ONGC",
+      "text": "ONGC"
+    },
+    {
+      "value": "PAGEIND",
+      "text": "PAGEIND"
+    },
+    {
+      "value": "PATANJALI",
+      "text": "PATANJALI"
+    },
+    {
+      "value": "PAYTM",
+      "text": "PAYTM"
+    },
+    {
+      "value": "PERSISTENT",
+      "text": "PERSISTENT"
+    },
+    {
+      "value": "PETRONET",
+      "text": "PETRONET"
+    },
+    {
+      "value": "PFC",
+      "text": "PFC"
+    },
+    {
+      "value": "PGEL",
+      "text": "PGEL"
+    },
+    {
+      "value": "PHOENIXLTD",
+      "text": "PHOENIXLTD"
+    },
+    {
+      "value": "PIDILITIND",
+      "text": "PIDILITIND"
+    },
+    {
+      "value": "PIIND",
+      "text": "PIIND"
+    },
+    {
+      "value": "PNB",
+      "text": "PNB"
+    },
+    {
+      "value": "PNBHOUSING",
+      "text": "PNBHOUSING"
+    },
+    {
+      "value": "POLICYBZR",
+      "text": "POLICYBZR"
+    },
+    {
+      "value": "POLYCAB",
+      "text": "POLYCAB"
+    },
+    {
+      "value": "POWERGRID",
+      "text": "POWERGRID"
+    },
+    {
+      "value": "POWERINDIA",
+      "text": "POWERINDIA"
+    },
+    {
+      "value": "PREMIERENE",
+      "text": "PREMIERENE"
+    },
+    {
+      "value": "PRESTIGE",
+      "text": "PRESTIGE"
+    },
+    {
+      "value": "RADICO",
+      "text": "RADICO"
+    },
+    {
+      "value": "RBLBANK",
+      "text": "RBLBANK"
+    },
+    {
+      "value": "RECLTD",
+      "text": "RECLTD"
+    },
+    {
+      "value": "RELIANCE",
+      "text": "RELIANCE"
+    },
+    {
+      "value": "RVNL",
+      "text": "RVNL"
+    },
+    {
+      "value": "SAGILITY",
+      "text": "SAGILITY"
+    },
+    {
+      "value": "SAIL",
+      "text": "SAIL"
+    },
+    {
+      "value": "SBICARD",
+      "text": "SBICARD"
+    },
+    {
+      "value": "SBILIFE",
+      "text": "SBILIFE"
+    },
+    {
+      "value": "SBIN",
+      "text": "SBIN"
+    },
+    {
+      "value": "SHREECEM",
+      "text": "SHREECEM"
+    },
+    {
+      "value": "SHRIRAMFIN",
+      "text": "SHRIRAMFIN"
+    },
+    {
+      "value": "SIEMENS",
+      "text": "SIEMENS"
+    },
+    {
+      "value": "SOLARINDS",
+      "text": "SOLARINDS"
+    },
+    {
+      "value": "SONACOMS",
+      "text": "SONACOMS"
+    },
+    {
+      "value": "SRF",
+      "text": "SRF"
+    },
+    {
+      "value": "SUNPHARMA",
+      "text": "SUNPHARMA"
+    },
+    {
+      "value": "SUPREMEIND",
+      "text": "SUPREMEIND"
+    },
+    {
+      "value": "SUZLON",
+      "text": "SUZLON"
+    },
+    {
+      "value": "SWIGGY",
+      "text": "SWIGGY"
+    },
+    {
+      "value": "TATACONSUM",
+      "text": "TATACONSUM"
+    },
+    {
+      "value": "TATAELXSI",
+      "text": "TATAELXSI"
+    },
+    {
+      "value": "TATAPOWER",
+      "text": "TATAPOWER"
+    },
+    {
+      "value": "TATASTEEL",
+      "text": "TATASTEEL"
+    },
+    {
+      "value": "TCS",
+      "text": "TCS"
+    },
+    {
+      "value": "TECHM",
+      "text": "TECHM"
+    },
+    {
+      "value": "TIINDIA",
+      "text": "TIINDIA"
+    },
+    {
+      "value": "TITAN",
+      "text": "TITAN"
+    },
+    {
+      "value": "TMPV",
+      "text": "TMPV"
+    },
+    {
+      "value": "TORNTPHARM",
+      "text": "TORNTPHARM"
+    },
+    {
+      "value": "TRENT",
+      "text": "TRENT"
+    },
+    {
+      "value": "TVSMOTOR",
+      "text": "TVSMOTOR"
+    },
+    {
+      "value": "ULTRACEMCO",
+      "text": "ULTRACEMCO"
+    },
+    {
+      "value": "UNIONBANK",
+      "text": "UNIONBANK"
+    },
+    {
+      "value": "UNITDSPR",
+      "text": "UNITDSPR"
+    },
+    {
+      "value": "UNOMINDA",
+      "text": "UNOMINDA"
+    },
+    {
+      "value": "UPL",
+      "text": "UPL"
+    },
+    {
+      "value": "VBL",
+      "text": "VBL"
+    },
+    {
+      "value": "VEDL",
+      "text": "VEDL"
+    },
+    {
+      "value": "VMM",
+      "text": "VMM"
+    },
+    {
+      "value": "VOLTAS",
+      "text": "VOLTAS"
+    },
+    {
+      "value": "WAAREEENER",
+      "text": "WAAREEENER"
+    },
+    {
+      "value": "WIPRO",
+      "text": "WIPRO"
+    },
+    {
+      "value": "YESBANK",
+      "text": "YESBANK"
+    },
+    {
+      "value": "ZYDUSLIFE",
+      "text": "ZYDUSLIFE"
+    }
+  ],
+  "template_endpoint": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+  "template_post_data": "optSymbol=NIFTYNXT50&optExpDate=29SEP26&CallstrikeNames=72400&optPutStrike=72400&CallstrikeNames_hist=undefined&optPutStrike_hist=undefined&optStrike=0&striketypeval=allstrikes&lots_val=off&minutes_val=on&optExpDate_hist=undefined&txtDate=undefined&interval=5min&atmstrikesnumber=3&atmstrikesnumberfixed=3&chkDynamicAtmVal=0&rdDataType=latest&closestPrice=72400&userName=shubhagoswami&OIbuttontype=Lots_btn_click&sessionID=%3Credacted%3E&ALLOTMITM=ALL&save_data=%7B%22symbol%22%3A%22NIFTYNXT50%22%2C%22exp_date%22%3A%2229SEP26%22%2C%22sel_strikes%22%3A%5B%2272400%22%5D%2C%22put_sel_strikes%22%3A%5B%2272400%22%5D%2C%22chkDynamicAtmVal%22%3A0%2C%22chkDynamicAtmfixedVal%22%3A0%2C%22striketypenum%22%3A2%2C%22interval%22%3A%225min%22%2C%22vwap_series%22%3A%22visible%22%2C%22OI_Chg_Vol_Diff_series%22%3A%22hidden%22%2C%22price_series%22%3A%22hidden%22%2C%22pcr_series%22%3A%22hidden%22%2C%22call_oi_chg_series%22%3A%22hidden%22%2C%22put_oi_chg_series%22%3A%22hidden%22%2C%22diff_series%22%3A%22visible%22%2C%22oi_diff_series%22%3A%22hidden%22%2C%22iv_series%22%3A%22hidden%22%2C%22put_oi_chg_percent_series%22%3A%22visible%22%2C%22diff_peceoichg_series%22%3A%22visible%22%2C%22call_oi_chg_percent_series%22%3A%22visible%22%2C%22oi_change_enabled%22%3A%222%22%2C%22price_series_oi%22%3A%22hidden%22%2C%22minutes_val%22%3A%22on%22%2C%22price_line_enabled%22%3A%221%22%2C%22ce_vol_series%22%3A%22hidden%22%2C%22pe_vol_series%22%3A%22hidden%22%2C%22pcr_volume_series%22%3A%22hidden%22%2C%22Fair_price_series_unwinding%22%3A%22hidden%22%2C%22Fair_price_series_unwinding_15%22%3A%22hidden%22%2C%22Fair_price_series_buildup%22%3A%22hidden%22%2C%22Fair_price_series_buildup_15%22%3A%22hidden%22%2C%22Fair_price_series%22%3A%22hidden%22%2C%22Fair_price_series1%22%3A%22hidden%22%2C%22diffpece_vol_series%22%3A%22visible%22%2C%22atmstrikenumber%22%3A%223%22%2C%22atmstrikesnumberfixed%22%3A%223%22%2C%22OIbuttontype%22%3A%22Lots_btn_click%22%2C%22optStrike%22%3A%220%22%2C%22ALLOTMITM%22%3A%22ALL%22%2C%22CE_Unwinding_series%22%3A%22visible%22%2C%22PE_Unwinding_series%22%3A%22visible%22%2C%22CE_Unwinding_15_series%22%3A%22visible%22%2C%22PE_Unwinding_15_series%22%3A%22visible%22%2C%22CE_Buildup_series%22%3A%22visible%22%2C%22PE_Buildup_series%22%3A%22visible%22%2C%22CE_Buildup_15_series%22%3A%22visible%22%2C%22PE_Buildup_15_series%22%3A%22visible%22%7D&pageName_save=TotalPECEOIDiff_Beta.php",
+  "template_status": 200,
+  "template_body_length": 102922,
+  "elapsed_seconds": 42.45,
+  "symbols_per_second": 5.159,
+  "finished_at": "2026-09-11T15:55:08",
+  "projected_220_seconds": 42.64,
+  "excel": "PECE_220_Snapshot.xlsx",
+  "latest": "Latest_PECE_220.xlsx"
+}

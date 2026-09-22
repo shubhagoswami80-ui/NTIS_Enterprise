@@ -1,0 +1,8 @@
+﻿{
+    "pid":  20392,
+    "port":  9001,
+    "root":  "E:\\NSE_Daily_Analysis\\ReportGenration\\DownloaderPortal",
+    "python":  "E:\\NSE_Daily_Analysis\\NTIS\\.venv\\Scripts\\python.exe",
+    "started_at":  "2026-09-20T17:49:57.7124871+05:30",
+    "command":  "E:\\NSE_Daily_Analysis\\NTIS\\.venv\\Scripts\\python.exe -m streamlit run E:\\NSE_Daily_Analysis\\ReportGenration\\DownloaderPortal\\app.py --server.port 9001 --server.address 127.0.0.1 --server.headless true --server.fileWatcherType none"
+}

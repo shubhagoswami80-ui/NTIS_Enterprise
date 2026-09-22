@@ -1,0 +1,220 @@
+{
+  "schema": "ntis.option_chain.endpoint_master.v1",
+  "report": "Option Chain",
+  "base_url": "https://www.icharts.in/opt/OptionChain.php",
+  "status": "DISCOVERED_TEST_ONLY",
+  "last_verified": "2026-09-21",
+  "authentication": {
+    "required": true,
+    "owner": "Downloader Portal 9001 persistent Playwright context",
+    "credentials_stored": false
+  },
+  "endpoints": [
+    {
+      "id": "option_chain_page",
+      "url": "https://www.icharts.in/opt/OptionChain.php",
+      "method": "GET",
+      "purpose": "Authenticated Option Chain page/state",
+      "replay": "browser_navigation",
+      "verified": true
+    },
+    {
+      "id": "option_chain_table",
+      "url": "https://www.icharts.in/opt/OptionChainTable_Beta_v19.php",
+      "method": "POST",
+      "purpose": "Main 7-row Option Chain data",
+      "replay": "direct_post",
+      "verified": true,
+      "request_parameters": {
+        "optSymbol": {
+          "class": "dynamic_symbol",
+          "source": "caller"
+        },
+        "buttontype": {
+          "class": "static_observed",
+          "value": "Lots_btn"
+        },
+        "optExpDate": {
+          "class": "dynamic_expiry",
+          "source": "must_be_resolved"
+        },
+        "optExpDate_hist": {
+          "class": "observed",
+          "value": "undefined"
+        },
+        "striketype": {
+          "class": "static_observed",
+          "value": "mainstrikes"
+        },
+        "txtDate": {
+          "class": "observed",
+          "value": "undefined"
+        },
+        "defaultDate": {
+          "class": "dynamic_session_date",
+          "source": "must_be_resolved"
+        },
+        "atmstrikesnumber": {
+          "class": "static_observed",
+          "value": "7"
+        },
+        "atmstrikesnumberfixed": {
+          "class": "static_observed",
+          "value": "3"
+        },
+        "optStrike": {
+          "class": "dynamic_strike",
+          "source": "must_be_resolved"
+        },
+        "dType": {
+          "class": "static_observed",
+          "value": "latest"
+        }
+      },
+      "response": {
+        "content_type": "application/json",
+        "top_level_type": "object",
+        "known_fields": [
+          "sEcho",
+          "iTotalRecords",
+          "iTotalDisplayRecords",
+          "aaData",
+          "strikePriceATM",
+          "optStrike",
+          "futuresPriceStr",
+          "symbol_1",
+          "optExpDate",
+          "monthlyExpDate",
+          "dt",
+          "futuresClosingPrice",
+          "TimeStamp",
+          "futures_close_chg",
+          "futures_close_chg_percent",
+          "total_call_oi",
+          "total_put_oi",
+          "total_call_oi_change",
+          "total_put_oi_change",
+          "diffoichange",
+          "Diff_PE_CE_stats",
+          "lot_size",
+          "Avg_iv",
+          "defaultDatedMY",
+          "TotalPCROI",
+          "TotalPCROIChg",
+          "TotalCallLBOI",
+          "TotalCallSCOI",
+          "TotalCallSBOI",
+          "TotalCallLUOI"
+        ],
+        "aaData_expected_rows": 7,
+        "aaData_row_width_observed": 70,
+        "display_column_width_observed": 61,
+        "mapping": "aaData row fields 3:64 map to the 61 discovered main-table columns"
+      }
+    },
+    {
+      "id": "top_right_details",
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php",
+      "method": "POST",
+      "purpose": "Symbol-specific futures/expiry details",
+      "replay": "direct_post",
+      "verified": true,
+      "request_parameters": {
+        "optSymbol": {
+          "class": "dynamic_symbol",
+          "source": "caller"
+        },
+        "optExpDate": {
+          "class": "dynamic_expiry",
+          "source": "must_be_resolved"
+        },
+        "monthlyExpDate": {
+          "class": "observed",
+          "value": "undefined"
+        },
+        "Presentday": {
+          "class": "observed",
+          "value": "undefined"
+        },
+        "Prevday": {
+          "class": "observed",
+          "value": "undefined"
+        },
+        "rdDataType": {
+          "class": "static_observed",
+          "value": "latest"
+        },
+        "txtDate": {
+          "class": "observed",
+          "value": "undefined"
+        },
+        "defaultDate": {
+          "class": "observed",
+          "value": "undefined"
+        },
+        "e": {
+          "class": "static_observed",
+          "value": "1"
+        }
+      },
+      "response": {
+        "known_structure": "futures array observed",
+        "observed_fields": [
+          "futures[0] symbol",
+          "futures[1] expiry",
+          "futures[2] futures value",
+          "futures[3] change",
+          "futures[4] change percent",
+          "futures[5] date"
+        ],
+        "does_not_confirm": [
+          "optStrike"
+        ]
+      }
+    },
+    {
+      "id": "option_chain_columns",
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getOptionChain_columns.php",
+      "method": "POST",
+      "purpose": "Option Chain column metadata",
+      "replay": "direct_post",
+      "verified": true,
+      "request_parameters": {
+        "un": {
+          "class": "observed_authenticated_user",
+          "source": "session"
+        }
+      }
+    }
+  ],
+  "dependency_chain": {
+    "confirmed": [
+      "authenticated context",
+      "direct OptionChainTable POST",
+      "server returns symbol_1/expiry/ATM/optStrike/aaData",
+      "7 aaData rows",
+      "70 fields per aaData row",
+      "61 displayed main-table columns"
+    ],
+    "unresolved": [
+      "how production collector should resolve symbol-specific optExpDate",
+      "how production collector should resolve symbol-specific optStrike",
+      "whether optStrike can be safely supplied as undefined and server-resolved",
+      "whether defaultDate must be populated or can remain undefined",
+      "whether one symbol's response parameters can be used independently without page-state switching"
+    ]
+  },
+  "browser_state_probe": {
+    "result": "FAILED_FOR_SYMBOL_SWITCHING",
+    "observed": "DIXON remained selected when requesting RELIANCE, INFY, TCS and HDFCBANK via page URL navigation",
+    "conclusion": "Do not use URL navigation as the symbol-switch mechanism"
+  },
+  "production_policy": {
+    "no_hardcoded_symbol_strike": true,
+    "no_220_browser_pages": true,
+    "persistent_authenticated_context": true,
+    "direct_post_preferred": true,
+    "write_one_final_xlsx_per_cycle": true,
+    "temporary_acquisition_data_in_memory": true
+  }
+}

@@ -1,0 +1,878 @@
+[
+  {
+    "value": "NIFTY",
+    "text": "NIFTY"
+  },
+  {
+    "value": "BANKNIFTY",
+    "text": "BANKNIFTY"
+  },
+  {
+    "value": "FINNIFTY",
+    "text": "FINNIFTY"
+  },
+  {
+    "value": "MIDCPNIFTY",
+    "text": "MIDCPNIFTY"
+  },
+  {
+    "value": "NIFTYNXT50",
+    "text": "NIFTYNXT50"
+  },
+  {
+    "value": "NIFTYFPI",
+    "text": "NIFTYFPI"
+  },
+  {
+    "value": "SENSEX",
+    "text": "SENSEX"
+  },
+  {
+    "value": "BANKEX",
+    "text": "BANKEX"
+  },
+  {
+    "value": "FOCIT",
+    "text": "FOCIT"
+  },
+  {
+    "value": "360ONE",
+    "text": "360ONE"
+  },
+  {
+    "value": "ABB",
+    "text": "ABB"
+  },
+  {
+    "value": "ABCAPITAL",
+    "text": "ABCAPITAL"
+  },
+  {
+    "value": "ADANIENSOL",
+    "text": "ADANIENSOL"
+  },
+  {
+    "value": "ADANIENT",
+    "text": "ADANIENT"
+  },
+  {
+    "value": "ADANIGREEN",
+    "text": "ADANIGREEN"
+  },
+  {
+    "value": "ADANIPORTS",
+    "text": "ADANIPORTS"
+  },
+  {
+    "value": "ADANIPOWER",
+    "text": "ADANIPOWER"
+  },
+  {
+    "value": "ALKEM",
+    "text": "ALKEM"
+  },
+  {
+    "value": "AMBER",
+    "text": "AMBER"
+  },
+  {
+    "value": "AMBUJACEM",
+    "text": "AMBUJACEM"
+  },
+  {
+    "value": "ANGELONE",
+    "text": "ANGELONE"
+  },
+  {
+    "value": "APLAPOLLO",
+    "text": "APLAPOLLO"
+  },
+  {
+    "value": "APOLLOHOSP",
+    "text": "APOLLOHOSP"
+  },
+  {
+    "value": "ASHOKLEY",
+    "text": "ASHOKLEY"
+  },
+  {
+    "value": "ASIANPAINT",
+    "text": "ASIANPAINT"
+  },
+  {
+    "value": "ASTRAL",
+    "text": "ASTRAL"
+  },
+  {
+    "value": "ATHERENERG",
+    "text": "ATHERENERG"
+  },
+  {
+    "value": "AUBANK",
+    "text": "AUBANK"
+  },
+  {
+    "value": "AUROPHARMA",
+    "text": "AUROPHARMA"
+  },
+  {
+    "value": "AXISBANK",
+    "text": "AXISBANK"
+  },
+  {
+    "value": "BAJAJ-AUTO",
+    "text": "BAJAJ-AUTO"
+  },
+  {
+    "value": "BAJAJFINSV",
+    "text": "BAJAJFINSV"
+  },
+  {
+    "value": "BAJAJHLDNG",
+    "text": "BAJAJHLDNG"
+  },
+  {
+    "value": "BAJFINANCE",
+    "text": "BAJFINANCE"
+  },
+  {
+    "value": "BANDHANBNK",
+    "text": "BANDHANBNK"
+  },
+  {
+    "value": "BANKBARODA",
+    "text": "BANKBARODA"
+  },
+  {
+    "value": "BANKINDIA",
+    "text": "BANKINDIA"
+  },
+  {
+    "value": "BDL",
+    "text": "BDL"
+  },
+  {
+    "value": "BEL",
+    "text": "BEL"
+  },
+  {
+    "value": "BHARATFORG",
+    "text": "BHARATFORG"
+  },
+  {
+    "value": "BHARTIARTL",
+    "text": "BHARTIARTL"
+  },
+  {
+    "value": "BHEL",
+    "text": "BHEL"
+  },
+  {
+    "value": "BIOCON",
+    "text": "BIOCON"
+  },
+  {
+    "value": "BLUESTARCO",
+    "text": "BLUESTARCO"
+  },
+  {
+    "value": "BOSCHLTD",
+    "text": "BOSCHLTD"
+  },
+  {
+    "value": "BPCL",
+    "text": "BPCL"
+  },
+  {
+    "value": "BRITANNIA",
+    "text": "BRITANNIA"
+  },
+  {
+    "value": "BSE",
+    "text": "BSE"
+  },
+  {
+    "value": "CAMS",
+    "text": "CAMS"
+  },
+  {
+    "value": "CANBK",
+    "text": "CANBK"
+  },
+  {
+    "value": "CDSL",
+    "text": "CDSL"
+  },
+  {
+    "value": "CGPOWER",
+    "text": "CGPOWER"
+  },
+  {
+    "value": "CHOLAFIN",
+    "text": "CHOLAFIN"
+  },
+  {
+    "value": "CIPLA",
+    "text": "CIPLA"
+  },
+  {
+    "value": "COALINDIA",
+    "text": "COALINDIA"
+  },
+  {
+    "value": "COCHINSHIP",
+    "text": "COCHINSHIP"
+  },
+  {
+    "value": "COFORGE",
+    "text": "COFORGE"
+  },
+  {
+    "value": "COLPAL",
+    "text": "COLPAL"
+  },
+  {
+    "value": "CONCOR",
+    "text": "CONCOR"
+  },
+  {
+    "value": "CROMPTON",
+    "text": "CROMPTON"
+  },
+  {
+    "value": "CUMMINSIND",
+    "text": "CUMMINSIND"
+  },
+  {
+    "value": "DABUR",
+    "text": "DABUR"
+  },
+  {
+    "value": "DELHIVERY",
+    "text": "DELHIVERY"
+  },
+  {
+    "value": "DIVISLAB",
+    "text": "DIVISLAB"
+  },
+  {
+    "value": "DIXON",
+    "text": "DIXON"
+  },
+  {
+    "value": "DLF",
+    "text": "DLF"
+  },
+  {
+    "value": "DMART",
+    "text": "DMART"
+  },
+  {
+    "value": "DRREDDY",
+    "text": "DRREDDY"
+  },
+  {
+    "value": "EICHERMOT",
+    "text": "EICHERMOT"
+  },
+  {
+    "value": "ETERNAL",
+    "text": "ETERNAL"
+  },
+  {
+    "value": "FEDERALBNK",
+    "text": "FEDERALBNK"
+  },
+  {
+    "value": "FORCEMOT",
+    "text": "FORCEMOT"
+  },
+  {
+    "value": "FORTIS",
+    "text": "FORTIS"
+  },
+  {
+    "value": "GAIL",
+    "text": "GAIL"
+  },
+  {
+    "value": "GLENMARK",
+    "text": "GLENMARK"
+  },
+  {
+    "value": "GMRAIRPORT",
+    "text": "GMRAIRPORT"
+  },
+  {
+    "value": "GODFRYPHLP",
+    "text": "GODFRYPHLP"
+  },
+  {
+    "value": "GODREJCP",
+    "text": "GODREJCP"
+  },
+  {
+    "value": "GODREJPROP",
+    "text": "GODREJPROP"
+  },
+  {
+    "value": "GRASIM",
+    "text": "GRASIM"
+  },
+  {
+    "value": "GVT&D",
+    "text": "GVT&D"
+  },
+  {
+    "value": "HAL",
+    "text": "HAL"
+  },
+  {
+    "value": "HAVELLS",
+    "text": "HAVELLS"
+  },
+  {
+    "value": "HCLTECH",
+    "text": "HCLTECH"
+  },
+  {
+    "value": "HDFCAMC",
+    "text": "HDFCAMC"
+  },
+  {
+    "value": "HDFCBANK",
+    "text": "HDFCBANK"
+  },
+  {
+    "value": "HDFCLIFE",
+    "text": "HDFCLIFE"
+  },
+  {
+    "value": "HEROMOTOCO",
+    "text": "HEROMOTOCO"
+  },
+  {
+    "value": "HINDALCO",
+    "text": "HINDALCO"
+  },
+  {
+    "value": "HINDPETRO",
+    "text": "HINDPETRO"
+  },
+  {
+    "value": "HINDUNILVR",
+    "text": "HINDUNILVR"
+  },
+  {
+    "value": "HINDZINC",
+    "text": "HINDZINC"
+  },
+  {
+    "value": "HYUNDAI",
+    "text": "HYUNDAI"
+  },
+  {
+    "value": "ICICIBANK",
+    "text": "ICICIBANK"
+  },
+  {
+    "value": "ICICIGI",
+    "text": "ICICIGI"
+  },
+  {
+    "value": "ICICIPRULI",
+    "text": "ICICIPRULI"
+  },
+  {
+    "value": "IDEA",
+    "text": "IDEA"
+  },
+  {
+    "value": "IDFCFIRSTB",
+    "text": "IDFCFIRSTB"
+  },
+  {
+    "value": "IEX",
+    "text": "IEX"
+  },
+  {
+    "value": "INDHOTEL",
+    "text": "INDHOTEL"
+  },
+  {
+    "value": "INDIANB",
+    "text": "INDIANB"
+  },
+  {
+    "value": "INDIGO",
+    "text": "INDIGO"
+  },
+  {
+    "value": "INDUSINDBK",
+    "text": "INDUSINDBK"
+  },
+  {
+    "value": "INDUSTOWER",
+    "text": "INDUSTOWER"
+  },
+  {
+    "value": "INFY",
+    "text": "INFY"
+  },
+  {
+    "value": "INOXWIND",
+    "text": "INOXWIND"
+  },
+  {
+    "value": "IOC",
+    "text": "IOC"
+  },
+  {
+    "value": "IREDA",
+    "text": "IREDA"
+  },
+  {
+    "value": "IRFC",
+    "text": "IRFC"
+  },
+  {
+    "value": "ITC",
+    "text": "ITC"
+  },
+  {
+    "value": "JINDALSTEL",
+    "text": "JINDALSTEL"
+  },
+  {
+    "value": "JIOFIN",
+    "text": "JIOFIN"
+  },
+  {
+    "value": "JSWENERGY",
+    "text": "JSWENERGY"
+  },
+  {
+    "value": "JSWSTEEL",
+    "text": "JSWSTEEL"
+  },
+  {
+    "value": "JUBLFOOD",
+    "text": "JUBLFOOD"
+  },
+  {
+    "value": "KALYANKJIL",
+    "text": "KALYANKJIL"
+  },
+  {
+    "value": "KAYNES",
+    "text": "KAYNES"
+  },
+  {
+    "value": "KEI",
+    "text": "KEI"
+  },
+  {
+    "value": "KFINTECH",
+    "text": "KFINTECH"
+  },
+  {
+    "value": "KOTAKBANK",
+    "text": "KOTAKBANK"
+  },
+  {
+    "value": "KPITTECH",
+    "text": "KPITTECH"
+  },
+  {
+    "value": "LAURUSLABS",
+    "text": "LAURUSLABS"
+  },
+  {
+    "value": "LICHSGFIN",
+    "text": "LICHSGFIN"
+  },
+  {
+    "value": "LICI",
+    "text": "LICI"
+  },
+  {
+    "value": "LODHA",
+    "text": "LODHA"
+  },
+  {
+    "value": "LT",
+    "text": "LT"
+  },
+  {
+    "value": "LTF",
+    "text": "LTF"
+  },
+  {
+    "value": "LTM",
+    "text": "LTM"
+  },
+  {
+    "value": "LUPIN",
+    "text": "LUPIN"
+  },
+  {
+    "value": "M&M",
+    "text": "M&M"
+  },
+  {
+    "value": "MAHABANK",
+    "text": "MAHABANK"
+  },
+  {
+    "value": "MANAPPURAM",
+    "text": "MANAPPURAM"
+  },
+  {
+    "value": "MANKIND",
+    "text": "MANKIND"
+  },
+  {
+    "value": "MARICO",
+    "text": "MARICO"
+  },
+  {
+    "value": "MARUTI",
+    "text": "MARUTI"
+  },
+  {
+    "value": "MAXHEALTH",
+    "text": "MAXHEALTH"
+  },
+  {
+    "value": "MAZDOCK",
+    "text": "MAZDOCK"
+  },
+  {
+    "value": "MCX",
+    "text": "MCX"
+  },
+  {
+    "value": "MFSL",
+    "text": "MFSL"
+  },
+  {
+    "value": "MOTHERSON",
+    "text": "MOTHERSON"
+  },
+  {
+    "value": "MOTILALOFS",
+    "text": "MOTILALOFS"
+  },
+  {
+    "value": "MPHASIS",
+    "text": "MPHASIS"
+  },
+  {
+    "value": "MUTHOOTFIN",
+    "text": "MUTHOOTFIN"
+  },
+  {
+    "value": "NAM-INDIA",
+    "text": "NAM-INDIA"
+  },
+  {
+    "value": "NATIONALUM",
+    "text": "NATIONALUM"
+  },
+  {
+    "value": "NAUKRI",
+    "text": "NAUKRI"
+  },
+  {
+    "value": "NBCC",
+    "text": "NBCC"
+  },
+  {
+    "value": "NESTLEIND",
+    "text": "NESTLEIND"
+  },
+  {
+    "value": "NHPC",
+    "text": "NHPC"
+  },
+  {
+    "value": "NMDC",
+    "text": "NMDC"
+  },
+  {
+    "value": "NTPC",
+    "text": "NTPC"
+  },
+  {
+    "value": "NYKAA",
+    "text": "NYKAA"
+  },
+  {
+    "value": "OBEROIRLTY",
+    "text": "OBEROIRLTY"
+  },
+  {
+    "value": "OFSS",
+    "text": "OFSS"
+  },
+  {
+    "value": "OIL",
+    "text": "OIL"
+  },
+  {
+    "value": "ONGC",
+    "text": "ONGC"
+  },
+  {
+    "value": "PAGEIND",
+    "text": "PAGEIND"
+  },
+  {
+    "value": "PATANJALI",
+    "text": "PATANJALI"
+  },
+  {
+    "value": "PAYTM",
+    "text": "PAYTM"
+  },
+  {
+    "value": "PERSISTENT",
+    "text": "PERSISTENT"
+  },
+  {
+    "value": "PETRONET",
+    "text": "PETRONET"
+  },
+  {
+    "value": "PFC",
+    "text": "PFC"
+  },
+  {
+    "value": "PGEL",
+    "text": "PGEL"
+  },
+  {
+    "value": "PHOENIXLTD",
+    "text": "PHOENIXLTD"
+  },
+  {
+    "value": "PIDILITIND",
+    "text": "PIDILITIND"
+  },
+  {
+    "value": "PIIND",
+    "text": "PIIND"
+  },
+  {
+    "value": "PNB",
+    "text": "PNB"
+  },
+  {
+    "value": "PNBHOUSING",
+    "text": "PNBHOUSING"
+  },
+  {
+    "value": "POLICYBZR",
+    "text": "POLICYBZR"
+  },
+  {
+    "value": "POLYCAB",
+    "text": "POLYCAB"
+  },
+  {
+    "value": "POWERGRID",
+    "text": "POWERGRID"
+  },
+  {
+    "value": "POWERINDIA",
+    "text": "POWERINDIA"
+  },
+  {
+    "value": "PREMIERENE",
+    "text": "PREMIERENE"
+  },
+  {
+    "value": "PRESTIGE",
+    "text": "PRESTIGE"
+  },
+  {
+    "value": "RADICO",
+    "text": "RADICO"
+  },
+  {
+    "value": "RBLBANK",
+    "text": "RBLBANK"
+  },
+  {
+    "value": "RECLTD",
+    "text": "RECLTD"
+  },
+  {
+    "value": "RELIANCE",
+    "text": "RELIANCE"
+  },
+  {
+    "value": "RVNL",
+    "text": "RVNL"
+  },
+  {
+    "value": "SAGILITY",
+    "text": "SAGILITY"
+  },
+  {
+    "value": "SAIL",
+    "text": "SAIL"
+  },
+  {
+    "value": "SBICARD",
+    "text": "SBICARD"
+  },
+  {
+    "value": "SBILIFE",
+    "text": "SBILIFE"
+  },
+  {
+    "value": "SBIN",
+    "text": "SBIN"
+  },
+  {
+    "value": "SHREECEM",
+    "text": "SHREECEM"
+  },
+  {
+    "value": "SHRIRAMFIN",
+    "text": "SHRIRAMFIN"
+  },
+  {
+    "value": "SIEMENS",
+    "text": "SIEMENS"
+  },
+  {
+    "value": "SOLARINDS",
+    "text": "SOLARINDS"
+  },
+  {
+    "value": "SONACOMS",
+    "text": "SONACOMS"
+  },
+  {
+    "value": "SRF",
+    "text": "SRF"
+  },
+  {
+    "value": "SUNPHARMA",
+    "text": "SUNPHARMA"
+  },
+  {
+    "value": "SUPREMEIND",
+    "text": "SUPREMEIND"
+  },
+  {
+    "value": "SUZLON",
+    "text": "SUZLON"
+  },
+  {
+    "value": "SWIGGY",
+    "text": "SWIGGY"
+  },
+  {
+    "value": "TATACONSUM",
+    "text": "TATACONSUM"
+  },
+  {
+    "value": "TATAELXSI",
+    "text": "TATAELXSI"
+  },
+  {
+    "value": "TATAPOWER",
+    "text": "TATAPOWER"
+  },
+  {
+    "value": "TATASTEEL",
+    "text": "TATASTEEL"
+  },
+  {
+    "value": "TCS",
+    "text": "TCS"
+  },
+  {
+    "value": "TECHM",
+    "text": "TECHM"
+  },
+  {
+    "value": "TIINDIA",
+    "text": "TIINDIA"
+  },
+  {
+    "value": "TITAN",
+    "text": "TITAN"
+  },
+  {
+    "value": "TMPV",
+    "text": "TMPV"
+  },
+  {
+    "value": "TORNTPHARM",
+    "text": "TORNTPHARM"
+  },
+  {
+    "value": "TRENT",
+    "text": "TRENT"
+  },
+  {
+    "value": "TVSMOTOR",
+    "text": "TVSMOTOR"
+  },
+  {
+    "value": "ULTRACEMCO",
+    "text": "ULTRACEMCO"
+  },
+  {
+    "value": "UNIONBANK",
+    "text": "UNIONBANK"
+  },
+  {
+    "value": "UNITDSPR",
+    "text": "UNITDSPR"
+  },
+  {
+    "value": "UNOMINDA",
+    "text": "UNOMINDA"
+  },
+  {
+    "value": "UPL",
+    "text": "UPL"
+  },
+  {
+    "value": "VBL",
+    "text": "VBL"
+  },
+  {
+    "value": "VEDL",
+    "text": "VEDL"
+  },
+  {
+    "value": "VMM",
+    "text": "VMM"
+  },
+  {
+    "value": "VOLTAS",
+    "text": "VOLTAS"
+  },
+  {
+    "value": "WAAREEENER",
+    "text": "WAAREEENER"
+  },
+  {
+    "value": "WIPRO",
+    "text": "WIPRO"
+  },
+  {
+    "value": "YESBANK",
+    "text": "YESBANK"
+  },
+  {
+    "value": "ZYDUSLIFE",
+    "text": "ZYDUSLIFE"
+  }
+]

@@ -1,0 +1,113 @@
+{
+  "tool": "pece_xhr_probe",
+  "target_url": "https://www.icharts.in/opt/TotalPECEOIDiff_Beta.php",
+  "captured_at": "2026-09-10T23:30:54",
+  "keywords": [
+    "pece",
+    "totalpe",
+    "total-ce",
+    "total_pe",
+    "totalce",
+    "total_ce",
+    "option",
+    "oi",
+    "volume",
+    "chart",
+    "getdata"
+  ],
+  "records": [
+    {
+      "captured_at": "2026-09-10T23:30:38",
+      "resource_type": "fetch",
+      "method": "POST",
+      "url": "https://analytics.google.com/g/collect?v=2&tid=G-ZN58C89YGF&gtm=45je6990v9200754901za200zd9200754901&_p=1789063237511&_gaz=1&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=AAAAACQC&are=1&cid=1175664246.1789063034&frm=0&ibt=1&ngs=1&pscdl=noapi&rcb=19&sr=1280x720&uaa=x86&uab=64&uafvl=Chromium%3B151.0.7922.34%7CNot%253DA%253FBrand%3B99.0.0.0&uam=&uamb=0&uap=Windows&uapv=10.0.0&uaw=0&ul=en-us&_s=1&tag_exp=115616985~115938466~115938469~118897920~118897930~120213116~120385422~120469145~120469153~120912438&sid=1789063033&sct=1&seg=1&dl=https%3A%2F%2Fwww.icharts.in%2Fopt%2Flogin.php&dt=Login&en=page_view&_ee=1&tfd=1223",
+      "status": 204,
+      "request_headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "https://www.icharts.in/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "response_headers": {
+        "cache-control": "no-cache, no-store, must-revalidate",
+        "pragma": "no-cache",
+        "cross-origin-resource-policy": "cross-origin",
+        "access-control-allow-credentials": "true",
+        "content-security-policy-report-only": "script-src 'none'; form-action 'none'; frame-src 'none'; report-uri https://csp.withgoogle.com/csp/scaffolding/ascnsrsggc:197:0",
+        "report-to": "{\"group\":\"ascnsrsggc:197:0\",\"max_age\":2592000,\"endpoints\":[{\"url\":\"https://csp.withgoogle.com/csp/report-to/scaffolding/ascnsrsggc:197:0\"}],}",
+        "expires": "Fri, 01 Jan 1990 00:00:00 GMT",
+        "access-control-allow-origin": "https://www.icharts.in",
+        "cross-origin-opener-policy-report-only": "same-origin; report-to=ascnsrsggc:197:0",
+        "content-length": "0",
+        "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+        "date": "Thu, 10 Sep 2026 18:00:38 GMT",
+        "content-type": "text/plain",
+        "server": "Golfe2"
+      },
+      "body_error": "Response.text: Protocol error (Network.getResponseBody): No data found for resource with given identifier\nResponse body is not available for a response that was navigated away from. Read response.body() before triggering any navigation."
+    },
+    {
+      "captured_at": "2026-09-10T23:30:38",
+      "resource_type": "xhr",
+      "method": "POST",
+      "url": "https://www.icharts.in/cdn-cgi/rum?",
+      "status": 204,
+      "request_headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "https://www.icharts.in/opt/login.php",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "content-type": "application/json",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "response_headers": {
+        "access-control-max-age": "86400",
+        "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=0fjeqonKgtwCg0duO81JdQlWw7aFNlr81XfZyW3oRy%2FPSzBlmco5TH05zScQjUpPdqyHWLrlnCO6pzMekhYQYvnHEHPYGlJAdcqv8hQC4%2BxNZ1Rk8RDBYeJNvwJAK5Ih\"}]}",
+        "access-control-allow-credentials": "true",
+        "access-control-allow-methods": "POST,OPTIONS",
+        "cf-ray": "a3905559cf5f302e-LUH",
+        "access-control-allow-origin": "https://www.icharts.in",
+        "date": "Thu, 10 Sep 2026 18:00:38 GMT",
+        "content-type": "text/plain",
+        "vary": "Origin, accept-encoding",
+        "server": "cloudflare"
+      },
+      "post_data": "{\"startTime\":1789063237025,\"pageloadId\":\"c90729fd-5207-4025-8278-e35d756c1a66\",\"eventType\":1,\"nt\":\"navigate\",\"location\":\"https://www.icharts.in/opt/login.php\",\"versions\":{\"fl\":\"2024.11.0\",\"js\":\"2026.9.1\",\"timings\":2},\"bi\":{\"be\":\"Blink\",\"bev\":\"151\",\"bv\":\"151\",\"ov\":\"10\"},\"memory\":{\"totalJSHeapSize\":16347253,\"usedJSHeapSize\":9546577,\"jsHeapSizeLimit\":4395630592},\"firstPaint\":584,\"firstContentfulPaint\":584,\"timingsV2\":{\"nextHopProtocol\":\"h2\",\"domainLookupStart\":235,\"domainLookupEnd\":235,\"connectStart\":235,\"connectEnd\":235,\"secureConnectionStart\":235,\"redirectStart\":2,\"redirectEnd\":235,\"requestStart\":247,\"responseStart\":367,\"responseEnd\":442,\"domInteractive\":731,\"domComplete\":1544,\"loadEventStart\":1544,\"loadEventEnd\":1544,\"finalResponseHeadersStart\":367,\"firstInterimResponseStart\":0,\"transferSize\":11526,\"decodedBodySize\":37741},\"siteToken\":\"69213928e7bb417e81e32c26e4e671aa\",\"st\":2}",
+      "body_file": "response_0001.txt",
+      "body_length": 0
+    },
+    {
+      "captured_at": "2026-09-10T23:30:54",
+      "resource_type": "fetch",
+      "method": "POST",
+      "url": "https://analytics.google.com/g/collect?v=2&tid=G-ZN58C89YGF&gtm=45je6990v9200754901za200zd9200754901&_p=1789063237511&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=AEAAACQC&ae=a&are=1&cid=1175664246.1789063034&frm=0&ibt=1&ngs=1&pscdl=noapi&rcb=19&sr=1280x720&uaa=x86&uab=64&uafvl=Chromium%3B151.0.7922.34%7CNot%253DA%253FBrand%3B99.0.0.0&uam=&uamb=0&uap=Windows&uapv=10.0.0&uaw=0&ul=en-us&_s=2&tag_exp=115616985~115938466~115938469~118897920~118897930~120213116~120385422~120469145~120469153~120912438&sid=1789063033&sct=1&seg=1&dl=https%3A%2F%2Fwww.icharts.in%2Fopt%2Flogin.php&dt=Login&en=scroll&epn.percent_scrolled=90&_et=12&tfd=6244",
+      "status": 204,
+      "request_headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "https://www.icharts.in/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "response_headers": {
+        "cache-control": "no-cache, no-store, must-revalidate",
+        "pragma": "no-cache",
+        "cross-origin-resource-policy": "cross-origin",
+        "access-control-allow-credentials": "true",
+        "content-security-policy-report-only": "script-src 'none'; form-action 'none'; frame-src 'none'; report-uri https://csp.withgoogle.com/csp/scaffolding/ascnsrsggc:197:0",
+        "report-to": "{\"group\":\"ascnsrsggc:197:0\",\"max_age\":2592000,\"endpoints\":[{\"url\":\"https://csp.withgoogle.com/csp/report-to/scaffolding/ascnsrsggc:197:0\"}],}",
+        "expires": "Fri, 01 Jan 1990 00:00:00 GMT",
+        "access-control-allow-origin": "https://www.icharts.in",
+        "cross-origin-opener-policy-report-only": "same-origin; report-to=ascnsrsggc:197:0",
+        "content-length": "0",
+        "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+        "date": "Thu, 10 Sep 2026 18:00:43 GMT",
+        "content-type": "text/plain",
+        "server": "Golfe2"
+      },
+      "body_error": "Response.text: Target page, context or browser has been closed"
+    }
+  ]
+}

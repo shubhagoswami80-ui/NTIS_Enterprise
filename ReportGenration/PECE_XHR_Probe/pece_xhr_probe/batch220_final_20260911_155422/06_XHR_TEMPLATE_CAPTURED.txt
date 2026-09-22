@@ -1,0 +1,3 @@
+endpoint=https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php
+status=200
+body_length=102922

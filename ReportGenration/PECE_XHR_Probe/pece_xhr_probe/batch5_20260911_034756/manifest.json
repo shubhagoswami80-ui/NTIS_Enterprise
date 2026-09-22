@@ -1,0 +1,247 @@
+{
+  "target_url": "https://www.icharts.in/opt/TotalPECEOIDiff_Beta.php",
+  "selector": "#optSymbol",
+  "original_symbol": "NIFTY",
+  "tested_symbols": [
+    "NIFTY",
+    "BANKNIFTY",
+    "FINNIFTY",
+    "MIDCPNIFTY",
+    "NIFTYNXT50"
+  ],
+  "option_count": 219,
+  "results": [
+    {
+      "symbol": "NIFTY",
+      "dom_value": "NIFTY",
+      "xhr_symbols": [
+        "NIFTY",
+        "NIFTY"
+      ],
+      "event_count": 2,
+      "body_lengths": [
+        234,
+        134606
+      ]
+    },
+    {
+      "symbol": "BANKNIFTY",
+      "dom_value": "BANKNIFTY",
+      "xhr_symbols": [
+        "BANKNIFTY",
+        "BANKNIFTY"
+      ],
+      "event_count": 2,
+      "body_lengths": [
+        249,
+        131863
+      ]
+    },
+    {
+      "symbol": "FINNIFTY",
+      "dom_value": "FINNIFTY",
+      "xhr_symbols": [
+        "FINNIFTY",
+        "FINNIFTY"
+      ],
+      "event_count": 2,
+      "body_lengths": [
+        239,
+        112022
+      ]
+    },
+    {
+      "symbol": "MIDCPNIFTY",
+      "dom_value": "MIDCPNIFTY",
+      "xhr_symbols": [
+        "MIDCPNIFTY",
+        "MIDCPNIFTY"
+      ],
+      "event_count": 2,
+      "body_lengths": [
+        253,
+        120650
+      ]
+    },
+    {
+      "symbol": "NIFTYNXT50",
+      "dom_value": "NIFTYNXT50",
+      "xhr_symbols": [
+        "NIFTYNXT50",
+        "NIFTYNXT50",
+        "NIFTYNXT50"
+      ],
+      "event_count": 3,
+      "body_lengths": [
+        254,
+        103890,
+        254
+      ]
+    }
+  ],
+  "events": [
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "NIFTY",
+      "post_data": "optSymbol=NIFTY&optExpDate=15SEP26&monthlyExpDate=undefined&Presentday=undefined&Prevday=undefined&rdDataType=latest&txtDate=undefined&defaultDate=undefined&e=1",
+      "body_file": "response_0001.bin",
+      "body_length": 234
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "NIFTY",
+      "post_data": "optSymbol=NIFTY&optExpDate=15SEP26&CallstrikeNames=null&optPutStrike=null&CallstrikeNames_hist=undefined&optPutStrike_hist=undefined&optStrike=0&striketypeval=allstrikes&lots_val=off&minutes_val=on&optExpDate_hist=undefined&txtDate=undefined&interval=5min&atmstrikesnumber=3&atmstrikesnumberfixed=3&chkDynamicAtmVal=0&rdDataType=latest&closestPrice=23450&userName=%5BREDACTED%5D&OIbuttontype=Lots_btn_click&sessionID=%5BREDACTED%5D&ALLOTMITM=ALL&save_data=%7B%22symbol%22%3A%22NIFTY%22%2C%22exp_date%22%3A%2215SEP26%22%2C%22sel_strikes%22%3Anull%2C%22put_sel_strikes%22%3Anull%2C%22chkDynamicAtmVal%22%3A0%2C%22chkDynamicAtmfixedVal%22%3A0%2C%22striketypenum%22%3A2%2C%22interval%22%3A%225min%22%2C%22vwap_series%22%3A%22visible%22%2C%22OI_Chg_Vol_Diff_series%22%3A%22hidden%22%2C%22price_series%22%3A%22hidden%22%2C%22pcr_series%22%3A%22hidden%22%2C%22call_oi_chg_series%22%3A%22hidden%22%2C%22put_oi_chg_series%22%3A%22hidden%22%2C%22diff_series%22%3A%22visible%22%2C%22oi_diff_series%22%3A%22hidden%22%2C%22iv_series%22%3A%22hidden%22%2C%22put_oi_chg_percent_series%22%3A%22visible%22%2C%22diff_peceoichg_series%22%3A%22visible%22%2C%22call_oi_chg_percent_series%22%3A%22visible%22%2C%22oi_change_enabled%22%3A%222%22%2C%22price_series_oi%22%3A%22hidden%22%2C%22minutes_val%22%3A%22on%22%2C%22price_line_enabled%22%3A%221%22%2C%22ce_vol_series%22%3A%22hidden%22%2C%22pe_vol_series%22%3A%22hidden%22%2C%22pcr_volume_series%22%3A%22hidden%22%2C%22Fair_price_series_unwinding%22%3A%22hidden%22%2C%22Fair_price_series_unwinding_15%22%3A%22hidden%22%2C%22Fair_price_series_buildup%22%3A%22hidden%22%2C%22Fair_price_series_buildup_15%22%3A%22hidden%22%2C%22Fair_price_series%22%3A%22hidden%22%2C%22Fair_price_series1%22%3A%22hidden%22%2C%22diffpece_vol_series%22%3A%22visible%22%2C%22atmstrikenumber%22%3A%223%22%2C%22atmstrikesnumberfixed%22%3A%223%22%2C%22OIbuttontype%22%3A%22Lots_btn_click%22%2C%22optStrike%22%3A%220%22%2C%22ALLOTMITM%22%3A%22ALL%22%2C%22CE_Unwinding_series%22%3A%22visible%22%2C%22PE_Unwinding_series%22%3A%22visible%22%2C%22CE_Unwinding_15_series%22%3A%22visible%22%2C%22PE_Unwinding_15_series%22%3A%22visible%22%2C%22CE_Buildup_series%22%3A%22visible%22%2C%22PE_Buildup_series%22%3A%22visible%22%2C%22CE_Buildup_15_series%22%3A%22visible%22%2C%22PE_Buildup_15_series%22%3A%22visible%22%7D&pageName_save=TotalPECEOIDiff_Beta.php",
+      "body_file": "response_0002.bin",
+      "body_length": 134606
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "NIFTY",
+      "post_data": "optSymbol=NIFTY&optExpDate=15SEP26&monthlyExpDate=undefined&Presentday=undefined&Prevday=undefined&rdDataType=latest&txtDate=undefined&defaultDate=undefined&e=1",
+      "body_file": "response_0003.bin",
+      "body_length": 234
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "NIFTY",
+      "post_data": "optSymbol=NIFTY&optExpDate=15SEP26&CallstrikeNames=null&optPutStrike=null&CallstrikeNames_hist=undefined&optPutStrike_hist=undefined&optStrike=0&striketypeval=allstrikes&lots_val=off&minutes_val=on&optExpDate_hist=undefined&txtDate=undefined&interval=5min&atmstrikesnumber=3&atmstrikesnumberfixed=3&chkDynamicAtmVal=0&rdDataType=latest&closestPrice=23450&userName=%5BREDACTED%5D&OIbuttontype=Lots_btn_click&sessionID=%5BREDACTED%5D&ALLOTMITM=ALL&save_data=%7B%22symbol%22%3A%22NIFTY%22%2C%22exp_date%22%3A%2215SEP26%22%2C%22sel_strikes%22%3Anull%2C%22put_sel_strikes%22%3Anull%2C%22chkDynamicAtmVal%22%3A0%2C%22chkDynamicAtmfixedVal%22%3A0%2C%22striketypenum%22%3A2%2C%22interval%22%3A%225min%22%2C%22vwap_series%22%3A%22visible%22%2C%22OI_Chg_Vol_Diff_series%22%3A%22hidden%22%2C%22price_series%22%3A%22hidden%22%2C%22pcr_series%22%3A%22hidden%22%2C%22call_oi_chg_series%22%3A%22hidden%22%2C%22put_oi_chg_series%22%3A%22hidden%22%2C%22diff_series%22%3A%22visible%22%2C%22oi_diff_series%22%3A%22hidden%22%2C%22iv_series%22%3A%22hidden%22%2C%22put_oi_chg_percent_series%22%3A%22visible%22%2C%22diff_peceoichg_series%22%3A%22visible%22%2C%22call_oi_chg_percent_series%22%3A%22visible%22%2C%22oi_change_enabled%22%3A%222%22%2C%22price_series_oi%22%3A%22hidden%22%2C%22minutes_val%22%3A%22on%22%2C%22price_line_enabled%22%3A%221%22%2C%22ce_vol_series%22%3A%22hidden%22%2C%22pe_vol_series%22%3A%22hidden%22%2C%22pcr_volume_series%22%3A%22hidden%22%2C%22Fair_price_series_unwinding%22%3A%22hidden%22%2C%22Fair_price_series_unwinding_15%22%3A%22hidden%22%2C%22Fair_price_series_buildup%22%3A%22hidden%22%2C%22Fair_price_series_buildup_15%22%3A%22hidden%22%2C%22Fair_price_series%22%3A%22hidden%22%2C%22Fair_price_series1%22%3A%22hidden%22%2C%22diffpece_vol_series%22%3A%22visible%22%2C%22atmstrikenumber%22%3A%223%22%2C%22atmstrikesnumberfixed%22%3A%223%22%2C%22OIbuttontype%22%3A%22Lots_btn_click%22%2C%22optStrike%22%3A%220%22%2C%22ALLOTMITM%22%3A%22ALL%22%2C%22CE_Unwinding_series%22%3A%22visible%22%2C%22PE_Unwinding_series%22%3A%22visible%22%2C%22CE_Unwinding_15_series%22%3A%22visible%22%2C%22PE_Unwinding_15_series%22%3A%22visible%22%2C%22CE_Buildup_series%22%3A%22visible%22%2C%22PE_Buildup_series%22%3A%22visible%22%2C%22CE_Buildup_15_series%22%3A%22visible%22%2C%22PE_Buildup_15_series%22%3A%22visible%22%7D&pageName_save=TotalPECEOIDiff_Beta.php",
+      "body_file": "response_0004.bin",
+      "body_length": 134606
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "BANKNIFTY",
+      "post_data": "optSymbol=BANKNIFTY&optExpDate=29SEP26&monthlyExpDate=undefined&Presentday=undefined&Prevday=undefined&rdDataType=latest&txtDate=undefined&defaultDate=undefined&e=1",
+      "body_file": "response_0005.bin",
+      "body_length": 249
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "BANKNIFTY",
+      "post_data": "optSymbol=BANKNIFTY&optExpDate=29SEP26&CallstrikeNames=null&optPutStrike=null&CallstrikeNames_hist=undefined&optPutStrike_hist=undefined&optStrike=0&striketypeval=allstrikes&lots_val=off&minutes_val=on&optExpDate_hist=undefined&txtDate=undefined&interval=5min&atmstrikesnumber=3&atmstrikesnumberfixed=3&chkDynamicAtmVal=0&rdDataType=latest&closestPrice=56600&userName=%5BREDACTED%5D&OIbuttontype=Lots_btn_click&sessionID=%5BREDACTED%5D&ALLOTMITM=ALL&save_data=%7B%22symbol%22%3A%22BANKNIFTY%22%2C%22exp_date%22%3A%2229SEP26%22%2C%22sel_strikes%22%3Anull%2C%22put_sel_strikes%22%3Anull%2C%22chkDynamicAtmVal%22%3A0%2C%22chkDynamicAtmfixedVal%22%3A0%2C%22striketypenum%22%3A2%2C%22interval%22%3A%225min%22%2C%22vwap_series%22%3A%22visible%22%2C%22OI_Chg_Vol_Diff_series%22%3A%22hidden%22%2C%22price_series%22%3A%22hidden%22%2C%22pcr_series%22%3A%22hidden%22%2C%22call_oi_chg_series%22%3A%22hidden%22%2C%22put_oi_chg_series%22%3A%22hidden%22%2C%22diff_series%22%3A%22visible%22%2C%22oi_diff_series%22%3A%22hidden%22%2C%22iv_series%22%3A%22hidden%22%2C%22put_oi_chg_percent_series%22%3A%22visible%22%2C%22diff_peceoichg_series%22%3A%22visible%22%2C%22call_oi_chg_percent_series%22%3A%22visible%22%2C%22oi_change_enabled%22%3A%222%22%2C%22price_series_oi%22%3A%22hidden%22%2C%22minutes_val%22%3A%22on%22%2C%22price_line_enabled%22%3A%221%22%2C%22ce_vol_series%22%3A%22hidden%22%2C%22pe_vol_series%22%3A%22hidden%22%2C%22pcr_volume_series%22%3A%22hidden%22%2C%22Fair_price_series_unwinding%22%3A%22hidden%22%2C%22Fair_price_series_unwinding_15%22%3A%22hidden%22%2C%22Fair_price_series_buildup%22%3A%22hidden%22%2C%22Fair_price_series_buildup_15%22%3A%22hidden%22%2C%22Fair_price_series%22%3A%22hidden%22%2C%22Fair_price_series1%22%3A%22hidden%22%2C%22diffpece_vol_series%22%3A%22visible%22%2C%22atmstrikenumber%22%3A%223%22%2C%22atmstrikesnumberfixed%22%3A%223%22%2C%22OIbuttontype%22%3A%22Lots_btn_click%22%2C%22optStrike%22%3A%220%22%2C%22ALLOTMITM%22%3A%22ALL%22%2C%22CE_Unwinding_series%22%3A%22visible%22%2C%22PE_Unwinding_series%22%3A%22visible%22%2C%22CE_Unwinding_15_series%22%3A%22visible%22%2C%22PE_Unwinding_15_series%22%3A%22visible%22%2C%22CE_Buildup_series%22%3A%22visible%22%2C%22PE_Buildup_series%22%3A%22visible%22%2C%22CE_Buildup_15_series%22%3A%22visible%22%2C%22PE_Buildup_15_series%22%3A%22visible%22%7D&pageName_save=TotalPECEOIDiff_Beta.php",
+      "body_file": "response_0006.bin",
+      "body_length": 131863
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "FINNIFTY",
+      "post_data": "optSymbol=FINNIFTY&optExpDate=29SEP26&monthlyExpDate=undefined&Presentday=undefined&Prevday=undefined&rdDataType=latest&txtDate=undefined&defaultDate=undefined&e=1",
+      "body_file": "response_0007.bin",
+      "body_length": 239
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "FINNIFTY",
+      "post_data": "optSymbol=FINNIFTY&optExpDate=29SEP26&CallstrikeNames=null&optPutStrike=null&CallstrikeNames_hist=undefined&optPutStrike_hist=undefined&optStrike=0&striketypeval=allstrikes&lots_val=off&minutes_val=on&optExpDate_hist=undefined&txtDate=undefined&interval=5min&atmstrikesnumber=3&atmstrikesnumberfixed=3&chkDynamicAtmVal=0&rdDataType=latest&closestPrice=25550&userName=%5BREDACTED%5D&OIbuttontype=Lots_btn_click&sessionID=%5BREDACTED%5D&ALLOTMITM=ALL&save_data=%7B%22symbol%22%3A%22FINNIFTY%22%2C%22exp_date%22%3A%2229SEP26%22%2C%22sel_strikes%22%3Anull%2C%22put_sel_strikes%22%3Anull%2C%22chkDynamicAtmVal%22%3A0%2C%22chkDynamicAtmfixedVal%22%3A0%2C%22striketypenum%22%3A2%2C%22interval%22%3A%225min%22%2C%22vwap_series%22%3A%22visible%22%2C%22OI_Chg_Vol_Diff_series%22%3A%22hidden%22%2C%22price_series%22%3A%22hidden%22%2C%22pcr_series%22%3A%22hidden%22%2C%22call_oi_chg_series%22%3A%22hidden%22%2C%22put_oi_chg_series%22%3A%22hidden%22%2C%22diff_series%22%3A%22visible%22%2C%22oi_diff_series%22%3A%22hidden%22%2C%22iv_series%22%3A%22hidden%22%2C%22put_oi_chg_percent_series%22%3A%22visible%22%2C%22diff_peceoichg_series%22%3A%22visible%22%2C%22call_oi_chg_percent_series%22%3A%22visible%22%2C%22oi_change_enabled%22%3A%222%22%2C%22price_series_oi%22%3A%22hidden%22%2C%22minutes_val%22%3A%22on%22%2C%22price_line_enabled%22%3A%221%22%2C%22ce_vol_series%22%3A%22hidden%22%2C%22pe_vol_series%22%3A%22hidden%22%2C%22pcr_volume_series%22%3A%22hidden%22%2C%22Fair_price_series_unwinding%22%3A%22hidden%22%2C%22Fair_price_series_unwinding_15%22%3A%22hidden%22%2C%22Fair_price_series_buildup%22%3A%22hidden%22%2C%22Fair_price_series_buildup_15%22%3A%22hidden%22%2C%22Fair_price_series%22%3A%22hidden%22%2C%22Fair_price_series1%22%3A%22hidden%22%2C%22diffpece_vol_series%22%3A%22visible%22%2C%22atmstrikenumber%22%3A%223%22%2C%22atmstrikesnumberfixed%22%3A%223%22%2C%22OIbuttontype%22%3A%22Lots_btn_click%22%2C%22optStrike%22%3A%220%22%2C%22ALLOTMITM%22%3A%22ALL%22%2C%22CE_Unwinding_series%22%3A%22visible%22%2C%22PE_Unwinding_series%22%3A%22visible%22%2C%22CE_Unwinding_15_series%22%3A%22visible%22%2C%22PE_Unwinding_15_series%22%3A%22visible%22%2C%22CE_Buildup_series%22%3A%22visible%22%2C%22PE_Buildup_series%22%3A%22visible%22%2C%22CE_Buildup_15_series%22%3A%22visible%22%2C%22PE_Buildup_15_series%22%3A%22visible%22%7D&pageName_save=TotalPECEOIDiff_Beta.php",
+      "body_file": "response_0008.bin",
+      "body_length": 112022
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "MIDCPNIFTY",
+      "post_data": "optSymbol=MIDCPNIFTY&optExpDate=29SEP26&monthlyExpDate=undefined&Presentday=undefined&Prevday=undefined&rdDataType=latest&txtDate=undefined&defaultDate=undefined&e=1",
+      "body_file": "response_0009.bin",
+      "body_length": 253
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "MIDCPNIFTY",
+      "post_data": "optSymbol=MIDCPNIFTY&optExpDate=29SEP26&CallstrikeNames=null&optPutStrike=null&CallstrikeNames_hist=undefined&optPutStrike_hist=undefined&optStrike=0&striketypeval=allstrikes&lots_val=off&minutes_val=on&optExpDate_hist=undefined&txtDate=undefined&interval=5min&atmstrikesnumber=3&atmstrikesnumberfixed=3&chkDynamicAtmVal=0&rdDataType=latest&closestPrice=14500&userName=%5BREDACTED%5D&OIbuttontype=Lots_btn_click&sessionID=%5BREDACTED%5D&ALLOTMITM=ALL&save_data=%7B%22symbol%22%3A%22MIDCPNIFTY%22%2C%22exp_date%22%3A%2229SEP26%22%2C%22sel_strikes%22%3Anull%2C%22put_sel_strikes%22%3Anull%2C%22chkDynamicAtmVal%22%3A0%2C%22chkDynamicAtmfixedVal%22%3A0%2C%22striketypenum%22%3A2%2C%22interval%22%3A%225min%22%2C%22vwap_series%22%3A%22visible%22%2C%22OI_Chg_Vol_Diff_series%22%3A%22hidden%22%2C%22price_series%22%3A%22hidden%22%2C%22pcr_series%22%3A%22hidden%22%2C%22call_oi_chg_series%22%3A%22hidden%22%2C%22put_oi_chg_series%22%3A%22hidden%22%2C%22diff_series%22%3A%22visible%22%2C%22oi_diff_series%22%3A%22hidden%22%2C%22iv_series%22%3A%22hidden%22%2C%22put_oi_chg_percent_series%22%3A%22visible%22%2C%22diff_peceoichg_series%22%3A%22visible%22%2C%22call_oi_chg_percent_series%22%3A%22visible%22%2C%22oi_change_enabled%22%3A%222%22%2C%22price_series_oi%22%3A%22hidden%22%2C%22minutes_val%22%3A%22on%22%2C%22price_line_enabled%22%3A%221%22%2C%22ce_vol_series%22%3A%22hidden%22%2C%22pe_vol_series%22%3A%22hidden%22%2C%22pcr_volume_series%22%3A%22hidden%22%2C%22Fair_price_series_unwinding%22%3A%22hidden%22%2C%22Fair_price_series_unwinding_15%22%3A%22hidden%22%2C%22Fair_price_series_buildup%22%3A%22hidden%22%2C%22Fair_price_series_buildup_15%22%3A%22hidden%22%2C%22Fair_price_series%22%3A%22hidden%22%2C%22Fair_price_series1%22%3A%22hidden%22%2C%22diffpece_vol_series%22%3A%22visible%22%2C%22atmstrikenumber%22%3A%223%22%2C%22atmstrikesnumberfixed%22%3A%223%22%2C%22OIbuttontype%22%3A%22Lots_btn_click%22%2C%22optStrike%22%3A%220%22%2C%22ALLOTMITM%22%3A%22ALL%22%2C%22CE_Unwinding_series%22%3A%22visible%22%2C%22PE_Unwinding_series%22%3A%22visible%22%2C%22CE_Unwinding_15_series%22%3A%22visible%22%2C%22PE_Unwinding_15_series%22%3A%22visible%22%2C%22CE_Buildup_series%22%3A%22visible%22%2C%22PE_Buildup_series%22%3A%22visible%22%2C%22CE_Buildup_15_series%22%3A%22visible%22%2C%22PE_Buildup_15_series%22%3A%22visible%22%7D&pageName_save=TotalPECEOIDiff_Beta.php",
+      "body_file": "response_0010.bin",
+      "body_length": 120650
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "NIFTYNXT50",
+      "post_data": "optSymbol=NIFTYNXT50&optExpDate=29SEP26&monthlyExpDate=undefined&Presentday=undefined&Prevday=undefined&rdDataType=latest&txtDate=undefined&defaultDate=undefined&e=1",
+      "body_file": "response_0011.bin",
+      "body_length": 254
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "NIFTYNXT50",
+      "post_data": "optSymbol=NIFTYNXT50&optExpDate=29SEP26&CallstrikeNames=null&optPutStrike=null&CallstrikeNames_hist=undefined&optPutStrike_hist=undefined&optStrike=0&striketypeval=allstrikes&lots_val=off&minutes_val=on&optExpDate_hist=undefined&txtDate=undefined&interval=5min&atmstrikesnumber=3&atmstrikesnumberfixed=3&chkDynamicAtmVal=0&rdDataType=latest&closestPrice=72600&userName=%5BREDACTED%5D&OIbuttontype=Lots_btn_click&sessionID=%5BREDACTED%5D&ALLOTMITM=ALL&save_data=%7B%22symbol%22%3A%22NIFTYNXT50%22%2C%22exp_date%22%3A%2229SEP26%22%2C%22sel_strikes%22%3Anull%2C%22put_sel_strikes%22%3Anull%2C%22chkDynamicAtmVal%22%3A0%2C%22chkDynamicAtmfixedVal%22%3A0%2C%22striketypenum%22%3A2%2C%22interval%22%3A%225min%22%2C%22vwap_series%22%3A%22visible%22%2C%22OI_Chg_Vol_Diff_series%22%3A%22hidden%22%2C%22price_series%22%3A%22hidden%22%2C%22pcr_series%22%3A%22hidden%22%2C%22call_oi_chg_series%22%3A%22hidden%22%2C%22put_oi_chg_series%22%3A%22hidden%22%2C%22diff_series%22%3A%22visible%22%2C%22oi_diff_series%22%3A%22hidden%22%2C%22iv_series%22%3A%22hidden%22%2C%22put_oi_chg_percent_series%22%3A%22visible%22%2C%22diff_peceoichg_series%22%3A%22visible%22%2C%22call_oi_chg_percent_series%22%3A%22visible%22%2C%22oi_change_enabled%22%3A%222%22%2C%22price_series_oi%22%3A%22hidden%22%2C%22minutes_val%22%3A%22on%22%2C%22price_line_enabled%22%3A%221%22%2C%22ce_vol_series%22%3A%22hidden%22%2C%22pe_vol_series%22%3A%22hidden%22%2C%22pcr_volume_series%22%3A%22hidden%22%2C%22Fair_price_series_unwinding%22%3A%22hidden%22%2C%22Fair_price_series_unwinding_15%22%3A%22hidden%22%2C%22Fair_price_series_buildup%22%3A%22hidden%22%2C%22Fair_price_series_buildup_15%22%3A%22hidden%22%2C%22Fair_price_series%22%3A%22hidden%22%2C%22Fair_price_series1%22%3A%22hidden%22%2C%22diffpece_vol_series%22%3A%22visible%22%2C%22atmstrikenumber%22%3A%223%22%2C%22atmstrikesnumberfixed%22%3A%223%22%2C%22OIbuttontype%22%3A%22Lots_btn_click%22%2C%22optStrike%22%3A%220%22%2C%22ALLOTMITM%22%3A%22ALL%22%2C%22CE_Unwinding_series%22%3A%22visible%22%2C%22PE_Unwinding_series%22%3A%22visible%22%2C%22CE_Unwinding_15_series%22%3A%22visible%22%2C%22PE_Unwinding_15_series%22%3A%22visible%22%2C%22CE_Buildup_series%22%3A%22visible%22%2C%22PE_Buildup_series%22%3A%22visible%22%2C%22CE_Buildup_15_series%22%3A%22visible%22%2C%22PE_Buildup_15_series%22%3A%22visible%22%7D&pageName_save=TotalPECEOIDiff_Beta.php",
+      "body_file": "response_0012.bin",
+      "body_length": 103890
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "NIFTYNXT50",
+      "post_data": "optSymbol=NIFTYNXT50&optExpDate=29SEP26&monthlyExpDate=undefined&Presentday=undefined&Prevday=undefined&rdDataType=latest&txtDate=undefined&defaultDate=undefined&e=1",
+      "body_file": "response_0013.bin",
+      "body_length": 254
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "NIFTYNXT50",
+      "post_data": "optSymbol=NIFTYNXT50&optExpDate=29SEP26&CallstrikeNames=null&optPutStrike=null&CallstrikeNames_hist=undefined&optPutStrike_hist=undefined&optStrike=0&striketypeval=allstrikes&lots_val=off&minutes_val=on&optExpDate_hist=undefined&txtDate=undefined&interval=5min&atmstrikesnumber=3&atmstrikesnumberfixed=3&chkDynamicAtmVal=0&rdDataType=latest&closestPrice=72600&userName=%5BREDACTED%5D&OIbuttontype=Lots_btn_click&sessionID=%5BREDACTED%5D&ALLOTMITM=ALL&save_data=0&pageName_save=TotalPECEOIDiff_Beta.php",
+      "body_file": "response_0014.bin",
+      "body_length": 103890
+    },
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php",
+      "status": 200,
+      "method": "POST",
+      "resource_type": "xhr",
+      "xhr_symbol": "NIFTY",
+      "post_data": "optSymbol=NIFTY&optExpDate=15SEP26&monthlyExpDate=undefined&Presentday=undefined&Prevday=undefined&rdDataType=latest&txtDate=undefined&defaultDate=undefined&e=1",
+      "body_file": "response_0015.bin",
+      "body_length": 234
+    }
+  ],
+  "errors": [
+    "pageerror: Cannot read properties of undefined (reading 'push')",
+    "requestfailed: POST https://analytics.google.com/g/collect?v=2&tid=G-ZN58C89YGF&gtm=45je6992v9200754901za200zb9200754074zd9200754074&_p=1789078677066&_gaz=1&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=AAAAACQC&are=1&cid=1751950030.1786786792&frm=0&ibt=1&ngs=1&pscdl=noapi&rcb=5&sr=1280x720&uaa=x86&uab=64&uafvl=Chromium%3B151.0.7922.34%7CNot%253DA%253FBrand%3B99.0.0.0&uam=&uamb=0&uap=Windows&uapv=10.0.0&uaw=0&ul=en-us&_s=1&tag_exp=115616985~115938466~115938468~118897920~118897930~120213116~120385423~120469145~120469153&sid=1789076974&sct=37&seg=1&dl=https%3A%2F%2Fwww.icharts.in%2Fopt%2FTotalPECEOIDiff_Beta.php&dt=&en=page_view&_ee=1&tfd=1276 :: net::ERR_ABORTED",
+    "requestfailed: POST https://analytics.google.com/g/collect?v=2&tid=G-ZN58C89YGF&gtm=45je6992v9200754901za200zb9200754074zd9200754074&_p=1789078677066&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=AEEAACQC&ae=a&are=1&cid=1751950030.1786786792&frm=0&ibt=1&ngs=1&pscdl=noapi&rcb=5&sr=1280x720&uaa=x86&uab=64&uafvl=Chromium%3B151.0.7922.34%7CNot%253DA%253FBrand%3B99.0.0.0&uam=&uamb=0&uap=Windows&uapv=10.0.0&uaw=0&ul=en-us&_s=2&tag_exp=115616985~115938466~115938468~118897920~118897930~120213116~120385423~120469145~120469153&sid=1789076974&sct=37&seg=1&dl=https%3A%2F%2Fwww.icharts.in%2Fopt%2FTotalPECEOIDiff_Beta.php&dt=NIFTY%20-%20Total%20PE-CE%20OI%20Diff&en=form_start&ep.form_id=frmOptChain&ep.form_destination=https%3A%2F%2Fwww.icharts.in%2Fopt%2FTotalPECEOIDiff_Beta.php&epn.form_length=35&ep.first_field_id=optSymbol&ep.first_field_name=optSymbol&epn.first_field_position=3&_et=5038&tfd=11331 :: net::ERR_ABORTED"
+  ],
+  "production_page_before": {
+    "url": "about:blank",
+    "closed": false
+  },
+  "production_page_after": {
+    "url": "about:blank",
+    "closed": false
+  }
+}

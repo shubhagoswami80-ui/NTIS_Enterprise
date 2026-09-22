@@ -1,0 +1,3582 @@
+{
+  "created_at": "2026-09-11T03:19:46",
+  "target_url": "https://www.icharts.in/opt/TotalPECEOIDiff_Beta.php",
+  "current_symbol": null,
+  "production_page_url_before": "about:blank",
+  "selects": [
+    {
+      "tag": "SELECT",
+      "id": "optSymbol",
+      "name": "optSymbol",
+      "value": "MAXHEALTH",
+      "type": "select-one",
+      "className": "mdl-textfield__input select2-hidden-accessible",
+      "aria": "",
+      "title": "",
+      "options": [
+        {
+          "text": "NIFTY",
+          "value": "NIFTY",
+          "selected": false
+        },
+        {
+          "text": "BANKNIFTY",
+          "value": "BANKNIFTY",
+          "selected": false
+        },
+        {
+          "text": "FINNIFTY",
+          "value": "FINNIFTY",
+          "selected": false
+        },
+        {
+          "text": "MIDCPNIFTY",
+          "value": "MIDCPNIFTY",
+          "selected": false
+        },
+        {
+          "text": "NIFTYNXT50",
+          "value": "NIFTYNXT50",
+          "selected": false
+        },
+        {
+          "text": "NIFTYFPI",
+          "value": "NIFTYFPI",
+          "selected": false
+        },
+        {
+          "text": "SENSEX",
+          "value": "SENSEX",
+          "selected": false
+        },
+        {
+          "text": "BANKEX",
+          "value": "BANKEX",
+          "selected": false
+        },
+        {
+          "text": "FOCIT",
+          "value": "FOCIT",
+          "selected": false
+        },
+        {
+          "text": "360ONE",
+          "value": "360ONE",
+          "selected": false
+        },
+        {
+          "text": "ABB",
+          "value": "ABB",
+          "selected": false
+        },
+        {
+          "text": "ABCAPITAL",
+          "value": "ABCAPITAL",
+          "selected": false
+        },
+        {
+          "text": "ADANIENSOL",
+          "value": "ADANIENSOL",
+          "selected": false
+        },
+        {
+          "text": "ADANIENT",
+          "value": "ADANIENT",
+          "selected": false
+        },
+        {
+          "text": "ADANIGREEN",
+          "value": "ADANIGREEN",
+          "selected": false
+        },
+        {
+          "text": "ADANIPORTS",
+          "value": "ADANIPORTS",
+          "selected": false
+        },
+        {
+          "text": "ADANIPOWER",
+          "value": "ADANIPOWER",
+          "selected": false
+        },
+        {
+          "text": "ALKEM",
+          "value": "ALKEM",
+          "selected": false
+        },
+        {
+          "text": "AMBER",
+          "value": "AMBER",
+          "selected": false
+        },
+        {
+          "text": "AMBUJACEM",
+          "value": "AMBUJACEM",
+          "selected": false
+        },
+        {
+          "text": "ANGELONE",
+          "value": "ANGELONE",
+          "selected": false
+        },
+        {
+          "text": "APLAPOLLO",
+          "value": "APLAPOLLO",
+          "selected": false
+        },
+        {
+          "text": "APOLLOHOSP",
+          "value": "APOLLOHOSP",
+          "selected": false
+        },
+        {
+          "text": "ASHOKLEY",
+          "value": "ASHOKLEY",
+          "selected": false
+        },
+        {
+          "text": "ASIANPAINT",
+          "value": "ASIANPAINT",
+          "selected": false
+        },
+        {
+          "text": "ASTRAL",
+          "value": "ASTRAL",
+          "selected": false
+        },
+        {
+          "text": "ATHERENERG",
+          "value": "ATHERENERG",
+          "selected": false
+        },
+        {
+          "text": "AUBANK",
+          "value": "AUBANK",
+          "selected": false
+        },
+        {
+          "text": "AUROPHARMA",
+          "value": "AUROPHARMA",
+          "selected": false
+        },
+        {
+          "text": "AXISBANK",
+          "value": "AXISBANK",
+          "selected": false
+        },
+        {
+          "text": "BAJAJ-AUTO",
+          "value": "BAJAJ-AUTO",
+          "selected": false
+        },
+        {
+          "text": "BAJAJFINSV",
+          "value": "BAJAJFINSV",
+          "selected": false
+        },
+        {
+          "text": "BAJAJHLDNG",
+          "value": "BAJAJHLDNG",
+          "selected": false
+        },
+        {
+          "text": "BAJFINANCE",
+          "value": "BAJFINANCE",
+          "selected": false
+        },
+        {
+          "text": "BANDHANBNK",
+          "value": "BANDHANBNK",
+          "selected": false
+        },
+        {
+          "text": "BANKBARODA",
+          "value": "BANKBARODA",
+          "selected": false
+        },
+        {
+          "text": "BANKINDIA",
+          "value": "BANKINDIA",
+          "selected": false
+        },
+        {
+          "text": "BDL",
+          "value": "BDL",
+          "selected": false
+        },
+        {
+          "text": "BEL",
+          "value": "BEL",
+          "selected": false
+        },
+        {
+          "text": "BHARATFORG",
+          "value": "BHARATFORG",
+          "selected": false
+        },
+        {
+          "text": "BHARTIARTL",
+          "value": "BHARTIARTL",
+          "selected": false
+        },
+        {
+          "text": "BHEL",
+          "value": "BHEL",
+          "selected": false
+        },
+        {
+          "text": "BIOCON",
+          "value": "BIOCON",
+          "selected": false
+        },
+        {
+          "text": "BLUESTARCO",
+          "value": "BLUESTARCO",
+          "selected": false
+        },
+        {
+          "text": "BOSCHLTD",
+          "value": "BOSCHLTD",
+          "selected": false
+        },
+        {
+          "text": "BPCL",
+          "value": "BPCL",
+          "selected": false
+        },
+        {
+          "text": "BRITANNIA",
+          "value": "BRITANNIA",
+          "selected": false
+        },
+        {
+          "text": "BSE",
+          "value": "BSE",
+          "selected": false
+        },
+        {
+          "text": "CAMS",
+          "value": "CAMS",
+          "selected": false
+        },
+        {
+          "text": "CANBK",
+          "value": "CANBK",
+          "selected": false
+        },
+        {
+          "text": "CDSL",
+          "value": "CDSL",
+          "selected": false
+        },
+        {
+          "text": "CGPOWER",
+          "value": "CGPOWER",
+          "selected": false
+        },
+        {
+          "text": "CHOLAFIN",
+          "value": "CHOLAFIN",
+          "selected": false
+        },
+        {
+          "text": "CIPLA",
+          "value": "CIPLA",
+          "selected": false
+        },
+        {
+          "text": "COALINDIA",
+          "value": "COALINDIA",
+          "selected": false
+        },
+        {
+          "text": "COCHINSHIP",
+          "value": "COCHINSHIP",
+          "selected": false
+        },
+        {
+          "text": "COFORGE",
+          "value": "COFORGE",
+          "selected": false
+        },
+        {
+          "text": "COLPAL",
+          "value": "COLPAL",
+          "selected": false
+        },
+        {
+          "text": "CONCOR",
+          "value": "CONCOR",
+          "selected": false
+        },
+        {
+          "text": "CROMPTON",
+          "value": "CROMPTON",
+          "selected": false
+        },
+        {
+          "text": "CUMMINSIND",
+          "value": "CUMMINSIND",
+          "selected": false
+        },
+        {
+          "text": "DABUR",
+          "value": "DABUR",
+          "selected": false
+        },
+        {
+          "text": "DELHIVERY",
+          "value": "DELHIVERY",
+          "selected": false
+        },
+        {
+          "text": "DIVISLAB",
+          "value": "DIVISLAB",
+          "selected": false
+        },
+        {
+          "text": "DIXON",
+          "value": "DIXON",
+          "selected": false
+        },
+        {
+          "text": "DLF",
+          "value": "DLF",
+          "selected": false
+        },
+        {
+          "text": "DMART",
+          "value": "DMART",
+          "selected": false
+        },
+        {
+          "text": "DRREDDY",
+          "value": "DRREDDY",
+          "selected": false
+        },
+        {
+          "text": "EICHERMOT",
+          "value": "EICHERMOT",
+          "selected": false
+        },
+        {
+          "text": "ETERNAL",
+          "value": "ETERNAL",
+          "selected": false
+        },
+        {
+          "text": "FEDERALBNK",
+          "value": "FEDERALBNK",
+          "selected": false
+        },
+        {
+          "text": "FORCEMOT",
+          "value": "FORCEMOT",
+          "selected": false
+        },
+        {
+          "text": "FORTIS",
+          "value": "FORTIS",
+          "selected": false
+        },
+        {
+          "text": "GAIL",
+          "value": "GAIL",
+          "selected": false
+        },
+        {
+          "text": "GLENMARK",
+          "value": "GLENMARK",
+          "selected": false
+        },
+        {
+          "text": "GMRAIRPORT",
+          "value": "GMRAIRPORT",
+          "selected": false
+        },
+        {
+          "text": "GODFRYPHLP",
+          "value": "GODFRYPHLP",
+          "selected": false
+        },
+        {
+          "text": "GODREJCP",
+          "value": "GODREJCP",
+          "selected": false
+        },
+        {
+          "text": "GODREJPROP",
+          "value": "GODREJPROP",
+          "selected": false
+        },
+        {
+          "text": "GRASIM",
+          "value": "GRASIM",
+          "selected": false
+        },
+        {
+          "text": "GVT&D",
+          "value": "GVT&D",
+          "selected": false
+        },
+        {
+          "text": "HAL",
+          "value": "HAL",
+          "selected": false
+        },
+        {
+          "text": "HAVELLS",
+          "value": "HAVELLS",
+          "selected": false
+        },
+        {
+          "text": "HCLTECH",
+          "value": "HCLTECH",
+          "selected": false
+        },
+        {
+          "text": "HDFCAMC",
+          "value": "HDFCAMC",
+          "selected": false
+        },
+        {
+          "text": "HDFCBANK",
+          "value": "HDFCBANK",
+          "selected": false
+        },
+        {
+          "text": "HDFCLIFE",
+          "value": "HDFCLIFE",
+          "selected": false
+        },
+        {
+          "text": "HEROMOTOCO",
+          "value": "HEROMOTOCO",
+          "selected": false
+        },
+        {
+          "text": "HINDALCO",
+          "value": "HINDALCO",
+          "selected": false
+        },
+        {
+          "text": "HINDPETRO",
+          "value": "HINDPETRO",
+          "selected": false
+        },
+        {
+          "text": "HINDUNILVR",
+          "value": "HINDUNILVR",
+          "selected": false
+        },
+        {
+          "text": "HINDZINC",
+          "value": "HINDZINC",
+          "selected": false
+        },
+        {
+          "text": "HYUNDAI",
+          "value": "HYUNDAI",
+          "selected": false
+        },
+        {
+          "text": "ICICIBANK",
+          "value": "ICICIBANK",
+          "selected": false
+        },
+        {
+          "text": "ICICIGI",
+          "value": "ICICIGI",
+          "selected": false
+        },
+        {
+          "text": "ICICIPRULI",
+          "value": "ICICIPRULI",
+          "selected": false
+        },
+        {
+          "text": "IDEA",
+          "value": "IDEA",
+          "selected": false
+        },
+        {
+          "text": "IDFCFIRSTB",
+          "value": "IDFCFIRSTB",
+          "selected": false
+        },
+        {
+          "text": "IEX",
+          "value": "IEX",
+          "selected": false
+        },
+        {
+          "text": "INDHOTEL",
+          "value": "INDHOTEL",
+          "selected": false
+        },
+        {
+          "text": "INDIANB",
+          "value": "INDIANB",
+          "selected": false
+        },
+        {
+          "text": "INDIGO",
+          "value": "INDIGO",
+          "selected": false
+        },
+        {
+          "text": "INDUSINDBK",
+          "value": "INDUSINDBK",
+          "selected": false
+        },
+        {
+          "text": "INDUSTOWER",
+          "value": "INDUSTOWER",
+          "selected": false
+        },
+        {
+          "text": "INFY",
+          "value": "INFY",
+          "selected": false
+        },
+        {
+          "text": "INOXWIND",
+          "value": "INOXWIND",
+          "selected": false
+        },
+        {
+          "text": "IOC",
+          "value": "IOC",
+          "selected": false
+        },
+        {
+          "text": "IREDA",
+          "value": "IREDA",
+          "selected": false
+        },
+        {
+          "text": "IRFC",
+          "value": "IRFC",
+          "selected": false
+        },
+        {
+          "text": "ITC",
+          "value": "ITC",
+          "selected": false
+        },
+        {
+          "text": "JINDALSTEL",
+          "value": "JINDALSTEL",
+          "selected": false
+        },
+        {
+          "text": "JIOFIN",
+          "value": "JIOFIN",
+          "selected": false
+        },
+        {
+          "text": "JSWENERGY",
+          "value": "JSWENERGY",
+          "selected": false
+        },
+        {
+          "text": "JSWSTEEL",
+          "value": "JSWSTEEL",
+          "selected": false
+        },
+        {
+          "text": "JUBLFOOD",
+          "value": "JUBLFOOD",
+          "selected": false
+        },
+        {
+          "text": "KALYANKJIL",
+          "value": "KALYANKJIL",
+          "selected": false
+        },
+        {
+          "text": "KAYNES",
+          "value": "KAYNES",
+          "selected": false
+        },
+        {
+          "text": "KEI",
+          "value": "KEI",
+          "selected": false
+        },
+        {
+          "text": "KFINTECH",
+          "value": "KFINTECH",
+          "selected": false
+        },
+        {
+          "text": "KOTAKBANK",
+          "value": "KOTAKBANK",
+          "selected": false
+        },
+        {
+          "text": "KPITTECH",
+          "value": "KPITTECH",
+          "selected": false
+        },
+        {
+          "text": "LAURUSLABS",
+          "value": "LAURUSLABS",
+          "selected": false
+        },
+        {
+          "text": "LICHSGFIN",
+          "value": "LICHSGFIN",
+          "selected": false
+        },
+        {
+          "text": "LICI",
+          "value": "LICI",
+          "selected": false
+        },
+        {
+          "text": "LODHA",
+          "value": "LODHA",
+          "selected": false
+        },
+        {
+          "text": "LT",
+          "value": "LT",
+          "selected": false
+        },
+        {
+          "text": "LTF",
+          "value": "LTF",
+          "selected": false
+        },
+        {
+          "text": "LTM",
+          "value": "LTM",
+          "selected": false
+        },
+        {
+          "text": "LUPIN",
+          "value": "LUPIN",
+          "selected": false
+        },
+        {
+          "text": "M&M",
+          "value": "M&M",
+          "selected": false
+        },
+        {
+          "text": "MAHABANK",
+          "value": "MAHABANK",
+          "selected": false
+        },
+        {
+          "text": "MANAPPURAM",
+          "value": "MANAPPURAM",
+          "selected": false
+        },
+        {
+          "text": "MANKIND",
+          "value": "MANKIND",
+          "selected": false
+        },
+        {
+          "text": "MARICO",
+          "value": "MARICO",
+          "selected": false
+        },
+        {
+          "text": "MARUTI",
+          "value": "MARUTI",
+          "selected": false
+        },
+        {
+          "text": "MAXHEALTH",
+          "value": "MAXHEALTH",
+          "selected": true
+        },
+        {
+          "text": "MAZDOCK",
+          "value": "MAZDOCK",
+          "selected": false
+        },
+        {
+          "text": "MCX",
+          "value": "MCX",
+          "selected": false
+        },
+        {
+          "text": "MFSL",
+          "value": "MFSL",
+          "selected": false
+        },
+        {
+          "text": "MOTHERSON",
+          "value": "MOTHERSON",
+          "selected": false
+        },
+        {
+          "text": "MOTILALOFS",
+          "value": "MOTILALOFS",
+          "selected": false
+        },
+        {
+          "text": "MPHASIS",
+          "value": "MPHASIS",
+          "selected": false
+        },
+        {
+          "text": "MUTHOOTFIN",
+          "value": "MUTHOOTFIN",
+          "selected": false
+        },
+        {
+          "text": "NAM-INDIA",
+          "value": "NAM-INDIA",
+          "selected": false
+        },
+        {
+          "text": "NATIONALUM",
+          "value": "NATIONALUM",
+          "selected": false
+        },
+        {
+          "text": "NAUKRI",
+          "value": "NAUKRI",
+          "selected": false
+        },
+        {
+          "text": "NBCC",
+          "value": "NBCC",
+          "selected": false
+        },
+        {
+          "text": "NESTLEIND",
+          "value": "NESTLEIND",
+          "selected": false
+        },
+        {
+          "text": "NHPC",
+          "value": "NHPC",
+          "selected": false
+        },
+        {
+          "text": "NMDC",
+          "value": "NMDC",
+          "selected": false
+        },
+        {
+          "text": "NTPC",
+          "value": "NTPC",
+          "selected": false
+        },
+        {
+          "text": "NYKAA",
+          "value": "NYKAA",
+          "selected": false
+        },
+        {
+          "text": "OBEROIRLTY",
+          "value": "OBEROIRLTY",
+          "selected": false
+        },
+        {
+          "text": "OFSS",
+          "value": "OFSS",
+          "selected": false
+        },
+        {
+          "text": "OIL",
+          "value": "OIL",
+          "selected": false
+        },
+        {
+          "text": "ONGC",
+          "value": "ONGC",
+          "selected": false
+        },
+        {
+          "text": "PAGEIND",
+          "value": "PAGEIND",
+          "selected": false
+        },
+        {
+          "text": "PATANJALI",
+          "value": "PATANJALI",
+          "selected": false
+        },
+        {
+          "text": "PAYTM",
+          "value": "PAYTM",
+          "selected": false
+        },
+        {
+          "text": "PERSISTENT",
+          "value": "PERSISTENT",
+          "selected": false
+        },
+        {
+          "text": "PETRONET",
+          "value": "PETRONET",
+          "selected": false
+        },
+        {
+          "text": "PFC",
+          "value": "PFC",
+          "selected": false
+        },
+        {
+          "text": "PGEL",
+          "value": "PGEL",
+          "selected": false
+        },
+        {
+          "text": "PHOENIXLTD",
+          "value": "PHOENIXLTD",
+          "selected": false
+        },
+        {
+          "text": "PIDILITIND",
+          "value": "PIDILITIND",
+          "selected": false
+        },
+        {
+          "text": "PIIND",
+          "value": "PIIND",
+          "selected": false
+        },
+        {
+          "text": "PNB",
+          "value": "PNB",
+          "selected": false
+        },
+        {
+          "text": "PNBHOUSING",
+          "value": "PNBHOUSING",
+          "selected": false
+        },
+        {
+          "text": "POLICYBZR",
+          "value": "POLICYBZR",
+          "selected": false
+        },
+        {
+          "text": "POLYCAB",
+          "value": "POLYCAB",
+          "selected": false
+        },
+        {
+          "text": "POWERGRID",
+          "value": "POWERGRID",
+          "selected": false
+        },
+        {
+          "text": "POWERINDIA",
+          "value": "POWERINDIA",
+          "selected": false
+        },
+        {
+          "text": "PREMIERENE",
+          "value": "PREMIERENE",
+          "selected": false
+        },
+        {
+          "text": "PRESTIGE",
+          "value": "PRESTIGE",
+          "selected": false
+        },
+        {
+          "text": "RADICO",
+          "value": "RADICO",
+          "selected": false
+        },
+        {
+          "text": "RBLBANK",
+          "value": "RBLBANK",
+          "selected": false
+        },
+        {
+          "text": "RECLTD",
+          "value": "RECLTD",
+          "selected": false
+        },
+        {
+          "text": "RELIANCE",
+          "value": "RELIANCE",
+          "selected": false
+        },
+        {
+          "text": "RVNL",
+          "value": "RVNL",
+          "selected": false
+        },
+        {
+          "text": "SAGILITY",
+          "value": "SAGILITY",
+          "selected": false
+        },
+        {
+          "text": "SAIL",
+          "value": "SAIL",
+          "selected": false
+        },
+        {
+          "text": "SBICARD",
+          "value": "SBICARD",
+          "selected": false
+        },
+        {
+          "text": "SBILIFE",
+          "value": "SBILIFE",
+          "selected": false
+        },
+        {
+          "text": "SBIN",
+          "value": "SBIN",
+          "selected": false
+        },
+        {
+          "text": "SHREECEM",
+          "value": "SHREECEM",
+          "selected": false
+        },
+        {
+          "text": "SHRIRAMFIN",
+          "value": "SHRIRAMFIN",
+          "selected": false
+        },
+        {
+          "text": "SIEMENS",
+          "value": "SIEMENS",
+          "selected": false
+        },
+        {
+          "text": "SOLARINDS",
+          "value": "SOLARINDS",
+          "selected": false
+        },
+        {
+          "text": "SONACOMS",
+          "value": "SONACOMS",
+          "selected": false
+        },
+        {
+          "text": "SRF",
+          "value": "SRF",
+          "selected": false
+        },
+        {
+          "text": "SUNPHARMA",
+          "value": "SUNPHARMA",
+          "selected": false
+        },
+        {
+          "text": "SUPREMEIND",
+          "value": "SUPREMEIND",
+          "selected": false
+        },
+        {
+          "text": "SUZLON",
+          "value": "SUZLON",
+          "selected": false
+        },
+        {
+          "text": "SWIGGY",
+          "value": "SWIGGY",
+          "selected": false
+        },
+        {
+          "text": "TATACONSUM",
+          "value": "TATACONSUM",
+          "selected": false
+        },
+        {
+          "text": "TATAELXSI",
+          "value": "TATAELXSI",
+          "selected": false
+        },
+        {
+          "text": "TATAPOWER",
+          "value": "TATAPOWER",
+          "selected": false
+        },
+        {
+          "text": "TATASTEEL",
+          "value": "TATASTEEL",
+          "selected": false
+        },
+        {
+          "text": "TCS",
+          "value": "TCS",
+          "selected": false
+        },
+        {
+          "text": "TECHM",
+          "value": "TECHM",
+          "selected": false
+        },
+        {
+          "text": "TIINDIA",
+          "value": "TIINDIA",
+          "selected": false
+        },
+        {
+          "text": "TITAN",
+          "value": "TITAN",
+          "selected": false
+        },
+        {
+          "text": "TMPV",
+          "value": "TMPV",
+          "selected": false
+        },
+        {
+          "text": "TORNTPHARM",
+          "value": "TORNTPHARM",
+          "selected": false
+        },
+        {
+          "text": "TRENT",
+          "value": "TRENT",
+          "selected": false
+        },
+        {
+          "text": "TVSMOTOR",
+          "value": "TVSMOTOR",
+          "selected": false
+        },
+        {
+          "text": "ULTRACEMCO",
+          "value": "ULTRACEMCO",
+          "selected": false
+        },
+        {
+          "text": "UNIONBANK",
+          "value": "UNIONBANK",
+          "selected": false
+        },
+        {
+          "text": "UNITDSPR",
+          "value": "UNITDSPR",
+          "selected": false
+        },
+        {
+          "text": "UNOMINDA",
+          "value": "UNOMINDA",
+          "selected": false
+        },
+        {
+          "text": "UPL",
+          "value": "UPL",
+          "selected": false
+        },
+        {
+          "text": "VBL",
+          "value": "VBL",
+          "selected": false
+        },
+        {
+          "text": "VEDL",
+          "value": "VEDL",
+          "selected": false
+        },
+        {
+          "text": "VMM",
+          "value": "VMM",
+          "selected": false
+        },
+        {
+          "text": "VOLTAS",
+          "value": "VOLTAS",
+          "selected": false
+        },
+        {
+          "text": "WAAREEENER",
+          "value": "WAAREEENER",
+          "selected": false
+        },
+        {
+          "text": "WIPRO",
+          "value": "WIPRO",
+          "selected": false
+        },
+        {
+          "text": "YESBANK",
+          "value": "YESBANK",
+          "selected": false
+        },
+        {
+          "text": "ZYDUSLIFE",
+          "value": "ZYDUSLIFE",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "tag": "SELECT",
+      "id": "optExpDate",
+      "name": "optExpDate",
+      "value": "29SEP26",
+      "type": "select-one",
+      "className": "mdl-textfield__input",
+      "aria": "",
+      "title": "",
+      "options": [
+        {
+          "text": "29SEP26",
+          "value": "29SEP26",
+          "selected": true
+        },
+        {
+          "text": "27OCT26",
+          "value": "27OCT26",
+          "selected": false
+        },
+        {
+          "text": "23NOV26",
+          "value": "23NOV26",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "tag": "SELECT",
+      "id": "optCallStrike",
+      "name": "optCallStrike[]",
+      "value": "1040",
+      "type": "select-multiple",
+      "className": "mdl-textfield__input hidden",
+      "aria": "",
+      "title": "",
+      "options": [
+        {
+          "text": "880",
+          "value": "880",
+          "selected": false
+        },
+        {
+          "text": "900",
+          "value": "900",
+          "selected": false
+        },
+        {
+          "text": "910",
+          "value": "910",
+          "selected": false
+        },
+        {
+          "text": "920",
+          "value": "920",
+          "selected": false
+        },
+        {
+          "text": "930",
+          "value": "930",
+          "selected": false
+        },
+        {
+          "text": "940",
+          "value": "940",
+          "selected": false
+        },
+        {
+          "text": "950",
+          "value": "950",
+          "selected": false
+        },
+        {
+          "text": "960",
+          "value": "960",
+          "selected": false
+        },
+        {
+          "text": "970",
+          "value": "970",
+          "selected": false
+        },
+        {
+          "text": "980",
+          "value": "980",
+          "selected": false
+        },
+        {
+          "text": "990",
+          "value": "990",
+          "selected": false
+        },
+        {
+          "text": "1000",
+          "value": "1000",
+          "selected": false
+        },
+        {
+          "text": "1010",
+          "value": "1010",
+          "selected": false
+        },
+        {
+          "text": "1020",
+          "value": "1020",
+          "selected": false
+        },
+        {
+          "text": "1030",
+          "value": "1030",
+          "selected": false
+        },
+        {
+          "text": "1040",
+          "value": "1040",
+          "selected": true
+        },
+        {
+          "text": "1050",
+          "value": "1050",
+          "selected": false
+        },
+        {
+          "text": "1060",
+          "value": "1060",
+          "selected": false
+        },
+        {
+          "text": "1070",
+          "value": "1070",
+          "selected": false
+        },
+        {
+          "text": "1080",
+          "value": "1080",
+          "selected": false
+        },
+        {
+          "text": "1090",
+          "value": "1090",
+          "selected": false
+        },
+        {
+          "text": "1100",
+          "value": "1100",
+          "selected": false
+        },
+        {
+          "text": "1110",
+          "value": "1110",
+          "selected": false
+        },
+        {
+          "text": "1120",
+          "value": "1120",
+          "selected": false
+        },
+        {
+          "text": "1130",
+          "value": "1130",
+          "selected": false
+        },
+        {
+          "text": "1140",
+          "value": "1140",
+          "selected": false
+        },
+        {
+          "text": "1150",
+          "value": "1150",
+          "selected": false
+        },
+        {
+          "text": "1170",
+          "value": "1170",
+          "selected": false
+        },
+        {
+          "text": "1180",
+          "value": "1180",
+          "selected": false
+        },
+        {
+          "text": "1190",
+          "value": "1190",
+          "selected": false
+        },
+        {
+          "text": "1200",
+          "value": "1200",
+          "selected": false
+        },
+        {
+          "text": "1210",
+          "value": "1210",
+          "selected": false
+        },
+        {
+          "text": "1220",
+          "value": "1220",
+          "selected": false
+        },
+        {
+          "text": "1240",
+          "value": "1240",
+          "selected": false
+        },
+        {
+          "text": "1260",
+          "value": "1260",
+          "selected": false
+        },
+        {
+          "text": "1280",
+          "value": "1280",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "tag": "SELECT",
+      "id": "optPutStrike",
+      "name": "optPutStrike[]",
+      "value": "1040",
+      "type": "select-multiple",
+      "className": "mdl-textfield__input hidden",
+      "aria": "",
+      "title": "",
+      "options": [
+        {
+          "text": "880",
+          "value": "880",
+          "selected": false
+        },
+        {
+          "text": "900",
+          "value": "900",
+          "selected": false
+        },
+        {
+          "text": "910",
+          "value": "910",
+          "selected": false
+        },
+        {
+          "text": "920",
+          "value": "920",
+          "selected": false
+        },
+        {
+          "text": "930",
+          "value": "930",
+          "selected": false
+        },
+        {
+          "text": "940",
+          "value": "940",
+          "selected": false
+        },
+        {
+          "text": "950",
+          "value": "950",
+          "selected": false
+        },
+        {
+          "text": "960",
+          "value": "960",
+          "selected": false
+        },
+        {
+          "text": "970",
+          "value": "970",
+          "selected": false
+        },
+        {
+          "text": "980",
+          "value": "980",
+          "selected": false
+        },
+        {
+          "text": "990",
+          "value": "990",
+          "selected": false
+        },
+        {
+          "text": "1000",
+          "value": "1000",
+          "selected": false
+        },
+        {
+          "text": "1010",
+          "value": "1010",
+          "selected": false
+        },
+        {
+          "text": "1020",
+          "value": "1020",
+          "selected": false
+        },
+        {
+          "text": "1030",
+          "value": "1030",
+          "selected": false
+        },
+        {
+          "text": "1040",
+          "value": "1040",
+          "selected": true
+        },
+        {
+          "text": "1050",
+          "value": "1050",
+          "selected": false
+        },
+        {
+          "text": "1060",
+          "value": "1060",
+          "selected": false
+        },
+        {
+          "text": "1080",
+          "value": "1080",
+          "selected": false
+        },
+        {
+          "text": "1090",
+          "value": "1090",
+          "selected": false
+        },
+        {
+          "text": "1100",
+          "value": "1100",
+          "selected": false
+        },
+        {
+          "text": "1130",
+          "value": "1130",
+          "selected": false
+        },
+        {
+          "text": "1140",
+          "value": "1140",
+          "selected": false
+        },
+        {
+          "text": "1200",
+          "value": "1200",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "tag": "SELECT",
+      "id": "interval",
+      "name": "interval",
+      "value": "5min",
+      "type": "select-one",
+      "className": "mdl-textfield__input",
+      "aria": "",
+      "title": "",
+      "options": [
+        {
+          "text": "3 MIN",
+          "value": "3min",
+          "selected": false
+        },
+        {
+          "text": "5 MIN",
+          "value": "5min",
+          "selected": true
+        },
+        {
+          "text": "10 MIN",
+          "value": "10min",
+          "selected": false
+        },
+        {
+          "text": "15 MIN",
+          "value": "15min",
+          "selected": false
+        },
+        {
+          "text": "30 MIN",
+          "value": "30min",
+          "selected": false
+        },
+        {
+          "text": "60 MIN",
+          "value": "60min",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "tag": "SELECT",
+      "id": "optStrike",
+      "name": "optStrike",
+      "value": "0",
+      "type": "select-one",
+      "className": "mdl-textfield__input",
+      "aria": "",
+      "title": "",
+      "options": [
+        {
+          "text": "Select  Strike",
+          "value": "0",
+          "selected": true
+        },
+        {
+          "text": "880",
+          "value": "880",
+          "selected": false
+        },
+        {
+          "text": "900",
+          "value": "900",
+          "selected": false
+        },
+        {
+          "text": "910",
+          "value": "910",
+          "selected": false
+        },
+        {
+          "text": "920",
+          "value": "920",
+          "selected": false
+        },
+        {
+          "text": "930",
+          "value": "930",
+          "selected": false
+        },
+        {
+          "text": "940",
+          "value": "940",
+          "selected": false
+        },
+        {
+          "text": "950",
+          "value": "950",
+          "selected": false
+        },
+        {
+          "text": "960",
+          "value": "960",
+          "selected": false
+        },
+        {
+          "text": "970",
+          "value": "970",
+          "selected": false
+        },
+        {
+          "text": "980",
+          "value": "980",
+          "selected": false
+        },
+        {
+          "text": "990",
+          "value": "990",
+          "selected": false
+        },
+        {
+          "text": "1000",
+          "value": "1000",
+          "selected": false
+        },
+        {
+          "text": "1010",
+          "value": "1010",
+          "selected": false
+        },
+        {
+          "text": "1020",
+          "value": "1020",
+          "selected": false
+        },
+        {
+          "text": "1030",
+          "value": "1030",
+          "selected": false
+        },
+        {
+          "text": "1040",
+          "value": "1040",
+          "selected": false
+        },
+        {
+          "text": "1050",
+          "value": "1050",
+          "selected": false
+        },
+        {
+          "text": "1060",
+          "value": "1060",
+          "selected": false
+        },
+        {
+          "text": "1070",
+          "value": "1070",
+          "selected": false
+        },
+        {
+          "text": "1080",
+          "value": "1080",
+          "selected": false
+        },
+        {
+          "text": "1090",
+          "value": "1090",
+          "selected": false
+        },
+        {
+          "text": "1100",
+          "value": "1100",
+          "selected": false
+        },
+        {
+          "text": "1110",
+          "value": "1110",
+          "selected": false
+        },
+        {
+          "text": "1120",
+          "value": "1120",
+          "selected": false
+        },
+        {
+          "text": "1130",
+          "value": "1130",
+          "selected": false
+        },
+        {
+          "text": "1140",
+          "value": "1140",
+          "selected": false
+        },
+        {
+          "text": "1150",
+          "value": "1150",
+          "selected": false
+        },
+        {
+          "text": "1170",
+          "value": "1170",
+          "selected": false
+        },
+        {
+          "text": "1180",
+          "value": "1180",
+          "selected": false
+        },
+        {
+          "text": "1190",
+          "value": "1190",
+          "selected": false
+        },
+        {
+          "text": "1200",
+          "value": "1200",
+          "selected": false
+        },
+        {
+          "text": "1210",
+          "value": "1210",
+          "selected": false
+        },
+        {
+          "text": "1220",
+          "value": "1220",
+          "selected": false
+        },
+        {
+          "text": "1240",
+          "value": "1240",
+          "selected": false
+        },
+        {
+          "text": "1260",
+          "value": "1260",
+          "selected": false
+        },
+        {
+          "text": "1280",
+          "value": "1280",
+          "selected": false
+        }
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "id": "main-menu-state",
+      "name": "",
+      "value": "on",
+      "type": "checkbox",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "latest",
+      "name": "rdDataType",
+      "value": "latest",
+      "type": "radio",
+      "className": "mdl-radio__button",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "hist",
+      "name": "rdDataType",
+      "value": "hist",
+      "type": "radio",
+      "className": "mdl-radio__button",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "text",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "",
+      "name": "",
+      "value": "Clear All",
+      "type": "button",
+      "className": "ClearSelectSelectStrikes",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "text",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "",
+      "name": "",
+      "value": "Clear All",
+      "type": "button",
+      "className": "ClearSelectPutStrikes",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "lak_cr_val",
+      "name": "lak_cr_val",
+      "value": "on",
+      "type": "checkbox",
+      "className": "mdl-checkbox__input",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "sel_strikes",
+      "name": "striketype",
+      "value": "sel_strikes",
+      "type": "radio",
+      "className": "mdl-radio__button",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "allstrikes",
+      "name": "striketype",
+      "value": "allstrikes",
+      "type": "radio",
+      "className": "mdl-radio__button",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "atmstrikes",
+      "name": "striketype",
+      "value": "atmstrikes",
+      "type": "radio",
+      "className": "mdl-radio__button",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "atmstrikesnumber",
+      "name": "",
+      "value": "3",
+      "type": "number",
+      "className": "spin_rotate",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "chkDynamicAtmVal",
+      "name": "chkDynamicAtmVal",
+      "value": "on",
+      "type": "checkbox",
+      "className": "mdl-checkbox__input",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "atmstrikesfixed",
+      "name": "striketype",
+      "value": "atmstrikesfixed",
+      "type": "radio",
+      "className": "mdl-radio__button",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "atmstrikesnumberfixed",
+      "name": "",
+      "value": "3",
+      "type": "number",
+      "className": "spin_rotate_fixed",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "ALL",
+      "name": "ALLOTMITM",
+      "value": "ALL",
+      "type": "radio",
+      "className": "mdl-radio__button",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "OTM",
+      "name": "ALLOTMITM",
+      "value": "OTM",
+      "type": "radio",
+      "className": "mdl-radio__button",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "ITM",
+      "name": "ALLOTMITM",
+      "value": "ITM",
+      "type": "radio",
+      "className": "mdl-radio__button",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "save",
+      "name": "save",
+      "value": "Save",
+      "type": "button",
+      "className": "mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-button--ripple-effect mdl-js-ripple-effect",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "search",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "INPUT",
+      "id": "MinuteBars",
+      "name": "MinuteBars",
+      "value": "checked ",
+      "type": "checkbox",
+      "className": "mdl-checkbox__input",
+      "aria": "",
+      "title": "",
+      "options": []
+    }
+  ],
+  "buttons": [
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-1",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-3",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-5",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-7",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-9",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-11",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-13",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-15",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-17",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-19",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "sm-17890769740838545-21",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "has-submenu",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "A",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "submitbtn",
+      "name": "btnSubmit",
+      "value": "",
+      "type": "submit",
+      "className": "mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-button--ripple-effect mdl-js-ripple-effect",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "col-vis-toggle",
+      "name": "",
+      "value": "",
+      "type": "button",
+      "className": "",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "Lots_btn_click",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "mdl-button11 mdl-button mdl-js-button mdl-button--raised btncls class-selected",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "Qty_btn_click",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "mdl-button11 mdl-button mdl-js-button mdl-button--raised btncls",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "Value_btn_click",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "mdl-button11 mdl-button mdl-js-button mdl-button--raised btncls",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "newButtonClass",
+      "aria": "",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "button",
+      "className": "dt-button buttons-excel buttons-html5 mdl-button mdl-js-button mdl-button--raised mdl-button--accent mdl-button--ripple-effect mdl-js-ripple-effect",
+      "aria": "",
+      "title": "Download Excel",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "button",
+      "className": "dt-button buttons-csv buttons-html5 mdl-button mdl-js-button mdl-button--raised mdl-button--accent mdl-button--ripple-effect mdl-js-ripple-effect",
+      "aria": "",
+      "title": "Download CSV",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "myBtn",
+      "name": "",
+      "value": "",
+      "type": "button",
+      "className": "mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored dt_download_buttons ",
+      "aria": "",
+      "title": "Information Related to tool",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Price",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show VWAP",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show PCR OI",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Tot CE OI",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Tot PE OI",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show OI Chg Diff",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show OI Diff",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show IV",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Tot CE OI Chg (Day)",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Tot PE OI Chg (Day)",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show PCR Volume",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Diff (PE-CE Volume)",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Fair Price",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show OI Chg / Vol Diff",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Price",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show CE OI % Chg",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show PE OI % Chg",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Diff (PE-CE OI Chg)",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Fair Price ",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show CE Unwinding",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show PE Unwinding",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Fair Price  ",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show CE Unwd 15",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show PE Unwd 15",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show   Fair Price   ",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show CE Buildup",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show PE Buildup",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show Fair Price    ",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show CE Buildup 15",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show PE Buildup 15",
+      "title": "",
+      "options": []
+    },
+    {
+      "tag": "BUTTON",
+      "id": "",
+      "name": "",
+      "value": "",
+      "type": "submit",
+      "className": "highcharts-a11y-proxy-button",
+      "aria": "Show   Fair Price    ",
+      "title": "",
+      "options": []
+    }
+  ],
+  "responses": [
+    {
+      "url": "https://www.icharts.in/opt/hcharts/stx8req/php/getDataForTotalPECEOIDiff_Beta_v7_chart_v5.php",
+      "status": 200,
+      "resource_type": "xhr",
+      "content_type": "text/html; charset=UTF-8",
+      "post_data": "optSymbol=MAXHEALTH&optExpDate=29SEP26&CallstrikeNames=1040&optPutStrike=1040&CallstrikeNames_hist=undefined&optPutStrike_hist=undefined&optStrike=0&striketypeval=allstrikes&lots_val=off&minutes_val=on&optExpDate_hist=undefined&txtDate=undefined&interval=5min&atmstrikesnumber=3&atmstrikesnumberfixed=3&chkDynamicAtmVal=0&rdDataType=latest&closestPrice=1040&userName=%5BREDACTED%5D&OIbuttontype=Lots_btn_click&sessionID=%5BREDACTED%5D&ALLOTMITM=ALL&save_data=%7B%22symbol%22%3A%22MAXHEALTH%22%2C%22exp_date%22%3A%2229SEP26%22%2C%22sel_strikes%22%3A%5B%221040%22%5D%2C%22put_sel_strikes%22%3A%5B%221040%22%5D%2C%22chkDynamicAtmVal%22%3A0%2C%22chkDynamicAtmfixedVal%22%3A0%2C%22striketypenum%22%3A2%2C%22interval%22%3A%225min%22%2C%22vwap_series%22%3A%22visible%22%2C%22OI_Chg_Vol_Diff_series%22%3A%22hidden%22%2C%22price_series%22%3A%22hidden%22%2C%22pcr_series%22%3A%22hidden%22%2C%22call_oi_chg_series%22%3A%22hidden%22%2C%22put_oi_chg_series%22%3A%22hidden%22%2C%22diff_series%22%3A%22visible%22%2C%22oi_diff_series%22%3A%22hidden%22%2C%22iv_series%22%3A%22hidden%22%2C%22put_oi_chg_percent_series%22%3A%22visible%22%2C%22diff_peceoichg_series%22%3A%22visible%22%2C%22call_oi_chg_percent_series%22%3A%22visible%22%2C%22oi_change_enabled%22%3A%222%22%2C%22price_series_oi%22%3A%22hidden%22%2C%22minutes_val%22%3A%22on%22%2C%22price_line_enabled%22%3A%221%22%2C%22ce_vol_series%22%3A%22hidden%22%2C%22pe_vol_series%22%3A%22hidden%22%2C%22pcr_volume_series%22%3A%22hidden%22%2C%22Fair_price_series_unwinding%22%3A%22hidden%22%2C%22Fair_price_series_unwinding_15%22%3A%22hidden%22%2C%22Fair_price_series_buildup%22%3A%22hidden%22%2C%22Fair_price_series_buildup_15%22%3A%22hidden%22%2C%22Fair_price_series%22%3A%22hidden%22%2C%22Fair_price_series1%22%3A%22hidden%22%2C%22diffpece_vol_series%22%3A%22visible%22%2C%22atmstrikenumber%22%3A%223%22%2C%22atmstrikesnumberfixed%22%3A%223%22%2C%22OIbuttontype%22%3A%22Lots_btn_click%22%2C%22optStrike%22%3A%220%22%2C%22ALLOTMITM%22%3A%22ALL%22%2C%22CE_Unwinding_series%22%3A%22visible%22%2C%22PE_Unwinding_series%22%3A%22visible%22%2C%22CE_Unwinding_15_series%22%3A%22visible%22%2C%22PE_Unwinding_15_series%22%3A%22visible%22%2C%22CE_Buildup_series%22%3A%22visible%22%2C%22PE_Buildup_series%22%3A%22visible%22%2C%22CE_Buildup_15_series%22%3A%22visible%22%2C%22PE_Buildup_15_series%22%3A%22visible%22%7D&pageName_save=TotalPECEOIDiff_Beta.php",
+      "body_file": "response_0001.bin",
+      "body_bytes": 122328
+    }
+  ],
+  "request_failures": [
+    {
+      "url": "https://analytics.google.com/g/collect?v=2&tid=G-ZN58C89YGF&gtm=45je6992v9200754901za200zb9200754074zd9200754074&_p=1789076973429&_gaz=1&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=AAAAACQC&are=1&cid=1751950030.1786786792&frm=0&ibt=1&ngs=1&pscdl=noapi&rcb=15&sr=1280x720&uaa=x86&uab=64&uafvl=Chromium%3B151.0.7922.34%7CNot%253DA%253FBrand%3B99.0.0.0&uam=&uamb=0&uap=Windows&uapv=10.0.0&uaw=0&ul=en-us&_s=1&tag_exp=115616985~115938465~115938468~118897920~118897930~120213116~120385423~120469145~120469153&sid=1789076974&sct=37&seg=0&dl=https%3A%2F%2Fwww.icharts.in%2Fopt%2FTotalPECEOIDiff_Beta.php&dt=&en=page_view&_ss=1&_ee=1&tfd=1632",
+      "method": "POST",
+      "failure": "net::ERR_ABORTED"
+    }
+  ],
+  "errors": [
+    "Cannot read properties of undefined (reading 'push')"
+  ],
+  "temporary_page_closed": true,
+  "production_page_url_after": "about:blank",
+  "production_page_alive_after": true,
+  "pages_after_close": 1
+}
