@@ -1,0 +1,15 @@
+{
+  "bundle": "NTIS_Intraday_W73_LiveDecision_ModuleRecovery_v1",
+  "replace": [
+    "11_DASHBOARD/w73_dashboard.py"
+  ],
+  "new": [
+    "06_ALERTS/w73_live_decision_service.py",
+    "08_TESTS/test_w73_live_decision_module_recovery.py",
+    "10_DOCS/LIVE_DECISION_MODULE_RECOVERY_V1.md"
+  ],
+  "reason": "restore missing live decision module and dashboard import path",
+  "strategy_changes": false,
+  "production_sdl_changes": false,
+  "ui_preserved": "rich v9 trader-board"
+}

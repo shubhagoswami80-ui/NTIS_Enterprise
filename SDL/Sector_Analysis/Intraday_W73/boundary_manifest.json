@@ -1,0 +1,14 @@
+{
+  "project": "NTIS SDL Intraday W73",
+  "source_of_truth": true,
+  "runtime_boundary": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73",
+  "development_port": 9005,
+  "outside_runtime_dependency": "READ_ONLY_LIVE_DATA_ONLY",
+  "integration_entry_point": "app.render_intraday_w73_page",
+  "historical_baseline": {
+    "holdout_rate": 0.72093,
+    "holdout_n": 129,
+    "holdout_dates": 5,
+    "holdout_symbols": 45
+  }
+}

@@ -1,0 +1,2221 @@
+{
+  "status": "PASS_DIAGNOSTIC_GATE",
+  "decision": "EXACT_ORB_SOURCE_NOT_PROVEN",
+  "source_root": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot",
+  "month": "September26",
+  "trading_date": "2026-09-18",
+  "day_folder": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\September26\\2026-09-18",
+  "files_found": 61,
+  "symbols_found": 219,
+  "rows_loaded": 12921,
+  "first_source_timestamp": "2026-09-18T09:18:09",
+  "market_open_reference": "2026-09-18T09:15:00",
+  "source_covers_09_15": false,
+  "orb_status_counts": {
+    "UP_BREAK": 97,
+    "NO_BREAK": 22,
+    "DOWN_BREAK": 57,
+    "BOTH_BREAKS": 43
+  },
+  "symbols_with_breakout": 197,
+  "exact_v8_live_policy": "UNCHANGED_FAIL_CLOSED",
+  "portal_policy": "FINALIZE_UI_AND_INTEGRATION_ONLY_IF_EXACT_ORB_SOURCE_READY; otherwise keep portal operational but signal state NOT_READY",
+  "notes": [
+    "This gate does not modify strategy, V8 semantics, dashboard code, or source files.",
+    "A changing Close is treated as point-in-time evidence; High/Low are not assumed to be candle values.",
+    "The authoritative V8 ORB requires a causal price stream covering the opening window and subsequent Close breakout.",
+    "Generic Daywise OI is not relabelled as futures OI."
+  ],
+  "symbol_analysis": [
+    {
+      "symbol": "360ONE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ABB",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "ABCAPITAL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ADANIENSOL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ADANIENT",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ADANIGREEN",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ADANIPORTS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ADANIPOWER",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ALKEM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "AMBER",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "AMBUJACEM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ANGELONE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "APLAPOLLO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "APOLLOHOSP",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ASHOKLEY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ASIANPAINT",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ASTRAL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ATHERENERG",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "AUBANK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "AUROPHARMA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "AXISBANK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "BAJAJ-AUTO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "BAJAJFINSV",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "BAJAJHLDNG",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "BAJFINANCE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "BANDHANBNK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": false,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "BANKBARODA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "BANKEX",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": false,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "BANKINDIA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "BANKNIFTY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "BDL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "BEL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "BHARATFORG",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "BHARTIARTL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "BHEL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "BIOCON",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "BLUESTARCO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "BOSCHLTD",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "BPCL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "BRITANNIA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "BSE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "CAMS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "CANBK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "CDSL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "CGPOWER",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "CHOLAFIN",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "CIPLA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "COALINDIA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "COCHINSHIP",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "COFORGE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "COLPAL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "CONCOR",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "CROMPTON",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "CUMMINSIND",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "DABUR",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "DELHIVERY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "DIVISLAB",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "DIXON",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "DLF",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "DMART",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "DRREDDY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "EICHERMOT",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ETERNAL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "FEDERALBNK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "FINNIFTY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "FOCIT",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "FORCEMOT",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "FORTIS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "GAIL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "GLENMARK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "GMRAIRPORT",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "GODFRYPHLP",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "GODREJCP",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "GODREJPROP",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "GRASIM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "GVT&D",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "HAL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "HAVELLS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "HCLTECH",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "HDFCAMC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "HDFCBANK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "HDFCLIFE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "HEROMOTOCO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "HINDALCO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "HINDPETRO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "HINDUNILVR",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "HINDZINC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "HYUNDAI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ICICIBANK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ICICIGI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ICICIPRULI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "IDEA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "IDFCFIRSTB",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "IEX",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "INDHOTEL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "INDIANB",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "INDIGO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "INDUSINDBK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "INDUSTOWER",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "INFY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "INOXWIND",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": false,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": false,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "IOC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "IREDA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "IRFC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ITC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "JINDALSTEL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "JIOFIN",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "JSWENERGY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "JSWSTEEL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "JUBLFOOD",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "KALYANKJIL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "KAYNES",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "KEI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "KFINTECH",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "KOTAKBANK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "KPITTECH",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "LAURUSLABS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "LICHSGFIN",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "LICI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "LODHA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "LT",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "LTF",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "LTM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "LUPIN",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "M&M",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "MAHABANK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "MANAPPURAM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": false,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": false,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "MANKIND",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "MARICO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "MARUTI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "MAXHEALTH",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "MAZDOCK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "MCX",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "MFSL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "MIDCPNIFTY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "MOTHERSON",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "MOTILALOFS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "MPHASIS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "MUTHOOTFIN",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "NAM-INDIA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "NATIONALUM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "NAUKRI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "NBCC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "NESTLEIND",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "NHPC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "NIFTY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "NIFTYFPI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": false,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "NIFTYNXT50",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "NMDC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "NTPC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "NYKAA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "OBEROIRLTY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "OFSS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "OIL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ONGC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PAGEIND",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PATANJALI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PAYTM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PERSISTENT",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "PETRONET",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PFC",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PGEL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "PHOENIXLTD",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PIDILITIND",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PIIND",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": false,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": false,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PNB",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "PNBHOUSING",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "POLICYBZR",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "POLYCAB",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "POWERGRID",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "POWERINDIA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "PREMIERENE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "PRESTIGE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "RADICO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "RBLBANK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "RECLTD",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "RELIANCE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "RVNL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "SAGILITY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "SAIL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": false,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "SBICARD",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "SBILIFE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "SBIN",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "SENSEX",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "SHREECEM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "SHRIRAMFIN",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "SIEMENS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "SOLARINDS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "SONACOMS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "SRF",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "SUNPHARMA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "SUPREMEIND",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "SUZLON",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "SWIGGY",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "TATACONSUM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "TATAELXSI",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "TATAPOWER",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "TATASTEEL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    },
+    {
+      "symbol": "TCS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "TECHM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "TIINDIA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "TITAN",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "TMPV",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "TORNTPHARM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "TRENT",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "TVSMOTOR",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "ULTRACEMCO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "UNIONBANK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "UNITDSPR",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "UNOMINDA",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "UPL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "BOTH_BREAKS",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "VBL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "VEDL",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "VMM",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "VOLTAS",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "WAAREEENER",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "UP_BREAK",
+      "orb_direction": "UP"
+    },
+    {
+      "symbol": "WIPRO",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "YESBANK",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": false,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "DOWN_BREAK",
+      "orb_direction": "DOWN"
+    },
+    {
+      "symbol": "ZYDUSLIFE",
+      "intervals": 59,
+      "high_monotonic_non_decreasing": true,
+      "low_monotonic_non_decreasing": true,
+      "low_monotonic_non_increasing": true,
+      "close_changes": true,
+      "orb_status": "NO_BREAK",
+      "orb_direction": null
+    }
+  ]
+}

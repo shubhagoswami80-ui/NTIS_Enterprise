@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "source_root": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot",
+  "month_folder": "September26",
+  "trading_date": "2026-09-18",
+  "cutoff": "2026-09-18T09:18:09",
+  "selected_source_file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_091809.xlsx",
+  "selected_source_timestamp": "2026-09-18T09:18:09",
+  "interval_count_in_selected_day": 61,
+  "record_count": 219,
+  "symbol_count": 219,
+  "header_count": 45,
+  "required_source_fields_missing": [],
+  "canonical_fields_missing": [],
+  "cached_record_count": 219,
+  "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\091809\\observations.jsonl",
+  "v8_state_fields_present_in_raw": [],
+  "v8_derivation_status": "NOT_YET_DERIVED",
+  "source_is_read_only": true
+}

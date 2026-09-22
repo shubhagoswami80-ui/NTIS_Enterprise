@@ -1,0 +1,9 @@
+{
+  "bundle": "NTIS_Intraday_W73_RealSource_Runtime_Validation_v1",
+  "files": [
+    "08_TESTS/w73_real_source_runtime_validation.py",
+    "10_DOCS/REAL_SOURCE_RUNTIME_VALIDATION_V1.md"
+  ],
+  "external_source": "READ ONLY",
+  "historical_replay": "NOT INCLUDED"
+}

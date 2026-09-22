@@ -1,0 +1,21 @@
+{
+  "contract_version": "W73_LIVE_DASHBOARD_V1",
+  "timestamp_fields": [
+    "_observation_timestamp",
+    "_source_file",
+    "_trading_date"
+  ],
+  "decision_fields": [
+    "eligible",
+    "priority_score",
+    "eligibility_reasons",
+    "filter_version"
+  ],
+  "rules": [
+    "source timestamp is authoritative",
+    "trading-date folder is authoritative",
+    "missing is never zero",
+    "dashboard_as_of must be distinct from processing time",
+    "only observations <= cutoff may be used"
+  ]
+}

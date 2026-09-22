@@ -1,0 +1,11 @@
+{
+  "bundle": "NTIS_Intraday_W73_Live_Dashboard_DataFoundation_FINAL_v1",
+  "phase": "PHASE_1_LIVE_DASHBOARD",
+  "port": 9005,
+  "raw_source_read_only": true,
+  "timestamp_authority": "report filename timestamp; trading-date folder authoritative",
+  "primary_board": "filtered universe",
+  "replay_allowed_before_freeze": false,
+  "production_dashboard_modified": false,
+  "next_phase": "REPLAY_HISTORICAL_AFTER_FREEZE"
+}

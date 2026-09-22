@@ -1,0 +1,610 @@
+{
+  "status": "PASS_RUNTIME",
+  "month_folder": "September26",
+  "trading_date": "2026-09-18",
+  "source_root": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot",
+  "interval_count": 61,
+  "latest_source_timestamp": "2026-09-18T15:09:31",
+  "latest_source_file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_150931.xlsx",
+  "pit_rows": 12921,
+  "asof": "2026-09-18T15:09:31",
+  "latest_maturity_evaluated": "10:15",
+  "decision_summary": {
+    "QUALIFIED": 0,
+    "WAIT": 0,
+    "NOT_READY": 219
+  },
+  "ready_count": 0,
+  "qualified_count": 0,
+  "qualified_symbols": [],
+  "not_ready_samples": [
+    {
+      "symbol": "360ONE",
+      "missing_fields": [
+        "orb_minutes",
+        "maturity",
+        "orb_dir",
+        "price_dir",
+        "fut_dir",
+        "option_dir",
+        "fut_state",
+        "volume_state",
+        "ce_state",
+        "pe_state",
+        "pec_state",
+        "fut_oi_state",
+        "ce_pct_state",
+        "pe_pct_state",
+        "pec_pct_state",
+        "fut_pct_state",
+        "price_state",
+        "orb_agree",
+        "evidence_agreement",
+        "persistent",
+        "strength_bucket",
+        "core_count_band",
+        "magnitude_count_band",
+        "orb_fut_agree",
+        "orb_price_agree"
+      ],
+      "warnings": [
+        "ORB_BREAKOUT_NOT_OBSERVED_BY_MATURITY"
+      ]
+    },
+    {
+      "symbol": "ABB",
+      "missing_fields": [
+        "orb_minutes",
+        "maturity",
+        "orb_dir",
+        "price_dir",
+        "fut_dir",
+        "option_dir",
+        "fut_state",
+        "volume_state",
+        "ce_state",
+        "pe_state",
+        "pec_state",
+        "fut_oi_state",
+        "ce_pct_state",
+        "pe_pct_state",
+        "pec_pct_state",
+        "fut_pct_state",
+        "price_state",
+        "orb_agree",
+        "evidence_agreement",
+        "persistent",
+        "strength_bucket",
+        "core_count_band",
+        "magnitude_count_band",
+        "orb_fut_agree",
+        "orb_price_agree"
+      ],
+      "warnings": [
+        "ORB_BREAKOUT_NOT_OBSERVED_BY_MATURITY"
+      ]
+    },
+    {
+      "symbol": "ABCAPITAL",
+      "missing_fields": [
+        "fut_oi_state",
+        "pec_pct_state",
+        "fut_pct_state"
+      ],
+      "warnings": [
+        "EXACT_V8_INPUTS_INCOMPLETE"
+      ]
+    },
+    {
+      "symbol": "ADANIENSOL",
+      "missing_fields": [
+        "orb_minutes",
+        "maturity",
+        "orb_dir",
+        "price_dir",
+        "fut_dir",
+        "option_dir",
+        "fut_state",
+        "volume_state",
+        "ce_state",
+        "pe_state",
+        "pec_state",
+        "fut_oi_state",
+        "ce_pct_state",
+        "pe_pct_state",
+        "pec_pct_state",
+        "fut_pct_state",
+        "price_state",
+        "orb_agree",
+        "evidence_agreement",
+        "persistent",
+        "strength_bucket",
+        "core_count_band",
+        "magnitude_count_band",
+        "orb_fut_agree",
+        "orb_price_agree"
+      ],
+      "warnings": [
+        "ORB_BREAKOUT_NOT_OBSERVED_BY_MATURITY"
+      ]
+    },
+    {
+      "symbol": "ADANIENT",
+      "missing_fields": [
+        "orb_minutes",
+        "maturity",
+        "orb_dir",
+        "price_dir",
+        "fut_dir",
+        "option_dir",
+        "fut_state",
+        "volume_state",
+        "ce_state",
+        "pe_state",
+        "pec_state",
+        "fut_oi_state",
+        "ce_pct_state",
+        "pe_pct_state",
+        "pec_pct_state",
+        "fut_pct_state",
+        "price_state",
+        "orb_agree",
+        "evidence_agreement",
+        "persistent",
+        "strength_bucket",
+        "core_count_band",
+        "magnitude_count_band",
+        "orb_fut_agree",
+        "orb_price_agree"
+      ],
+      "warnings": [
+        "ORB_BREAKOUT_NOT_OBSERVED_BY_MATURITY"
+      ]
+    },
+    {
+      "symbol": "ADANIGREEN",
+      "missing_fields": [
+        "fut_oi_state",
+        "pec_pct_state",
+        "fut_pct_state"
+      ],
+      "warnings": [
+        "EXACT_V8_INPUTS_INCOMPLETE"
+      ]
+    },
+    {
+      "symbol": "ADANIPORTS",
+      "missing_fields": [
+        "orb_minutes",
+        "maturity",
+        "orb_dir",
+        "price_dir",
+        "fut_dir",
+        "option_dir",
+        "fut_state",
+        "volume_state",
+        "ce_state",
+        "pe_state",
+        "pec_state",
+        "fut_oi_state",
+        "ce_pct_state",
+        "pe_pct_state",
+        "pec_pct_state",
+        "fut_pct_state",
+        "price_state",
+        "orb_agree",
+        "evidence_agreement",
+        "persistent",
+        "strength_bucket",
+        "core_count_band",
+        "magnitude_count_band",
+        "orb_fut_agree",
+        "orb_price_agree"
+      ],
+      "warnings": [
+        "ORB_BREAKOUT_NOT_OBSERVED_BY_MATURITY"
+      ]
+    },
+    {
+      "symbol": "ADANIPOWER",
+      "missing_fields": [
+        "fut_oi_state",
+        "pec_pct_state",
+        "fut_pct_state"
+      ],
+      "warnings": [
+        "EXACT_V8_INPUTS_INCOMPLETE"
+      ]
+    },
+    {
+      "symbol": "ALKEM",
+      "missing_fields": [
+        "fut_oi_state",
+        "pec_pct_state",
+        "fut_pct_state"
+      ],
+      "warnings": [
+        "EXACT_V8_INPUTS_INCOMPLETE"
+      ]
+    },
+    {
+      "symbol": "AMBER",
+      "missing_fields": [
+        "fut_oi_state",
+        "pec_pct_state",
+        "fut_pct_state"
+      ],
+      "warnings": [
+        "EXACT_V8_INPUTS_INCOMPLETE"
+      ]
+    }
+  ],
+  "intervals": [
+    {
+      "timestamp": "2026-09-18T09:18:09",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_091809.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\091809\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T09:23:20",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_092320.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\092320\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T09:28:29",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_092829.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\092829\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T09:33:41",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_093341.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\093341\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T09:39:57",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_093957.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\093957\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T09:45:07",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_094507.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\094507\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T09:50:17",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_095017.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\095017\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T09:58:06",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_095806.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\095806\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:03:16",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_100316.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\100316\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:08:26",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_100826.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\100826\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:16:17",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_101617.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\101617\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:21:26",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_102126.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\102126\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:26:38",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_102638.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\102638\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:34:22",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_103422.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\103422\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:39:31",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_103931.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\103931\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:44:38",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_104438.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\104438\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:52:28",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_105228.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\105228\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T10:57:35",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_105735.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\105735\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:02:42",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_110242.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\110242\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:10:40",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_111040.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\111040\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:15:48",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_111548.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\111548\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:20:55",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_112055.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\112055\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:28:53",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_112853.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\112853\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:34:04",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_113404.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\113404\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:39:22",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_113922.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\113922\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:47:14",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_114714.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\114714\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:52:23",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_115223.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\115223\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T11:57:30",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_115730.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\115730\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T12:05:20",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_120520.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\120520\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T12:10:27",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_121027.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\121027\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T12:15:37",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_121537.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\121537\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T12:23:34",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_122334.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\122334\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T12:28:46",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_122846.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\122846\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T12:33:56",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_123356.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\123356\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T12:41:49",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_124149.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\124149\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T12:46:57",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_124657.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\124657\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T12:52:06",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_125206.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\125206\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T13:00:06",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_130006.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\130006\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T13:05:18",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_130518.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\130518\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T13:10:27",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_131027.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\131027\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T13:18:31",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_131831.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\131831\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T13:24:09",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_132409.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\132409\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T13:29:19",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_132919.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\132919\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T13:36:47",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_133647.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\133647\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T13:45:08",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_134508.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\134508\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T13:53:30",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_135330.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\135330\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:01:53",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_140153.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\140153\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:02:32",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_140232.xlsx",
+      "records": 0,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\140232\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:07:40",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_140740.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\140740\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:12:47",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_141247.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\141247\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:17:56",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_141756.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\141756\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:23:05",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_142305.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\142305\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:28:19",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_142819.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\142819\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:33:29",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_143329.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\143329\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:38:37",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_143837.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\143837\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:43:44",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_144344.xlsx",
+      "records": 0,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\144344\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:48:53",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_144853.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\144853\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:54:00",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_145400.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\145400\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T14:59:11",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_145911.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\145911\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T15:04:20",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_150420.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\150420\\observations.jsonl"
+    },
+    {
+      "timestamp": "2026-09-18T15:09:31",
+      "file": "Daywise_Price_and_OI_Summary_29SEP26_Report_2026-09-18_20260918_150931.xlsx",
+      "records": 219,
+      "cache_path": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\.cache\\point_in_time\\2026-09-18\\150931\\observations.jsonl"
+    }
+  ]
+}

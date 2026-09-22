@@ -1,0 +1,14 @@
+{
+  "bundle": "NTIS_Intraday_W73_ExactV8_Live_Derivation_v1",
+  "authoritative_v8_source_sha": "c9eb10f3dca82c7f40b3bf54eccf4b60dd0da7f2",
+  "files": [
+    "02_FEATURE_ENGINE/w73_exact_v8_live_engine.py",
+    "08_TESTS/test_w73_exact_v8_live_engine.py",
+    "10_DOCS/EXACT_V8_LIVE_DERIVATION_V1.md"
+  ],
+  "action": "NEW FILES",
+  "destination": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73",
+  "status": "FOCUSED_TESTS_PASS",
+  "focused_tests": "3 passed",
+  "fail_closed_early_returns": true
+}

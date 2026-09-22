@@ -1,0 +1,26 @@
+{
+  "bundle": "NTIS_Intraday_W73_Final_Portal_Freeze_v1",
+  "decision": "PORTAL_OPERATIONAL_FREEZE_EXACT_ORB_NOT_PROVEN",
+  "strategy_changes": false,
+  "dashboard_changes": false,
+  "production_sdl_changes": false,
+  "source_modifications": false,
+  "historical_replay": "DEFERRED_UNTIL_AUTHORITATIVE_ORB_SOURCE_AVAILABLE",
+  "historical_baseline_max_rate_pct": 72.093,
+  "final_gate": {
+    "status": "PASS_DIAGNOSTIC_GATE",
+    "decision": "EXACT_ORB_SOURCE_NOT_PROVEN",
+    "files_found": 61,
+    "symbols_found": 219,
+    "rows_loaded": 12921,
+    "first_source_timestamp": "2026-09-18T09:18:09",
+    "source_covers_09_15": false,
+    "orb_status_counts": {
+      "UP_BREAK": 97,
+      "NO_BREAK": 22,
+      "DOWN_BREAK": 57,
+      "BOTH_BREAKS": 43
+    },
+    "symbols_with_breakout": 197
+  }
+}

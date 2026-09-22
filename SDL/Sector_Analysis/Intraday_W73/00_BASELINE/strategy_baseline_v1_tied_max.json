@@ -1,0 +1,95 @@
+{
+  "schema_version": "W73_TIED_MAX_AUDIT_V1",
+  "created_at": "2026-09-20T17:53:19",
+  "source": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\00_BASELINE\\chronological_validation_corrected.csv",
+  "source_sha256": "8930a88a2d478758a36e95d58e78c808f25fe57040b9d45821482609899fcb73",
+  "max_holdout_rate": 0.7209302325581395,
+  "max_holdout_rate_pct": 72.09302325581395,
+  "tied_max_count": 2,
+  "candidates": [
+    {
+      "source_row": 48,
+      "candidate_id": "V8_PLUS_TRAJECTORY|orb_agree=NO|magnitude_count_band=0|px_all_negative_pre_maturity=True",
+      "holdout_rate": 0.7209302325581395,
+      "holdout_n": 129,
+      "holdout_dates": 5,
+      "holdout_symbols": 45,
+      "conditions": {
+        "kind": "V8_PLUS_TRAJECTORY",
+        "factor_count": 3,
+        "factors": "orb_agree|magnitude_count_band|px_all_negative_pre_maturity",
+        "states": "NO|0|True",
+        "all_n": 247,
+        "all_good_n": 129,
+        "all_bad_n": 118,
+        "all_rate": 0.5222672064777328,
+        "all_dates": 14,
+        "all_symbols": 74,
+        "train_good_n": 36,
+        "train_bad_n": 82,
+        "holdout_good_n": 93,
+        "holdout_bad_n": 36,
+        "top_holdout_date_share": 0.7286821705426356,
+        "top_holdout_symbol_share": 0.0465116279069767,
+        "frozen_final_gate_pass": false,
+        "status": "HOLDOUT_RESEARCH"
+      }
+    },
+    {
+      "source_row": 49,
+      "candidate_id": "V8_PLUS_TRAJECTORY|orb_price_agree=NO|magnitude_count_band=0|px_all_negative_pre_maturity=True",
+      "holdout_rate": 0.7209302325581395,
+      "holdout_n": 129,
+      "holdout_dates": 5,
+      "holdout_symbols": 45,
+      "conditions": {
+        "kind": "V8_PLUS_TRAJECTORY",
+        "factor_count": 3,
+        "factors": "orb_price_agree|magnitude_count_band|px_all_negative_pre_maturity",
+        "states": "NO|0|True",
+        "all_n": 247,
+        "all_good_n": 129,
+        "all_bad_n": 118,
+        "all_rate": 0.5222672064777328,
+        "all_dates": 14,
+        "all_symbols": 74,
+        "train_good_n": 36,
+        "train_bad_n": 82,
+        "holdout_good_n": 93,
+        "holdout_bad_n": 36,
+        "top_holdout_date_share": 0.7286821705426356,
+        "top_holdout_symbol_share": 0.0465116279069767,
+        "frozen_final_gate_pass": false,
+        "status": "HOLDOUT_RESEARCH"
+      }
+    }
+  ],
+  "common_conditions": {
+    "all_bad_n": 118,
+    "all_dates": 14,
+    "all_good_n": 129,
+    "all_n": 247,
+    "all_rate": 0.5222672064777328,
+    "all_symbols": 74,
+    "factor_count": 3,
+    "frozen_final_gate_pass": false,
+    "holdout_bad_n": 36,
+    "holdout_good_n": 93,
+    "kind": "V8_PLUS_TRAJECTORY",
+    "states": "NO|0|True",
+    "status": "HOLDOUT_RESEARCH",
+    "top_holdout_date_share": 0.7286821705426356,
+    "top_holdout_symbol_share": 0.0465116279069767,
+    "train_bad_n": 82,
+    "train_good_n": 36
+  },
+  "differing_conditions": [
+    {
+      "feature": "factors",
+      "candidate_1": "orb_agree|magnitude_count_band|px_all_negative_pre_maturity",
+      "candidate_2": "orb_price_agree|magnitude_count_band|px_all_negative_pre_maturity",
+      "same": false
+    }
+  ],
+  "decision": "TWO CANDIDATES TIE AT THE MAXIMUM. Both are preserved. No tie-breaker is invented."
+}

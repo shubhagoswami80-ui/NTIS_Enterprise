@@ -1,0 +1,42 @@
+{
+  "schema_version": "W73_STRATEGY_BASELINE_V1",
+  "created_at": "2026-09-20T17:35:58",
+  "source_file": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\00_BASELINE\\chronological_validation_corrected.csv",
+  "source_sha256": "8930a88a2d478758a36e95d58e78c808f25fe57040b9d45821482609899fcb73",
+  "validation_rows": 24934,
+  "robust_candidates": 3448,
+  "max_holdout_rate": 0.7209302325581395,
+  "max_holdout_rate_pct": 72.09302325581395,
+  "holdout_n": 129,
+  "holdout_dates": 5,
+  "holdout_symbols": 45,
+  "tied_max_candidates": 2,
+  "candidate_id": "V8_PLUS_TRAJECTORY|orb_agree=NO|magnitude_count_band=0|px_all_negative_pre_maturity=True",
+  "conditions": {
+    "kind": "V8_PLUS_TRAJECTORY",
+    "factor_count": 3,
+    "factors": "orb_agree|magnitude_count_band|px_all_negative_pre_maturity",
+    "states": "NO|0|True",
+    "all_n": 247,
+    "all_good_n": 129,
+    "all_bad_n": 118,
+    "all_rate": 0.5222672064777328,
+    "all_dates": 14,
+    "all_symbols": 74,
+    "train_good_n": 36,
+    "train_bad_n": 82,
+    "holdout_good_n": 93,
+    "holdout_bad_n": 36,
+    "top_holdout_date_share": 0.7286821705426356,
+    "top_holdout_symbol_share": 0.0465116279069767,
+    "frozen_final_gate_pass": false,
+    "status": "HOLDOUT_RESEARCH"
+  },
+  "frozen_gate": {
+    "holdout_rate_threshold": 0.8,
+    "holdout_n_min": 30,
+    "holdout_dates_min": 3,
+    "holdout_symbols_min": 10
+  },
+  "status": "FROZEN_CANDIDATE_EXTRACTION_ONLY"
+}

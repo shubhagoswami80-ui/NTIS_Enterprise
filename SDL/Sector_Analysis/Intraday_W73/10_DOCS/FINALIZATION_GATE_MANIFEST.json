@@ -1,0 +1,12 @@
+{
+  "bundle": "NTIS_Intraday_W73_Finalization_Gate_v1",
+  "new_files": [
+    "08_TESTS/w73_finalization_gate.py",
+    "08_TESTS/test_w73_finalization_gate.py",
+    "10_DOCS/W73_FINALIZATION_GATE_V1.md",
+    "10_DOCS/FINALIZATION_GATE_MANIFEST.json"
+  ],
+  "replacements": [],
+  "source_boundary": "D:/My-data/Share_P&L/Ichart Data/Screenshot (READ ONLY)",
+  "destination": "E:/NSE_Daily_Analysis/SDL/Sector_Analysis/Intraday_W73"
+}

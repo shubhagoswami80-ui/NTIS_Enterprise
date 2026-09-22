@@ -1,0 +1,51 @@
+﻿[
+    {
+        "Source":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\.sector_intelligence\\v12_6_exhaustive_research\\chronological_validation_corrected.csv",
+        "Destination":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\00_BASELINE\\chronological_validation_corrected.csv",
+        "SourceSHA256":  "8930A88A2D478758A36E95D58E78C808F25FE57040B9D45821482609899FCB73",
+        "DestinationSHA256":  "8930A88A2D478758A36E95D58E78C808F25FE57040B9D45821482609899FCB73",
+        "Match":  true
+    },
+    {
+        "Source":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\maturity_conditional_pattern_discovery_v8.py",
+        "Destination":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\01_RESEARCH_SOURCE\\maturity_conditional_pattern_discovery_v8.py",
+        "SourceSHA256":  "346ABBA817211A4062756CCB8517827FDEA49E5F93536F32504E8308D9D6435F",
+        "DestinationSHA256":  "346ABBA817211A4062756CCB8517827FDEA49E5F93536F32504E8308D9D6435F",
+        "Match":  true
+    },
+    {
+        "Source":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\v12_5_exact_v8_component_stability.py",
+        "Destination":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\01_RESEARCH_SOURCE\\v12_5_exact_v8_component_stability.py",
+        "SourceSHA256":  "1A765D28FD0079E7DB61ED0B2B0FBA014E98928ADF1994DBC690BB404F4C9FA1",
+        "DestinationSHA256":  "1A765D28FD0079E7DB61ED0B2B0FBA014E98928ADF1994DBC690BB404F4C9FA1",
+        "Match":  true
+    },
+    {
+        "Source":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\v12_6_exhaustive_pattern_miner.py",
+        "Destination":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\01_RESEARCH_SOURCE\\v12_6_exhaustive_pattern_miner.py",
+        "SourceSHA256":  "AECD5CE2E1D2F468A8D6B9B59C1A58BD1D1CA7CF846FD40093F35678AE2F3384",
+        "DestinationSHA256":  "AECD5CE2E1D2F468A8D6B9B59C1A58BD1D1CA7CF846FD40093F35678AE2F3384",
+        "Match":  true
+    },
+    {
+        "Source":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\v12_6_phase3a_corrected_validation.py",
+        "Destination":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\01_RESEARCH_SOURCE\\v12_6_phase3a_corrected_validation.py",
+        "SourceSHA256":  "B6EB18D807F9E4A795D9DB6E3EAD44F1F8F3E0F2CB0EB9D53AC6A4F9F8277DD5",
+        "DestinationSHA256":  "B6EB18D807F9E4A795D9DB6E3EAD44F1F8F3E0F2CB0EB9D53AC6A4F9F8277DD5",
+        "Match":  true
+    },
+    {
+        "Source":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\data_strength_combination_study.py",
+        "Destination":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\01_RESEARCH_SOURCE\\data_strength_combination_study.py",
+        "SourceSHA256":  "282F33C0D16075B9BA3259AC624FB16F9A522408A5C7DF35200675BA1A0ABAE3",
+        "DestinationSHA256":  "282F33C0D16075B9BA3259AC624FB16F9A522408A5C7DF35200675BA1A0ABAE3",
+        "Match":  true
+    },
+    {
+        "Source":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\smart_replay_strategy_study.py",
+        "Destination":  "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73\\01_RESEARCH_SOURCE\\smart_replay_strategy_study.py",
+        "SourceSHA256":  "7BB1F8E00FBF704C42D2F3D95FB6B0DC4717217CE2A0F15ECDD1ABC904195BFF",
+        "DestinationSHA256":  "7BB1F8E00FBF704C42D2F3D95FB6B0DC4717217CE2A0F15ECDD1ABC904195BFF",
+        "Match":  true
+    }
+]

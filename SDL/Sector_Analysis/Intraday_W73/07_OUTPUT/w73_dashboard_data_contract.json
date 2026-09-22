@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "status": "contract_only",
+  "public_entry_point": "render_intraday_w73_page",
+  "port": 9005,
+  "signal_promotion": "fail_closed_until_exact_v8_semantic_parity",
+  "variants": ["W73-A", "W73-B"],
+  "required_point_in_time_fields": [
+    "trading_date",
+    "source_timestamp",
+    "source_file",
+    "symbol"
+  ],
+  "dashboard_sections": [
+    "system_status",
+    "data_freshness",
+    "priority_board",
+    "variant_status",
+    "replay",
+    "historical_evidence",
+    "alerts"
+  ]
+}

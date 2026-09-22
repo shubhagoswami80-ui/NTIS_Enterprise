@@ -1,0 +1,20 @@
+{
+  "version": "W73_UNIVERSE_V1",
+  "required_fields": [
+    "Symbol",
+    "Close",
+    "ATM Straddle Price",
+    "ATM Straddle %",
+    "OI Chg",
+    "OI Chg %",
+    "Volume",
+    "IV",
+    "PCR Chg"
+  ],
+  "exclude_symbols": [],
+  "min_volume": null,
+  "min_abs_oi_chg": null,
+  "min_abs_straddle_pct": null,
+  "max_symbols": 50,
+  "notes": "Eligibility uses data completeness unless optional thresholds are explicitly configured. Priority score is descriptive and does not alter eligibility except max_symbols."
+}

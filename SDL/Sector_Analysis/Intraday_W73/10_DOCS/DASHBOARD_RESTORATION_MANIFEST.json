@@ -1,0 +1,19 @@
+{
+  "bundle": "NTIS_Intraday_W73_Dashboard_Restoration_v1",
+  "purpose": "Restore the previously validated rich W73 trader-board UI while preserving the current validated backend/runtime files.",
+  "source_dashboard": "w73_dashboard_FINAL_INTRADAY_DECISION_BOARD_v9.py",
+  "replacement": "11_DASHBOARD/w73_dashboard.py",
+  "backend_changes": false,
+  "strategy_changes": false,
+  "production_sdl_changes": false,
+  "port": 9005,
+  "required_visual_contract": [
+    "Intraday Setup Readiness",
+    "What to Watch Now",
+    "Priority Stocks \u2014 Select the Strongest Evidence",
+    "Alerts / Checkpoints",
+    "Selected Stock \u2014 Why is it strong?",
+    "Point-in-Time Lineage",
+    "Filter / Selection Audit"
+  ]
+}

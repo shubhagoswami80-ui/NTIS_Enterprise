@@ -1,0 +1,14 @@
+{
+  "bundle": "NTIS_Intraday_W73_SafeStop_Fix_v1",
+  "replacement": [
+    "11_DASHBOARD/stop_w73_dashboard.ps1"
+  ],
+  "new": [
+    "08_TESTS/test_safe_stop_script.ps1",
+    "10_DOCS/SAFE_STOP_FIX_V1.md"
+  ],
+  "reserved_variable_fix": "$pid -> non-reserved variable names",
+  "strategy_changes": false,
+  "dashboard_ui_changes": false,
+  "backend_changes": false
+}

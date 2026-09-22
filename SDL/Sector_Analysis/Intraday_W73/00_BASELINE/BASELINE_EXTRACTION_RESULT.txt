@@ -1,0 +1,16 @@
+NTIS SDL INTRADAY W73 — BASELINE EXTRACTION
+=======================================================
+Source rows: 24934
+Robust candidates: 3448
+Maximum robust holdout rate: 72.093%
+Maximum holdout n: 129
+Maximum holdout dates: 5
+Maximum holdout symbols: 45
+Tied maximum candidates: 2
+Selected candidate: V8_PLUS_TRAJECTORY|orb_agree=NO|magnitude_count_band=0|px_all_negative_pre_maturity=True
+Source SHA256: 8930a88a2d478758a36e95d58e78c808f25fe57040b9d45821482609899fcb73
+
+IMPORTANT:
+This step freezes the historical candidate definition only.
+It does not claim live probability or future performance.
+The next gate is independent reproduction using W73-owned code.

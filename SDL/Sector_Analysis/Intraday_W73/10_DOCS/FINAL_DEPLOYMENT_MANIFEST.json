@@ -1,0 +1,30 @@
+{
+  "bundle": "NTIS_Intraday_W73_FINAL_DEPLOYMENT_v1",
+  "decision": "PORTAL_OPERATIONAL_FREEZE_EXACT_ORB_NOT_PROVEN",
+  "critical_missing": [
+    "requirements.txt"
+  ],
+  "critical_files": [
+    "app.py",
+    "config.py",
+    "data_store.py",
+    "strategy.py",
+    "views.py",
+    "requirements.txt",
+    "02_FEATURE_ENGINE/w73_exact_v8_live_engine.py",
+    "02_FEATURE_ENGINE/w73_universe_engine.py",
+    "03_LIVE_ADAPTER/w73_source_adapter.py",
+    "03_LIVE_ADAPTER/w73_canonical_observation.py",
+    "03_LIVE_ADAPTER/w73_point_in_time_cache.py",
+    "03_LIVE_ADAPTER/w73_live_ingestor.py",
+    "03_LIVE_ADAPTER/w73_point_in_time_service.py",
+    "06_ALERTS/w73_live_decision_service.py",
+    "07_OUTPUT/live_decision_contract_v2.json",
+    "07_OUTPUT/live_dashboard_contract.json",
+    "07_OUTPUT/universe_config.json",
+    "11_DASHBOARD/w73_dashboard.py",
+    "11_DASHBOARD/start_w73_dashboard.ps1",
+    "11_DASHBOARD/stop_w73_dashboard.ps1",
+    "12_INTEGRATION/w73_entrypoint.py"
+  ]
+}

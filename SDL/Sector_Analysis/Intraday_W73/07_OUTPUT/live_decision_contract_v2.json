@@ -1,0 +1,42 @@
+{
+  "version": "2.0",
+  "status": "live_exact_v8_decision_contract",
+  "port": 9005,
+  "source_of_truth": "Intraday_W73",
+  "signal_promotion": "fail_closed_until_exact_v8_ready",
+  "maturities": ["09:30", "09:45", "10:00", "10:15"],
+  "variants": ["W73-A", "W73-B"],
+  "actions": ["QUALIFIED", "WAIT", "NOT_READY"],
+  "required_point_in_time_fields": [
+    "trading_date",
+    "_observation_timestamp",
+    "_source_file",
+    "Symbol"
+  ],
+  "decision_fields": [
+    "symbol",
+    "trading_date",
+    "maturity",
+    "status",
+    "variant",
+    "action",
+    "observation_timestamp",
+    "source_timestamp",
+    "missing_fields",
+    "warnings",
+    "trajectory",
+    "feature_vector"
+  ],
+  "target_leakage": "reached_0_5x is not a live input",
+  "missing_value_policy": "missing is not zero; fail closed",
+  "future_data_policy": "only PIT observations at or before the maturity cutoff are admitted",
+  "dashboard_sections": [
+    "system_status",
+    "data_freshness",
+    "universe",
+    "priority_board",
+    "exact_v8_status",
+    "variant_status",
+    "data_health"
+  ]
+}

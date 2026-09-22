@@ -1,0 +1,15 @@
+{
+  "bundle": "NTIS_Intraday_W73_Dashboard_Restoration_v2",
+  "replace": [
+    "11_DASHBOARD/w73_dashboard.py",
+    "11_DASHBOARD/stop_w73_dashboard.ps1"
+  ],
+  "new": [
+    "08_TESTS/test_w73_dashboard_final_integration.py",
+    "10_DOCS/DASHBOARD_RESTORATION_V2.md"
+  ],
+  "preserve_rich_v9_ui": true,
+  "live_decision_service_integrated": true,
+  "strategy_changes": false,
+  "production_sdl_changes": false
+}
