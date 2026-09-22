@@ -1,0 +1,12 @@
+{
+  "bundle": "NTIS_Evidence_Fusion_V2_4_Controlled",
+  "version": "2.4",
+  "type": "controlled_research_extension",
+  "change": "Controlled 2-way/3-way interaction evidence with day stability",
+  "files": [
+    "run_evidence_fusion_v2_4.py",
+    "CONFIG.json",
+    "README.md",
+    "BUNDLE_MANIFEST.json"
+  ]
+}

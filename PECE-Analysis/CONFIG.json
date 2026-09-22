@@ -1,0 +1,12 @@
+{
+  "market_state_cache": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\PCR_Volume_Skew_Output\\Market_State_Evidence\\Cache\\market_state_canonical.csv",
+  "output_dir": "D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\PCR_Volume_Skew_Output\\Evidence_Fusion_V2",
+  "horizons": [
+    5,
+    15,
+    30,
+    60
+  ],
+  "minimum_group_observations": 200,
+  "minimum_day_observations": 50
+}
