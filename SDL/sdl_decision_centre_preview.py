@@ -10,6 +10,7 @@ import re
 import time
 import os
 import threading
+import hashlib
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
@@ -35,13 +36,9 @@ from Sector_Analysis.sector_page import render_sector_analysis_page
 try:
     from extensions.alert_chart.dashboard_alert_drawer import render_alert_drawer
     from extensions.alert_chart.alert_store import AlertStore
-    from extensions.alert_chart.alert_engine import evaluate_snapshot
-    from extensions.alert_chart.integration_adapter import build_context
 except Exception:
     render_alert_drawer = None
     AlertStore = None
-    evaluate_snapshot = None
-    build_context = None
 
 IST = "Asia/Kolkata"
 
@@ -171,7 +168,7 @@ def load_ui_settings() -> dict:
         "source_root": str(getattr(sdl_config, "INTRADAY_SOURCE_ROOT", "")),
         "auto_refresh": False,
         "refresh_seconds": 60,
-        "alert_config_schema": 5,
+        "alert_config_schema": 3,
         "alert_sound_enabled": False,
         "alert_sound_volume": 0.35,
         "alert_sound_tone": "soft",
@@ -185,9 +182,9 @@ def load_ui_settings() -> dict:
                 # B4 schema migration: old drawer deployments could persist
                 # sound ON and oversized/default rule state. Reset once to the
                 # approved safe defaults; later user changes remain persistent.
-                if int(saved.get("alert_config_schema", 0) or 0) < 5:
+                if int(saved.get("alert_config_schema", 0) or 0) < 3:
                     defaults.update({
-                        "alert_config_schema": 5,
+                        "alert_config_schema": 3,
                         "alert_sound_enabled": False,
                         "alert_sound_volume": 0.35,
                         "alert_sound_tone": "soft",
@@ -4876,6 +4873,8 @@ def _render_live_content() -> None:
         st.warning(message)
         return
 
+    _b4_emit_alerts(pred, data_ts)
+    _render_b4_alert_drawer()
 
     now = pd.Timestamp.now(tz=IST)
     market_state, scheduled_trading_day = _nse_market_state(now)
@@ -4966,10 +4965,6 @@ def _render_live_content() -> None:
     # Presentation guard: never allow a missing optional label to crash
     # the Decision Centre. No decision is recalculated here.
     pred = normalize_dashboard_predictions(pred)
-
-    # B4 is a sidecar evaluator only: it consumes the already-built SDL
-    # snapshot and cannot alter qualification, ranking, replay, or Futures logic.
-    _evaluate_b4_live_alerts(pred, data_ts)
 
     # A valid source snapshot can legitimately contain zero eligible SDL
     # decisions. Treat that as an explicit empty state rather than indexing
@@ -5167,100 +5162,64 @@ def sector_analysis_news_provider() -> list[dict]:
 
 
 # ============================================================================
-# B4 ALERT DRAWER ADAPTER
+# B4 LIVE ALERT EVALUATION — PRESENTATION/ALERT LAYER ONLY
 # ============================================================================
 
-def _b4_default_rules() -> list[dict]:
-    """Approved compact B4 rules in the B3 canonical rule schema."""
-    return [
-        {"id": "b4-strong-breakout", "name": "Strong Breakout", "enabled": True, "priority": 90, "rearm": {"mode": "ON_CROSSING", "cooldown_seconds": 0}, "root": {"type": "condition", "field": "straddle.progress_pct", "operator": ">=", "value": 100.0}},
-        {"id": "b4-breakout", "name": "Breakout", "enabled": True, "priority": 80, "rearm": {"mode": "ON_CROSSING", "cooldown_seconds": 0}, "root": {"type": "condition", "field": "straddle.progress_pct", "operator": ">=", "value": 75.0}},
-        {"id": "b4-first-alert", "name": "First Alert", "enabled": True, "priority": 70, "rearm": {"mode": "ON_CROSSING", "cooldown_seconds": 0}, "root": {"type": "condition", "field": "straddle.progress_pct", "operator": ">=", "value": 25.0}},
-        {"id": "b4-futures-oi-spike", "name": "Futures OI Spike", "enabled": True, "priority": 85, "rearm": {"mode": "ON_CROSSING", "cooldown_seconds": 0}, "root": {"type": "condition", "field": "futures.oi_change", "operator": ">", "value": 100000.0}},
-        {"id": "b4-pcr-extreme", "name": "PCR Extreme", "enabled": True, "priority": 85, "rearm": {"mode": "ON_CROSSING", "cooldown_seconds": 0}, "root": {"type": "condition", "field": "options.pcr", "operator": ">", "value": 3.0}},
-        {"id": "b4-high-momentum", "name": "High Momentum", "enabled": False, "priority": 60, "rearm": {"mode": "ON_CROSSING", "cooldown_seconds": 0}, "root": {"type": "condition", "field": "price.change_pct", "operator": ">=", "value": 5.0}},
-    ]
+_B4_FIELD_MAP = {
+    "Futures OI Change": ("_futures_oi", "futures_oi_chg"),
+    "Futures OI Change %": ("futures_oi_chg_pct",),
+    "PE − CE OI Change": ("pe_minus_ce_oi_chg", "Tot PE-CE OI Chg"),
+    "PCR": ("pcr", "PCR", "PCR Ratio", "pcr_ratio"),
+    "Momentum %": ("momentum_pct", "momentum", "price_move_pct", "signed_price_move_pct"),
+    "Straddle Progress": ("progress",),
+    "Price Change %": ("price_move_pct", "signed_price_move_pct"),
+}
+
+def _b4_value(row, label):
+    for key in _B4_FIELD_MAP.get(label, ()): 
+        if key in row.index:
+            v=row.get(key)
+            if pd.notna(v):
+                try: return float(v)
+                except Exception: return v
+    return None
+
+def _b4_context(row, ts, day):
+    return {"symbol":str(row.get("symbol",row.get("Symbol",""))).strip().upper(),"trading_date":day,"observation_timestamp":pd.Timestamp(ts).isoformat(),"values":{k:_b4_value(row,k) for k in _B4_FIELD_MAP}}
+
+def _b4_compare(a,b,op):
+    if a is None or b is None: return False
+    try: a=float(a); b=float(b)
+    except Exception: pass
+    return {">":a>b,">=":a>=b,"<":a<b,"<=":a<=b,"=":a==b,"!=":a!=b}.get(op,False)
+
+def _b4_emit_alerts(pred: pd.DataFrame, observation_ts: pd.Timestamp) -> list[dict]:
+    if AlertStore is None or pred is None or pred.empty: return []
+    rules=_UI.get("alert_rules",[])
+    if not isinstance(rules,list) or not rules: return []
+    day=pd.Timestamp(observation_ts).date().isoformat(); prev=st.session_state.get("b4_alert_previous",{}); curmap={}; store=AlertStore(ALERT_STORE_FILE); emitted=[]
+    for _,row in pred.iterrows():
+        ctx=_b4_context(row,observation_ts,day); sym=ctx["symbol"]
+        if not sym: continue
+        old=prev.get(sym); curmap[sym]=ctx
+        for idx,rule in enumerate(rules):
+            if not rule.get("enabled",True): continue
+            field=rule.get("field"); op=rule.get("operator",">"); threshold=rule.get("value"); cv=ctx["values"].get(field); pv=(old or {}).get("values",{}).get(field) if old else None
+            if cv is None or not _b4_compare(cv,threshold,op): continue
+            # Edge-trigger threshold rules. If no previous point exists, require a
+            # genuine prior observation on the same dashboard session before firing.
+            if pv is None or _b4_compare(pv,threshold,op): continue
+            rule_id=f"b4-{re.sub(r'[^a-z0-9]+','-',str(rule.get('name','rule')).lower()).strip('-')}-{idx}"
+            alert_id=hashlib.sha1(f"{rule_id}|{sym}|{ctx['observation_timestamp']}".encode()).hexdigest()[:24]
+            event={"alert_id":alert_id,"rule_id":rule_id,"rule_name":str(rule.get("name","Alert rule")),"trading_date":day,"symbol":sym,"observation_timestamp":ctx["observation_timestamp"],"direction":row.get("direction_label"),"strength":row.get("strength"),"message":f"{field} {op} {float(threshold):g}","severity":"HIGH" if rule.get("name") in {"Futures OI Spike","PCR Extreme","Strong Breakout"} else "INFO","sound":bool(rule.get("sound",False)),"payload":ctx,"created_at":pd.Timestamp.utcnow().isoformat()}
+            if store.record_event(event): emitted.append(event)
+    st.session_state["b4_alert_previous"]=curmap
+    return emitted
 
 
-def _b4_rules_from_ui(ui_rules: list[dict] | None) -> list[dict]:
-    """Convert the compact drawer configuration into canonical B3 rules."""
-    defaults = {r["name"]: r for r in _b4_default_rules()}
-    field_map = {
-        "Futures OI Change": "futures.oi_change",
-        "Futures OI Change %": "futures.oi_change_pct",
-        "PE − CE OI Change": "options.pe_ce_oi_change",
-        "PCR": "options.pcr",
-        "Momentum %": "price.change_pct",
-        "Straddle Progress": "straddle.progress_pct",
-        "Price Change %": "price.change_pct",
-    }
-    rules = []
-    for raw in (ui_rules or []):
-        if not isinstance(raw, dict):
-            continue
-        name = str(raw.get("name") or "Alert rule")
-        base = dict(defaults.get(name) or {
-            "id": "b4-" + re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-"),
-            "name": name, "priority": 50,
-            "rearm": {"mode": "ON_CROSSING", "cooldown_seconds": 0},
-        })
-        field = field_map.get(str(raw.get("field")), "options.pcr")
-        operator = str(raw.get("operator") or ">")
-        if operator not in {"=", "!=", ">", ">=", "<", "<="}:
-            operator = ">"
-        try:
-            value = float(raw.get("value", 0))
-        except Exception:
-            value = 0.0
-        base["enabled"] = bool(raw.get("enabled", True))
-        base["sound"] = bool(raw.get("sound", False))
-        base["root"] = {"type": "condition", "field": field, "operator": operator, "value": value}
-        rules.append(base)
-    return rules or _b4_default_rules()
-
-
-def _evaluate_b4_live_alerts(pred: pd.DataFrame, data_ts: pd.Timestamp) -> None:
-    """Evaluate configured B4 rules against the authoritative LIVE snapshot only."""
-    if evaluate_snapshot is None or build_context is None or AlertStore is None:
-        return
-    if pred is None or pred.empty or pd.isna(data_ts):
-        return
-    try:
-        ui_rules = _UI.get("alert_rules", [])
-        if not isinstance(ui_rules, list) or not ui_rules:
-            # Materialize the approved defaults into the persistent UI settings.
-            ui_rules = [
-                {"name": r["name"], "field": {
-                    "straddle.progress_pct": "Straddle Progress",
-                    "futures.oi_change": "Futures OI Change",
-                    "options.pcr": "PCR",
-                    "price.change_pct": "Momentum %",
-                }.get(r["root"]["field"], "PCR"), "operator": r["root"]["operator"], "value": r["root"]["value"], "enabled": r.get("enabled", True), "sound": False}
-                for r in _b4_default_rules()
-            ]
-            _UI["alert_rules"] = ui_rules
-            save_ui_settings(alert_rules=ui_rules, alert_config_schema=5)
-        rules = _b4_rules_from_ui(ui_rules)
-        store = AlertStore(ALERT_STORE_FILE)
-        for rule in rules:
-            store.save_rule(rule, pd.Timestamp.now(tz=IST).isoformat())
-        trading_date = pd.Timestamp(data_ts).date().isoformat()
-        obs_ts = pd.Timestamp(data_ts).isoformat()
-        for _, row in pred.iterrows():
-            record = row.to_dict()
-            record["symbol"] = str(record.get("symbol") or record.get("Symbol") or "").strip().upper()
-            record["trading_date"] = trading_date
-            record["observation_timestamp"] = obs_ts
-            # The dashboard calls this displayed momentum; retain the exact
-            # underlying price-change field rather than inventing a new metric.
-            if "price_change_pct" not in record and "Price Chg %" in record:
-                record["price_change_pct"] = record.get("Price Chg %")
-            ctx = build_context(record, None, trading_date=trading_date, observation_timestamp=obs_ts)
-            evaluate_snapshot(rules, ctx, store=store)
-    except Exception:
-        # Alerts are strictly additive and must never interrupt the SDL board.
-        return
-
+# ============================================================================
+# B4 ALERT DRAWER ADAPTER
+# ============================================================================
 
 def _load_b4_alert_events(limit: int = 8) -> list[dict]:
     """Read bounded persisted B3 alert events for the B4 drawer only."""
@@ -5274,55 +5233,18 @@ def _load_b4_alert_events(limit: int = 8) -> list[dict]:
 
 
 def _render_b4_alert_drawer() -> None:
-    """Render the tiny header trigger without adding page-height content."""
-    if render_alert_drawer is None:
-        return
+    if render_alert_drawer is None: return
     try:
-        events = _load_b4_alert_events(8)
-        sound_enabled = bool(_UI.get("alert_sound_enabled", False))
-        sound_volume = float(_UI.get("alert_sound_volume", 0.35))
-        sound_tone = str(_UI.get("alert_sound_tone", "soft"))
-        alert_rules = _UI.get("alert_rules", [])
-        if not isinstance(alert_rules, list):
-            alert_rules = []
-
-        # Establish a session baseline on first render. Existing historical
-        # alerts must never sound merely because the dashboard was opened.
-        newest_id = str(events[0].get("alert_id", "")) if events else ""
-        baseline = st.session_state.get("sdl_alert_latest_id")
-        if baseline is None:
-            st.session_state.sdl_alert_latest_id = newest_id
-            new_alert = False
-        else:
-            new_alert = bool(newest_id and newest_id != str(baseline))
-            if newest_id:
-                st.session_state.sdl_alert_latest_id = newest_id
-
-        result = render_alert_drawer(
-            events,
-            sound_enabled=sound_enabled,
-            sound_volume=sound_volume,
-            sound_tone=sound_tone,
-            new_alert=new_alert,
-            rules=alert_rules,
-        )
-        if isinstance(result, dict):
-            _UI["alert_sound_enabled"] = bool(result.get("enabled", sound_enabled))
-            _UI["alert_sound_volume"] = float(result.get("volume", sound_volume))
-            _UI["alert_sound_tone"] = str(result.get("tone", sound_tone))
-            returned_rules = result.get("rules", alert_rules)
-            if isinstance(returned_rules, list):
-                _UI["alert_rules"] = returned_rules
-            save_ui_settings(
-                alert_sound_enabled=_UI["alert_sound_enabled"],
-                alert_sound_volume=_UI["alert_sound_volume"],
-                alert_sound_tone=_UI["alert_sound_tone"],
-                alert_rules=_UI.get("alert_rules", []),
-                alert_config_schema=5,
-            )
+        events=_load_b4_alert_events(8); sound_enabled=bool(_UI.get("alert_sound_enabled",False)); sound_volume=float(_UI.get("alert_sound_volume",0.35)); sound_tone=str(_UI.get("alert_sound_tone","soft")); rules=_UI.get("alert_rules",[])
+        if not isinstance(rules,list): rules=[]
+        newest_id=str(events[0].get("alert_id","")) if events else ""; baseline=st.session_state.get("sdl_alert_latest_id"); new_alert=bool(baseline is not None and newest_id and newest_id!=str(baseline));
+        if newest_id: st.session_state.sdl_alert_latest_id=newest_id
+        new_sound=bool(new_alert and events and events[0].get("sound",False))
+        result=render_alert_drawer(events,sound_enabled=sound_enabled,sound_volume=sound_volume,sound_tone=sound_tone,new_alert=new_alert,new_alert_sound=new_sound,rules=rules)
+        if isinstance(result,dict):
+            _UI.update({"alert_sound_enabled":bool(result.get("enabled",sound_enabled)),"alert_sound_volume":float(result.get("volume",sound_volume)),"alert_sound_tone":str(result.get("tone",sound_tone)),"alert_rules":result.get("rules",rules),"alert_config_schema":3})
+            save_ui_settings(alert_sound_enabled=_UI["alert_sound_enabled"],alert_sound_volume=_UI["alert_sound_volume"],alert_sound_tone=_UI["alert_sound_tone"],alert_rules=_UI["alert_rules"],alert_config_schema=3)
     except Exception:
-        # Alert UI is strictly non-blocking; the SDL dashboard remains usable
-        # even if the optional extension is unavailable or misconfigured.
         return
 
 
@@ -5413,16 +5335,12 @@ with header_cols[4]:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with header_cols[5]:
-    alert_cols = st.columns([1.55, 0.75], gap="small")
-    with alert_cols[0]:
-        st.markdown(
-            '<div class="header-control" style="display:flex;align-items:center;gap:4px;justify-content:center">'
-            '<div class="live-pill"><i></i> LIVE</div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-    with alert_cols[1]:
-        _render_b4_alert_drawer()
+    st.markdown(
+        '<div class="header-control" style="display:flex;align-items:center;justify-content:center">'
+        '<div class="live-pill"><i></i> LIVE</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 with header_cols[6]:
     now = datetime.now()
