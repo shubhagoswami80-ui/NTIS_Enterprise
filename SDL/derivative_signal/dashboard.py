@@ -26,6 +26,7 @@ from source_loader import (
 from storage import load_state, save_state as _storage_save_state
 from signal_engine import build_signal
 from decision_evidence import merge_evidence, enrich_decision
+from dashboard_evidence_bridge import build_live_evidence, resolve_alert_runtime
 
 STATE_KEY = "derivative_signal"
 STATE_JSON = Path(__file__).resolve().parent / "data" / "output" / "state" / "processing_state.json"
@@ -2812,6 +2813,62 @@ def _auto_process_new_snapshots(
                     result.attrs["retracement_isolated_error"] = str(exc)[:240]
             else:
                 result.attrs["retracement_disabled_for_live"] = True
+
+            # V12 additive evidence bridge. This runs only after the frozen SDL
+            # result and optional retracement layer have completed. It cannot
+            # remove, reorder, rank, qualify, or gate SDL rows.
+            try:
+                _pit_frames = [
+                    frame for key, frame in cached_snapshots.items()
+                    if str(key).startswith("logical::")
+                    and isinstance(frame, pd.DataFrame)
+                    and not frame.empty
+                ]
+                _pit_history = (
+                    pd.concat(_pit_frames, ignore_index=True)
+                    if _pit_frames else pd.DataFrame()
+                )
+                _alert_db = STATE_JSON.with_name("alerts.db")
+                _rules, _alert_store, _alert_build_context, _alert_evaluate_snapshot = (
+                    resolve_alert_runtime(
+                        dashboard_file=__file__,
+                        store_path=_alert_db if _alert_db.is_file() else None,
+                    )
+                )
+                _evidence_package = build_live_evidence(
+                    result=result,
+                    trading_date=str(trading_date),
+                    observation_timestamp=pd.Timestamp(timestamp),
+                    history_by_symbol=history_by_symbol,
+                    retracement_rows=result.to_dict(orient="records"),
+                    pit_history=_pit_history,
+                    historical_observations=_pit_history,
+                    pdna_rows=day.get("pdna_evidence"),
+                    alert_rules=_rules,
+                    previous_by_symbol=(
+                        {
+                            str(row.get("symbol", "")).upper(): row
+                            for row in previous
+                            if isinstance(row, dict) and str(row.get("symbol", "")).strip()
+                        }
+                        if isinstance(previous, list)
+                        else {}
+                    ),
+                    alert_build_context=_alert_build_context,
+                    alert_evaluate_snapshot=_alert_evaluate_snapshot,
+                    alert_store=_alert_store,
+                )
+                result.attrs["ntis_evidence_package"] = _evidence_package
+                st.session_state[
+                    f"_ntis_live_evidence::{trading_date}::{pd.Timestamp(timestamp).isoformat()}"
+                ] = _evidence_package
+            except Exception as exc:
+                # Evidence layers are strictly fault-isolated from the frozen
+                # decision path.
+                result.attrs["ntis_evidence_bridge_error"] = (
+                    f"{type(exc).__name__}: {exc}"[:240]
+                )
+
             result.attrs["replay_lifecycle_events"] = _point_lifecycle_from_state(
                 state, trading_date, _rank(result)
             )
