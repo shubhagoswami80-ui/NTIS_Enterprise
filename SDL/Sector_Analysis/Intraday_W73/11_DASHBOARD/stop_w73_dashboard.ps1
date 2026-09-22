@@ -1,59 +1,79 @@
-$ErrorActionPreference = "Stop"
-
-$root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+﻿$ErrorActionPreference = "Stop"
 $expectedPort=9005
-$pidFile = Join-Path $root "11_DASHBOARD\.runtime\w73_dashboard.pid.json"
+$W73Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$PidFile = Join-Path $W73Root "11_DASHBOARD\.runtime\w73_dashboard.pid.json"
 
-if (-not (Test-Path $pidFile)) {
-    Write-Host "W73 dashboard PID file not found. Nothing to stop."
+if (-not (Test-Path $PidFile)) {
+    Write-Host "W73_PID_FILE_NOT_FOUND"
     exit 0
 }
 
 try {
-    $record = Get-Content -Raw -Path $pidFile | ConvertFrom-Json
+    $state = Get-Content $PidFile -Raw | ConvertFrom-Json
 } catch {
-    throw "Unable to read W73 PID file: $pidFile"
+    Write-Host "REFUSING_TO_STOP_INVALID_PID_FILE"
+    exit 1
 }
 
-if (-not $record.pid) {
-    throw "W73 PID file does not contain a PID: $pidFile"
+$targetPid = [int]$state.pid
+if ($targetPid -le 0) {
+    Write-Host "REFUSING_TO_STOP_INVALID_PID"
+    exit 1
 }
 
-if ($record.port -and ([int]$record.port -ne $expectedPort)) {
-    throw "REFUSING_TO_STOP_UNEXPECTED_PORT: recorded port=$($record.port), expected port=$expectedPort"
-}
-
-$targetPid = [int]$record.pid
-
-try {
-    $process = Get-Process -Id $targetPid -ErrorAction Stop
-} catch {
-    Remove-Item $pidFile -Force
-    Write-Host "W73 dashboard process is not running. Stale PID file removed."
+$proc = Get-CimInstance Win32_Process -Filter "ProcessId=$targetPid"
+if (-not $proc) {
+    Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
+    Write-Host "W73_PROCESS_NOT_RUNNING"
     exit 0
 }
 
-$commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$targetPid" -ErrorAction SilentlyContinue).CommandLine
+$commandLine = [string]$proc.CommandLine
+$exePath = [string]$proc.ExecutablePath
 
-if (-not $commandLine) {
-    throw "REFUSING_TO_STOP_UNVERIFIED_PID: command line unavailable for PID $targetPid"
+if ($commandLine -notmatch 'Intraday_W73' -or
+    $commandLine -notmatch 'w73_dashboard\.py' -or
+    $commandLine -notmatch 'streamlit') {
+    Write-Host "REFUSING_TO_STOP_UNVERIFIED_PID=$targetPid"
+    exit 1
 }
 
-$dashboard = Join-Path $root "11_DASHBOARD\w73_dashboard.py"
+$descendantPids = @()
+$queue = @($targetPid)
 
-if ($commandLine -notlike "*$dashboard*") {
-    throw "REFUSING_TO_STOP_UNVERIFIED_PID: PID $targetPid is not the W73 dashboard process"
+while ($queue.Count -gt 0) {
+    $parentPid = [int]$queue[0]
+    if ($queue.Count -eq 1) { $queue = @() } else { $queue = @($queue[1..($queue.Count-1)]) }
+
+    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$parentPid")
+    foreach ($child in $children) {
+        $childPid = [int]$child.ProcessId
+        if ($childPid -ne $targetPid -and $descendantPids -notcontains $childPid) {
+            $descendantPids += $childPid
+            $queue += $childPid
+        }
+    }
 }
 
-if ($commandLine -notlike "*--server.port*") {
-    throw "REFUSING_TO_STOP_UNVERIFIED_PID: PID $targetPid is not a verified Streamlit W73 process"
+foreach ($childPid in ($descendantPids | Sort-Object -Descending)) {
+    try { Stop-Process -Id $childPid -Force -ErrorAction Stop } catch {}
 }
 
-if ($commandLine -notlike "*$expectedPort*") {
-    throw "REFUSING_TO_STOP_UNVERIFIED_PID: PID $targetPid is not running on port $expectedPort"
+try {
+    Stop-Process -Id $targetPid -Force -ErrorAction Stop
+} catch {
+    Write-Host "FAILED_TO_STOP_W73_PID=$targetPid"
+    exit 1
 }
 
-Stop-Process -Id $targetPid -Force
-Remove-Item $pidFile -Force
+Start-Sleep -Milliseconds 500
+$remaining = Get-CimInstance Win32_Process -Filter "ProcessId=$targetPid" -ErrorAction SilentlyContinue
+if ($remaining) {
+    Write-Host "W73_STOP_VERIFY_FAILED_PID=$targetPid"
+    exit 1
+}
 
-Write-Host "W73 dashboard stopped. PID=$targetPid Port=$expectedPort"
+Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
+Write-Host "W73_STOPPED_PID=$targetPid"
+
+

@@ -1,5 +1,5 @@
-﻿"""
-NTIS SDL Intraday W73 â€” Exact V8 Live Derivation v1
+"""
+NTIS SDL Intraday W73 — Exact V8 Live Derivation v1
 
 Purpose
 -------
@@ -115,7 +115,7 @@ def _num(v: Any) -> float | None:
     if _missing(v):
         return None
     try:
-        x = float(str(v).replace(",", "").replace("âˆ’", "-").replace("%", ""))
+        x = float(str(v).replace(",", "").replace("−", "-").replace("%", ""))
         return x if math.isfinite(x) else None
     except (TypeError, ValueError):
         return None
@@ -437,7 +437,9 @@ def build_exact_v8(
     if not price_rows:
         return ExactV8Result(
             "NOT_READY", symbol, trading_date, "", orb_minutes, maturity, {},
-            tuple(V8_COLUMNS), {}, {"W73-A": False, "W73-B": False},            ("NO_PRICE_STREAM",)
+            tuple(V8_COLUMNS), {}, {"W73-A": False, "W73-B": False},
+            {"NO_PRICE_STREAM": True},
+            ("NO_PRICE_STREAM",)
         )
 
     cutoff_time = MATURITY_CUTS[maturity]
@@ -591,5 +593,3 @@ def build_exact_v8(
         status, symbol, trading_date, obs_ts, orb_minutes, maturity,
         feature_vector, missing, traj, variants, tuple(warnings)
     )
-
-
