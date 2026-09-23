@@ -63,6 +63,8 @@ def to_ist(value):
 # NTIS SDL — FINAL CONSOLIDATED DECISION CENTRE
 #
 # CONTROLLED PRESENTATION-LAYER REPLACEMENT — 31-Aug-2026
+# CONTROLLED BUNDLE — First Alert durable-state restoration + Replay UI/performance
+# improvements. Frozen decision/scoring/replay point-in-time semantics remain unchanged.
 #
 # SDL/app.py and the existing SDL decision engine remain authoritative.
 # This file changes only dashboard presentation / controls / evidence views.
@@ -917,6 +919,19 @@ div[data-testid="stDataFrame"] *{font-size:11px!important}
 .st-key-replay_calendar_wrap div[data-testid="stButton"] button p { color:#eef5ff!important; font-size:8px!important; }
 
 
+/* CONTROLLED REPLAY PERFORMANCE / READABILITY BUNDLE — 23-Sep-2026 */
+.replay-selected-time{
+  margin:4px 0 6px!important;padding:6px 9px!important;
+  background:#0b1b30!important;border:1px solid #2b4c70!important;border-radius:6px!important;
+  color:#a9bdd5!important;font-size:9px!important;line-height:1.2!important;
+  letter-spacing:.03em!important;
+}
+.replay-selected-time b{color:#f0f6ff!important;font-size:11px!important;}
+.st-key-replay_change_day button{
+  min-height:28px!important;height:28px!important;padding:3px 8px!important;
+  font-size:9px!important;font-weight:800!important;
+}
+
 /* FINAL COMPACT REPLAY LAYOUT v2 */
 .st-key-replay_calendar_panel{margin-bottom:4px!important;}
 .st-key-replay_calendar_panel div[data-testid="stExpander"]{margin:0!important;}
@@ -1633,6 +1648,28 @@ def _enrich_snapshot_from_day_cache(df: pd.DataFrame, evidence: pd.DataFrame) ->
 
 
 @st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
+def _replay_date_index() -> tuple[str, ...]:
+    """Return replay trading days from the read-only Daywise source index.
+
+    UI-only performance cache. It never supplies snapshot contents or Replay
+    data; exact selected-day files are still resolved through snapshot_files().
+    """
+    grouped: set[str] = set()
+    try:
+        paths = discover_historical_snapshots(None)
+    except Exception:
+        paths = []
+    for raw_path in paths or []:
+        try:
+            ts = observation_ts(Path(raw_path))
+            if pd.notna(ts):
+                grouped.add(pd.Timestamp(ts).date().isoformat())
+        except Exception:
+            continue
+    return tuple(sorted(grouped, reverse=True))
+
+
 def _calendar_month_day_files(selected_month: str) -> dict[str, list[Path]]:
     """Load source files once for the selected calendar month."""
     month = str(selected_month)[:7]
@@ -1667,8 +1704,13 @@ def _calendar_month_day_files(selected_month: str) -> dict[str, list[Path]]:
     return grouped
 
 
+@st.cache_data(ttl=5, show_spinner=False)
 def _day_cache_summary(trading_date: str, files=None) -> dict:
-    """Read persistent base-snapshot and independent Futures status."""
+    """Read persistent base-snapshot and independent Futures status.
+
+    Five-second UI cache reduces calendar rerun cost without masking a build
+    completion for long periods. Replay point selection itself remains uncached.
+    """
     day = str(trading_date)[:10]
     files = list(files) if files is not None else snapshot_files(day)
     source_keys = []
@@ -1801,7 +1843,15 @@ def build_day_point_in_time_cache(trading_date: str, progress_callback=None) -> 
                 day, loaded_ts, force_refresh=True
             )
 
-            pred = candidates(raw, base or {}, snapshot_ts=loaded_ts, snapshot_path=None)
+            pred = candidates(
+                raw,
+                base or {},
+                snapshot_ts=loaded_ts,
+                snapshot_path=None,
+                first_alert_signature=_first_alert_source_signature(
+                    pd.Timestamp(loaded_ts).date().isoformat()
+                ),
+            )
             pred, evidence = _merge_snapshot_evidence(
                 pred, option_ev, future_ev
             ) if "_merge_snapshot_evidence" in globals() else (
@@ -1999,15 +2049,25 @@ def _first_alert_source_signature(trading_date: str | None) -> tuple:
         if pd.notna(ts):
             entries.append((str(path), pd.Timestamp(ts).isoformat(), mtime_ns, size))
 
-    state_path = Path(STATE_JSON)
+    state_paths = [Path(STATE_JSON)]
+    # Some SDL runtime deployments persist carried alert provenance in the
+    # dashboard directory as processing_state.json. Treat it as an additional
+    # durable source, never as a generated/current-observation fallback.
+    sibling_processing_state = Path(__file__).resolve().parent / "processing_state.json"
+    if sibling_processing_state not in state_paths:
+        state_paths.append(sibling_processing_state)
+
+    state_sig_parts = []
+    for state_path in state_paths:
+        try:
+            stt = state_path.stat()
+            state_sig_parts.append((str(state_path), int(stt.st_mtime_ns), int(stt.st_size)))
+        except Exception:
+            state_sig_parts.append((str(state_path), 0, 0))
+    state_sig = tuple(state_sig_parts)
+
     evidence_path = Path(REQUIRED_EVIDENCE_DIR) / f"{day}.csv"
-    state_sig = (0, 0)
     evidence_sig = (0, 0)
-    try:
-        stt = state_path.stat()
-        state_sig = (int(stt.st_mtime_ns), int(stt.st_size))
-    except Exception:
-        pass
     try:
         ett = evidence_path.stat()
         evidence_sig = (int(ett.st_mtime_ns), int(ett.st_size))
@@ -2042,46 +2102,117 @@ def _first_alert_map_cached(
     result: dict[str, pd.Timestamp] = {}
 
     # ------------------------------------------------------------------
-    # 1) Durable SDL first_alerts state — established carried provenance.
+    # 1) Durable SDL first-alert state — established carried provenance.
     # ------------------------------------------------------------------
+    # Runtime variants exist for the durable state layout. In particular,
+    # processing_state.json can store: trading_day -> symbol ->
+    # first_alert_timestamp. Read those exact carried timestamps and validate
+    # them against real Daywise observations before displaying them.
+    state_candidates = []
     try:
-        state = load_state(STATE_JSON)
+        state_candidates.append(load_state(STATE_JSON))
     except Exception:
-        state = {}
+        state_candidates.append({})
 
-    day_state = (
-        state.get("first_alerts", {}).get(str(trading_date)[:10], {})
-        if isinstance(state, dict)
-        else {}
+    sibling_processing_state = Path(__file__).resolve().parent / "processing_state.json"
+    if sibling_processing_state.exists() and sibling_processing_state != Path(STATE_JSON):
+        try:
+            raw_processing = json.loads(
+                sibling_processing_state.read_text(encoding="utf-8")
+            )
+            if isinstance(raw_processing, dict):
+                state_candidates.append(raw_processing)
+        except Exception:
+            pass
+
+    def _first_alert_day_maps(state: dict) -> list[dict]:
+        if not isinstance(state, dict):
+            return []
+        day = str(trading_date)[:10]
+        maps = []
+
+        # Established SDL first_alerts layouts.
+        first_alerts = state.get("first_alerts")
+        if isinstance(first_alerts, dict) and isinstance(first_alerts.get(day), dict):
+            maps.append(first_alerts.get(day))
+
+        per_day = state.get(day)
+        if isinstance(per_day, dict):
+            if isinstance(per_day.get("first_alerts"), dict):
+                maps.append(per_day.get("first_alerts"))
+            # processing_state.json layout: day -> symbol -> payload.
+            maps.append(per_day)
+
+        decision_state = state.get("decision_state")
+        if isinstance(decision_state, dict):
+            ds_day = decision_state.get(day)
+            if isinstance(ds_day, dict):
+                if isinstance(ds_day.get("first_alerts"), dict):
+                    maps.append(ds_day.get("first_alerts"))
+                maps.append(ds_day)
+
+        processing_state = state.get("processing_state")
+        if isinstance(processing_state, dict):
+            ps_day = processing_state.get(day)
+            if isinstance(ps_day, dict):
+                maps.append(ps_day.get("first_alerts", ps_day))
+
+        return [item for item in maps if isinstance(item, dict)]
+
+    alert_aliases = (
+        "first_alert_timestamp",
+        "first_trigger_timestamp",
+        "first_alert_time",
+        "first_seen_timestamp",
+        "first_detection_timestamp",
+        "trigger_timestamp",
+        "decision_timestamp",
+        "alert_timestamp",
+        "alert_time",
+        "timestamp",
     )
-    # Some SDL state layouts store first_alerts under the per-day state.
-    if not isinstance(day_state, dict) or not day_state:
-        day_state = (
-            state.get(str(trading_date)[:10], {}).get("first_alerts", {})
-            if isinstance(state, dict) and isinstance(state.get(str(trading_date)[:10]), dict)
-            else {}
-        )
-    if not isinstance(day_state, dict) or not day_state:
-        day_state = (
-            state.get("decision_state", {}).get(str(trading_date)[:10], {}).get("first_alerts", {})
-            if isinstance(state, dict) and isinstance(state.get("decision_state"), dict)
-            else {}
-        )
 
-    if isinstance(day_state, dict):
-        for symbol, payload in day_state.items():
-            symbol = str(symbol).strip().upper()
-            if not symbol:
-                continue
-            raw_ts = payload.get("timestamp") if isinstance(payload, dict) else payload
-            ts = pd.to_datetime(raw_ts, errors="coerce")
-            if pd.isna(ts):
-                continue
-            if not _matches_source_snapshot(ts, source_times):
-                continue
-            if cutoff is not None and ts > cutoff:
-                continue
-            result[symbol] = pd.Timestamp(ts)
+    for state in state_candidates:
+        for day_map in _first_alert_day_maps(state):
+            for symbol, payload in day_map.items():
+                symbol = str(symbol).strip().upper()
+                if not symbol or symbol in {"FIRST_ALERTS", "SYMBOLS", "META"}:
+                    continue
+
+                raw_ts = None
+                if isinstance(payload, dict):
+                    for alias in alert_aliases:
+                        if alias in payload:
+                            raw_ts = payload.get(alias)
+                            break
+                else:
+                    raw_ts = payload
+
+                ts = pd.to_datetime(raw_ts, errors="coerce")
+                if pd.isna(ts):
+                    continue
+                # IMPORTANT: first_alert_timestamp is the durable event
+                # timestamp. It is NOT required to equal the timestamp of the
+                # snapshot whose row currently carries the state. Historical
+                # state proves this: e.g. HAVELLS 09:28:38 can be carried by
+                # a later 13:37:27 snapshot. Requiring exact source-file time
+                # equality suppresses valid First Alert values.
+                #
+                # Source integrity is preserved by requiring the timestamp to
+                # belong to the same trading day and to be within the observed
+                # source-session time range when source observations exist.
+                if pd.Timestamp(ts).date().isoformat() != str(trading_date)[:10]:
+                    continue
+                if source_times:
+                    earliest_source = min(source_times)
+                    latest_source = max(source_times)
+                    if ts < earliest_source or ts > latest_source:
+                        continue
+                if cutoff is not None and ts > cutoff:
+                    continue
+                # Earlier durable state is retained; later sources cannot
+                # overwrite an already-established carried timestamp.
+                result.setdefault(symbol, pd.Timestamp(ts))
 
     # ------------------------------------------------------------------
     # 2) Required evidence — secondary carried source, never a generator.
@@ -2114,10 +2245,22 @@ def _first_alert_map_cached(
                 & e["_alert_timestamp"].notna()
                 & (e["_alert_timestamp"] <= e["observation_timestamp"])
             ]
+            # The observation timestamp must be a real source observation.
+            # The First Alert timestamp itself may be between snapshot file
+            # timestamps; it is an event timestamp carried by durable state,
+            # not necessarily the timestamp encoded in the later evidence row.
             e = e[
                 e["observation_timestamp"].map(lambda x: _matches_source_snapshot(x, source_times))
-                & e["_alert_timestamp"].map(lambda x: _matches_source_snapshot(x, source_times))
             ]
+            e = e[
+                e["_alert_timestamp"].dt.date.astype(str).eq(str(trading_date)[:10])
+            ]
+            if source_times and not e.empty:
+                earliest_source = min(source_times)
+                latest_source = max(source_times)
+                e = e[
+                    e["_alert_timestamp"].between(earliest_source, latest_source, inclusive="both")
+                ]
             if cutoff is not None:
                 e = e[e["_alert_timestamp"] <= cutoff]
             if not e.empty:
@@ -2243,6 +2386,222 @@ def breakout_event_map(
 
     return source_breakouts
 
+def _reconstruct_first_alert_map_from_replay(
+    trading_date: str | None,
+    cutoff_ts: pd.Timestamp | None,
+    current_df: pd.DataFrame | None = None,
+    current_snapshot_ts: pd.Timestamp | None = None,
+) -> dict[str, pd.Timestamp]:
+    """Reconstruct missing First Alert provenance from chronological SDL points.
+
+    The opening/base snapshot is deliberately excluded: it establishes the
+    frozen opening base and is not itself a First Alert.  From the first
+    subsequent source point onward, the first timestamp at which a symbol is
+    present in the existing decision-candidate dataframe is retained.  That
+    timestamp is then carried forward to later points while the symbol remains
+    in the current candidate/queue dataset.
+
+    This is presentation/provenance reconstruction only.  It does not alter
+    the SDL decision engine, candidate gates, scoring, or replay chronology.
+    """
+    if not trading_date:
+        return {}
+
+    day = str(trading_date)[:10]
+    cutoff = pd.to_datetime(cutoff_ts, errors="coerce") if cutoff_ts is not None else pd.NaT
+    if pd.isna(cutoff):
+        cutoff = None
+
+    result: dict[str, pd.Timestamp] = {}
+
+    # First use the already persisted chronological replay cache.  This makes
+    # First Alert stable across reruns and does not require recalculating source
+    # workbooks.
+    try:
+        cache = _load_day_point_cache()
+        day_cache = cache.get(day, {}) if isinstance(cache, dict) else {}
+        entries = day_cache.get("snapshots", {}) if isinstance(day_cache.get("snapshots", {}), dict) else {}
+    except Exception:
+        entries = {}
+
+    ordered = []
+    for key, entry in entries.items():
+        if not isinstance(entry, dict) or not isinstance(entry.get("pred"), pd.DataFrame):
+            continue
+        ts = pd.to_datetime(entry.get("timestamp", key), errors="coerce")
+        if pd.isna(ts) or ts.date().isoformat() != day:
+            continue
+        if cutoff is not None and ts > cutoff:
+            continue
+        ordered.append((pd.Timestamp(ts), entry.get("pred")))
+    ordered.sort(key=lambda item: item[0])
+
+    # The earliest point is the frozen opening/base observation and is never an
+    # alert source.  Subsequent candidate observations are eligible.
+    if ordered:
+        base_ts = ordered[0][0]
+        for ts, pred in ordered[1:]:
+            if "symbol" not in pred.columns:
+                continue
+            for symbol in pred["symbol"].astype(str).str.strip().str.upper():
+                if symbol and symbol not in {"NAN", "NONE"} and symbol not in result:
+                    result[symbol] = ts
+
+    # Include the currently evaluated point because it is not yet persisted in
+    # the day cache while candidates() is executing.  This removes the previous
+    # one-snapshot lag in First Alert reconstruction.
+    if (
+        isinstance(current_df, pd.DataFrame)
+        and not current_df.empty
+        and "symbol" in current_df.columns
+        and current_snapshot_ts is not None
+    ):
+        current_ts = pd.to_datetime(current_snapshot_ts, errors="coerce")
+        if pd.notna(current_ts) and current_ts.date().isoformat() == day:
+            # Never treat the opening/base point as an alert.
+            is_base = bool(ordered and current_ts <= ordered[0][0])
+            if not is_base and (cutoff is None or current_ts <= cutoff):
+                for symbol in current_df["symbol"].astype(str).str.strip().str.upper():
+                    if symbol and symbol not in {"NAN", "NONE"} and symbol not in result:
+                        result[symbol] = pd.Timestamp(current_ts)
+
+    return result
+
+
+
+def _frame_symbols(frame: pd.DataFrame) -> list[str]:
+    """Return canonical symbols from a cached/live decision frame.
+
+    Replay cache entries from different SDL revisions may expose either the
+    dashboard ``symbol`` column or the original pipeline ``Symbol`` column.
+    First Alert reconstruction must understand both layouts.
+    """
+    if not isinstance(frame, pd.DataFrame) or frame.empty:
+        return []
+    column = next(
+        (name for name in ("symbol", "Symbol", "STOCK", "Stock") if name in frame.columns),
+        None,
+    )
+    if column is None:
+        return []
+    values = frame[column].astype(str).str.strip().str.upper()
+    return [
+        value for value in values.tolist()
+        if value and value not in {"NAN", "NONE", "NA", "<NA>"}
+    ]
+
+
+def _first_alert_map_from_chronological_cache(
+    trading_date: str | None,
+    cutoff_ts: pd.Timestamp | None = None,
+) -> dict[str, pd.Timestamp]:
+    """Build the carried First Alert map from the persisted point-in-time cache.
+
+    Contract:
+      * the first Daywise snapshot is the frozen BASE and can never create an alert;
+      * the first subsequent cached snapshot containing a symbol in the existing
+        SDL decision dataset becomes that symbol's First Alert;
+      * once established, that timestamp is carried to later snapshots;
+      * durable First Alert state remains authoritative when it exists;
+      * this function never evaluates or changes SDL gates/scoring.
+    """
+    if not trading_date:
+        return {}
+
+    day = str(trading_date)[:10]
+    cutoff = pd.to_datetime(cutoff_ts, errors="coerce") if cutoff_ts is not None else pd.NaT
+    if pd.isna(cutoff):
+        cutoff = None
+
+    # Start with durable provenance.  This preserves any already-established
+    # event timestamp and lets reconstruction fill only genuine gaps.
+    result = dict(first_alert_map(day, cutoff))
+
+    try:
+        cache = _load_day_point_cache()
+        day_cache = cache.get(day, {}) if isinstance(cache, dict) else {}
+        entries = day_cache.get("snapshots", {}) if isinstance(day_cache, dict) else {}
+    except Exception:
+        entries = {}
+
+    if not isinstance(entries, dict) or not entries:
+        return result
+
+    ordered: list[tuple[pd.Timestamp, pd.DataFrame]] = []
+    for key, entry in entries.items():
+        if not isinstance(entry, dict) or not isinstance(entry.get("pred"), pd.DataFrame):
+            continue
+        ts = pd.to_datetime(entry.get("timestamp", key), errors="coerce")
+        if pd.isna(ts) or ts.date().isoformat() != day:
+            continue
+        ts = pd.Timestamp(ts)
+        if cutoff is not None and ts > cutoff:
+            continue
+        ordered.append((ts, entry["pred"]))
+
+    ordered.sort(key=lambda item: item[0])
+    if len(ordered) <= 1:
+        return result
+
+    # The earliest source point is BASE only.  Never create First Alert from it.
+    for ts, pred in ordered[1:]:
+        for symbol in _frame_symbols(pred):
+            result.setdefault(symbol, ts)
+
+    return result
+
+
+def _attach_first_alert_provenance(
+    df: pd.DataFrame,
+    trading_date: str | None,
+    cutoff_ts: pd.Timestamp | None = None,
+) -> pd.DataFrame:
+    """Attach the same carried First Alert to every current decision row.
+
+    This is deliberately a presentation/provenance layer.  It is applied after
+    reading persisted LIVE/Replay cache entries as well as to newly-built rows,
+    because those persisted entries may have been created before First Alert
+    display reconstruction existed.
+    """
+    if df is None or df.empty or not trading_date:
+        return df
+
+    out = df.copy()
+    symbol_col = next(
+        (name for name in ("symbol", "Symbol", "STOCK", "Stock") if name in out.columns),
+        None,
+    )
+    if symbol_col is None:
+        return out
+
+    first_map = _first_alert_map_from_chronological_cache(trading_date, cutoff_ts)
+    if not first_map:
+        return out
+
+    symbols = out[symbol_col].astype(str).str.strip().str.upper()
+    carried = symbols.map(first_map)
+
+    # Preserve an already-valid explicit timestamp; only fill the historical
+    # gaps that caused the dashboard's blank First Alert cells.
+    existing = pd.to_datetime(
+        out.get("first_trigger_timestamp", pd.Series(pd.NaT, index=out.index)),
+        errors="coerce",
+    )
+    existing = existing.where(existing.notna(), pd.to_datetime(
+        out.get("first_alert_timestamp", pd.Series(pd.NaT, index=out.index)),
+        errors="coerce",
+    ))
+    merged = existing.where(existing.notna(), carried)
+
+    if cutoff_ts is not None and pd.notna(cutoff_ts):
+        cutoff = pd.Timestamp(cutoff_ts)
+        merged = merged.mask(pd.to_datetime(merged, errors="coerce") > cutoff, pd.NaT)
+
+    out["first_trigger_timestamp"] = pd.to_datetime(merged, errors="coerce")
+    out["first_alert_timestamp"] = out["first_trigger_timestamp"]
+    return out
+
+
 def add_first_times(
     df: pd.DataFrame,
     trading_date: str | None = None,
@@ -2251,9 +2610,30 @@ def add_first_times(
     if df is None or df.empty:
         return df
     out = df.copy()
-    out["first_trigger_timestamp"] = out["symbol"].map(
-        first_alert_map(trading_date, cutoff_ts)
+    first_map = first_alert_map(trading_date, cutoff_ts)
+
+    # Durable state is authoritative when present.  If durable state is absent
+    # for a symbol, reconstruct its first qualifying post-base observation from
+    # the chronological replay cache/current point.  This is the missing bridge
+    # that caused First Alert to remain blank while First Breakout was populated.
+    reconstructed = _reconstruct_first_alert_map_from_replay(
+        trading_date,
+        cutoff_ts,
+        current_df=out,
+        current_snapshot_ts=(
+            pd.to_datetime(out["observation_timestamp"], errors="coerce").dropna().iloc[0]
+            if "observation_timestamp" in out.columns
+            and not pd.to_datetime(out["observation_timestamp"], errors="coerce").dropna().empty
+            else None
+        ),
     )
+    for symbol, ts in reconstructed.items():
+        first_map.setdefault(symbol, ts)
+
+    out["first_trigger_timestamp"] = out["symbol"].map(first_map)
+    # Keep the durable field name available to every presentation path.
+    # first_trigger_timestamp remains the canonical dashboard display alias.
+    out["first_alert_timestamp"] = out["first_trigger_timestamp"]
     out["breakout_timestamp"] = out["symbol"].map(
         breakout_event_map(trading_date, cutoff_ts)
     )
@@ -2328,6 +2708,7 @@ def candidates(
     base: dict | None = None,
     snapshot_ts: pd.Timestamp | None = None,
     snapshot_path: Path | None = None,
+    first_alert_signature: tuple | None = None,
 ) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
@@ -3900,7 +4281,13 @@ def replay_snapshot_frame(
                 except Exception:
                     pass
 
-        return pred, pd.Timestamp(entry.get("timestamp", ts))
+        replay_return_ts = pd.Timestamp(entry.get("timestamp", ts))
+        pred = _attach_first_alert_provenance(
+            pred,
+            day,
+            replay_return_ts,
+        )
+        return pred, replay_return_ts
 
     # Explicit cache build is the normal path. This fallback is intentionally
     # one-point only so selecting an uncached point can never silently rebuild
@@ -3923,10 +4310,19 @@ def replay_snapshot_frame(
             base = frozen_base_from_df(derive_straddle_values(first_df))
 
     raw = derive_straddle_values(df)
-    pred = candidates(raw, base or {}, snapshot_ts=loaded_ts, snapshot_path=None)
+    pred = candidates(
+                raw,
+                base or {},
+                snapshot_ts=loaded_ts,
+                snapshot_path=None,
+                first_alert_signature=_first_alert_source_signature(
+                    pd.Timestamp(loaded_ts).date().isoformat()
+                ),
+            )
     option_ev = _day_option_evidence(raw)
     future_ev = _read_ivrp_for_timestamp(day, loaded_ts)
     pred, _ = _merge_snapshot_evidence(pred, option_ev, future_ev)
+    pred = _attach_first_alert_provenance(pred, day, loaded_ts)
     return pred, loaded_ts
 
 def _load_day_cache_build_state() -> dict:
@@ -4175,14 +4571,7 @@ def replay_view() -> None:
             st.info("No Daywise snapshots are available for replay.")
             return
 
-        date_values = sorted(
-            {
-                observation_ts(p).date().isoformat()
-                for p in files
-                if pd.notna(observation_ts(p))
-            },
-            reverse=True,
-        )
+        date_values = list(_replay_date_index())
         if not date_values:
             st.info("No snapshots have a valid observation timestamp for replay.")
             return
@@ -4200,13 +4589,25 @@ def replay_view() -> None:
             st.session_state["replay_day"] = day
             st.session_state["replay_snapshot_index"] = 0
 
-        left_col, right_col = st.columns([0.40, 0.60], gap="small")
+        if "replay_calendar_open" not in st.session_state:
+            st.session_state["replay_calendar_open"] = True
+
+        left_col, right_col = st.columns([0.24, 0.76], gap="small")
 
         with left_col:
+            if not bool(st.session_state.get("replay_calendar_open", True)):
+                if st.button(
+                    "📅 Change Day",
+                    key="replay_change_day",
+                    use_container_width=True,
+                ):
+                    st.session_state["replay_calendar_open"] = True
+                    st.rerun()
+
             with st.container(key="replay_calendar_panel"):
                 with st.expander(
-                    "REPLAY CALENDAR · click to expand / collapse",
-                    expanded=False,
+                    "REPLAY CALENDAR",
+                    expanded=bool(st.session_state.get("replay_calendar_open", True)),
                 ):
                     selected_month = st.selectbox(
                         "Replay month",
@@ -4270,6 +4671,7 @@ def replay_view() -> None:
                                     ):
                                         st.session_state["replay_day"] = day_value
                                         st.session_state["replay_snapshot_index"] = 0
+                                        st.session_state["replay_calendar_open"] = False
                                         st.rerun()
 
                                     # Calendar is intentionally status-only.
@@ -4325,7 +4727,7 @@ def replay_view() -> None:
             with st.container(key="replay_day_info_panel"):
                 st.markdown(
                     f'<div class="replay-day-heading">'
-                    f'<span>SELECTED DAY</span>'
+                    f'<span>REPLAY DAY</span>'
                     f'<b>{pd.Timestamp(day).strftime("%A · %d %b %Y")}</b>'
                     f'</div>',
                     unsafe_allow_html=True,
@@ -4379,9 +4781,12 @@ def replay_view() -> None:
                 path = day_files[int(selected_idx)]
                 pred, ts = replay_snapshot_frame(path, observation_ts(path))
 
+                # The selector is intentionally time-only. The source filename
+                # remains internal and is never presented in the Replay UI.
                 replay_ts_text = fmt_time(ts, full=True)
-                st.caption(
-                    f"Replay snapshot: {replay_ts_text} · source: {path.name}"
+                st.markdown(
+                    f'<div class="replay-selected-time">SELECTED SNAPSHOT · <b>{safe_text(replay_ts_text)}</b></div>',
+                    unsafe_allow_html=True,
                 )
 
                 _fut_cols = [
@@ -4589,6 +4994,9 @@ def _build_live_prediction_from_source(path: Path):
         base or {},
         snapshot_ts=ts,
         snapshot_path=None,
+        first_alert_signature=_first_alert_source_signature(
+            pd.Timestamp(ts).date().isoformat()
+        ),
     )
 
     option_ev = _day_option_evidence(raw)
@@ -4635,8 +5043,8 @@ def _build_live_prediction_from_source(path: Path):
         "source_count": len(snapshot_files(day)),
     }
     _save_day_point_cache(cache)
+    pred = _apply_first_alert_provenance(pred, day, ts)
     _save_persisted_live_snapshot(path, ts, pred, f"Source session: {day}")
-
     pred = _apply_live_futures_delay_policy(
         pred,
         ts,
@@ -4754,9 +5162,14 @@ def latest_live() -> tuple[
                     if persisted.get("source_path")
                     else None
                 )
+                pred = _attach_first_alert_provenance(
+                    persisted["pred"],
+                    ts.date().isoformat() if pd.notna(ts) else None,
+                    ts if pd.notna(ts) else None,
+                )
                 return (
                     path,
-                    persisted["pred"],
+                    pred,
                     ts,
                     "No Daywise source is currently available.",
                 )
@@ -4787,6 +5200,11 @@ def latest_live() -> tuple[
             and isinstance(persisted.get("pred"), pd.DataFrame)
         ):
             pred = persisted["pred"].copy()
+            pred = _attach_first_alert_provenance(
+                pred,
+                pd.Timestamp(latest_ts).date().isoformat(),
+                pd.Timestamp(latest_ts),
+            )
             futures = _read_ivrp_for_timestamp(
                 pd.Timestamp(latest_ts).date().isoformat(),
                 pd.Timestamp(latest_ts),
