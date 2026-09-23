@@ -48,6 +48,8 @@ def read_workbook(path: Path, ts: datetime) -> list[dict]:
             r["_trading_date"]=ts.strftime("%Y-%m-%d")
             r["_observation_timestamp"]=ts.isoformat(timespec="seconds")
             r["_source_file"]=path.name
+            # Daywise Price/OI source is the futures observation family for W73.
+            r["family"]="FUTURES"
             result.append(r)
         return result
     finally:

@@ -170,7 +170,7 @@ def _sign_state(v: Any) -> str | None:
 
 
 def _family(row: Mapping[str, Any]) -> str:
-    return str(row.get("family", row.get("source_family", "OPTIONS"))).upper()
+    return str(row.get("family", row.get("source_family", "FUTURES"))).upper()
 
 
 def canonicalize_row(row: Mapping[str, Any]) -> dict[str, Any]:

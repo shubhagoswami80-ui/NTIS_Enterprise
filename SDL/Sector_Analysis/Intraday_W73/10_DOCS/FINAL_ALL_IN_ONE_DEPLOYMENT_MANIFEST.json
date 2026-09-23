@@ -1,0 +1,15 @@
+{
+  "bundle": "NTIS_Intraday_W73_FINAL_ALL_IN_ONE_DEPLOYMENT_v2",
+  "purpose": "Single deployment bundle for the currently validated W73 local baseline.",
+  "target_root": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73",
+  "backup_required": true,
+  "source_basis": "NTIS_Intraday_W73_FINAL_SINGLE_REPLACEMENT_v1 plus corrected stop_w73_dashboard.ps1",
+  "validated_baseline": "57 pytest tests passed; exact V8 engine py_compile passed",
+  "port": 9005,
+  "orb_status": "EXACT_ORB_SOURCE_NOT_PROVEN; fail-closed behavior retained",
+  "production_sdl_dashboard_modified": false,
+  "actions": {
+    "new_or_updated_files": "Deploy the bundle over the W73 root after making a timestamped full-root backup.",
+    "do_not_overwrite_production_sdl": true
+  }
+}

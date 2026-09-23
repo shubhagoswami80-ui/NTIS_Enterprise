@@ -103,3 +103,38 @@ NTIS/similarity_core/integration/hmme_dataset_importer_1.py
 NTIS/similarity_core/integration/production_runtime4.py
 NTIS/Intraday/INSTALL_NOTES.txt
 NTIS/Intraday - Copy/
+
+##############################
+### Sector Itelgence##
+/.sector_intelligence
+SDL/Sector_Analysis/.sector_intelligence/*.json
+SDL/Sector_Analysis/.md
+SDL/Sector_Analysis/_Pycache_/* 
+
+####################
+
+SDL/Sector_Analysis/Intraday_W73/.cache
+# W73 runtime/generated state
+SDL/Sector_Analysis/Intraday_W73/.cache/
+SDL/Sector_Analysis/Intraday_W73/07_OUTPUT/live_cache/
+SDL/Sector_Analysis/Intraday_W73/11_DASHBOARD/.runtime/
+SDL/Sector_Analysis/Intraday_W73/07_OUTPUT/orb_source_capability_audit_v1.json
+SDL/Sector_Analysis/Intraday_W73/07_OUTPUT/orb_source_sample_observations.csv
+SDL/Sector_Analysis/Intraday_W73/07_OUTPUT/real_source_runtime_validation_v1.json
+SDL/Sector_Analysis/Intraday_W73/07_OUTPUT/w73_full_source_orb_gate_v1.json
+
+# Global runtime/cache governance
+ReportGenration/DownloaderPortal/browser_profile/
+SDL/.performance_diagnostic/
+SDL/.sdl_dashboard_settings.json
+SDL/.sdl_day_cache_build_state.json
+SDL/.sdl_day_point_in_time_cache.pkl
+SDL/.sdl_live_futures_state.pkl
+SDL/.sdl_processed_live_snapshot.pkl
+SDL/.sdl_preview_runtime/
+SDL/.sdl_runtime/
+SDL/function_timings.jsonl
+SDL/Sector_Analysis/Intraday_W73_BACKUP_*/
+SDL/derivative_signal/data/output/state/replay_cache/
+SDL/derivative_signal/retracement_runtime/
+SDL/derivative_signal/ntis_dashboard_evidence/

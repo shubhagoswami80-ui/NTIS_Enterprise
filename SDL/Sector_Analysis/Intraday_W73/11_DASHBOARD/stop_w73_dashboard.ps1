@@ -1,5 +1,6 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 $expectedPort=9005
+
 $W73Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $PidFile = Join-Path $W73Root "11_DASHBOARD\.runtime\w73_dashboard.pid.json"
 
@@ -75,5 +76,3 @@ if ($remaining) {
 
 Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
 Write-Host "W73_STOPPED_PID=$targetPid"
-
-

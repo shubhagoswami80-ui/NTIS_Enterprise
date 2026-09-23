@@ -1,0 +1,30 @@
+{
+  "bundle": "NTIS_Intraday_W73_FINAL_ORB_LIVE_COMPLETION_v1",
+  "target_root": "E:\\NSE_Daily_Analysis\\SDL\\Sector_Analysis\\Intraday_W73",
+  "action": "OVERLAY_REPLACE_EXISTING_FILES_AFTER_FULL_ROOT_BACKUP",
+  "base_bundle": "NTIS_Intraday_W73_FINAL_ALL_IN_ONE_DEPLOYMENT_v2",
+  "changes": [
+    "Daywise live ingestor explicitly tags observations as FUTURES",
+    "Exact V8 canonical family default changed to FUTURES",
+    "Added futures source mapping regression test",
+    "Added full-source causal ORB diagnostic gate",
+    "Added deployment prerequisite gate"
+  ],
+  "frozen_semantics": {
+    "orb": "first available timestamp + 15 minutes; rows <= cutoff define ORB; rows > cutoff define breakout",
+    "v8_columns": 25,
+    "maturity_cuts": [
+      "09:30",
+      "09:45",
+      "10:00",
+      "10:15"
+    ],
+    "w73_a": "orb_agree=NO, magnitude_count_band=0, px_all_negative_pre_maturity=True",
+    "w73_b": "orb_price_agree=NO, magnitude_count_band=0, px_all_negative_pre_maturity=True"
+  },
+  "validation": "Changed-module tests: 4 passed. Existing local W73 baseline had 57/57 passed before this bundle.",
+  "orb_gate_command": "python .\\08_TESTS\\w73_full_source_orb_gate.py September26 2026-09-18",
+  "deployment_gate_command": "python .\\08_TESTS\\w73_final_deployment_gate.py",
+  "raw_source": "READ_ONLY",
+  "production_sdl_dashboard": "UNTOUCHED"
+}
