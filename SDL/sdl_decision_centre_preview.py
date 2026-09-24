@@ -4689,8 +4689,13 @@ def _render_cache_build_state() -> None:
         st.markdown(f'<div class="cache-build-compact-note">Current: {safe_text(filename or "preparing…")} · Heartbeat: {heartbeat_age}s · Refresh-safe background worker.</div>',unsafe_allow_html=True)
     elif status == "FINISHED":
         # FINISHED describes the worker job, not necessarily 100% source/cache
-        # coverage. Re-read the final day so the top monitor cannot claim
-        # COMPLETE while the calendar correctly shows PARTIAL BUILD.
+        # coverage. Invalidate the short UI summary cache before reading the
+        # final day so the monitor and Replay panel cannot display different
+        # cached coverage immediately after a build completes.
+        try:
+            _day_cache_summary.clear()
+        except Exception:
+            pass
         final_summary = _day_cache_summary(day) if day else {}
         final_source = int(final_summary.get("source_count", 0) or 0)
         final_cached = int(final_summary.get("cached_count", 0) or 0)
@@ -4944,16 +4949,26 @@ def replay_view() -> None:
                     unsafe_allow_html=True,
                 )
 
-                # Compact cache controls; the worker/status monitor is rendered once outside Replay.
+                # Resume control: retry only missing/unresolved work.
+                # Completed MAPPED/D snapshots remain untouched; newly arrived
+                # Daywise files are rediscovered when the worker starts.
                 cache_running = _cache_build_is_running()
                 bulk_days = _available_replay_days()
                 bday, bbulk = st.columns([1, 1], gap="small")
                 with bday:
-                    if cached_n < source_n:
-                        if st.button(f"BUILD {pd.Timestamp(day).strftime('%d %b')}", key=f"build_replay_cache_{day}", type="primary", use_container_width=True, disabled=cache_running):
+                    if missing_n > 0 and pending_n > 0:
+                        build_label = f"BUILD MISSING ({missing_n}) + PENDING ({pending_n})"
+                    elif missing_n > 0:
+                        build_label = f"BUILD MISSING ({missing_n})"
+                    elif pending_n > 0:
+                        build_label = f"BUILD PENDING ({pending_n})"
+                    else:
+                        build_label = "DAY CACHE COMPLETE"
+                    if missing_n > 0 or pending_n > 0:
+                        if st.button(build_label, key=f"build_replay_cache_{day}", type="primary", use_container_width=True, disabled=cache_running):
                             _start_background_cache_build([day], mode="DAY"); st.rerun()
                     else:
-                        st.button("DAY CACHE COMPLETE", key=f"build_replay_cache_done_{day}", use_container_width=True, disabled=True)
+                        st.button(build_label, key=f"build_replay_cache_done_{day}", use_container_width=True, disabled=True)
                 with bbulk:
                     if st.button(f"BUILD ALL ({len(bulk_days)})", key="build_all_replay_cache", type="secondary", use_container_width=True, disabled=(not bulk_days) or cache_running):
                         _start_background_cache_build(bulk_days, mode="BULK"); st.rerun()
@@ -5297,6 +5312,49 @@ def _live_futures_present(df: pd.DataFrame) -> bool:
     )
 
 
+def _hydrate_live_futures_state_from_source(day: str, primary_ts: pd.Timestamp) -> dict:
+    """Recover the latest valid LIVE Futures evidence without changing Replay.
+
+    This is used only when LIVE has no durable Futures carry-forward state. It
+    searches the Futures source independently of the Daywise primary snapshot,
+    chooses the latest populated Futures workbook not later than the retained
+    LIVE primary timestamp, and persists that evidence as the delayed LIVE
+    Futures state. It never creates an SDL snapshot and never modifies Replay.
+    """
+    if not day or primary_ts is None or pd.isna(primary_ts):
+        return {}
+    try:
+        candidates = _day_ivrp_candidates(str(day)[:10])
+    except Exception:
+        candidates = []
+    for path in sorted(
+        candidates,
+        key=lambda item: (observation_ts(item), str(item).lower()),
+        reverse=True,
+    ):
+        source_ts = observation_ts(path)
+        if pd.isna(source_ts) or pd.Timestamp(source_ts) > pd.Timestamp(primary_ts):
+            continue
+        try:
+            evidence = _read_ivrp_for_timestamp(
+                str(day)[:10], pd.Timestamp(source_ts), force_refresh=True
+            )
+        except Exception:
+            continue
+        if not _live_futures_present(evidence):
+            continue
+        values = evidence[[c for c in ("symbol", "futures_oi_chg", "futures_oi_chg_pct") if c in evidence.columns]].to_dict("records")
+        state = {
+            "status": "STALE_SOURCE",
+            "processed_snapshot_ts": pd.Timestamp(source_ts).isoformat(),
+            "futures_source_ts": pd.Timestamp(source_ts).isoformat(),
+            "values": values,
+        }
+        _save_live_futures_state(state)
+        return state
+    return {}
+
+
 def _apply_live_futures_delay_policy(
     pred: pd.DataFrame,
     snapshot_ts: pd.Timestamp,
@@ -5310,9 +5368,13 @@ def _apply_live_futures_delay_policy(
 
     if futures_fresh and _live_futures_present(out):
         cols = [c for c in ("futures_oi_chg", "futures_oi_chg_pct") if c in out.columns]
+        source_ts = pd.to_datetime(out.attrs.get("futures_source_ts"), errors="coerce")
+        if pd.isna(source_ts):
+            source_ts = pd.Timestamp(snapshot_ts)
         state = {
             "status": "FRESH",
-            "processed_snapshot_ts": str(snapshot_ts),
+            "processed_snapshot_ts": pd.Timestamp(source_ts).isoformat(),
+            "futures_source_ts": pd.Timestamp(source_ts).isoformat(),
             "values": out[["symbol"] + cols].to_dict("records") if "symbol" in out.columns else [],
         }
         _save_live_futures_state(state)
@@ -5320,7 +5382,16 @@ def _apply_live_futures_delay_policy(
         out["futures_oi_delayed"] = False
         return out
 
-    last_ts = pd.to_datetime(state.get("processed_snapshot_ts"), errors="coerce") if state.get("processed_snapshot_ts") else pd.NaT
+    if not state.get("values"):
+        state = _hydrate_live_futures_state_from_source(
+            pd.Timestamp(snapshot_ts).date().isoformat() if pd.notna(snapshot_ts) else "",
+            pd.Timestamp(snapshot_ts) if pd.notna(snapshot_ts) else pd.NaT,
+        )
+
+    last_ts = pd.to_datetime(
+        state.get("futures_source_ts") or state.get("processed_snapshot_ts"),
+        errors="coerce",
+    ) if state else pd.NaT
     age = (pd.Timestamp(snapshot_ts) - last_ts).total_seconds() if pd.notna(last_ts) and pd.notna(snapshot_ts) else None
     delayed = age is not None and age >= LIVE_FUTURES_DELAY_SECONDS
 
@@ -5338,30 +5409,6 @@ def _apply_live_futures_delay_policy(
     out["futures_oi_status"] = "DELAYED" if delayed else "PENDING"
     out["futures_oi_delayed"] = delayed
     return out
-
-
-@st.cache_data(ttl=5, show_spinner=False)
-def _latest_authoritative_source(session_day: str, available: tuple) -> tuple[Path | None, pd.Timestamp, str]:
-    """Return the newest non-empty Daywise source for the current session.
-
-    A newly-created Daywise workbook can exist before its rows are written.
-    Such a file is not an authoritative observation and must never replace the
-    last successfully processed LIVE point.  Futures/IVR-IVP evidence remains
-    attached to the last authoritative primary point; Futures alone can never
-    manufacture a new SDL snapshot.
-    """
-    files = list(available or ())
-    for path in reversed(files):
-        ts = observation_ts(path)
-        if pd.isna(ts):
-            continue
-        try:
-            raw, _ = load_primary_snapshot(path, ts)
-        except Exception:
-            continue
-        if raw is not None and not raw.empty:
-            return Path(path), pd.Timestamp(ts), "VALID"
-    return None, pd.NaT, "NO_VALID_PRIMARY"
 
 
 def latest_live() -> tuple[
@@ -5405,44 +5452,11 @@ def latest_live() -> tuple[
                 )
             return None, pd.DataFrame(), pd.NaT, "No Daywise source snapshot is available."
 
-        latest, latest_ts, latest_status = _latest_authoritative_source(
-            session_day,
-            tuple(available),
-        )
+        latest = available[-1]
+        latest_ts = observation_ts(latest)
 
-        if latest is None or pd.isna(latest_ts):
-            # The newest Daywise files may be present but empty/incomplete.
-            # Retain the last successfully processed authoritative LIVE point.
-            # Never use Futures-only data to manufacture a new SDL snapshot.
-            if persisted and isinstance(persisted.get("pred"), pd.DataFrame) and not persisted["pred"].empty:
-                ts = pd.to_datetime(persisted.get("observation_timestamp"), errors="coerce")
-                path = Path(persisted["source_path"]) if persisted.get("source_path") else None
-                pred = persisted["pred"].copy()
-                if pd.notna(ts):
-                    day = pd.Timestamp(ts).date().isoformat()
-                    futures = _read_ivrp_for_timestamp(day, pd.Timestamp(ts))
-                    if not futures.empty:
-                        try:
-                            pred, _ = _merge_snapshot_evidence(
-                                pred,
-                                pd.DataFrame(),
-                                futures,
-                            )
-                        except Exception:
-                            pass
-                    pred = _apply_live_futures_delay_policy(
-                        pred,
-                        pd.Timestamp(ts),
-                        futures_fresh=_live_futures_present(futures),
-                    )
-                    pred = _attach_first_alert_provenance(pred, day, pd.Timestamp(ts))
-                return (
-                    path,
-                    pred,
-                    ts,
-                    f"Latest Daywise source is empty/incomplete; retaining last authoritative snapshot {ts.strftime('%H:%M:%S') if pd.notna(ts) else ''}."
-                )
-            return None, pd.DataFrame(), pd.NaT, "Latest Daywise source is empty/incomplete and no authoritative LIVE snapshot is available."
+        if pd.isna(latest_ts):
+            return None, pd.DataFrame(), pd.NaT, "Latest Daywise source has no valid timestamp."
 
         persisted_ts = (
             pd.to_datetime(
@@ -5520,18 +5534,11 @@ def latest_live() -> tuple[
                     futures_fresh=False,
                 )
 
-            newest_source_ts = observation_ts(available[-1]) if available else pd.NaT
-            retained_newer_empty = pd.notna(newest_source_ts) and pd.Timestamp(newest_source_ts) > pd.Timestamp(latest_ts)
-            if retained_newer_empty:
-                message = (
-                    f"Latest Daywise source is empty/incomplete; retaining last authoritative snapshot {pd.Timestamp(latest_ts).strftime('%H:%M:%S')}."
-                )
-            else:
-                message = (
-                    f"Current source session: {session_day}"
-                    if current_day_has_source
-                    else f"Latest completed source session: {session_day}"
-                )
+            message = (
+                f"Current source session: {session_day}"
+                if current_day_has_source
+                else f"Latest completed source session: {session_day}"
+            )
             return latest, pred, latest_ts, message
 
         # Process the newly authoritative latest source point directly.
@@ -5542,9 +5549,49 @@ def latest_live() -> tuple[
         if path is not None and not pred.empty and pd.notna(ts):
             return path, pred, ts, message
 
-        # A valid source can legitimately produce no qualified decisions.
-        # Preserve the exact source timestamp rather than falling back to an
-        # unrelated persisted session.
+        # Source-readiness guard: a newly discovered Daywise workbook can be
+        # visible in the repository while it is still being written.  An
+        # empty read at that point is an ingestion/readiness condition, not
+        # evidence that SDL has zero qualified decisions.  If a valid
+        # persisted LIVE snapshot exists for the same trading session and is
+        # older than this incomplete source point, keep that last completed
+        # snapshot visible until the next valid source observation arrives.
+        # Never fall back across sessions and never manufacture decisions.
+        if (
+            path is not None
+            and pd.notna(ts)
+            and isinstance(persisted, dict)
+            and isinstance(persisted.get("pred"), pd.DataFrame)
+            and not persisted["pred"].empty
+            and pd.notna(persisted_ts)
+            and pd.Timestamp(persisted_ts).date() == pd.Timestamp(ts).date()
+            and pd.Timestamp(persisted_ts) < pd.Timestamp(ts)
+        ):
+            fallback_pred = persisted["pred"].copy()
+            fallback_pred = _attach_first_alert_provenance(
+                fallback_pred,
+                pd.Timestamp(persisted_ts).date().isoformat(),
+                pd.Timestamp(persisted_ts),
+            )
+            fallback_path = (
+                Path(persisted["source_path"])
+                if persisted.get("source_path")
+                else path
+            )
+            fallback_pred = _apply_live_futures_delay_policy(
+                fallback_pred,
+                pd.Timestamp(persisted_ts),
+                futures_fresh=False,
+            )
+            fallback_message = (
+                f"LIVE source update is still being prepared — showing last completed "
+                f"snapshot ({pd.Timestamp(persisted_ts).strftime('%H:%M:%S')})."
+            )
+            return fallback_path, fallback_pred, pd.Timestamp(persisted_ts), fallback_message
+
+        # A valid, readable source can legitimately produce no qualified
+        # decisions.  Preserve that exact source timestamp rather than
+        # falling back to an unrelated session.
         if path is not None and pd.notna(ts):
             return path, pred, ts, message
 
