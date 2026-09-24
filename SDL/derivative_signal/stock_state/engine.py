@@ -81,8 +81,8 @@ def compose_stock_state(
     r30 = _number(_first(rsi, "rsi_30m", "30m", "RSI_30M"))
     r1h = _number(_first(rsi, "rsi_1h", "1h", "RSI_1H"))
     r2h = _number(_first(rsi, "rsi_2h", "2h", "RSI_2H"))
-    alignment = _text(_first(rsi, "mtf_alignment", "alignment"))
-    momentum = _text(_first(rsi, "momentum_state", "state"))
+    alignment = _text(_first(rsi, "mtf_alignment", "rsi_mtf_alignment", "alignment"))
+    momentum = _text(_first(rsi, "momentum_state", "rsi_momentum_state", "state"))
 
     return StockState(
         symbol=symbol,

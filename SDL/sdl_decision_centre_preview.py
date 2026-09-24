@@ -12,6 +12,8 @@ import os
 import threading
 import hashlib
 from urllib.parse import quote
+from urllib.parse import urlencode
+from xml.etree import ElementTree as ET
 from urllib.request import Request, urlopen
 
 import pandas as pd
@@ -29,16 +31,33 @@ from prediction_engine import build_current_predictions
 from source_loader import load_primary_snapshot, parse_observation_timestamp
 from storage import load_events, load_state
 
+# ============================================================================
+# CONSOLIDATED B4 BUNDLE — 23-SEP-2026
+# Alert runtime, persistent edge evaluation, approved rule defaults, on-demand
+# external news, on-demand price timeline, and performance-safe cold paths.
+# Frozen SDL scoring/gates, First Alert, Replay/Futures/cache architecture,
+# Priority Radar and LIVE Queue datasets remain untouched.
+# ============================================================================
+
 # ADDITIVE ONLY: isolated Sector Analysis page. Existing SDL logic is untouched.
 from Sector_Analysis.sector_page import render_sector_analysis_page
 
 # ADDITIVE ONLY: isolated B4 alert drawer + optional sound.
+_B4_IMPORT_ERROR = None
 try:
     from extensions.alert_chart.dashboard_alert_drawer import render_alert_drawer
-    from extensions.alert_chart.alert_store import AlertStore
-except Exception:
+except Exception as exc:
     render_alert_drawer = None
+    _B4_IMPORT_ERROR = f"dashboard_alert_drawer: {type(exc).__name__}: {exc}"
+
+try:
+    from extensions.alert_chart.alert_store import AlertStore
+except Exception as exc:
     AlertStore = None
+    _B4_IMPORT_ERROR = (
+        f"{_B4_IMPORT_ERROR}; alert_store: {type(exc).__name__}: {exc}"
+        if _B4_IMPORT_ERROR else f"alert_store: {type(exc).__name__}: {exc}"
+    )
 
 IST = "Asia/Kolkata"
 
@@ -162,6 +181,23 @@ def _save_persisted_live_snapshot(path: Path, ts, pred: pd.DataFrame, message: s
 
 
 # ============================================================================
+# B4 APPROVED DEFAULT RULES
+# ============================================================================
+
+
+def _default_b4_rules() -> list[dict]:
+    """Approved B4 runtime rules; alert layer only, never SDL scoring."""
+    return [
+        {"name": "Strong Breakout", "field": "Straddle Progress", "operator": ">=", "value": 100.0, "enabled": True, "sound": False},
+        {"name": "Breakout", "field": "Straddle Progress", "operator": ">=", "value": 75.0, "enabled": True, "sound": False},
+        {"name": "First Alert", "field": "Straddle Progress", "operator": ">=", "value": 25.0, "enabled": True, "sound": False},
+        {"name": "Futures OI Spike", "field": "Futures OI Change", "operator": ">", "value": 100000.0, "enabled": True, "sound": False},
+        {"name": "PCR Extreme", "field": "PCR", "operator": ">", "value": 3.0, "enabled": True, "sound": False},
+        {"name": "High Momentum", "field": "Momentum %", "operator": ">=", "value": 5.0, "enabled": False, "sound": False},
+    ]
+
+
+# ============================================================================
 # SETTINGS / SOURCE BINDING
 # ============================================================================
 
@@ -170,28 +206,31 @@ def load_ui_settings() -> dict:
         "source_root": str(getattr(sdl_config, "INTRADAY_SOURCE_ROOT", "")),
         "auto_refresh": False,
         "refresh_seconds": 60,
-        "alert_config_schema": 3,
+        "alert_config_schema": 4,
         "alert_sound_enabled": False,
         "alert_sound_volume": 0.35,
         "alert_sound_tone": "soft",
-        "alert_rules": [],
+        "alert_rules": _default_b4_rules(),
     }
     try:
         if SETTINGS_FILE.exists():
             saved = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
             if isinstance(saved, dict):
                 defaults.update(saved)
-                # B4 schema migration: old drawer deployments could persist
-                # sound ON and oversized/default rule state. Reset once to the
-                # approved safe defaults; later user changes remain persistent.
-                if int(saved.get("alert_config_schema", 0) or 0) < 3:
-                    defaults.update({
-                        "alert_config_schema": 3,
-                        "alert_sound_enabled": False,
-                        "alert_sound_volume": 0.35,
-                        "alert_sound_tone": "soft",
-                        "alert_rules": [],
-                    })
+                # B4 schema migration: preserve explicit user rules, but
+                # deterministically restore the approved defaults when the old
+                # drawer stored no rules. Never turn sound on during migration.
+                saved_schema = int(saved.get("alert_config_schema", 0) or 0)
+                saved_rules = saved.get("alert_rules")
+                if saved_schema < 4:
+                    defaults["alert_config_schema"] = 4
+                    defaults["alert_sound_enabled"] = False
+                    defaults["alert_sound_volume"] = 0.35
+                    defaults["alert_sound_tone"] = "soft"
+                    if not isinstance(saved_rules, list) or not saved_rules:
+                        defaults["alert_rules"] = _default_b4_rules()
+                elif not isinstance(defaults.get("alert_rules"), list) or not defaults.get("alert_rules"):
+                    defaults["alert_rules"] = _default_b4_rules()
     except Exception:
         pass
     return defaults
@@ -228,6 +267,55 @@ def bind_source_root(root: str) -> tuple[bool, str]:
 
 
 _UI = load_ui_settings()
+
+def _normalize_b4_rule(raw: dict, idx: int = 0) -> dict:
+    rule = dict(raw) if isinstance(raw, dict) else {}
+    name = str(rule.get("name") or f"Rule {idx + 1}").strip() or f"Rule {idx + 1}"
+    field = str(rule.get("field") or "PCR").strip()
+    operator = str(rule.get("operator") or ">=").strip()
+    try:
+        value = float(rule.get("value", 0))
+    except Exception:
+        value = 0.0
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or f"rule-{idx + 1}"
+    rule.update({
+        "id": str(rule.get("id") or f"b4-{slug}"),
+        "name": name, "field": field, "operator": operator, "value": value,
+        "enabled": bool(rule.get("enabled", True)), "sound": bool(rule.get("sound", False)),
+        "priority": int(rule.get("priority", max(1, 100 - idx))),
+        "rearm": rule.get("rearm") or {"mode": "ON_CROSSING", "cooldown_seconds": 0},
+    })
+    return rule
+
+
+def _sync_b4_rules_from_store() -> None:
+    """Use AlertStore as the durable rule source, migrating legacy UI settings once."""
+    if AlertStore is None:
+        return
+    try:
+        store = AlertStore(ALERT_STORE_FILE)
+        stored = store.list_rules()
+        if stored:
+            _UI["alert_rules"] = [_normalize_b4_rule(rule, i) for i, rule in enumerate(stored)]
+            _UI["alert_config_schema"] = 4
+            save_ui_settings(alert_rules=_UI["alert_rules"], alert_config_schema=4)
+            return
+        legacy = _UI.get("alert_rules")
+        rules = legacy if isinstance(legacy, list) and legacy else _default_b4_rules()
+        now = pd.Timestamp.now(tz=IST).isoformat()
+        normalized = []
+        for i, raw in enumerate(rules):
+            rule = _normalize_b4_rule(raw, i)
+            store.save_rule(rule, now)
+            normalized.append(rule)
+        _UI["alert_rules"] = normalized
+        _UI["alert_config_schema"] = 4
+        save_ui_settings(alert_rules=normalized, alert_config_schema=4)
+    except Exception as exc:
+        _UI["b4_store_error"] = f"{type(exc).__name__}: {exc}"
+
+
+_sync_b4_rules_from_store()
 _source_ok, _source_message = bind_source_root(str(_UI.get("source_root", "")))
 
 
@@ -1182,6 +1270,52 @@ def _load_day_point_cache() -> dict:
         return value if isinstance(value, dict) else {}
     except Exception:
         return {}
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _symbol_price_timeline(day: str, symbol: str, cutoff_iso: str | None, cache_sig: tuple) -> pd.DataFrame:
+    """Build an on-demand price timeline from the existing point-in-time cache.
+
+    This is deliberately cold-path work: it is never calculated during normal
+    LIVE/Replay rendering and never opens source workbooks.
+    """
+    cache = _load_day_point_cache()
+    day_cache = cache.get(str(day), {}) if isinstance(cache, dict) else {}
+    entries = day_cache.get("snapshots", {}) if isinstance(day_cache, dict) else {}
+    cutoff = pd.to_datetime(cutoff_iso, errors="coerce") if cutoff_iso else pd.NaT
+    rows = []
+    wanted = str(symbol).strip().upper()
+    for key, entry in sorted(entries.items()):
+        if not isinstance(entry, dict) or not isinstance(entry.get("pred"), pd.DataFrame):
+            continue
+        ts = pd.to_datetime(entry.get("timestamp", key), errors="coerce")
+        if pd.isna(ts) or (pd.notna(cutoff) and ts > cutoff):
+            continue
+        frame = entry["pred"]
+        if "symbol" in frame.columns:
+            hit = frame[frame["symbol"].astype(str).str.upper().eq(wanted)]
+        elif "Symbol" in frame.columns:
+            hit = frame[frame["Symbol"].astype(str).str.upper().eq(wanted)]
+        else:
+            hit = pd.DataFrame()
+        if hit.empty:
+            continue
+        row = hit.iloc[0]
+        price = metric(row, ["Close", "CMP", "Current Price", "close", "current_price"])
+        if price is None or pd.isna(price):
+            continue
+        rows.append({"Observation": ts, "Close": float(price)})
+    if not rows:
+        return pd.DataFrame(columns=["Observation", "Close"])
+    return pd.DataFrame(rows).drop_duplicates("Observation").sort_values("Observation")
+
+
+def _cache_file_signature() -> tuple:
+    try:
+        stt = DAY_POINT_IN_TIME_CACHE_FILE.stat()
+        return (int(stt.st_mtime_ns), int(stt.st_size))
+    except Exception:
+        return (0, 0)
 
 
 def _save_day_point_cache(cache: dict) -> None:
@@ -3693,9 +3827,40 @@ def render_stock_detail(
             unsafe_allow_html=True,
         )
 
+        show_timeline = st.checkbox(
+            "Show on-demand price timeline",
+            value=False,
+            key=f"{page_key}_timeline",
+        )
+        if show_timeline:
+            timeline_day = current_ts.date().isoformat() if pd.notna(current_ts) else ""
+            timeline = _symbol_price_timeline(
+                timeline_day,
+                selected,
+                current_ts.isoformat() if pd.notna(current_ts) else None,
+                _cache_file_signature(),
+            )
+            if not timeline.empty:
+                st.line_chart(timeline.set_index("Observation")["Close"], height=220, use_container_width=True)
+            else:
+                st.caption("No cached point-in-time price history is available for this symbol.")
+
+        # External news is intentionally cold-path: it is fetched only after
+        # explicit user action so normal LIVE refresh latency is unchanged.
+        load_external = st.checkbox(
+            "Load external stock / sector / macro news",
+            value=False,
+            key=f"{page_key}_external_news",
+        )
+        external_news = {"stock": [], "sector": [], "macro": []}
+        if load_external:
+            external_news = live_external_news(selected, row)
+
         stock_news = live_nse_stock_news(selected)
         market_news = live_nse_market_news()
-        news_analysis = analyze_news_catalyst(selected, row, stock_news, market_news)
+        combined_stock_news = list(external_news.get("stock", [])) + stock_news
+        combined_market_news = list(external_news.get("sector", [])) + list(external_news.get("macro", [])) + market_news
+        news_analysis = analyze_news_catalyst(selected, row, combined_stock_news, combined_market_news)
         st.markdown(catalyst_panel_html(news_analysis), unsafe_allow_html=True)
 
         left, right = st.columns(2)
@@ -3705,9 +3870,9 @@ def render_stock_detail(
                 f"STOCK-SPECIFIC NEWS · {selected}",
                 expanded=False,
             ):
-                if stock_news:
+                if combined_stock_news:
                     major_texts = {x.get("text") for x in news_analysis.get("major_items", [])}
-                    for item in stock_news[:6]:
+                    for item in combined_stock_news[:8]:
                         is_major = item.get("text") in major_texts
                         cls = "news-item major-news" if is_major else "news-item"
                         star = "★ " if is_major else ""
@@ -3723,8 +3888,7 @@ def render_stock_detail(
                 else:
                     st.markdown(
                         '<div class="news-empty">'
-                        'No current NSE announcement returned for this symbol, '
-                        'or the live feed is temporarily unavailable.'
+                        'No stock-specific news returned. External news is loaded on demand.'
                         '</div>',
                         unsafe_allow_html=True,
                     )
@@ -3968,6 +4132,48 @@ def catalyst_panel_html(analysis: dict) -> str:
         '<div class="catalyst-note">Compared with today\'s price direction/SDL direction · does not modify the frozen decision score</div>'
         '</div>'
     )
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _external_news_rss(query: str) -> list[dict]:
+    """Cached external news lookup; presentation/evidence only."""
+    q = str(query).strip()
+    if not q:
+        return []
+    try:
+        url = "https://news.google.com/rss/search?" + urlencode({
+            "q": q, "hl": "en-IN", "gl": "IN", "ceid": "IN:en"
+        })
+        req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urlopen(req, timeout=3) as response:
+            root = ET.fromstring(response.read())
+        items = []
+        for item in root.findall("./channel/item")[:8]:
+            title = (item.findtext("title") or "").strip()
+            pub = (item.findtext("pubDate") or "").strip()
+            source = item.findtext("source") or "Google News"
+            if title:
+                items.append({"time": pub, "text": title, "source": str(source), "scope": "EXTERNAL"})
+        return items
+    except Exception:
+        return []
+
+
+def live_external_news(symbol: str, row: pd.Series | None = None) -> dict[str, list[dict]]:
+    """Fetch external stock/sector/group/macro news only when explicitly requested."""
+    sym = str(symbol).strip().upper()
+    sector = ""
+    if isinstance(row, pd.Series):
+        for key in ("sector", "Sector", "industry", "Industry", "sector_name", "Sector Name"):
+            value = row.get(key)
+            if value is not None and str(value).strip() and str(value).lower() != "nan":
+                sector = str(value).strip()
+                break
+    return {
+        "stock": _external_news_rss(f"{sym} NSE stock India"),
+        "sector": _external_news_rss(f"{sector or sym + ' sector'} India stocks"),
+        "macro": _external_news_rss("India stock market RBI economy Nifty macro"),
+    }
 
 
 def live_nse_stock_news(symbol: str) -> list[dict]:
@@ -5043,7 +5249,7 @@ def _build_live_prediction_from_source(path: Path):
         "source_count": len(snapshot_files(day)),
     }
     _save_day_point_cache(cache)
-    pred = _apply_first_alert_provenance(pred, day, ts)
+    pred = _attach_first_alert_provenance(pred, day, ts)
     _save_persisted_live_snapshot(path, ts, pred, f"Source session: {day}")
     pred = _apply_live_futures_delay_policy(
         pred,
@@ -5134,6 +5340,30 @@ def _apply_live_futures_delay_policy(
     return out
 
 
+@st.cache_data(ttl=5, show_spinner=False)
+def _latest_authoritative_source(session_day: str, available: tuple) -> tuple[Path | None, pd.Timestamp, str]:
+    """Return the newest non-empty Daywise source for the current session.
+
+    A newly-created Daywise workbook can exist before its rows are written.
+    Such a file is not an authoritative observation and must never replace the
+    last successfully processed LIVE point.  Futures/IVR-IVP evidence remains
+    attached to the last authoritative primary point; Futures alone can never
+    manufacture a new SDL snapshot.
+    """
+    files = list(available or ())
+    for path in reversed(files):
+        ts = observation_ts(path)
+        if pd.isna(ts):
+            continue
+        try:
+            raw, _ = load_primary_snapshot(path, ts)
+        except Exception:
+            continue
+        if raw is not None and not raw.empty:
+            return Path(path), pd.Timestamp(ts), "VALID"
+    return None, pd.NaT, "NO_VALID_PRIMARY"
+
+
 def latest_live() -> tuple[
     Path | None,
     pd.DataFrame,
@@ -5175,11 +5405,44 @@ def latest_live() -> tuple[
                 )
             return None, pd.DataFrame(), pd.NaT, "No Daywise source snapshot is available."
 
-        latest = available[-1]
-        latest_ts = observation_ts(latest)
+        latest, latest_ts, latest_status = _latest_authoritative_source(
+            session_day,
+            tuple(available),
+        )
 
-        if pd.isna(latest_ts):
-            return None, pd.DataFrame(), pd.NaT, "Latest Daywise source has no valid timestamp."
+        if latest is None or pd.isna(latest_ts):
+            # The newest Daywise files may be present but empty/incomplete.
+            # Retain the last successfully processed authoritative LIVE point.
+            # Never use Futures-only data to manufacture a new SDL snapshot.
+            if persisted and isinstance(persisted.get("pred"), pd.DataFrame) and not persisted["pred"].empty:
+                ts = pd.to_datetime(persisted.get("observation_timestamp"), errors="coerce")
+                path = Path(persisted["source_path"]) if persisted.get("source_path") else None
+                pred = persisted["pred"].copy()
+                if pd.notna(ts):
+                    day = pd.Timestamp(ts).date().isoformat()
+                    futures = _read_ivrp_for_timestamp(day, pd.Timestamp(ts))
+                    if not futures.empty:
+                        try:
+                            pred, _ = _merge_snapshot_evidence(
+                                pred,
+                                pd.DataFrame(),
+                                futures,
+                            )
+                        except Exception:
+                            pass
+                    pred = _apply_live_futures_delay_policy(
+                        pred,
+                        pd.Timestamp(ts),
+                        futures_fresh=_live_futures_present(futures),
+                    )
+                    pred = _attach_first_alert_provenance(pred, day, pd.Timestamp(ts))
+                return (
+                    path,
+                    pred,
+                    ts,
+                    f"Latest Daywise source is empty/incomplete; retaining last authoritative snapshot {ts.strftime('%H:%M:%S') if pd.notna(ts) else ''}."
+                )
+            return None, pd.DataFrame(), pd.NaT, "Latest Daywise source is empty/incomplete and no authoritative LIVE snapshot is available."
 
         persisted_ts = (
             pd.to_datetime(
@@ -5257,11 +5520,18 @@ def latest_live() -> tuple[
                     futures_fresh=False,
                 )
 
-            message = (
-                f"Current source session: {session_day}"
-                if current_day_has_source
-                else f"Latest completed source session: {session_day}"
-            )
+            newest_source_ts = observation_ts(available[-1]) if available else pd.NaT
+            retained_newer_empty = pd.notna(newest_source_ts) and pd.Timestamp(newest_source_ts) > pd.Timestamp(latest_ts)
+            if retained_newer_empty:
+                message = (
+                    f"Latest Daywise source is empty/incomplete; retaining last authoritative snapshot {pd.Timestamp(latest_ts).strftime('%H:%M:%S')}."
+                )
+            else:
+                message = (
+                    f"Current source session: {session_day}"
+                    if current_day_has_source
+                    else f"Latest completed source session: {session_day}"
+                )
             return latest, pred, latest_ts, message
 
         # Process the newly authoritative latest source point directly.
@@ -5287,12 +5557,15 @@ def latest_live() -> tuple[
 def _render_live_content() -> None:
     path, pred, data_ts, message = latest_live()
 
+    # B4 is a persistent dashboard surface, not conditional on whether the
+    # current source produced qualified rows. Render it even when LIVE data
+    # is unavailable so the bell/configuration/history remain visible.
+    emitted_alerts = _b4_emit_alerts(pred, data_ts) if path is not None else []
+    _render_b4_alert_drawer(emitted_alerts)
+
     if path is None:
         st.warning(message)
         return
-
-    _b4_emit_alerts(pred, data_ts)
-    _render_b4_alert_drawer()
 
     now = pd.Timestamp.now(tz=IST)
     market_state, scheduled_trading_day = _nse_market_state(now)
@@ -5605,33 +5878,253 @@ def _b4_value(row, label):
 def _b4_context(row, ts, day):
     return {"symbol":str(row.get("symbol",row.get("Symbol",""))).strip().upper(),"trading_date":day,"observation_timestamp":pd.Timestamp(ts).isoformat(),"values":{k:_b4_value(row,k) for k in _B4_FIELD_MAP}}
 
-def _b4_compare(a,b,op):
-    if a is None or b is None: return False
-    try: a=float(a); b=float(b)
-    except Exception: pass
-    return {">":a>b,">=":a>=b,"<":a<b,"<=":a<=b,"=":a==b,"!=":a!=b}.get(op,False)
+def _b4_compare(a, b, op):
+    if a is None or b is None:
+        return False
+    try:
+        a = float(a)
+        b = float(b)
+    except Exception:
+        return False
+    return {
+        ">": a > b,
+        ">=": a >= b,
+        "<": a < b,
+        "<=": a <= b,
+        "=": a == b,
+        "!=": a != b,
+    }.get(str(op).upper(), False)
+
+
+def _b4_condition(current, threshold, operator):
+    """Evaluate whether the current observation satisfies a B4 rule."""
+    if current is None:
+        return False
+    op = str(operator or ">=").upper()
+    if op in {">", ">=", "<", "<=", "=", "!=", "CHANGED_TO"}:
+        return _b4_compare(current, threshold, op if op != "CHANGED_TO" else "=")
+    try:
+        cv = float(current)
+        if op in {"CROSSED_ABOVE", "CROSSED_BELOW"}:
+            tv = float(threshold)
+            return cv > tv if op == "CROSSED_ABOVE" else cv < tv
+        if op in {"ENTERED_RANGE", "EXITED_RANGE"}:
+            if not isinstance(threshold, (list, tuple)) or len(threshold) != 2:
+                return False
+            lo, hi = sorted(float(x) for x in threshold)
+            return lo <= cv <= hi
+    except Exception:
+        pass
+    if op == "BECAME_TRUE":
+        return bool(current)
+    if op == "BECAME_FALSE":
+        return not bool(current)
+    return False
+
+
+def _b4_edge(previous, current, threshold, operator):
+    """Evaluate approved crossing/state operators using two observations."""
+    if current is None:
+        return False
+    op = str(operator or ">=").upper()
+    if op in {">", ">=", "<", "<=", "=", "!="}:
+        return _b4_compare(current, threshold, op) and (
+            previous is None or not _b4_compare(previous, threshold, op)
+        )
+    if previous is None:
+        return False
+    try:
+        pv, cv, tv = float(previous), float(current), float(threshold)
+    except Exception:
+        return False
+    if op == "CROSSED_ABOVE":
+        return pv <= tv and cv > tv
+    if op == "CROSSED_BELOW":
+        return pv >= tv and cv < tv
+    if op == "ENTERED_RANGE":
+        if not isinstance(threshold, (list, tuple)) or len(threshold) != 2:
+            return False
+        lo, hi = sorted(float(x) for x in threshold)
+        return not (lo <= pv <= hi) and lo <= cv <= hi
+    if op == "EXITED_RANGE":
+        if not isinstance(threshold, (list, tuple)) or len(threshold) != 2:
+            return False
+        lo, hi = sorted(float(x) for x in threshold)
+        return lo <= pv <= hi and not (lo <= cv <= hi)
+    if op == "CHANGED_TO":
+        return previous != current and current == threshold
+    if op == "BECAME_TRUE":
+        return not bool(previous) and bool(current)
+    if op == "BECAME_FALSE":
+        return bool(previous) and not bool(current)
+    return False
+
+
+def _b4_cache_signature() -> tuple:
+    """Cheap invalidation key for the B4 previous-context cache."""
+    try:
+        stat = DAY_POINT_IN_TIME_CACHE_FILE.stat()
+        return (int(stat.st_mtime_ns), int(stat.st_size))
+    except Exception:
+        return (0, 0)
+
+
+@st.cache_data(ttl=10, show_spinner=False)
+def _b4_previous_context_map(
+    day: str,
+    observation_iso: str,
+    symbols: tuple[str, ...],
+    cache_signature: tuple,
+) -> dict:
+    """Resolve all prior LIVE alert contexts in one cache pass.
+
+    The previous implementation reopened/unpickled the entire day cache once
+    per candidate symbol.  That made the new alert layer a hot-path O(symbols
+    x snapshots) operation and could stall the complete dashboard.  This
+    resolver performs one read and one chronological pass, then returns only
+    the small symbol->context map needed by the alert evaluator.
+    """
+    del cache_signature  # used by Streamlit cache invalidation
+    wanted = {str(symbol).strip().upper() for symbol in symbols if str(symbol).strip()}
+    if not wanted:
+        return {}
+
+    observation_ts = pd.to_datetime(observation_iso, errors="coerce")
+    if pd.isna(observation_ts):
+        return {}
+
+    cache = _load_day_point_cache()
+    day_cache = cache.get(str(day), {}) if isinstance(cache, dict) else {}
+    entries = day_cache.get("snapshots", {}) if isinstance(day_cache, dict) else {}
+    best: dict[str, tuple[pd.Timestamp, dict]] = {}
+
+    for key, entry in entries.items():
+        if not isinstance(entry, dict) or not isinstance(entry.get("pred"), pd.DataFrame):
+            continue
+        ts = pd.to_datetime(entry.get("timestamp", key), errors="coerce")
+        if pd.isna(ts) or ts >= observation_ts:
+            continue
+
+        frame = entry["pred"]
+        col = (
+            "symbol" if "symbol" in frame.columns
+            else "Symbol" if "Symbol" in frame.columns
+            else None
+        )
+        if not col:
+            continue
+
+        symbols_series = frame[col].astype(str).str.strip().str.upper()
+        for idx in frame.index[symbols_series.isin(wanted)]:
+            row = frame.loc[idx]
+            symbol = str(row.get(col, "")).strip().upper()
+            if not symbol:
+                continue
+            previous = best.get(symbol)
+            if previous is not None and ts <= previous[0]:
+                continue
+            best[symbol] = (ts, _b4_context(row, ts, day))
+
+    return {symbol: context for symbol, (_ts, context) in best.items()}
+
 
 def _b4_emit_alerts(pred: pd.DataFrame, observation_ts: pd.Timestamp) -> list[dict]:
-    if AlertStore is None or pred is None or pred.empty: return []
-    rules=_UI.get("alert_rules",[])
-    if not isinstance(rules,list) or not rules: return []
-    day=pd.Timestamp(observation_ts).date().isoformat(); prev=st.session_state.get("b4_alert_previous",{}); curmap={}; store=AlertStore(ALERT_STORE_FILE); emitted=[]
-    for _,row in pred.iterrows():
-        ctx=_b4_context(row,observation_ts,day); sym=ctx["symbol"]
-        if not sym: continue
-        old=prev.get(sym); curmap[sym]=ctx
-        for idx,rule in enumerate(rules):
-            if not rule.get("enabled",True): continue
-            field=rule.get("field"); op=rule.get("operator",">"); threshold=rule.get("value"); cv=ctx["values"].get(field); pv=(old or {}).get("values",{}).get(field) if old else None
-            if cv is None or not _b4_compare(cv,threshold,op): continue
-            # Edge-trigger threshold rules. If no previous point exists, require a
-            # genuine prior observation on the same dashboard session before firing.
-            if pv is None or _b4_compare(pv,threshold,op): continue
-            rule_id=f"b4-{re.sub(r'[^a-z0-9]+','-',str(rule.get('name','rule')).lower()).strip('-')}-{idx}"
-            alert_id=hashlib.sha1(f"{rule_id}|{sym}|{ctx['observation_timestamp']}".encode()).hexdigest()[:24]
-            event={"alert_id":alert_id,"rule_id":rule_id,"rule_name":str(rule.get("name","Alert rule")),"trading_date":day,"symbol":sym,"observation_timestamp":ctx["observation_timestamp"],"direction":row.get("direction_label"),"strength":row.get("strength"),"message":f"{field} {op} {float(threshold):g}","severity":"HIGH" if rule.get("name") in {"Futures OI Spike","PCR Extreme","Strong Breakout"} else "INFO","sound":bool(rule.get("sound",False)),"payload":ctx,"created_at":pd.Timestamp.utcnow().isoformat()}
-            if store.record_event(event): emitted.append(event)
-    st.session_state["b4_alert_previous"]=curmap
+    """Evaluate the approved B4 rules and persist only genuine new events.
+
+    This is deliberately an additive presentation/alert layer.  SDL candidate
+    selection, scoring and gates remain untouched.  Previous point-in-time
+    values are resolved once, while AlertStore owns persistent re-arm/dedup
+    state so a browser refresh or Streamlit rerun cannot manufacture repeats.
+    """
+    if AlertStore is None or pred is None or pred.empty or pd.isna(observation_ts):
+        return []
+    rules = _UI.get("alert_rules", [])
+    if not isinstance(rules, list) or not rules:
+        return []
+
+    observation_ts = pd.Timestamp(observation_ts)
+    day = observation_ts.date().isoformat()
+    symbols = tuple(sorted({
+        str(value).strip().upper()
+        for value in (
+            pred["symbol"].tolist() if "symbol" in pred.columns
+            else pred["Symbol"].tolist() if "Symbol" in pred.columns else []
+        ) if str(value).strip()
+    }))
+    previous_map = _b4_previous_context_map(day, observation_ts.isoformat(), symbols, _b4_cache_signature())
+    store = AlertStore(ALERT_STORE_FILE)
+    emitted: list[dict] = []
+
+    for idx, raw_rule in enumerate(rules):
+        if not isinstance(raw_rule, dict) or not raw_rule.get("enabled", True):
+            continue
+        rule = _normalize_b4_rule(raw_rule, idx)
+        rule_id = str(rule["id"])
+        # Persist the exact runtime rule consumed by this evaluation. This makes
+        # configuration edits durable and gives AlertStore a stable rule id.
+        try:
+            store.save_rule(rule, pd.Timestamp.utcnow().isoformat())
+        except Exception:
+            pass
+
+        field = str(rule.get("field", "")).strip()
+        operator = str(rule.get("operator", ">=")).strip()
+        threshold = rule.get("value")
+        severity = "HIGH" if str(rule.get("name")) in {"Futures OI Spike", "PCR Extreme", "Strong Breakout"} else "INFO"
+
+        for _, row in pred.iterrows():
+            ctx = _b4_context(row, observation_ts, day)
+            sym = ctx["symbol"]
+            if not sym:
+                continue
+            old = previous_map.get(sym)
+            current_value = ctx["values"].get(field)
+            previous_value = (old or {}).get("values", {}).get(field) if old else None
+            matched = _b4_edge(previous_value, current_value, threshold, operator)
+            current_condition = _b4_condition(current_value, threshold, operator)
+            observation_iso = ctx["observation_timestamp"]
+
+            # Keep the persistent re-arm state synchronized on every observation,
+            # including a FALSE condition. This is what lets a later threshold
+            # crossing fire again after the stock has actually left the condition.
+            try:
+                persistent_emit = store.should_emit(
+                    rule,
+                    symbol=sym,
+                    trading_date=day,
+                    matched=bool(current_condition),
+                    observation_timestamp=observation_iso,
+                )
+            except Exception:
+                persistent_emit = matched
+
+            # First observed point is a baseline, never a synthetic alert.
+            # Subsequent alerts require both the point-in-time edge and the
+            # persistent re-arm decision.
+            if old is None or not matched or not persistent_emit:
+                continue
+
+            alert_id = hashlib.sha1(f"{rule_id}|{sym}|{observation_iso}".encode()).hexdigest()[:24]
+            threshold_text = f"{float(threshold):g}" if isinstance(threshold, (int, float)) else str(threshold)
+            event = {
+                "alert_id": alert_id,
+                "rule_id": rule_id,
+                "rule_name": str(rule.get("name", "Alert rule")),
+                "trading_date": day,
+                "symbol": sym,
+                "observation_timestamp": observation_iso,
+                "direction": row.get("direction_label"),
+                "strength": row.get("strength"),
+                "message": f"{field} {operator} {threshold_text}",
+                "severity": severity,
+                "sound": bool(rule.get("sound", False)),
+                "payload": ctx,
+                "created_at": pd.Timestamp.utcnow().isoformat(),
+            }
+            if store.record_event(event):
+                emitted.append(event)
+
+    st.session_state["b4_new_alerts"] = emitted
     return emitted
 
 
@@ -5640,30 +6133,85 @@ def _b4_emit_alerts(pred: pd.DataFrame, observation_ts: pd.Timestamp) -> list[di
 # ============================================================================
 
 def _load_b4_alert_events(limit: int = 8) -> list[dict]:
-    """Read bounded persisted B3 alert events for the B4 drawer only."""
+    """Read bounded persisted alert events for the B4 drawer."""
     if AlertStore is None:
         return []
     try:
         store = AlertStore(ALERT_STORE_FILE)
-        return store.recent_events(limit=max(1, min(int(limit), 50)))
-    except Exception:
+        return store.recent_events(limit=max(1, min(int(limit), 100)))
+    except Exception as exc:
+        _UI["b4_store_error"] = f"{type(exc).__name__}: {exc}"
         return []
 
 
-def _render_b4_alert_drawer() -> None:
-    if render_alert_drawer is None: return
-    try:
-        events=_load_b4_alert_events(8); sound_enabled=bool(_UI.get("alert_sound_enabled",False)); sound_volume=float(_UI.get("alert_sound_volume",0.35)); sound_tone=str(_UI.get("alert_sound_tone","soft")); rules=_UI.get("alert_rules",[])
-        if not isinstance(rules,list): rules=[]
-        newest_id=str(events[0].get("alert_id","")) if events else ""; baseline=st.session_state.get("sdl_alert_latest_id"); new_alert=bool(baseline is not None and newest_id and newest_id!=str(baseline));
-        if newest_id: st.session_state.sdl_alert_latest_id=newest_id
-        new_sound=bool(new_alert and events and events[0].get("sound",False))
-        result=render_alert_drawer(events,sound_enabled=sound_enabled,sound_volume=sound_volume,sound_tone=sound_tone,new_alert=new_alert,new_alert_sound=new_sound,rules=rules)
-        if isinstance(result,dict):
-            _UI.update({"alert_sound_enabled":bool(result.get("enabled",sound_enabled)),"alert_sound_volume":float(result.get("volume",sound_volume)),"alert_sound_tone":str(result.get("tone",sound_tone)),"alert_rules":result.get("rules",rules),"alert_config_schema":3})
-            save_ui_settings(alert_sound_enabled=_UI["alert_sound_enabled"],alert_sound_volume=_UI["alert_sound_volume"],alert_sound_tone=_UI["alert_sound_tone"],alert_rules=_UI["alert_rules"],alert_config_schema=3)
-    except Exception:
+def _render_b4_alert_drawer(emitted: list[dict] | None = None) -> None:
+    """Render the B4 drawer and expose integration failures instead of hiding them."""
+    if render_alert_drawer is None:
+        if _B4_IMPORT_ERROR:
+            st.warning(f"B4 alert drawer unavailable: {_B4_IMPORT_ERROR}", icon="⚠️")
         return
+    try:
+        events = _load_b4_alert_events(8)
+        history_events = _load_b4_alert_events(50)
+        sound_enabled = bool(_UI.get("alert_sound_enabled", False))
+        sound_volume = float(_UI.get("alert_sound_volume", 0.35))
+        sound_tone = str(_UI.get("alert_sound_tone", "soft"))
+        rules = _UI.get("alert_rules", [])
+        if not isinstance(rules, list):
+            rules = []
+        newest_id = str(events[0].get("alert_id", "")) if events else ""
+        baseline = st.session_state.get("sdl_alert_latest_id")
+        new_alert = bool(emitted) or bool(baseline is not None and newest_id and newest_id != str(baseline))
+        if newest_id:
+            st.session_state.sdl_alert_latest_id = newest_id
+        new_sound = bool(new_alert and any(bool(event.get("sound", False)) for event in (emitted or [])))
+
+        def _alert_chart_provider(event: dict):
+            day = str(event.get("trading_date") or "")
+            symbol = str(event.get("symbol") or "").strip().upper()
+            cutoff = str(event.get("observation_timestamp") or "") or None
+            if not day or not symbol:
+                return pd.DataFrame(columns=["Observation", "Close"])
+            return _symbol_price_timeline(day, symbol, cutoff, _cache_file_signature())
+
+        diagnostic = _UI.get("b4_store_error") or _UI.get("b4_runtime_error") or _B4_IMPORT_ERROR
+        result = render_alert_drawer(
+            events,
+            history_events=history_events,
+            sound_enabled=sound_enabled,
+            sound_volume=sound_volume,
+            sound_tone=sound_tone,
+            new_alert=new_alert,
+            new_alert_sound=new_sound,
+            rules=rules,
+            chart_provider=_alert_chart_provider,
+            diagnostic=str(diagnostic) if diagnostic else None,
+        )
+        if isinstance(result, dict):
+            returned_rules = result.get("rules", rules) or _default_b4_rules()
+            normalized_rules = [_normalize_b4_rule(rule, i) for i, rule in enumerate(returned_rules)]
+            _UI.update({
+                "alert_sound_enabled": bool(result.get("enabled", sound_enabled)),
+                "alert_sound_volume": float(result.get("volume", sound_volume)),
+                "alert_sound_tone": str(result.get("tone", sound_tone)),
+                "alert_rules": normalized_rules,
+                "alert_config_schema": 4,
+            })
+            if AlertStore is not None:
+                store = AlertStore(ALERT_STORE_FILE)
+                updated_at = pd.Timestamp.now(tz=IST).isoformat()
+                for rule in normalized_rules:
+                    store.save_rule(rule, updated_at)
+            save_ui_settings(
+                alert_sound_enabled=_UI["alert_sound_enabled"],
+                alert_sound_volume=_UI["alert_sound_volume"],
+                alert_sound_tone=_UI["alert_sound_tone"],
+                alert_rules=_UI["alert_rules"],
+                alert_config_schema=4,
+            )
+    except Exception as exc:
+        _UI["b4_runtime_error"] = f"{type(exc).__name__}: {exc}"
+        st.warning(f"B4 alert drawer runtime error: {type(exc).__name__}: {exc}", icon="⚠️")
 
 
 # ============================================================================

@@ -27,6 +27,8 @@ from storage import load_state, save_state as _storage_save_state
 from signal_engine import build_signal
 from decision_evidence import merge_evidence, enrich_decision
 from dashboard_evidence_bridge import build_live_evidence, resolve_alert_runtime
+from retracement_runtime.integration import enrich_snapshot
+from ntis_dashboard_evidence.renderer import render_ntis_evidence_surface
 
 STATE_KEY = "derivative_signal"
 STATE_JSON = Path(__file__).resolve().parent / "data" / "output" / "state" / "processing_state.json"
@@ -2813,6 +2815,20 @@ def _auto_process_new_snapshots(
                     result.attrs["retracement_isolated_error"] = str(exc)[:240]
             else:
                 result.attrs["retracement_disabled_for_live"] = True
+
+            # Bundle A: construct point-in-time RSI/MTF + Stock State from the
+            # already-computed snapshot. Retracement remains owned by the existing
+            # dashboard lifecycle; this block only reads its state.
+            try:
+                _lifecycle = result.attrs.get("replay_lifecycle_events", {})
+                result, _stock_state_frame = enrich_snapshot(
+                    result,
+                    history_by_symbol=history_by_symbol,
+                    lifecycle_by_symbol=_lifecycle,
+                )
+                result.attrs["ntis_stock_state_frame"] = _stock_state_frame
+            except Exception as exc:
+                result.attrs["ntis_intelligence_runtime_error"] = f"{type(exc).__name__}: {exc}"[:240]
 
             # V12 additive evidence bridge. This runs only after the frozen SDL
             # result and optional retracement layer have completed. It cannot
@@ -7204,6 +7220,25 @@ def _render_current_result(
             selected = filtered.loc[filtered["symbol"].astype(str).eq(symbol)].iloc[0]
             _render_evidence(selected)
 
+            # V13 additive NTIS evidence surface. Presentation only: it consumes
+            # the V12 evidence package/cache and never changes SDL selection.
+            try:
+                _ntis_live_date = str(
+                    lifecycle_trading_date
+                    or st.session_state.get("ds_trading_date", "")
+                )
+                render_ntis_evidence_surface(
+                    result=result,
+                    selected_symbol=str(symbol),
+                    trading_date=_ntis_live_date,
+                    snapshot_results=snapshot_results,
+                    snapshot_label=snapshot_label,
+                )
+            except Exception as exc:
+                st.warning(
+                    f"NTIS evidence surface unavailable: {type(exc).__name__}: {exc}"
+                )
+
         with st.expander("Full qualified decision table • audit view", expanded=False):
             _render_table(filtered)
 
@@ -8399,6 +8434,17 @@ def _build_replay_day_in_memory(
         else:
             result.attrs["retracement_disabled_for_live"] = True
             result.attrs["replay_lifecycle_events"] = {}
+            # Bundle A: same RSI/MTF + Stock State composition used by LIVE.
+            # Replay uses only history accumulated through this observation.
+            try:
+                result, _stock_state_frame = enrich_snapshot(
+                    result,
+                    history_by_symbol=history_by_symbol,
+                    lifecycle_by_symbol=lifecycle_point,
+                )
+                result.attrs["ntis_stock_state_frame"] = _stock_state_frame
+            except Exception as exc:
+                result.attrs["ntis_intelligence_runtime_error"] = f"{type(exc).__name__}: {exc}"[:240]
         snapshots[key] = result
 
         for row in result.to_dict(orient="records"):
