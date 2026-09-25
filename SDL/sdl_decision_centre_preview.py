@@ -45,7 +45,7 @@ from Sector_Analysis.sector_page import render_sector_analysis_page
 # ADDITIVE ONLY: isolated B4 alert drawer + optional sound.
 _B4_IMPORT_ERROR = None
 try:
-    from extensions.alert_chart.dashboard_alert_drawer import render_alert_drawer
+    from extensions.alert_chart.dashboard_alert_drawer import render_alert_drawer, _render_intraday_evidence_chart
 except Exception as exc:
     render_alert_drawer = None
     _B4_IMPORT_ERROR = f"dashboard_alert_drawer: {type(exc).__name__}: {exc}"
@@ -1274,10 +1274,11 @@ def _load_day_point_cache() -> dict:
 
 @st.cache_data(ttl=60, show_spinner=False)
 def _symbol_price_timeline(day: str, symbol: str, cutoff_iso: str | None, cache_sig: tuple) -> pd.DataFrame:
-    """Build an on-demand price timeline from the existing point-in-time cache.
+    """Build a point-in-time intraday evidence timeline for one symbol.
 
-    This is deliberately cold-path work: it is never calculated during normal
-    LIVE/Replay rendering and never opens source workbooks.
+    Every evidence value belongs to the exact observation timestamp. No
+    day-to-date accumulation is calculated here. This is a cold-path chart
+    provider only; normal LIVE/Replay rendering does not execute it.
     """
     cache = _load_day_point_cache()
     day_cache = cache.get(str(day), {}) if isinstance(cache, dict) else {}
@@ -1285,6 +1286,18 @@ def _symbol_price_timeline(day: str, symbol: str, cutoff_iso: str | None, cache_
     cutoff = pd.to_datetime(cutoff_iso, errors="coerce") if cutoff_iso else pd.NaT
     rows = []
     wanted = str(symbol).strip().upper()
+
+    def _value(row: pd.Series, aliases: tuple[str, ...]):
+        try:
+            return metric(row, list(aliases))
+        except Exception:
+            for name in aliases:
+                if name in row.index:
+                    value = pd.to_numeric(pd.Series([row.get(name)]), errors="coerce").iloc[0]
+                    if pd.notna(value):
+                        return float(value)
+        return None
+
     for key, entry in sorted(entries.items()):
         if not isinstance(entry, dict) or not isinstance(entry.get("pred"), pd.DataFrame):
             continue
@@ -1301,14 +1314,143 @@ def _symbol_price_timeline(day: str, symbol: str, cutoff_iso: str | None, cache_
         if hit.empty:
             continue
         row = hit.iloc[0]
-        price = metric(row, ["Close", "CMP", "Current Price", "close", "current_price"])
+        price = _value(row, ("Close", "CMP", "Current Price", "close", "current_price"))
         if price is None or pd.isna(price):
             continue
-        rows.append({"Observation": ts, "Close": float(price)})
+        rows.append({
+            "Observation": ts,
+            "Open": _value(row, ("Open", "open", "OPEN", "Open Price", "open_price")),
+            "High": _value(row, ("High", "high", "HIGH", "High Price", "high_price")),
+            "Low": _value(row, ("Low", "low", "LOW", "Low Price", "low_price")),
+            "Close": float(price),
+            "Futures OI Change": _value(row, ("futures_oi_chg", "Futures OI Change", "Future OI Change", "futures_oi_change")),
+            "Futures OI Change %": _value(row, ("futures_oi_chg_pct", "Futures OI Change %", "Future OI Change %", "futures_oi_change_pct")),
+            "PE-CE OI Change": _value(row, ("pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change", "PE−CE OI Change")),
+            "PE-CE OI Change %": _value(row, ("pe_minus_ce_oi_chg_pct", "PE_CE_OI_Chg_Pct", "PE-CE OI Change %", "PE−CE OI Chg %")),
+            "PCR Change %": _value(row, ("pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Δ %")),
+        })
     if not rows:
-        return pd.DataFrame(columns=["Observation", "Close"])
-    return pd.DataFrame(rows).drop_duplicates("Observation").sort_values("Observation")
+        return pd.DataFrame(columns=[
+            "Observation", "Open", "High", "Low", "Close", "Futures OI Change",
+            "Futures OI Change %", "PE-CE OI Change", "PE-CE OI Change %", "PCR Change %"
+        ])
+    result = (
+        pd.DataFrame(rows)
+        .drop_duplicates("Observation")
+        .sort_values("Observation")
+        .reset_index(drop=True)
+    )
+    return _merge_pece_into_timeline(result, day, wanted)
 
+
+
+
+# ============================================================================
+# POINT-IN-TIME PECE EVIDENCE — ON-DEMAND CHART ENRICHMENT
+# ============================================================================
+
+PECE_SOURCE_ROOT = Path(os.getenv(
+    "NTIS_PECE_SOURCE_ROOT",
+    r"D:\\My-data\\Share_P&L\\Ichart Data\\Screenshot\\PECE_Volume",
+))
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _pece_day_timeline(day: str) -> pd.DataFrame:
+    """Load PECE snapshots and retain the embedded observation timestamp.
+
+    PECE workbooks may arrive every ~10 minutes while containing multiple
+    5-minute observations.  Snapshot/arrival time is never used as the
+    market observation time.  Duplicate symbol+observation rows are resolved
+    by the newest workbook so the evidence layer stays point-in-time.
+    """
+    try:
+        d = pd.Timestamp(day).date()
+    except Exception:
+        return pd.DataFrame()
+    root = PECE_SOURCE_ROOT / f"{d.year:04d}" / d.strftime("%B").lower() / d.isoformat()
+    if not root.exists():
+        return pd.DataFrame()
+
+    files = sorted(root.glob("*.xlsx"), key=lambda x: (x.stat().st_mtime_ns, str(x).lower()))
+    frames = []
+    wanted = {
+        "Time", "Symbol", "Fut Price", "VWAP", "IV",
+        "Fut OI Chg", "Fut OI Chg %", "Diff(PE-CE OI Chg)",
+        "Diff(PE-CE OI Chg %)", "CE OI Chg", "CE OI Chg %",
+        "PE OI Chg", "PE OI Chg %", "PCR-OI", "PCR-OI Chg",
+        "Fut Volume", "CE Volume", "PE Volume", "OI ChgTrend",
+    }
+    for path in files:
+        try:
+            frame = pd.read_excel(path, sheet_name="Data")
+        except Exception:
+            try:
+                frame = pd.read_excel(path)
+            except Exception:
+                continue
+        if frame.empty or "Symbol" not in frame.columns or "Time" not in frame.columns:
+            continue
+        keep = [c for c in frame.columns if c in wanted]
+        if "Symbol" not in keep or "Time" not in keep:
+            continue
+        frame = frame[keep].copy()
+        frame["Symbol"] = frame["Symbol"].astype(str).str.strip().str.upper()
+        frame["Observation"] = pd.to_datetime(
+            d.isoformat() + " " + frame["Time"].astype(str).str.strip(),
+            errors="coerce",
+        )
+        frame["_source_mtime"] = path.stat().st_mtime_ns
+        frames.append(frame)
+    if not frames:
+        return pd.DataFrame()
+    out = pd.concat(frames, ignore_index=True)
+    out = out.dropna(subset=["Observation", "Symbol"])
+    out = out.sort_values(["_source_mtime", "Observation"])
+    out = out.drop_duplicates(["Symbol", "Observation"], keep="last")
+    return out.drop(columns=["_source_mtime"], errors="ignore").reset_index(drop=True)
+
+
+def _merge_pece_into_timeline(frame: pd.DataFrame, day: str, symbol: str) -> pd.DataFrame:
+    pece = _pece_day_timeline(day)
+    if pece.empty or frame.empty:
+        return frame
+    pece = pece[pece["Symbol"].eq(str(symbol).strip().upper())].copy()
+    if pece.empty:
+        return frame
+    pece = pece.sort_values("Observation")
+    left = frame.sort_values("Observation").copy()
+    # Daywise observation timestamps can carry seconds while PECE uses the
+    # embedded 5-minute clock. Nearest mapping within 3 minutes is explicit
+    # and does not invent or accumulate any derivative value.
+    merged = pd.merge_asof(
+        left, pece, on="Observation", direction="nearest",
+        tolerance=pd.Timedelta(minutes=3), suffixes=("", "_PECE"),
+    )
+    aliases = {
+        "Fut OI Chg": "Futures OI Change",
+        "Fut OI Chg %": "Futures OI Change %",
+        "Diff(PE-CE OI Chg)": "PE-CE OI Change",
+        "Diff(PE-CE OI Chg %)": "PE-CE OI Change %",
+        "CE OI Chg": "CE OI Change",
+        "CE OI Chg %": "CE OI Change %",
+        "PE OI Chg": "PE OI Change",
+        "PE OI Chg %": "PE OI Change %",
+        "PCR-OI": "PCR OI",
+        "PCR-OI Chg": "PCR OI Change",
+        "IV": "IV",
+        "VWAP": "VWAP",
+        "Fut Price": "Futures Price",
+        "Fut Volume": "Futures Volume",
+        "CE Volume": "CE Volume",
+        "PE Volume": "PE Volume",
+        "OI ChgTrend": "OI Change Trend",
+    }
+    for source, target in aliases.items():
+        col = f"{source}_PECE" if f"{source}_PECE" in merged.columns else source
+        if col in merged.columns:
+            merged[target] = pd.to_numeric(merged[col], errors="coerce") if target != "OI Change Trend" else merged[col]
+    return merged
 
 def _cache_file_signature() -> tuple:
     try:
@@ -1783,58 +1925,56 @@ def _enrich_snapshot_from_day_cache(df: pd.DataFrame, evidence: pd.DataFrame) ->
 
 @st.cache_data(ttl=300, show_spinner=False)
 @st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def _replay_date_index() -> tuple[str, ...]:
-    """Return replay trading days from the read-only Daywise source index.
+    """Return Replay trading days from lightweight Daywise filenames only.
 
-    UI-only performance cache. It never supplies snapshot contents or Replay
-    data; exact selected-day files are still resolved through snapshot_files().
+    This is UI metadata discovery. It never opens workbooks, calls the full
+    historical snapshot resolver, or touches PIT payloads.
     """
-    grouped: set[str] = set()
+    root = Path(getattr(sdl_config, "INTRADAY_SOURCE_ROOT", ""))
+    if not root.exists() or not root.is_dir():
+        return tuple()
+
+    days = set()
+    date_re = re.compile(r"(?<!\\d)(20\\d{2}-\\d{2}-\\d{2})(?!\\d)")
     try:
-        paths = discover_historical_snapshots(None)
+        paths = root.rglob("Daywise_Price_and_OI_Summary*.xlsx")
+        for path in paths:
+            m = date_re.search(path.name)
+            if m:
+                days.add(m.group(1))
     except Exception:
-        paths = []
-    for raw_path in paths or []:
-        try:
-            ts = observation_ts(Path(raw_path))
-            if pd.notna(ts):
-                grouped.add(pd.Timestamp(ts).date().isoformat())
-        except Exception:
-            continue
-    return tuple(sorted(grouped, reverse=True))
+        return tuple()
+    return tuple(sorted(days, reverse=True))
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def _calendar_month_day_files(selected_month: str) -> dict[str, list[Path]]:
-    """Load source files once for the selected calendar month."""
+    """Return Daywise paths for one month from filenames only.
+
+    Exact observation timestamp resolution remains deferred to the selected
+    day/snapshot path.
+    """
     month = str(selected_month)[:7]
+    root = Path(getattr(sdl_config, "INTRADAY_SOURCE_ROOT", ""))
     grouped: dict[str, list[Path]] = {}
+    if not root.exists() or not root.is_dir():
+        return grouped
+
+    date_re = re.compile(r"(?<!\\d)(20\\d{2}-\\d{2}-\\d{2})(?!\\d)")
     try:
-        all_paths = discover_historical_snapshots(None)
+        paths = root.rglob("Daywise_Price_and_OI_Summary*.xlsx")
+        for path in paths:
+            m = date_re.search(path.name)
+            if not m or not m.group(1).startswith(month):
+                continue
+            grouped.setdefault(m.group(1), []).append(path)
     except Exception:
-        all_paths = []
-    for raw_path in all_paths or []:
-        path = Path(raw_path)
-        name = path.name
-        if month not in name:
-            try:
-                ts = observation_ts(path)
-                if pd.isna(ts) or pd.Timestamp(ts).strftime("%Y-%m") != month:
-                    continue
-                day = pd.Timestamp(ts).strftime("%Y-%m-%d")
-            except Exception:
-                continue
-        else:
-            ts = observation_ts(path)
-            if pd.isna(ts) or pd.Timestamp(ts).strftime("%Y-%m") != month:
-                continue
-            day = pd.Timestamp(ts).strftime("%Y-%m-%d")
-        grouped.setdefault(day, []).append(path)
+        return grouped
 
     for day, items in grouped.items():
-        grouped[day] = sorted(
-            items,
-            key=lambda p: (observation_ts(p), str(p).lower()),
-        )
+        grouped[day] = sorted(items, key=lambda p: str(p).lower())
     return grouped
 
 
@@ -3434,12 +3574,19 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
             confirmation = str(confirmation_value)
 
         futures_missing = futures_oi is None and futures_oi_pct is None
+        futures_status = str(row.get("futures_oi_status", "")).strip().upper()
+        futures_delayed = bool(row.get("futures_oi_delayed", False)) or futures_status == "DELAYED"
+        delayed_badge = (
+            ' <span class="badge badge-yellow" title="Last successfully processed Futures evidence; delayed">D</span>'
+            if futures_delayed
+            else ""
+        )
         if replay_mode and futures_missing:
             futures_oi_display = '<span class="badge badge-yellow" title="Futures data not available in the point-in-time IVR/IVP source">D</span>'
             futures_oi_pct_display = futures_oi_display
         else:
-            futures_oi_display = fmt_oi(futures_oi)
-            futures_oi_pct_display = fmt_pct_value(futures_oi_pct)
+            futures_oi_display = fmt_oi(futures_oi) + delayed_badge if futures_oi is not None and not pd.isna(futures_oi) else (delayed_badge or "—")
+            futures_oi_pct_display = fmt_pct_value(futures_oi_pct) + delayed_badge if futures_oi_pct is not None and not pd.isna(futures_oi_pct) else (delayed_badge or "—")
 
         rows.append(
             "<tr>"
@@ -3548,6 +3695,136 @@ def future_oi_interpretation(
             )
 
     return "Futures OI is changing without a clear directional buildup interpretation."
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+
+def impact_hint(text: str) -> str:
+    value = str(text or "").casefold()
+    negative = ("loss","decline","downgrade","penalty","fine","default","fraud","litigation","investigation","resignation","delay","cancel","weak","warning","cut","probe","regulatory action","concern")
+    positive = ("order","contract","award","approval","acquisition","investment","expansion","capacity","results","earnings","profit","guidance","upgrade","deal","stake","support","growth","launch")
+    neg = sum(term in value for term in negative)
+    pos = sum(term in value for term in positive)
+    return "POSITIVE" if pos > neg else "NEGATIVE" if neg > pos else "NEUTRAL"
+
+def _news_item_text(item: dict) -> str:
+    return str(item.get("text") or item.get("title") or item.get("headline") or "").strip()
+
+def _news_item_time(item: dict) -> str:
+    return str(item.get("time") or item.get("timestamp") or item.get("published") or "News").strip()
+
+def _news_item_source(item: dict) -> str:
+    return str(item.get("source") or "Google News").strip()
+
+def _news_item_impact(item: dict) -> str:
+    return str(item.get("impact") or impact_hint(_news_item_text(item)))
+
+def _news_item_symbol(item: dict) -> str:
+    return str(item.get("symbol") or item.get("stock") or item.get("ticker") or "").strip().upper()
+
+def _news_is_junk(text: str) -> bool:
+    value = str(text or "").casefold()
+    junk = ("price target","target price","forecast","prediction","technical analysis","technical outlook","watchlist","should you buy","buy or sell","share price today","stock price today","multibagger","penny stock","top stocks to buy","stocks to watch","market forecast","best stocks to buy","stocks to buy","stocks to sell","investment idea")
+    return not value or any(term in value for term in junk)
+
+def _news_terms(text: str, terms) -> int:
+    value = str(text or "").casefold()
+    return sum(1 for term in terms if str(term).casefold() in value)
+
+def _news_direction(text: str) -> int:
+    pos = _news_terms(text, POSITIVE_NEWS_TERMS)
+    neg = _news_terms(text, NEGATIVE_NEWS_TERMS)
+    return 1 if pos > neg else -1 if neg > pos else 0
+
+def _news_scope(text: str, company: bool = False) -> str:
+    if company:
+        return "COMPANY"
+    if _news_terms(text, GLOBAL_NEWS_TERMS):
+        return "MARKET / MACRO"
+    if _news_terms(text, SECTOR_NEWS_TERMS):
+        return "SECTOR / THEME"
+    return "MARKET / DOMESTIC"
+
+def analyze_news_catalyst(symbol: str, row, stock_news: list[dict], market_news: list[dict]) -> dict:
+    symbol = str(symbol or "").strip().upper()
+    direction = str(row.get("direction_label", "")).upper()
+    price_change = pd.to_numeric(row.get("Price Chg %"), errors="coerce")
+    if pd.isna(price_change):
+        price_change = pd.to_numeric(row.get("Price_Chg_Pct"), errors="coerce")
+    if pd.isna(price_change):
+        price_change = pd.to_numeric(row.get("price_chg_pct"), errors="coerce")
+    candidates = []
+    for item in stock_news or []:
+        text = _news_item_text(item)
+        if text and not _news_is_junk(text):
+            candidates.append((text, True, _news_item_time(item)))
+    for item in market_news or []:
+        text = _news_item_text(item)
+        item_symbol = _news_item_symbol(item)
+        if text and not _news_is_junk(text) and (item_symbol == symbol or _news_terms(text, GLOBAL_NEWS_TERMS + SECTOR_NEWS_TERMS)):
+            candidates.append((text, False, _news_item_time(item)))
+    scored = []
+    for text, company, stamp in candidates:
+        bias = _news_direction(text)
+        major_hits = _news_terms(text, MAJOR_NEWS_TERMS)
+        if bias == 0 and major_hits == 0:
+            continue
+        score = min(5, major_hits + (1 if bias else 0))
+        scored.append({"text":text,"bias":bias,"score":score,"major":score >= 3,"scope":_news_scope(text,company),"time":stamp})
+    scored.sort(key=lambda x:(x["major"],x["score"]), reverse=True)
+    major = [x for x in scored if x["major"]]
+    top = scored[:3]
+    news_bias = sum(x["bias"] * max(1,x["score"]) for x in top)
+    news_bias = 1 if news_bias > 0 else -1 if news_bias < 0 else 0
+    market_direction = 1 if direction.startswith("BULL") else -1 if direction.startswith("BEAR") else 0
+    if pd.notna(price_change) and price_change != 0:
+        market_direction = 1 if float(price_change) > 0 else -1
+    alignment = "ALIGNED" if news_bias and market_direction and news_bias == market_direction else "CONTRARY" if news_bias and market_direction else "NEUTRAL"
+    impact = "POSITIVE" if news_bias > 0 else "NEGATIVE" if news_bias < 0 else "NEUTRAL"
+    return {"major":bool(major),"impact":impact,"alignment":alignment,"items":top,"major_items":major[:2],"headline":major[0]["text"] if major else (top[0]["text"] if top else "")}
+
+def catalyst_badge(analysis: dict) -> str:
+    if not analysis.get("major"): return ""
+    impact = analysis.get("impact")
+    title = "Major positive news catalyst" if impact == "POSITIVE" else "Major negative news catalyst" if impact == "NEGATIVE" else "Major mixed/neutral news catalyst"
+    return f'<span class="catalyst-star" title="{title}">★</span>'
+
+def catalyst_panel_html(analysis: dict) -> str:
+    if not analysis.get("major"):
+        return '<div class="news-catalyst"><div class="catalyst-head"><div class="catalyst-title">NEWS CATALYST</div><div class="catalyst-bias-neutral">NO MATERIAL CATALYST DETECTED</div></div><div class="catalyst-body">No major available news item is strong enough to explain today&#39;s move.</div><div class="catalyst-note">Presentation layer only · no SDL re-scoring</div></div>'
+    impact = analysis.get("impact","NEUTRAL")
+    alignment = analysis.get("alignment","NEUTRAL")
+    cls = "major-up" if impact == "POSITIVE" else "major-down" if impact == "NEGATIVE" else "mixed"
+    bias_cls = "catalyst-bias-up" if impact == "POSITIVE" else "catalyst-bias-down" if impact == "NEGATIVE" else "catalyst-bias-neutral"
+    major_items = analysis.get("major_items") or [{}]
+    scope = major_items[0].get("scope","NEWS")
+    return f'<div class="news-catalyst {cls}"><div class="catalyst-head"><div class="catalyst-title">★ MAJOR NEWS CATALYST · {safe_text(scope)}</div><div class="{bias_cls}">{safe_text(impact)} · {safe_text(alignment)}</div></div><div class="catalyst-body">{safe_text(analysis.get("headline",""))}</div><div class="catalyst-note">Presentation layer only · frozen SDL decision score unchanged</div></div>'
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _quality_news_rss(query: str) -> list[dict]:
+    q = str(query or "").strip()
+    if not q: return []
+    try:
+        url = "https://news.google.com/rss/search?" + urlencode({"q":q,"hl":"en-IN","gl":"IN","ceid":"IN:en"})
+        req = Request(url, headers={"User-Agent":"Mozilla/5.0"})
+        with urlopen(req, timeout=3) as response:
+            root = ET.fromstring(response.read())
+        allowed = ("mint","livemint","moneycontrol","cnbc tv18","cnbctv18","reuters","economic times","economictimes","business standard","financial express","businessline","the hindu businessline")
+        out=[]; seen=set()
+        for item in root.findall("./channel/item")[:20]:
+            title=(item.findtext("title") or "").strip()
+            pub=(item.findtext("pubDate") or "").strip()
+            source=(item.findtext("source") or "").strip()
+            if not title or _news_is_junk(title): continue
+            if source and not any(name in source.casefold() for name in allowed): continue
+            key=title.casefold()
+            if key in seen: continue
+            seen.add(key)
+            out.append({"text":title,"title":title,"time":pub,"timestamp":pub,"published":pub,"source":source or "Google News","scope":"EXTERNAL"})
+        return out
+    except Exception:
+        return []
+
 
 
 def render_stock_detail(
@@ -3758,8 +4035,11 @@ def render_stock_detail(
         pe_ce = metric(row, ["pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change", "PE−CE OI Change", "PE-CE OI Δ", "PE−CE OI Δ", "pe_minus_ce_oi", "pe_ce_oi_change", "pe_minus_ce_oi_change"])
         pe_ce_pct = metric(row, ["pe_minus_ce_oi_chg_pct", "PE−CE OI Chg %", "PE-CE OI Chg %", "PE−CE OI Change %", "PE-CE OI Change %", "PE−CE OI Δ %", "PE-CE OI Δ %", "pe_minus_ce_oi_chg_pct", "pe_ce_oi_chg_pct"])
 
+        futures_status = str(row.get("futures_oi_status", "")).strip().upper()
+        futures_delayed = bool(row.get("futures_oi_delayed", False)) or futures_status == "DELAYED"
+        futures_label_suffix = " · D" if futures_delayed else ""
         cards = [
-            ("FUTURES OI CHANGE", fut, fut_pct),
+            (f"FUTURES OI CHANGE{futures_label_suffix}", fut, fut_pct),
             ("PCR CHANGE %", pcr_pct, None),
             ("IV Δ", iv, None),
             ("PE−CE OI CHANGE", pe_ce, pe_ce_pct),
@@ -3802,6 +4082,8 @@ def render_stock_detail(
                 else:
                     secondary = ""
                 note = "Primary snapshot field"
+            if label.startswith("FUTURES OI CHANGE") and futures_delayed:
+                note = "Delayed · last successfully processed Futures evidence"
 
             card_html.append(
                 f'<div class="trader-card">'
@@ -3841,7 +4123,7 @@ def render_stock_detail(
                 _cache_file_signature(),
             )
             if not timeline.empty:
-                st.line_chart(timeline.set_index("Observation")["Close"], height=220, use_container_width=True)
+                _render_intraday_evidence_chart(timeline, alert_timestamp=None)
             else:
                 st.caption("No cached point-in-time price history is available for this symbol.")
 
@@ -3856,8 +4138,10 @@ def render_stock_detail(
         if load_external:
             external_news = live_external_news(selected, row)
 
-        stock_news = live_nse_stock_news(selected)
-        market_news = live_nse_market_news()
+        quality_stock = _quality_news_rss(f'"{selected}" India stock company')
+        quality_sector = _quality_news_rss(f'"{selected}" sector India regulatory results order')
+        stock_news = [x for x in quality_stock if not _news_is_junk(x.get("text", ""))]
+        market_news = [x for x in _quality_news_rss('site:livemint.com OR site:moneycontrol.com OR site:cnbctv18.com India markets sector regulatory news') if not _news_is_junk(x.get("text", ""))]
         combined_stock_news = list(external_news.get("stock", [])) + stock_news
         combined_market_news = list(external_news.get("sector", [])) + list(external_news.get("macro", [])) + market_news
         news_analysis = analyze_news_catalyst(selected, row, combined_stock_news, combined_market_news)
@@ -3878,10 +4162,10 @@ def render_stock_detail(
                         star = "★ " if is_major else ""
                         st.markdown(
                             f'<div class="{cls}">'
-                            f'{star}{safe_text(item["text"])}'
+                            f'{star}{safe_text(_news_item_text(item))}'
                             f'<span class="news-time">'
-                            f'{safe_text(item["time"])} · '
-                            f'{safe_text(impact_hint(item["text"]))}'
+                            f'{safe_text(_news_item_time(item))} · '
+                            f'{safe_text(impact_hint(_news_item_text(item)))}'
                             f'</span></div>',
                             unsafe_allow_html=True,
                         )
@@ -3906,11 +4190,11 @@ def render_stock_detail(
                         star = "★ " if is_major else ""
                         st.markdown(
                             f'<div class="{cls}">'
-                            f'{star}<b>{safe_text(item["symbol"])}</b> · '
-                            f'{safe_text(item["text"])}'
+                            f'{star}<b>{safe_text(item.get("symbol") or "NSE")}</b> · '
+                            f'{safe_text(item.get("text", ""))}'
                             f'<span class="news-time">'
-                            f'{safe_text(item["time"])} · '
-                            f'{safe_text(item["impact"])}'
+                            f'{safe_text(item.get("time", "NSE"))} · '
+                            f'{safe_text(item.get("impact") or _news_item_impact(item))}'
                             f'</span></div>',
                             unsafe_allow_html=True,
                         )
@@ -3921,377 +4205,6 @@ def render_stock_detail(
                         '</div>',
                         unsafe_allow_html=True,
                     )
-
-
-# ============================================================================
-# BEST-EFFORT LIVE NSE NEWS
-# ============================================================================
-
-def _nse_json(url: str):
-    req = Request(
-        url,
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 Chrome/150 Safari/537.36"
-            ),
-            "Accept": "application/json,text/plain,*/*",
-            "Referer": "https://www.nseindia.com/",
-        },
-    )
-
-    with urlopen(req, timeout=5) as response:
-        return json.loads(
-            response.read().decode("utf-8", errors="ignore")
-        )
-
-
-def impact_hint(subject: str) -> str:
-    text = str(subject).lower()
-
-    if any(k in text for k in ("order", "bagging", "contract")):
-        return "Potential business/catalyst relevance — verify filing details."
-    if any(k in text for k in ("result", "financial", "earnings")):
-        return "Results-related context — verify reported figures and guidance."
-    if any(k in text for k in ("dividend", "bonus", "split", "record date")):
-        return "Corporate-action context — verify dates and terms."
-    if any(k in text for k in ("board meeting", "meeting", "investor")):
-        return "Scheduled corporate event — outcome may change context."
-    if any(k in text for k in ("fund raising", "fundraising", "capital")):
-        return "Capital/financing context — verify size and terms."
-
-    return "Factual filing context only — no automatic trade signal."
-
-
-POSITIVE_NEWS_TERMS = (
-    "order", "contract", "award", "commission", "commissioned", "capacity",
-    "project", "investment", "acquisition", "partnership", "expansion",
-    "approval", "win", "growth", "profit", "earnings", "results",
-    "upgrade", "tariff", "renewable", "solar", "transmission", "record",
-)
-NEGATIVE_NEWS_TERMS = (
-    "loss", "decline", "downgrade", "penalty", "fine", "default", "fraud",
-    "litigation", "dispute", "investigation", "resignation", "delay", "cancel",
-    "cancellation", "cut", "weak", "miss", "warning", "regulatory action",
-)
-MAJOR_NEWS_TERMS = (
-    "order", "contract", "award", "commissioned", "capacity", "acquisition",
-    "fund raising", "fundraising", "capital", "results", "earnings", "profit",
-    "loss", "approval", "regulatory", "investigation", "penalty", "tariff",
-    "merger", "stake", "project", "investment", "guidance", "rating",
-)
-GLOBAL_NEWS_TERMS = (
-    "iran", "middle east", "oil", "crude", "brent", "fed", "federal reserve",
-    "us rates", "tariff", "china", "global", "geopolitical", "war", "monsoon",
-)
-SECTOR_NEWS_TERMS = (
-    "power", "utilities", "energy", "renewable", "solar", "wind", "grid",
-    "transmission", "banking", "pharma", "auto", "steel", "metal", "it sector",
-)
-
-
-def _news_terms(text: str, terms: tuple[str, ...]) -> int:
-    value = str(text or "").lower()
-    return sum(1 for term in terms if term in value)
-
-
-def _news_direction(text: str) -> int:
-    value = str(text or "").lower()
-    pos = _news_terms(value, POSITIVE_NEWS_TERMS)
-    neg = _news_terms(value, NEGATIVE_NEWS_TERMS)
-    if pos > neg:
-        return 1
-    if neg > pos:
-        return -1
-    return 0
-
-
-def _news_scope(text: str, company: bool = False) -> str:
-    value = str(text or "").lower()
-    if company:
-        return "COMPANY"
-    if _news_terms(value, GLOBAL_NEWS_TERMS):
-        return "GLOBAL / MACRO"
-    if _news_terms(value, SECTOR_NEWS_TERMS):
-        return "SECTOR / THEME"
-    return "MARKET / DOMESTIC"
-
-
-def analyze_news_catalyst(symbol: str, row: pd.Series, stock_news: list[dict], market_news: list[dict]) -> dict:
-    """Presentation-only news catalyst layer.
-
-    It does not alter SDL scoring or qualification. It compares available
-    announcement direction with today's frozen SDL direction/price context.
-    """
-    symbol = str(symbol or "").strip().upper()
-    direction = str(row.get("direction_label", "")).upper()
-    price_change = pd.to_numeric(row.get("Price Chg %"), errors="coerce")
-    if pd.isna(price_change):
-        price_change = pd.to_numeric(row.get("Price_Chg_Pct"), errors="coerce")
-    if pd.isna(price_change):
-        price_change = pd.to_numeric(row.get("price_chg_pct"), errors="coerce")
-
-    candidates = []
-    for item in stock_news or []:
-        text = str(item.get("text", "")).strip()
-        if text:
-            candidates.append((text, True, item.get("time", "NSE")))
-
-    for item in market_news or []:
-        text = str(item.get("text", "")).strip()
-        item_symbol = str(item.get("symbol", "")).strip().upper()
-        if not text:
-            continue
-        # Keep company-specific market feed items and broader sector/macro items.
-        if item_symbol == symbol or _news_terms(text, GLOBAL_NEWS_TERMS + SECTOR_NEWS_TERMS):
-            candidates.append((text, False, item.get("time", "NSE")))
-
-    scored = []
-    for text, company, stamp in candidates:
-        bias = _news_direction(text)
-        major_hits = _news_terms(text, MAJOR_NEWS_TERMS)
-        if bias == 0 and major_hits == 0:
-            continue
-        score = min(5, major_hits + (1 if bias else 0))
-        scored.append({
-            "text": text,
-            "bias": bias,
-            "score": score,
-            "major": score >= 3,
-            "scope": _news_scope(text, company),
-            "time": stamp,
-        })
-
-    scored.sort(key=lambda x: (x["major"], x["score"]), reverse=True)
-    major = [x for x in scored if x["major"]]
-    top = scored[:3]
-
-    news_bias = 0
-    for item in top:
-        news_bias += item["bias"] * max(1, item["score"])
-    news_bias = 1 if news_bias > 0 else -1 if news_bias < 0 else 0
-
-    market_direction = 1 if direction.startswith("BULL") else -1 if direction.startswith("BEAR") else 0
-    if pd.notna(price_change) and price_change != 0:
-        market_direction = 1 if float(price_change) > 0 else -1
-
-    if news_bias and market_direction:
-        alignment = "ALIGNED" if news_bias == market_direction else "CONTRARY"
-    else:
-        alignment = "NEUTRAL"
-
-    if news_bias > 0:
-        impact = "POSITIVE"
-    elif news_bias < 0:
-        impact = "NEGATIVE"
-    else:
-        impact = "NEUTRAL"
-
-    return {
-        "major": bool(major),
-        "impact": impact,
-        "alignment": alignment,
-        "items": top,
-        "major_items": major[:2],
-        "headline": major[0]["text"] if major else (top[0]["text"] if top else ""),
-    }
-
-
-def catalyst_badge(analysis: dict) -> str:
-    if not analysis.get("major"):
-        return ""
-    impact = analysis.get("impact")
-    alignment = analysis.get("alignment")
-    if impact == "POSITIVE":
-        return '<span class="catalyst-star" title="Major positive news catalyst">★</span>'
-    if impact == "NEGATIVE":
-        return '<span class="catalyst-star" title="Major negative news catalyst">★</span>'
-    return '<span class="catalyst-star" title="Major mixed/neutral news catalyst">★</span>'
-
-
-def catalyst_panel_html(analysis: dict) -> str:
-    if not analysis.get("major"):
-        return (
-            '<div class="news-catalyst">'
-            '<div class="catalyst-head"><div class="catalyst-title">NEWS CATALYST</div>'
-            '<div class="catalyst-bias-neutral">NO MATERIAL CATALYST DETECTED</div></div>'
-            '<div class="catalyst-body">No major available news item is strong enough to explain today\'s move. News absence is valid and does not change the SDL decision.</div>'
-            '<div class="catalyst-note">Presentation layer only · no SDL re-scoring</div>'
-            '</div>'
-        )
-    impact = analysis.get("impact", "NEUTRAL")
-    alignment = analysis.get("alignment", "NEUTRAL")
-    cls = "major-up" if impact == "POSITIVE" else "major-down" if impact == "NEGATIVE" else "mixed"
-    bias_cls = "catalyst-bias-up" if impact == "POSITIVE" else "catalyst-bias-down" if impact == "NEGATIVE" else "catalyst-bias-neutral"
-    scope = analysis.get("major_items", [{}])[0].get("scope", "NEWS") if analysis.get("major_items") else "NEWS"
-    return (
-        f'<div class="news-catalyst {cls}">'
-        f'<div class="catalyst-head"><div class="catalyst-title">★ MAJOR NEWS CATALYST · {safe_text(scope)}</div>'
-        f'<div class="{bias_cls}">{impact} · {alignment}</div></div>'
-        f'<div class="catalyst-body">{safe_text(analysis.get("headline", ""))}</div>'
-        '<div class="catalyst-note">Compared with today\'s price direction/SDL direction · does not modify the frozen decision score</div>'
-        '</div>'
-    )
-
-
-@st.cache_data(ttl=900, show_spinner=False)
-def _external_news_rss(query: str) -> list[dict]:
-    """Cached external news lookup; presentation/evidence only."""
-    q = str(query).strip()
-    if not q:
-        return []
-    try:
-        url = "https://news.google.com/rss/search?" + urlencode({
-            "q": q, "hl": "en-IN", "gl": "IN", "ceid": "IN:en"
-        })
-        req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urlopen(req, timeout=3) as response:
-            root = ET.fromstring(response.read())
-        items = []
-        for item in root.findall("./channel/item")[:8]:
-            title = (item.findtext("title") or "").strip()
-            pub = (item.findtext("pubDate") or "").strip()
-            source = item.findtext("source") or "Google News"
-            if title:
-                items.append({"time": pub, "text": title, "source": str(source), "scope": "EXTERNAL"})
-        return items
-    except Exception:
-        return []
-
-
-def live_external_news(symbol: str, row: pd.Series | None = None) -> dict[str, list[dict]]:
-    """Fetch external stock/sector/group/macro news only when explicitly requested."""
-    sym = str(symbol).strip().upper()
-    sector = ""
-    if isinstance(row, pd.Series):
-        for key in ("sector", "Sector", "industry", "Industry", "sector_name", "Sector Name"):
-            value = row.get(key)
-            if value is not None and str(value).strip() and str(value).lower() != "nan":
-                sector = str(value).strip()
-                break
-    return {
-        "stock": _external_news_rss(f"{sym} NSE stock India"),
-        "sector": _external_news_rss(f"{sector or sym + ' sector'} India stocks"),
-        "macro": _external_news_rss("India stock market RBI economy Nifty macro"),
-    }
-
-
-def live_nse_stock_news(symbol: str) -> list[dict]:
-    symbol = str(symbol).strip().upper()
-    if not symbol:
-        return []
-
-    cache = st.session_state.setdefault("nse_stock_news", {})
-    now = time.time()
-    cached = cache.get(symbol)
-
-    if cached and now - cached.get("at", 0) < NEWS_CACHE_SECONDS:
-        return cached.get("items", [])
-
-    try:
-        payload = _nse_json(
-            "https://www.nseindia.com/api/corporate-announcements"
-            "?index=equities&symbol=" + quote(symbol)
-        )
-
-        rows = (
-            payload
-            if isinstance(payload, list)
-            else payload.get("data", [])
-            if isinstance(payload, dict)
-            else []
-        )
-
-        items = []
-
-        for item in rows[:8]:
-            subject = str(
-                item.get("desc")
-                or item.get("subject")
-                or item.get("purpose")
-                or "Announcement"
-            ).strip()
-
-            stamp = str(
-                item.get("an_dt")
-                or item.get("broadcastDate")
-                or item.get("timestamp")
-                or "NSE"
-            ).strip()
-
-            if subject:
-                items.append({
-                    "time": stamp,
-                    "text": subject,
-                })
-
-        cache[symbol] = {"at": now, "items": items}
-        return items
-
-    except Exception:
-        cache[symbol] = {"at": now, "items": []}
-        return []
-
-
-def live_nse_market_news() -> list[dict]:
-    cache = st.session_state.setdefault("nse_market_news", {})
-    now = time.time()
-    cached = cache.get("all")
-
-    if cached and now - cached.get("at", 0) < NEWS_CACHE_SECONDS:
-        return cached.get("items", [])
-
-    try:
-        payload = _nse_json(
-            "https://www.nseindia.com/api/corporate-announcements"
-            "?index=equities"
-        )
-
-        rows = (
-            payload
-            if isinstance(payload, list)
-            else payload.get("data", [])
-            if isinstance(payload, dict)
-            else []
-        )
-
-        items = []
-
-        for item in rows[:12]:
-            symbol = str(
-                item.get("symbol")
-                or item.get("symbolName")
-                or "NSE"
-            ).strip().upper()
-
-            subject = str(
-                item.get("desc")
-                or item.get("subject")
-                or item.get("purpose")
-                or "Announcement"
-            ).strip()
-
-            stamp = str(
-                item.get("an_dt")
-                or item.get("broadcastDate")
-                or item.get("timestamp")
-                or "NSE"
-            ).strip()
-
-            if subject:
-                items.append({
-                    "symbol": symbol,
-                    "time": stamp,
-                    "text": subject,
-                    "impact": impact_hint(subject),
-                })
-
-        cache["all"] = {"at": now, "items": items}
-        return items
-
-    except Exception:
-        cache["all"] = {"at": now, "items": []}
-        return []
 
 
 # ============================================================================
@@ -4777,12 +4690,10 @@ def replay_view() -> None:
             unsafe_allow_html=True,
         )
 
-        files = snapshot_files()
-        if not files:
+        date_values = list(_replay_date_index())
+        if not date_values:
             st.info("No Daywise snapshots are available for replay.")
             return
-
-        date_values = list(_replay_date_index())
         if not date_values:
             st.info("No snapshots have a valid observation timestamp for replay.")
             return
@@ -5604,12 +5515,6 @@ def latest_live() -> tuple[
 def _render_live_content() -> None:
     path, pred, data_ts, message = latest_live()
 
-    # B4 is a persistent dashboard surface, not conditional on whether the
-    # current source produced qualified rows. Render it even when LIVE data
-    # is unavailable so the bell/configuration/history remain visible.
-    emitted_alerts = _b4_emit_alerts(pred, data_ts) if path is not None else []
-    _render_b4_alert_drawer(emitted_alerts)
-
     if path is None:
         st.warning(message)
         return
@@ -5796,7 +5701,10 @@ def _render_live_content() -> None:
 
     radar_count = len(radar)
     rcols = st.columns(radar_count) if radar_count else []
-    radar_market_news = live_nse_market_news()
+
+    # Performance rule: Priority Radar is an SDL prioritisation view only.
+    # Do not fetch/analyse/render external news here. News belongs exclusively
+    # to the dedicated News section and must never block LIVE/Radar rendering.
 
     for col, (_, row) in zip(
         rcols,
@@ -5813,16 +5721,10 @@ def _render_live_content() -> None:
                 else "radar-down" if direction_text.startswith("bear")
                 else ""
             )
-            radar_news = live_nse_stock_news(str(row.get("symbol", "")))
-            radar_catalyst = analyze_news_catalyst(
-                str(row.get("symbol", "")), row, radar_news, radar_market_news
-            )
-            radar_star = catalyst_badge(radar_catalyst)
-
             st.markdown(
                 f'<div class="radar-card {radar_class}">'
                 f'<div class="radar-symbol">'
-                f'{radar_star}{safe_text(row.get("symbol"))}'
+                f'{safe_text(row.get("symbol"))}'
                 f'</div>'
                 f'<div class="radar-meta">'
                 f'{safe_text(str(row.get("direction_label","")).title())}'
@@ -5869,34 +5771,240 @@ def _render_live_content() -> None:
             "live_detail",
         )
 
+    # B4 is deliberately rendered AFTER the core LIVE surface.
+    # Alert evaluation can touch the point-in-time cache and AlertStore; it must
+    # never delay Priority Radar/LIVE visibility during a Streamlit rerun.
+    emitted_alerts = _b4_emit_alerts(pred, data_ts) if path is not None else []
+    _render_b4_alert_drawer(emitted_alerts, pred)
+
 
 # ============================================================================
 # SECTOR ANALYSIS — EXISTING NEWS FEED ADAPTER (PRESENTATION ONLY)
 # ============================================================================
 
-def sector_analysis_news_provider() -> list[dict]:
-    """Reuse the dashboard's existing NSE market-news feed for Sector Analysis.
-
-    No new provider, scoring path, source workbook, or SDL decision dependency
-    is introduced here. Sector Analysis consumes this as contextual evidence.
-    """
+def _quality_external_news_feed(query: str) -> list[dict]:
+    q = str(query or '').strip()
+    if not q:
+        return []
     try:
-        items = live_nse_market_news()
+        url = 'https://news.google.com/rss/search?' + urlencode({'q': q, 'hl': 'en-IN', 'gl': 'IN', 'ceid': 'IN:en'})
+        req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urlopen(req, timeout=3) as response:
+            root = ET.fromstring(response.read())
+        allowed = {'mint','livemint','moneycontrol','cnbc tv18','cnbctv18','reuters','economic times','economictimes','business standard','financial express','businessline','the hindu businessline'}
+        items = []
+        for item in root.findall('./channel/item')[:12]:
+            title = (item.findtext('title') or '').strip()
+            stamp = (item.findtext('pubDate') or '').strip()
+            source = (item.findtext('source') or 'Google News').strip()
+            if title and any(name in source.casefold() for name in allowed):
+                items.append({'title': title, 'timestamp': stamp, 'source': source})
+        return items
     except Exception:
         return []
 
+@st.cache_data(ttl=900, show_spinner=False)
+def _quality_news_collection() -> list[dict]:
+    queries = (
+        'India stocks (site:livemint.com OR site:moneycontrol.com OR site:cnbctv18.com)',
+        'India markets (site:reuters.com OR site:economictimes.indiatimes.com OR site:business-standard.com)',
+        'India stocks regulator policy (site:financialexpress.com OR site:thehindubusinessline.com)',
+    )
+    rows, seen = [], set()
+    for query in queries:
+        for item in _quality_external_news_feed(query):
+            title = str(item.get('title', '')).strip()
+            key = title.casefold()
+            if not title or key in seen:
+                continue
+            seen.add(key)
+            rows.append(item)
+    return rows[:30]
+
+def sector_analysis_news_provider() -> list[dict]:
+    junk = ('price target','target price','forecast','prediction','technical analysis','technical outlook','watchlist','should you buy','buy or sell','share price today','stock price today','multibagger','top stocks to buy','stocks to watch','market forecast')
     return [
-        {
-            "title": (
-                f"{str(item.get('symbol', '')).strip().upper()} · "
-                f"{str(item.get('text', '')).strip()}"
-            ).strip(" ·"),
-            "timestamp": item.get("time"),
-            "source": "NSE Corporate Announcements",
-        }
-        for item in items
-        if str(item.get("text", "")).strip()
-    ]
+        {'title': str(item.get('title','')).strip(), 'timestamp': item.get('timestamp'), 'source': item.get('source','Google News')}
+        for item in _quality_news_collection()
+        if str(item.get('title','')).strip() and not any(term in str(item.get('title','')).casefold() for term in junk)
+    ][:20]
+
+POSITIVE_NEWS_TERMS = (
+    "order", "contract", "award", "approval", "acquisition", "investment",
+    "expansion", "capacity", "results", "earnings", "profit", "guidance",
+    "upgrade", "deal", "stake", "tariff cut", "policy support",
+)
+NEGATIVE_NEWS_TERMS = (
+    "loss", "decline", "downgrade", "penalty", "fine", "default", "fraud",
+    "litigation", "investigation", "resignation", "delay", "cancel", "cut",
+    "weak", "warning", "regulatory", "commission cap", "expense of management",
+)
+MAJOR_NEWS_TERMS = (
+    "regulator", "regulatory", "irdai", "rbi", "sebi", "government", "ministry",
+    "order", "contract", "acquisition", "merger", "stake", "fund raising",
+    "fundraising", "capital", "results", "earnings", "profit", "loss",
+    "investigation", "penalty", "tariff", "policy", "guidance", "capacity",
+    "war", "oil", "crude", "rate", "bond yield", "sanction", "export",
+)
+GLOBAL_NEWS_TERMS = (
+    "iran", "middle east", "oil", "crude", "brent", "fed", "federal reserve",
+    "us rates", "tariff", "china", "global", "geopolitical", "war", "monsoon",
+    "bond yield", "treasury yield",
+)
+SECTOR_NEWS_TERMS = (
+    "power", "utilities", "energy", "renewable", "solar", "wind", "grid",
+    "transmission", "banking", "pharma", "auto", "steel", "metal", "it sector",
+    "insurance", "insurer", "irdai", "reinsurance", "general insurance",
+    "life insurance", "health insurance", "insurance distribution",
+)
+NEWS_JUNK_TERMS = (
+    "price target", "target price", "forecast", "prediction", "technical analysis",
+    "technical outlook", "watchlist", "should you buy", "buy or sell",
+    "share price today", "stock price today", "multibagger", "penny stock",
+    "top stocks to buy", "stocks to watch", "ai-generated", "market forecast",
+)
+QUALITY_NEWS_SOURCES = {
+    "mint", "livemint", "moneycontrol", "cnbc tv18", "cnbctv18", "reuters",
+    "economictimes", "economic times", "business standard", "the hindu businessline",
+    "businessline", "financial express",
+}
+
+def _news_terms(text: str, terms: tuple[str, ...]) -> int:
+    value = str(text or "").lower()
+    return sum(1 for term in terms if term in value)
+
+def _news_direction(text: str) -> int:
+    pos = _news_terms(text, POSITIVE_NEWS_TERMS)
+    neg = _news_terms(text, NEGATIVE_NEWS_TERMS)
+    return 1 if pos > neg else -1 if neg > pos else 0
+
+def _news_scope(text: str, company: bool = False) -> str:
+    value = str(text or "").lower()
+    if company:
+        return "COMPANY"
+    if _news_terms(value, GLOBAL_NEWS_TERMS):
+        return "MARKET / MACRO"
+    if _news_terms(value, SECTOR_NEWS_TERMS):
+        return "SECTOR / THEME"
+    return "MARKET / DOMESTIC"
+
+def _news_is_junk(text: str) -> bool:
+    return _news_terms(text, NEWS_JUNK_TERMS) > 0
+
+def _news_quality_score(item: dict) -> float:
+    text = str(item.get("text", ""))
+    source = str(item.get("source", "")).lower()
+    score = min(5, _news_terms(text, MAJOR_NEWS_TERMS)) * 2.0
+    score += min(3, _news_terms(text, POSITIVE_NEWS_TERMS + NEGATIVE_NEWS_TERMS))
+    if any(q in source for q in QUALITY_NEWS_SOURCES):
+        score += 3.0
+    if _news_is_junk(text):
+        score -= 8.0
+    return score
+
+
+def analyze_news_catalyst(symbol: str, row: pd.Series, stock_news: list[dict], market_news: list[dict]) -> dict:
+    """Presentation-only news catalyst layer.
+
+    It does not alter SDL scoring or qualification. It compares available
+    announcement direction with today's frozen SDL direction/price context.
+    """
+    symbol = str(symbol or "").strip().upper()
+    direction = str(row.get("direction_label", "")).upper()
+    price_change = pd.to_numeric(row.get("Price Chg %"), errors="coerce")
+    if pd.isna(price_change):
+        price_change = pd.to_numeric(row.get("Price_Chg_Pct"), errors="coerce")
+    if pd.isna(price_change):
+        price_change = pd.to_numeric(row.get("price_chg_pct"), errors="coerce")
+
+    candidates = []
+    for item in stock_news or []:
+        text = str(item.get("text", "")).strip()
+        if text:
+            candidates.append((text, True, item.get("time", "NSE")))
+
+    for item in market_news or []:
+        text = str(item.get("text", "")).strip()
+        item_symbol = str(item.get("symbol", "")).strip().upper()
+        if not text:
+            continue
+        if item_symbol == symbol or _news_terms(text, GLOBAL_NEWS_TERMS + SECTOR_NEWS_TERMS):
+            candidates.append((text, False, item.get("time", "NSE")))
+
+    scored = []
+    for text, company, stamp in candidates:
+        bias = _news_direction(text)
+        major_hits = _news_terms(text, MAJOR_NEWS_TERMS)
+        if bias == 0 and major_hits == 0:
+            continue
+        score = min(5, major_hits + (1 if bias else 0))
+        scored.append({
+            "text": text,
+            "bias": bias,
+            "score": score,
+            "major": score >= 3,
+            "scope": _news_scope(text, company),
+            "time": stamp,
+        })
+
+    scored.sort(key=lambda x: (x["major"], x["score"]), reverse=True)
+    major = [x for x in scored if x["major"]]
+    top = scored[:3]
+
+    news_bias = 0
+    for item in top:
+        news_bias += item["bias"] * max(1, item["score"])
+    news_bias = 1 if news_bias > 0 else -1 if news_bias < 0 else 0
+
+    market_direction = 1 if direction.startswith("BULL") else -1 if direction.startswith("BEAR") else 0
+    if pd.notna(price_change) and price_change != 0:
+        market_direction = 1 if float(price_change) > 0 else -1
+
+    if news_bias and market_direction:
+        alignment = "ALIGNED" if news_bias == market_direction else "CONTRARY"
+    else:
+        alignment = "NEUTRAL"
+
+    if news_bias > 0:
+        impact = "POSITIVE"
+    elif news_bias < 0:
+        impact = "NEGATIVE"
+    else:
+        impact = "NEUTRAL"
+
+    return {
+        "major": bool(major),
+        "impact": impact,
+        "alignment": alignment,
+        "items": top,
+        "major_items": major[:2],
+        "headline": major[0]["text"] if major else (top[0]["text"] if top else ""),
+    }
+
+
+def catalyst_panel_html(analysis: dict) -> str:
+    if not analysis.get("major"):
+        return (
+            '<div class="news-catalyst">'
+            '<div class="catalyst-head"><div class="catalyst-title">NEWS CATALYST</div>'
+            '<div class="catalyst-bias-neutral">NO MATERIAL CATALYST DETECTED</div></div>'
+            '<div class="catalyst-body">No major available news item is strong enough to explain today\'s move. News absence is valid and does not change the SDL decision.</div>'
+            '<div class="catalyst-note">Presentation layer only · no SDL re-scoring</div>'
+            '</div>'
+        )
+    impact = analysis.get("impact", "NEUTRAL")
+    alignment = analysis.get("alignment", "NEUTRAL")
+    cls = "major-up" if impact == "POSITIVE" else "major-down" if impact == "NEGATIVE" else "mixed"
+    bias_cls = "catalyst-bias-up" if impact == "POSITIVE" else "catalyst-bias-down" if impact == "NEGATIVE" else "catalyst-bias-neutral"
+    scope = analysis.get("major_items", [{}])[0].get("scope", "NEWS") if analysis.get("major_items") else "NEWS"
+    return (
+        f'<div class="news-catalyst {cls}">'
+        f'<div class="catalyst-head"><div class="catalyst-title">★ MAJOR NEWS CATALYST · {safe_text(scope)}</div>'
+        f'<div class="{bias_cls}">{impact} · {alignment}</div></div>'
+        f'<div class="catalyst-body">{safe_text(analysis.get("headline", ""))}</div>'
+        '<div class="catalyst-note">Compared with today\'s price direction/SDL direction · does not modify the frozen decision score</div>'
+        '</div>'
+    )
 
 
 # ============================================================================
@@ -6191,7 +6299,7 @@ def _load_b4_alert_events(limit: int = 8) -> list[dict]:
         return []
 
 
-def _render_b4_alert_drawer(emitted: list[dict] | None = None) -> None:
+def _render_b4_alert_drawer(emitted: list[dict] | None = None, pred: pd.DataFrame | None = None) -> None:
     """Render the B4 drawer and expose integration failures instead of hiding them."""
     if render_alert_drawer is None:
         if _B4_IMPORT_ERROR:
@@ -6222,6 +6330,18 @@ def _render_b4_alert_drawer(emitted: list[dict] | None = None) -> None:
             return _symbol_price_timeline(day, symbol, cutoff, _cache_file_signature())
 
         diagnostic = _UI.get("b4_store_error") or _UI.get("b4_runtime_error") or _B4_IMPORT_ERROR
+
+        def _daily_radar_provider():
+            cols=[]
+            for _, rr in pred.iterrows():
+                cols.append((
+                    str(rr.get("symbol") or "").strip().upper(),
+                    rr.get("Price Chg %"),
+                    rr.get("sector") or rr.get("Sector") or rr.get("industry") or "",
+                    rr.get("company_name") or rr.get("Company Name") or rr.get("name") or "",
+                ))
+            return daily_catalyst_radar(tuple(x[0] for x in cols), tuple(cols))
+
         result = render_alert_drawer(
             events,
             history_events=history_events,
@@ -6232,6 +6352,7 @@ def _render_b4_alert_drawer(emitted: list[dict] | None = None) -> None:
             new_alert_sound=new_sound,
             rules=rules,
             chart_provider=_alert_chart_provider,
+            news_provider=_daily_radar_provider,
             diagnostic=str(diagnostic) if diagnostic else None,
         )
         if isinstance(result, dict):
