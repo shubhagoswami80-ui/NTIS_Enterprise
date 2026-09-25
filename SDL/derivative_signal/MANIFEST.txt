@@ -1,0 +1,15 @@
+LIVE Evidence Source Alignment V1
+
+Files:
+- dashboard_evidence_bridge.py
+- deploy_live_evidence_source_alignment_v1.py
+- tests/test_live_historical_cache_loader.py
+- tests/test_dashboard_evidence_bridge.py
+- README.md
+- MANIFEST.txt
+
+Scope:
+- LIVE evidence source alignment only.
+- No replay engine changes.
+- No SDL/ranking/selection changes.
+- No Git writes.
