@@ -852,6 +852,9 @@ table.queue td{
 .badge-red{background:#3c171e;border-color:#a33b48;color:#ff6671}
 .badge-blue{background:#102a50;border-color:#3764a4;color:#bcd0f5}
 .badge-amber{background:#3a280b;border-color:#8b6114;color:#ffc650}
+.badge-data-current{background:#063a29;border-color:#0f7550;color:#38e58e}
+.badge-data-d{background:#3a280b;border-color:#8b6114;color:#ffc650}
+.badge-data-na{background:#3c171e;border-color:#a33b48;color:#ff6671}
 .up{color:#18df82!important;font-weight:950!important}
 .down{color:#ff5960!important;font-weight:950!important}
 .strength{color:#e8eff8;font-weight:950!important}
@@ -1332,6 +1335,18 @@ def point_in_time_oi_evidence(
 
 _RENDER_PIT_CACHE: dict = {}
 _RENDER_PIT_CACHE_SIG = None
+
+# In-memory chronological context used only while the historical PIT builder
+# is processing one trading day.  It lets the existing First Alert/provenance
+# reconstruction see PIT points already produced earlier in the SAME build
+# without repeatedly writing the large persistent pickle.  It never changes
+# SDL candidate/selection/scoring logic.
+_PIT_BUILD_CONTEXT = {
+    "day": None,
+    "entries": None,
+    "base_ts": None,
+    "current_ts": None,
+}
 
 def _load_day_point_cache_render_cached() -> dict:
     """Load the persistent PIT cache at most once per file version per process.
@@ -2009,11 +2024,7 @@ def _calendar_month_day_files(selected_month: str) -> dict[str, list[Path]]:
 
 @st.cache_data(ttl=5, show_spinner=False)
 def _day_cache_summary(trading_date: str, files=None) -> dict:
-    """Read persistent base-snapshot and independent Futures status.
-
-    Five-second UI cache reduces calendar rerun cost without masking a build
-    completion for long periods. Replay point selection itself remains uncached.
-    """
+    """Summarize valid PIT points separately from source-gap continuity points."""
     day = str(trading_date)[:10]
     files = list(files) if files is not None else snapshot_files(day)
     source_keys = []
@@ -2027,19 +2038,22 @@ def _day_cache_summary(trading_date: str, files=None) -> dict:
     day_cache = cache.get(day, {}) if isinstance(cache, dict) else {}
     entries = day_cache.get("snapshots", {}) if isinstance(day_cache.get("snapshots", {}), dict) else {}
 
-    cached = 0
+    valid_cached = 0
+    gap_count = 0
     futures_complete = 0
     futures_unavailable = 0
     futures_pending = 0
     for key in source_keys:
         entry = entries.get(key)
-        if (
-            not isinstance(entry, dict)
-            or not isinstance(entry.get("pred"), pd.DataFrame)
-            or entry.get("pred").empty
-        ):
+        if not isinstance(entry, dict) or not isinstance(entry.get("pred"), pd.DataFrame):
+            if isinstance(entry, dict) and str(entry.get("snapshot_status", "")).upper() == "GAP":
+                gap_count += 1
             continue
-        cached += 1
+        snapshot_status = str(entry.get("snapshot_status", "VALID")).upper()
+        if snapshot_status == "GAP":
+            gap_count += 1
+            continue
+        valid_cached += 1
         pred = entry.get("pred")
         status = str(entry.get("futures_status", "")).upper()
         if status == "MAPPED":
@@ -2053,15 +2067,16 @@ def _day_cache_summary(trading_date: str, files=None) -> dict:
             if total > 0 and mapped == total:
                 futures_complete += 1
             elif total > 0 and mapped < total:
-                # Legacy entries with partial Futures are retained as valid
-                # base snapshots; they are pending migration to row-level D/P.
                 futures_pending += 1
 
-    missing = max(0, len(source_keys) - cached)
+    accounted = valid_cached + gap_count
+    missing = max(0, len(source_keys) - accounted)
     return {
         "day": day,
         "source_count": len(source_keys),
-        "cached_count": cached,
+        "cached_count": accounted,
+        "valid_cached_count": valid_cached,
+        "gap_count": gap_count,
         "complete_count": futures_complete,
         "futures_complete_count": futures_complete,
         "futures_partial_count": sum(1 for key in source_keys if isinstance(entries.get(key), dict) and str(entries.get(key, {}).get("futures_status", "")).upper() == "PARTIAL"),
@@ -2069,7 +2084,7 @@ def _day_cache_summary(trading_date: str, files=None) -> dict:
         "futures_pending_count": futures_pending,
         "pending_count": futures_pending,
         "missing_count": missing,
-        "ready": bool(source_keys) and cached == len(source_keys),
+        "ready": bool(source_keys) and accounted == len(source_keys),
     }
 
 def _day_cache_marker(summary: dict) -> str:
@@ -2084,8 +2099,134 @@ def _day_cache_marker(summary: dict) -> str:
         return "🟠"
     if pending_count > 0:
         return "🟡"
+    if int(summary.get("gap_count", 0) or 0) > 0:
+        return "🟡"
     return "🟢"
 
+
+
+def _mark_carried_forward_frame(
+    pred: pd.DataFrame | None,
+    observation_ts: pd.Timestamp,
+    source_ts: pd.Timestamp | None,
+    reason: str,
+    *,
+    status: str = "D",
+) -> pd.DataFrame:
+    """Mark a carried-forward decision frame without changing SDL decisions.
+
+    The frame is a continuity view only: its values originate from the last
+    valid observation, while the displayed observation timestamp advances to
+    the current source timestamp.  Provenance columns make the data gap
+    explicit so carried values can never be mistaken for fresh observations.
+    """
+    if not isinstance(pred, pd.DataFrame) or pred.empty:
+        return pd.DataFrame()
+    out = pred.copy()
+    obs = pd.to_datetime(observation_ts, errors="coerce")
+    src = pd.to_datetime(source_ts, errors="coerce") if source_ts is not None else pd.NaT
+    out["observation_timestamp"] = obs
+    out["snapshot_data_status"] = str(status or "D").upper()
+    out["data_source_timestamp"] = src
+    out["data_source_age_seconds"] = (
+        float((obs - src).total_seconds())
+        if pd.notna(obs) and pd.notna(src) else pd.NA
+    )
+    out["data_gap_reason"] = str(reason or "Source data unavailable")
+    out["data_source_status"] = "CARRIED_FORWARD"
+    if "futures_evidence_status" in out.columns:
+        out["futures_evidence_status"] = "D"
+    if "futures_data_available" in out.columns:
+        out["futures_data_available"] = False
+    return out
+
+
+def _latest_valid_pit_entry(entries: dict, before_ts: pd.Timestamp) -> tuple[pd.Timestamp | None, dict | None]:
+    """Return the latest VALID PIT entry strictly before *before_ts*."""
+    cutoff = pd.to_datetime(before_ts, errors="coerce")
+    if pd.isna(cutoff) or not isinstance(entries, dict):
+        return None, None
+    best_ts = None
+    best_entry = None
+    for key, entry in entries.items():
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("snapshot_status", "VALID")).upper() != "VALID":
+            continue
+        pred = entry.get("pred")
+        if not isinstance(pred, pd.DataFrame) or pred.empty:
+            continue
+        ts = pd.to_datetime(entry.get("timestamp", key), errors="coerce")
+        if pd.isna(ts) or ts >= cutoff:
+            continue
+        ts = pd.Timestamp(ts)
+        if best_ts is None or ts > best_ts:
+            best_ts = ts
+            best_entry = entry
+    return best_ts, best_entry
+
+
+
+def _source_file_signature(path: Path) -> tuple[int, int]:
+    """Return a cheap source signature used to avoid re-reading unchanged GAP files."""
+    try:
+        stat = Path(path).stat()
+        return int(stat.st_size), int(stat.st_mtime_ns)
+    except Exception:
+        return (0, 0)
+
+
+def _make_pit_gap_entry(
+    path: Path,
+    ts: pd.Timestamp,
+    entries: dict,
+    reason: str,
+) -> dict:
+    """Create a non-decision continuity record for an unusable source point.
+
+    A GAP record is deliberately distinct from a VALID prediction.  It keeps
+    Replay chronological and preserves the last valid stock chain, while all
+    downstream alert/provenance code can explicitly ignore the GAP status.
+    """
+    previous_ts, previous = _latest_valid_pit_entry(entries, ts)
+    if previous is not None:
+        pred = _mark_carried_forward_frame(
+            previous.get("pred"),
+            pd.Timestamp(ts),
+            previous_ts,
+            reason,
+            status="D",
+        )
+        evidence = previous.get("evidence")
+        if isinstance(evidence, pd.DataFrame):
+            evidence = evidence.copy()
+        else:
+            evidence = pd.DataFrame()
+        data_status = "D"
+        source_ts = previous_ts
+        source_path = previous.get("source_path")
+    else:
+        pred = pd.DataFrame()
+        evidence = pd.DataFrame()
+        data_status = "NA"
+        source_ts = pd.NaT
+        source_path = None
+
+    return {
+        "timestamp": pd.Timestamp(ts).isoformat(),
+        "source_path": str(path),
+        "pred": pred,
+        "evidence": evidence,
+        "snapshot_status": "GAP",
+        "source_file_size": _source_file_signature(path)[0],
+        "source_file_mtime_ns": _source_file_signature(path)[1],
+        "data_status": data_status,
+        "data_source_timestamp": pd.Timestamp(source_ts).isoformat() if pd.notna(source_ts) else None,
+        "data_source_path": str(source_path) if source_path else None,
+        "data_gap_reason": str(reason or "Source data unavailable"),
+        "futures_status": "GAP",
+        "evidence_status": "gap",
+    }
 
 def build_day_point_in_time_cache(trading_date: str, progress_callback=None) -> dict:
     """Build/complete one historical day cache, chronologically, once.
@@ -2110,11 +2251,24 @@ def build_day_point_in_time_cache(trading_date: str, progress_callback=None) -> 
         first_df, _ = load_primary_snapshot(files[0], observation_ts(files[0]))
         base = frozen_base_from_df(derive_straddle_values(first_df))
 
+    # Exactly one earliest Daywise observation is the immutable BASE.
+    # Later observations are evaluated against this same base in source
+    # chronology; they never become a new opening reference.
+    first_source_ts = observation_ts(files[0])
+
     total_files = len(files)
     processed_files = 0
     completed_files = 0
     pending_files = 0
     skipped_files = 0
+
+    global _PIT_BUILD_CONTEXT
+    _PIT_BUILD_CONTEXT = {
+        "day": day,
+        "entries": entries,
+        "base_ts": pd.Timestamp(first_source_ts) if pd.notna(first_source_ts) else None,
+        "current_ts": None,
+    }
 
     for path in files:
         ts = observation_ts(path)
@@ -2125,18 +2279,32 @@ def build_day_point_in_time_cache(trading_date: str, progress_callback=None) -> 
                 progress_callback(processed_files, total_files, completed_files, pending_files, skipped_files, path.name)
             continue
         key = pd.Timestamp(ts).isoformat()
+        # Expose only the chronological prefix through the current snapshot.
+        # This is presentation/provenance context only; candidates() itself
+        # remains the exact existing SDL selection path.
+        _PIT_BUILD_CONTEXT["current_ts"] = pd.Timestamp(ts)
         existing = entries.get(key) if isinstance(entries.get(key), dict) else None
-        if existing and isinstance(existing.get("pred"), pd.DataFrame):
+        if existing and str(existing.get("snapshot_status", "")).upper() == "GAP":
+            size_now, mtime_now = _source_file_signature(path)
+            if (
+                int(existing.get("source_file_size", -1)) == size_now
+                and int(existing.get("source_file_mtime_ns", -1)) == mtime_now
+            ):
+                skipped_files += 1
+                if progress_callback:
+                    progress_callback(processed_files, total_files, completed_files, pending_files, skipped_files, path.name)
+                continue
+
+        if (
+            existing
+            and isinstance(existing.get("pred"), pd.DataFrame)
+            and not existing.get("pred").empty
+        ):
             existing_pred = existing.get("pred")
             # Base snapshot completeness is independent of Futures evidence.
-            # An entry is reusable only when the persisted prediction frame
-            # actually contains rows. Legacy empty VALID entries are malformed
-            # and must be rebuilt through the authoritative LIVE candidate path.
-            if (
-                str(existing.get("snapshot_status", "VALID")).upper() == "VALID"
-                and existing_pred is not None
-                and not existing_pred.empty
-            ):
+            # Preserve existing complete base points, while allowing pending
+            # Futures evidence to be refreshed by the resolver below.
+            if str(existing.get("snapshot_status", "VALID")).upper() == "VALID":
                 fut_status = str(existing.get("futures_status", "")).upper()
                 if fut_status in {"MAPPED", "D"}:
                     completed_files += 1
@@ -2148,6 +2316,15 @@ def build_day_point_in_time_cache(trading_date: str, progress_callback=None) -> 
             raw, loaded_ts = load_primary_snapshot(path, ts)
             loaded_ts = pd.to_datetime(loaded_ts, errors="coerce")
             if pd.isna(loaded_ts) or raw is None or raw.empty:
+                entries[key] = _make_pit_gap_entry(
+                    path,
+                    pd.Timestamp(ts),
+                    entries,
+                    "Daywise source is empty or unavailable at this observation timestamp.",
+                )
+                skipped_files += 1
+                if progress_callback:
+                    progress_callback(processed_files, total_files, completed_files, pending_files, skipped_files, path.name)
                 continue
             raw = derive_straddle_values(raw)
             option_ev = _day_option_evidence(raw)
@@ -2195,11 +2372,23 @@ def build_day_point_in_time_cache(trading_date: str, progress_callback=None) -> 
                 "pred": pred.copy(),
                 "evidence": evidence.copy(),
                 "snapshot_status": "VALID",
+                "data_status": "CURRENT",
+                "data_source_timestamp": pd.Timestamp(loaded_ts).isoformat(),
+                "data_source_path": str(path),
+                "data_gap_reason": None,
+                "source_file_size": _source_file_signature(path)[0],
+                "source_file_mtime_ns": _source_file_signature(path)[1],
                 "futures_status": fut_status,
                 # Legacy field retained for compatibility with existing cache readers.
                 "evidence_status": status,
             }
-        except Exception:
+        except Exception as exc:
+            entries[key] = _make_pit_gap_entry(
+                path,
+                pd.Timestamp(ts),
+                entries,
+                f"Daywise snapshot processing failed: {type(exc).__name__}: {exc}",
+            )
             skipped_files += 1
             if progress_callback:
                 progress_callback(processed_files, total_files, completed_files, pending_files, skipped_files, path.name)
@@ -2221,6 +2410,12 @@ def build_day_point_in_time_cache(trading_date: str, progress_callback=None) -> 
         "source_count": len(files),
     }
     _save_day_point_cache(cache)
+    _PIT_BUILD_CONTEXT = {
+        "day": None,
+        "entries": None,
+        "base_ts": None,
+        "current_ts": None,
+    }
     return cache[day]
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -2726,19 +2921,32 @@ def _reconstruct_first_alert_map_from_replay(
 
     result: dict[str, pd.Timestamp] = {}
 
-    # First use the already persisted chronological replay cache.  This makes
-    # First Alert stable across reruns and does not require recalculating source
-    # workbooks.
-    try:
-        cache = _load_day_point_cache()
-        day_cache = cache.get(day, {}) if isinstance(cache, dict) else {}
-        entries = day_cache.get("snapshots", {}) if isinstance(day_cache.get("snapshots", {}), dict) else {}
-    except Exception:
-        entries = {}
+    # During a historical build, use the in-memory chronological prefix first.
+    # The builder updates this same dict after each processed snapshot, so the
+    # existing SDL First Alert reconstruction sees T1 before T2, T1/T2 before
+    # T3, etc.  The cutoff prevents any pre-existing future cache entry from
+    # influencing the current snapshot.  Outside a build, use the persisted
+    # chronological replay cache exactly as before.
+    build_ctx = _PIT_BUILD_CONTEXT if _PIT_BUILD_CONTEXT.get("day") == day else None
+    if build_ctx is not None and isinstance(build_ctx.get("entries"), dict):
+        entries = build_ctx["entries"]
+        build_base_ts = pd.to_datetime(build_ctx.get("base_ts"), errors="coerce")
+    else:
+        build_base_ts = pd.NaT
+        try:
+            cache = _load_day_point_cache()
+            day_cache = cache.get(day, {}) if isinstance(cache, dict) else {}
+            entries = day_cache.get("snapshots", {}) if isinstance(day_cache.get("snapshots", {}), dict) else {}
+        except Exception:
+            entries = {}
 
     ordered = []
     for key, entry in entries.items():
-        if not isinstance(entry, dict) or not isinstance(entry.get("pred"), pd.DataFrame):
+        if (
+            not isinstance(entry, dict)
+            or str(entry.get("snapshot_status", "VALID")).upper() != "VALID"
+            or not isinstance(entry.get("pred"), pd.DataFrame)
+        ):
             continue
         ts = pd.to_datetime(entry.get("timestamp", key), errors="coerce")
         if pd.isna(ts) or ts.date().isoformat() != day:
@@ -2770,8 +2978,15 @@ def _reconstruct_first_alert_map_from_replay(
     ):
         current_ts = pd.to_datetime(current_snapshot_ts, errors="coerce")
         if pd.notna(current_ts) and current_ts.date().isoformat() == day:
-            # Never treat the opening/base point as an alert.
-            is_base = bool(ordered and current_ts <= ordered[0][0])
+            # Never treat the opening/base point as an alert.  During a build
+            # the authoritative base is the first Daywise source timestamp,
+            # even when that first point is not yet persisted in the pickle.
+            effective_base_ts = (
+                build_base_ts
+                if pd.notna(build_base_ts)
+                else (ordered[0][0] if ordered else pd.NaT)
+            )
+            is_base = bool(pd.notna(effective_base_ts) and current_ts <= effective_base_ts)
             if not is_base and (cutoff is None or current_ts <= cutoff):
                 for symbol in current_df["symbol"].astype(str).str.strip().str.upper():
                     if symbol and symbol not in {"NAN", "NONE"} and symbol not in result:
@@ -2841,7 +3056,11 @@ def _first_alert_map_from_chronological_cache(
 
     ordered: list[tuple[pd.Timestamp, pd.DataFrame]] = []
     for key, entry in entries.items():
-        if not isinstance(entry, dict) or not isinstance(entry.get("pred"), pd.DataFrame):
+        if (
+            not isinstance(entry, dict)
+            or str(entry.get("snapshot_status", "VALID")).upper() != "VALID"
+            or not isinstance(entry.get("pred"), pd.DataFrame)
+        ):
             continue
         ts = pd.to_datetime(entry.get("timestamp", key), errors="coerce")
         if pd.isna(ts) or ts.date().isoformat() != day:
@@ -3014,7 +3233,6 @@ def frozen_base_from_df(df: pd.DataFrame) -> dict:
     return result
 
 
-@st.cache_data(ttl=60, show_spinner=False)
 def candidates(
     df: pd.DataFrame,
     base: dict | None = None,
@@ -3593,6 +3811,35 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
             ],
         )
 
+        data_status = str(
+            row.get("snapshot_data_status", row.get("data_status", "CURRENT"))
+        ).strip().upper() or "CURRENT"
+        data_source_ts = pd.to_datetime(
+            row.get("data_source_timestamp"), errors="coerce"
+        )
+        if data_status == "D":
+            if pd.notna(data_source_ts):
+                data_status_display = (
+                    f'<span class="badge badge-data-d" '
+                    f'title="Carried forward from last valid source timestamp">'
+                    f'D · {safe_text(fmt_time(data_source_ts))}</span>'
+                )
+            else:
+                data_status_display = (
+                    '<span class="badge badge-data-d" '
+                    'title="Source data unavailable at this snapshot">D</span>'
+                )
+        elif data_status == "NA":
+            data_status_display = (
+                '<span class="badge badge-data-na" '
+                'title="No valid prior source data available">NA</span>'
+            )
+        else:
+            data_status_display = (
+                '<span class="badge badge-data-current" '
+                'title="Current source data">CURRENT</span>'
+            )
+
         price_class = (
             "up"
             if pd.notna(price) and price > 0
@@ -3624,6 +3871,7 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
             f"<td>{i}</td>"
             f'<td><div class="stock-cell">{logo(row.get("symbol"))}'
             f'<span>{safe_text(str(row.get("symbol","")).upper())}</span></div></td>'
+            f'<td>{data_status_display}</td>'
             f'<td><span class="badge {badge_class(row)}">'
             f'{safe_text(direction.title())} · '
             f'{safe_text(strength_label.title())}</span></td>'
@@ -3652,6 +3900,7 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
         '<div class="queue-wrap"><table class="queue"><thead><tr>'
         '<th style="width:3%">#</th>'
         '<th style="width:12%">STOCK</th>'
+        '<th style="width:8%">DATA</th>'
         '<th style="width:15%">DIRECTION / STRENGTH</th>'
         '<th style="width:6%">MOMENTUM</th>'
         '<th style="width:7%">FUTURES OI CHG</th>'
@@ -4624,7 +4873,16 @@ def replay_snapshot_frame(
 
     if isinstance(entry, dict) and isinstance(entry.get("pred"), pd.DataFrame):
         pred = entry["pred"].copy()
+        snapshot_status = str(entry.get("snapshot_status", "VALID")).upper()
         entry_status = str(entry.get("evidence_status", "pending")).lower()
+
+        # GAP entries are continuity records, not fresh observations.  Never
+        # refresh them from the bad source or reinterpret carried values as
+        # current Futures evidence.
+        if snapshot_status == "GAP":
+            replay_gap_ts = pd.Timestamp(entry.get("timestamp", ts))
+            pred = _attach_first_alert_provenance(pred, day, replay_gap_ts)
+            return pred, replay_gap_ts
 
         # Do not permanently freeze a replay point with missing Futures
         # evidence. Re-check the point-in-time IVR/IVP companion whenever the
@@ -5087,29 +5345,31 @@ def replay_view() -> None:
         pending_n = int(summary.get("futures_pending_count", summary.get("pending_count", 0)))
         missing_n = int(summary.get("missing_count", 0))
 
+        gap_n = int(summary.get("gap_count", 0))
+        valid_n = int(summary.get("valid_cached_count", cached_n - gap_n))
         if marker == "🟢":
             status_class = "ready"
             status_text = (
-                f"READY · {cached_n}/{source_n} snapshots cached · "
+                f"READY · {valid_n} valid + {gap_n} D/NA · {source_n}/{source_n} accounted · "
                 f"Futures {complete_n} mapped · {unavailable_n} D · {pending_n} pending"
             )
         elif marker == "🟡":
             status_class = "pending"
             status_text = (
-                f"SNAPSHOTS CACHED · {cached_n}/{source_n} · "
+                f"COMPLETE WITH D/NA · {valid_n} valid + {gap_n} D/NA · {source_n}/{source_n} accounted · "
                 f"Futures {complete_n} mapped · {unavailable_n} D · {pending_n} pending"
             )
         elif marker == "🟠":
             status_class = "partial"
             status_text = (
-                f"PARTIAL BUILD · {cached_n}/{source_n} snapshots cached · "
+                f"PARTIAL BUILD · {valid_n} valid + {gap_n} D/NA · {cached_n}/{source_n} accounted · "
                 f"Futures {complete_n} mapped · {unavailable_n} D · {pending_n} pending · {missing_n} not built"
             )
         else:
             status_class = "notbuilt"
             status_text = (
                 f"NOT BUILT · {source_n} source snapshots · "
-                f"{cached_n} cached · {missing_n} not built"
+                f"{valid_n} valid + {gap_n} D/NA · {missing_n} not built"
             )
 
         with right_col:
@@ -5187,6 +5447,40 @@ def replay_view() -> None:
                     f'<div class="replay-selected-time">SELECTED SNAPSHOT · <b>{safe_text(replay_ts_text)}</b></div>',
                     unsafe_allow_html=True,
                 )
+
+                _data_statuses = (
+                    pred.get("snapshot_data_status", pred.get("data_status", pd.Series(dtype=str)))
+                    .astype(str).str.upper()
+                    if isinstance(pred, pd.DataFrame) and not pred.empty
+                    else pd.Series(dtype=str)
+                )
+                _d_rows = int(_data_statuses.eq("D").sum()) if not _data_statuses.empty else 0
+                _na_rows = int(_data_statuses.eq("NA").sum()) if not _data_statuses.empty else 0
+                if _d_rows:
+                    _d_sources = (
+                        pd.to_datetime(pred.loc[_data_statuses.eq("D"), "data_source_timestamp"], errors="coerce")
+                        if "data_source_timestamp" in pred.columns
+                        else pd.Series(dtype="datetime64[ns]")
+                    )
+                    _d_source_text = (
+                        fmt_time(_d_sources.dropna().iloc[0], full=True)
+                        if not _d_sources.dropna().empty else "last valid source"
+                    )
+                    st.markdown(
+                        f'<div class="replay-cache-status pending">'
+                        f'<b>DATA STATUS · D</b> · {_d_rows} row(s) carried forward from '
+                        f'{safe_text(_d_source_text)} because the selected Daywise source was unavailable/invalid. '
+                        f'<b>This is delayed data, not a new observation.</b>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                elif _na_rows:
+                    st.markdown(
+                        f'<div class="replay-cache-status pending">'
+                        f'<b>DATA STATUS · NA</b> · {_na_rows} row(s) have no prior valid source value.'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
 
                 _fut_cols = [
                     c for c in ("futures_oi_chg", "futures_oi_chg_pct")
@@ -5385,7 +5679,24 @@ def _build_live_prediction_from_source(path: Path):
         else None
     )
     if not base:
-        base = frozen_base_from_df(derive_straddle_values(raw_df))
+        # The daily opening base is immutable and must come from the
+        # first authoritative Daywise snapshot of the trading day.
+        # Never derive the opening base from the current LIVE snapshot:
+        # doing so silently moves the reference forward on every source
+        # observation and changes Price Move / Straddle Move calculations.
+        first_files = snapshot_files(day)
+        if first_files:
+            first_path = first_files[0]
+            first_ts = observation_ts(first_path)
+            if pd.notna(first_ts):
+                try:
+                    first_df, _ = load_primary_snapshot(first_path, first_ts)
+                    if first_df is not None and not first_df.empty:
+                        base = frozen_base_from_df(
+                            derive_straddle_values(first_df)
+                        )
+                except Exception:
+                    base = None
 
     raw = derive_straddle_values(raw_df)
     pred = candidates(
@@ -5745,27 +6056,29 @@ def latest_live() -> tuple[
             and pd.Timestamp(persisted_ts).date() == pd.Timestamp(ts).date()
             and pd.Timestamp(persisted_ts) < pd.Timestamp(ts)
         ):
-            fallback_pred = persisted["pred"].copy()
+            fallback_pred = _mark_carried_forward_frame(
+                persisted["pred"],
+                pd.Timestamp(ts),
+                pd.Timestamp(persisted_ts),
+                message or "Latest Daywise source is unavailable or incomplete.",
+                status="D",
+            )
             fallback_pred = _attach_first_alert_provenance(
                 fallback_pred,
-                pd.Timestamp(persisted_ts).date().isoformat(),
-                pd.Timestamp(persisted_ts),
+                pd.Timestamp(ts).date().isoformat(),
+                pd.Timestamp(ts),
             )
-            fallback_path = (
-                Path(persisted["source_path"])
-                if persisted.get("source_path")
-                else path
-            )
+            fallback_path = path
             fallback_pred = _apply_live_futures_delay_policy(
                 fallback_pred,
-                pd.Timestamp(persisted_ts),
+                pd.Timestamp(ts),
                 futures_fresh=False,
             )
             fallback_message = (
-                f"LIVE source update is still being prepared — showing last completed "
-                f"snapshot ({pd.Timestamp(persisted_ts).strftime('%H:%M:%S')})."
+                f"LIVE source gap at {pd.Timestamp(ts).strftime('%H:%M:%S')} — "
+                f"showing last valid data from {pd.Timestamp(persisted_ts).strftime('%H:%M:%S')} (D)."
             )
-            return fallback_path, fallback_pred, pd.Timestamp(persisted_ts), fallback_message
+            return fallback_path, fallback_pred, pd.Timestamp(ts), fallback_message
 
         # A valid, readable source can legitimately produce no qualified
         # decisions.  Preserve that exact source timestamp rather than
@@ -6224,7 +6537,11 @@ def _b4_previous_context_map(
     best: dict[str, tuple[pd.Timestamp, dict]] = {}
 
     for key, entry in entries.items():
-        if not isinstance(entry, dict) or not isinstance(entry.get("pred"), pd.DataFrame):
+        if (
+            not isinstance(entry, dict)
+            or str(entry.get("snapshot_status", "VALID")).upper() != "VALID"
+            or not isinstance(entry.get("pred"), pd.DataFrame)
+        ):
             continue
         ts = pd.to_datetime(entry.get("timestamp", key), errors="coerce")
         if pd.isna(ts) or ts >= observation_ts:
@@ -6263,6 +6580,10 @@ def _b4_emit_alerts(pred: pd.DataFrame, observation_ts: pd.Timestamp) -> list[di
     """
     if AlertStore is None or pred is None or pred.empty or pd.isna(observation_ts):
         return []
+    if "snapshot_data_status" in pred.columns:
+        statuses = pred["snapshot_data_status"].astype(str).str.upper()
+        if not statuses.empty and statuses.eq("D").all():
+            return []
     rules = _UI.get("alert_rules", [])
     if not isinstance(rules, list) or not rules:
         return []
