@@ -1,5 +1,5 @@
 """
-Fix 42 â€” Option Chain End-to-End Collector.
+Fix 42 — Option Chain End-to-End Collector.
 
 First controlled end-to-end benchmark:
     20 symbols
@@ -23,8 +23,7 @@ import asyncio
 import json
 import random
 import time
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -77,59 +76,23 @@ def _signature(data):
         "rows_data": rows_list,
     }
 
-async def _prepare_capture_page(page, timeout_seconds):
-    """Prepare one reusable authenticated capture page."""
-    if page.is_closed():
-        raise RuntimeError("Capture page is closed.")
-    await page.goto(
-        OPTION_CHAIN,
-        wait_until="domcontentloaded",
-        timeout=timeout_seconds * 1000,
-    )
-    await page.wait_for_timeout(1000)
-    options = await page.locator("#optSymbol option").evaluate_all(
-        """els => els.map(e => String(e.value || '').toUpperCase())"""
-    )
-    if not options:
-        raise RuntimeError("iCharts #optSymbol universe is empty on capture page.")
-    return set(options)
-
-async def _capture_one(page, symbol, timeout_seconds, max_retries, backoff_initial_ms, backoff_max_ms, jitter_ms, capture_429_gate):
-    """Capture the first *valid* Option Chain JSON response for a symbol.
-
-    The page is supplied by the bounded capture-page pool and is reused for
-    multiple symbols. Intermediate empty/non-JSON responses are ignored until
-    a structurally valid Option Chain payload arrives or the timeout expires.
-    """
+async def _capture_one(context, symbol, timeout_seconds):
     started = time.perf_counter()
-    queue = asyncio.Queue()
+    page = await context.new_page()
 
-    def is_target_response(response):
-        if TABLE_MARKER not in response.url:
+    def is_target(req):
+        if TABLE_MARKER not in req.url or req.method.upper() != "POST":
             return False
-        request = response.request
-        if request.method.upper() != "POST":
-            return False
-        params = _form(request.post_data or "")
+        params = _form(req.post_data or "")
         return params.get("optSymbol", "").upper() == symbol.upper()
 
-    def on_response(response):
-        try:
-            if is_target_response(response):
-                queue.put_nowait(response)
-        except Exception:
-            pass
-
-    page.on("response", on_response)
-    diagnostics = []
     try:
-        if page.is_closed():
-            raise RuntimeError("Capture page is closed.")
-
-        # The page is normally already prepared by the worker. Re-check the
-        # live selector so a navigation/session reset is detected cleanly.
-        if await page.locator("#optSymbol").count() == 0:
-            raise RuntimeError("iCharts #optSymbol selector is unavailable.")
+        await page.goto(
+            OPTION_CHAIN,
+            wait_until="domcontentloaded",
+            timeout=timeout_seconds * 1000,
+        )
+        await page.wait_for_timeout(1000)
 
         options = await page.locator("#optSymbol option").evaluate_all(
             """els => els.map(e => String(e.value || '').toUpperCase())"""
@@ -137,208 +100,53 @@ async def _capture_one(page, symbol, timeout_seconds, max_retries, backoff_initi
         if symbol.upper() not in options:
             raise RuntimeError("Symbol is not present in iCharts #optSymbol.")
 
-        retry_count = 0
-        deadline = asyncio.get_running_loop().time() + timeout_seconds
-        await capture_429_gate.wait()
-        await page.select_option("#optSymbol", symbol)
-        while True:
-            remaining = deadline - asyncio.get_running_loop().time()
-            if remaining <= 0:
-                detail = "; ".join(diagnostics[-3:])
-                raise RuntimeError(
-                    "Timed out waiting for a valid Option Chain JSON response."
-                    + (f" Diagnostics: {detail}" if detail else "")
-                )
+        async with page.expect_request(
+            is_target, timeout=timeout_seconds * 1000
+        ) as req_info:
+            await page.select_option("#optSymbol", symbol)
 
-            try:
-                response = await asyncio.wait_for(queue.get(), remaining)
-            except asyncio.TimeoutError:
-                detail = "; ".join(diagnostics[-3:])
-                raise RuntimeError(
-                    "Timed out waiting for a valid Option Chain JSON response."
-                    + (f" Diagnostics: {detail}" if detail else "")
-                )
+        req = await req_info.value
+        response = await req.response()
+        if response is None:
+            raise RuntimeError("Captured request has no response.")
 
-            request = response.request
-            body = request.post_data or ""
-            response_text = await response.text()
-            content_type = response.headers.get("content-type", "")
-            stripped = response_text.strip()
+        body = req.post_data or ""
+        response_text = await response.text()
+        captured_json = json.loads(response_text)
+        sig = _signature(captured_json)
 
-            if response.status == 429:
-                await capture_429_gate.trigger()
-                retry_after = response.headers.get("retry-after", "")
-                retry_after_s = _retry_after_seconds(retry_after)
-                if retry_after_s is None:
-                    wait_s = min(
-                        backoff_max_ms,
-                        backoff_initial_ms * (2 ** retry_count)
-                    ) / 1000.0
-                else:
-                    wait_s = min(backoff_max_ms / 1000.0, retry_after_s)
-                wait_s = max(wait_s, capture_429_gate.cooldown_ms / 1000.0)
-                if jitter_ms:
-                    wait_s += random.uniform(0, jitter_ms) / 1000.0
-                diagnostics.append(
-                    f"HTTP 429, content_type={content_type!r}, body_len={len(response_text)}, "
-                    f"retry={retry_count + 1}, wait_s={round(wait_s, 2)}"
-                )
-                retry_count += 1
-                if retry_count > max_retries:
-                    raise RuntimeError(
-                        "Capture HTTP 429 retry limit exhausted. Diagnostics: "
-                        + "; ".join(diagnostics[-5:])
-                    )
-                await asyncio.sleep(wait_s)
-                await capture_429_gate.wait()
-                if asyncio.get_running_loop().time() >= deadline:
-                    raise RuntimeError(
-                        "Capture HTTP 429 retry exhausted by capture timeout. Diagnostics: "
-                        + "; ".join(diagnostics[-5:])
-                    )
-                await page.select_option("#optSymbol", symbol)
-                continue
+        if sig is None:
+            raise RuntimeError("Captured response is not a JSON object.")
 
-            if response.status != 200:
-                diagnostics.append(
-                    f"HTTP {response.status}, content_type={content_type!r}, "
-                    f"body_len={len(response_text)}"
-                )
-                continue
-
-            if not stripped:
-                diagnostics.append(
-                    f"HTTP 200 empty body, content_type={content_type!r}"
-                )
-                continue
-
-            try:
-                captured_json = json.loads(stripped)
-            except Exception as exc:
-                diagnostics.append(
-                    f"HTTP 200 non-JSON, content_type={content_type!r}, "
-                    f"body_len={len(response_text)}, error={exc}"
-                )
-                continue
-
-            sig = _signature(captured_json)
-            if sig is None:
-                diagnostics.append(
-                    f"HTTP 200 JSON but not object, body_len={len(response_text)}"
-                )
-                continue
-
-            server_symbol = sig["server_symbol"].upper()
-            if server_symbol != symbol.upper():
-                diagnostics.append(
-                    f"HTTP 200 JSON symbol mismatch: {server_symbol!r}"
-                )
-                continue
-
-            if "aaData" not in captured_json or "strikePriceATM" not in captured_json:
-                diagnostics.append(
-                    "HTTP 200 JSON missing aaData/strikePriceATM"
-                )
-                continue
-
-            headers = {
-                k: v
-                for k, v in request.headers.items()
-                if k.lower() in {
-                    "content-type", "referer", "origin",
-                    "x-requested-with", "accept"
-                }
+        headers = {
+            k: v
+            for k, v in req.headers.items()
+            if k.lower() in {
+                "content-type", "referer", "origin",
+                "x-requested-with", "accept"
             }
-            headers.pop("content-length", None)
+        }
+        headers.pop("content-length", None)
 
-            return {
-                "symbol": symbol,
-                "request_url": response.url,
-                "request_body": body,
-                "request_params": _form(body),
-                "request_headers": headers,
-                "captured_http": response.status,
-                "captured_signature": sig,
-                "capture_ms": round((time.perf_counter() - started) * 1000, 1),
-                "capture_diagnostics": diagnostics[-10:],
-            }
+        return {
+            "symbol": symbol,
+            "request_url": req.url,
+            "request_body": body,
+            "request_params": _form(body),
+            "request_headers": headers,
+            "captured_http": response.status,
+            "captured_signature": sig,
+            "capture_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
     finally:
-        page.remove_listener("response", on_response)
-
-
-class _Capture429Gate:
-    """Global capture cooldown shared by all reusable capture pages."""
-
-    def __init__(self, cooldown_ms=5000):
-        self.cooldown_ms = max(0, int(cooldown_ms))
-        self._lock = asyncio.Lock()
-        self._cooldown_until = 0.0
-
-    async def wait(self):
-        while True:
-            async with self._lock:
-                remaining = self._cooldown_until - time.monotonic()
-            if remaining <= 0:
-                return
-            await asyncio.sleep(remaining)
-
-    async def trigger(self):
-        async with self._lock:
-            until = time.monotonic() + (self.cooldown_ms / 1000.0)
-            if until > self._cooldown_until:
-                self._cooldown_until = until
-
-
-class _Replay429Gate:
-    """Global replay cooldown shared by all concurrent replay workers."""
-
-    def __init__(self, cooldown_ms=5000):
-        self.cooldown_ms = max(0, int(cooldown_ms))
-        self._lock = asyncio.Lock()
-        self._cooldown_until = 0.0
-
-    async def wait(self):
-        while True:
-            async with self._lock:
-                remaining = self._cooldown_until - time.monotonic()
-            if remaining <= 0:
-                return
-            await asyncio.sleep(remaining)
-
-    async def trigger(self):
-        async with self._lock:
-            until = time.monotonic() + (self.cooldown_ms / 1000.0)
-            if until > self._cooldown_until:
-                self._cooldown_until = until
-
-
-def _retry_after_seconds(value):
-    """Parse Retry-After as delta-seconds or HTTP-date."""
-    value = str(value or "").strip()
-    if not value:
-        return None
-    try:
-        return max(0.0, float(value))
-    except ValueError:
-        pass
-    try:
-        dt = parsedate_to_datetime(value)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return max(0.0, (dt - datetime.now(timezone.utc)).total_seconds())
-    except Exception:
-        return None
-
+        await page.close()
 
 async def _replay_one(context, captured, timeout_seconds, max_retries,
                       backoff_initial_ms, backoff_max_ms,
-                      request_gap_ms, jitter_ms, replay_429_gate):
+                      request_gap_ms, jitter_ms):
     symbol = captured["symbol"]
     last_error = ""
     started = time.perf_counter()
-
-    # Respect any global 429 cooldown before this worker sends a request.
-    await replay_429_gate.wait()
 
     # Small controlled pacing between direct requests.
     if request_gap_ms:
@@ -356,28 +164,15 @@ async def _replay_one(context, captured, timeout_seconds, max_retries,
             text = await response.text()
 
             if response.status == 429:
-                # Coordinate all replay workers after a rate-limit response.
-                await replay_429_gate.trigger()
-
                 retry_after = response.headers.get("retry-after", "")
-                retry_after_s = _retry_after_seconds(retry_after)
-                if retry_after_s is None:
+                try:
+                    wait_s = float(retry_after)
+                except Exception:
                     wait_s = min(
                         backoff_max_ms,
                         backoff_initial_ms * (2 ** (attempt - 1))
                     ) / 1000.0
-                else:
-                    wait_s = min(
-                        backoff_max_ms / 1000.0,
-                        retry_after_s
-                    )
-
-                wait_s = max(
-                    wait_s,
-                    replay_429_gate.cooldown_ms / 1000.0
-                )
                 wait_s += random.uniform(0, jitter_ms) / 1000.0
-
                 if attempt <= max_retries:
                     await asyncio.sleep(wait_s)
                     continue
@@ -494,7 +289,7 @@ def _write_workbook(output_root, rows, statuses, run_meta):
     wb.save(path)
     return str(path)
 
-async def run_optionchain_end_to_end_collector_v3(
+async def run_optionchain_failure_diagnostic_collector(
     context, symbols, output_root,
     replay_concurrency=5,
     capture_concurrency=5,
@@ -502,65 +297,35 @@ async def run_optionchain_end_to_end_collector_v3(
     max_retries=2,
     backoff_initial_ms=1500,
     backoff_max_ms=15000,
-    request_gap_ms=250,
-    jitter_ms=500,
-    replay_429_cooldown_ms=5000,
-    capture_429_cooldown_ms=5000,
+    request_gap_ms=100,
+    jitter_ms=100,
 ):
     started = time.perf_counter()
 
-    # Phase 1: use a bounded reusable browser-page pool. At most
-    # capture_concurrency pages exist for the entire capture phase; pages are
-    # reused sequentially for many symbols instead of opening one tab per
-    # symbol. This keeps the authenticated Chromium session stable.
-    page_count = min(max(1, int(capture_concurrency)), max(1, len(symbols)))
-    pages = [await context.new_page() for _ in range(page_count)]
-    capture_results = []
-    capture_429_gate = _Capture429Gate(capture_429_cooldown_ms)
+    # Phase 1: acquire exact request contracts with bounded browser-page
+    # concurrency. Each symbol still gets its own dedicated page; there is no
+    # shared page-state mutation between symbols.
+    capture_sem = asyncio.Semaphore(max(1, int(capture_concurrency)))
 
-    async def capture_worker(page, worker_symbols):
-        worker_results = []
-        try:
-            await _prepare_capture_page(page, timeout_seconds)
-        except Exception as exc:
-            for symbol in worker_symbols:
-                worker_results.append(("FAIL", {
-                    "symbol": symbol,
-                    "capture_ms": 0,
-                    "captured_http": None,
-                    "error": f"Capture page preparation failed: {exc}",
-                }))
-            return worker_results
-
-        for symbol in worker_symbols:
+    async def capture_worker(symbol):
+        async with capture_sem:
             try:
-                worker_results.append(("CAPTURE", await _capture_one(
-                    page, symbol, timeout_seconds, max_retries,
-                    backoff_initial_ms, backoff_max_ms, jitter_ms,
-                    capture_429_gate
-                )))
+                return ("CAPTURE", await _capture_one(
+                    context, symbol, timeout_seconds
+                ))
             except Exception as exc:
-                worker_results.append(("FAIL", {
+                return ("FAIL", {
                     "symbol": symbol,
                     "capture_ms": 0,
                     "captured_http": None,
                     "error": str(exc),
-                }))
-        return worker_results
+                    "failure_stage": "capture",
+                    "exception_type": type(exc).__name__,
+                })
 
-    assignments = [symbols[i::page_count] for i in range(page_count)]
-    try:
-        worker_batches = await asyncio.gather(
-            *(capture_worker(page, assigned)
-              for page, assigned in zip(pages, assignments))
-        )
-        for batch in worker_batches:
-            capture_results.extend(batch)
-    finally:
-        await asyncio.gather(
-            *(page.close() for page in pages if not page.is_closed()),
-            return_exceptions=True,
-        )
+    capture_results = await asyncio.gather(
+        *(capture_worker(symbol) for symbol in symbols)
+    )
 
     captures = [
         payload for kind, payload in capture_results if kind == "CAPTURE"
@@ -570,14 +335,13 @@ async def run_optionchain_end_to_end_collector_v3(
     ]
 
     sem = asyncio.Semaphore(max(1, int(replay_concurrency)))
-    replay_429_gate = _Replay429Gate(replay_429_cooldown_ms)
 
     async def replay_worker(c):
         async with sem:
             replay = await _replay_one(
                 context, c, timeout_seconds, max_retries,
                 backoff_initial_ms, backoff_max_ms,
-                request_gap_ms, jitter_ms, replay_429_gate
+                request_gap_ms, jitter_ms
             )
             return c, replay
 
@@ -667,21 +431,37 @@ async def run_optionchain_end_to_end_collector_v3(
         "Failed symbols": failed,
         "Data rows": len(data_rows),
         "Capture concurrency": capture_concurrency,
-        "Capture page pool size": page_count,
         "Replay concurrency": replay_concurrency,
         "Max retries": max_retries,
         "Backoff initial ms": backoff_initial_ms,
         "Backoff max ms": backoff_max_ms,
         "Request gap ms": request_gap_ms,
         "Jitter ms": jitter_ms,
-        "429 cooldown ms": replay_429_cooldown_ms,
-        "Capture 429 cooldown ms": capture_429_cooldown_ms,
         "Overall status": overall,
     }
 
     output_file = _write_workbook(output_root, data_rows, statuses, run_meta)
 
+    # Diagnostics must include BOTH capture failures and replay/validation failures.
+    failure_diagnostics = []
+    for item in statuses:
+        if item.get("status") == "FAILED":
+            failure_diagnostics.append({
+                "symbol": item.get("symbol"),
+                "stage": (
+                    "capture"
+                    if item.get("captured_http") is None
+                    else "replay_or_validation"
+                ),
+                "captured_http": item.get("captured_http"),
+                "replay_http": item.get("replay_http"),
+                "attempts": item.get("attempts", 0),
+                "rows": item.get("rows", 0),
+                "error": item.get("error", ""),
+            })
     return {
+        "status_rows": statuses,
+        "failure_diagnostics": failure_diagnostics,
         "test": "Option Chain End-to-End Collector",
         "requested": len(symbols),
         "passed": passed,
@@ -693,8 +473,3 @@ async def run_optionchain_end_to_end_collector_v3(
         "results": statuses,
         "overall_status": overall,
     }
-
-
-
-
-

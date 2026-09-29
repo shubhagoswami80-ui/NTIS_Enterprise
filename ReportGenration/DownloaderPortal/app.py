@@ -11,18 +11,29 @@ from runtime.config import ROOT, load_jobs, save_jobs, load_portal
 from runtime.browser import BrowserManager
 from runtime.discovery import discover
 from runtime.validation import validate_job
-from runtime.optionchain_probe import run_parallel_probe
-from runtime.optionchain_direct_probe import run_direct_post_probe
-from runtime.strike_probe import run_strike_probe
-from runtime.dynamic_params_probe import run_dynamic_params_probe
-from runtime.optionchain_dynamic_state_probe import run_optionchain_dynamic_state_probe
-from runtime.optionchain_request_capture_probe import run_optionchain_request_capture_probe
-from runtime.optionchain_direct_replay_probe import run_optionchain_direct_replay_probe
-from runtime.optionchain_direct_replay_probe_v2 import run_optionchain_direct_replay_probe_v2
-from runtime.optionchain_end_to_end_collector_v3 import run_optionchain_end_to_end_collector_v3
+from runtime.scheduler import Scheduler, normalize_job
+from runtime.state import StateStore
 
 
-st.set_page_config(page_title="Downloader Portal", layout="wide")
+st.set_page_config(
+    page_title="Downloader Portal 9001",
+    page_icon="⬢",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.markdown(
+    """
+    <style>
+    .block-container {padding-top: 1.0rem; padding-bottom: 2rem;}
+    .portal-title {font-size:2rem;font-weight:700;line-height:1.1;margin-bottom:.15rem;}
+    .portal-sub {color:#6b7280;font-size:.92rem;margin-bottom:1rem;}
+    .section-label {font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin:1rem 0 .45rem;}
+    .job-note {padding:.55rem .75rem;border:1px solid rgba(128,128,128,.20);border-radius:.55rem;margin:.25rem 0 .55rem;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 @st.cache_resource
@@ -35,6 +46,7 @@ def runtime():
         "loop": asyncio.new_event_loop(),
         "thread": None,
         "scheduler": None,
+        "states": None,
     }
 
 
@@ -63,7 +75,7 @@ def _normalise_legacy_job(raw: dict, idx: int) -> dict:
     j.setdefault("name", j.get("report_name") or j["id"])
     j.setdefault("report_name", j["name"])
     j.setdefault("url", "")
-    j.setdefault("transport", j.get("transport") or "browser_download")
+    j.setdefault("transport", "browser_download")
     j.setdefault("browser_required", True)
     j.setdefault("browser_profile", "")
     j.setdefault("group_id", "legacy_8506")
@@ -111,7 +123,11 @@ def import_legacy_jobs() -> tuple[bool, str, list[dict]]:
     raw_jobs = data.get("jobs", data) if isinstance(data, dict) else data
     if not isinstance(raw_jobs, list):
         return False, f"Unsupported reports.json structure: {path}", []
-    imported = [_normalise_legacy_job(j, i) for i, j in enumerate(raw_jobs) if isinstance(j, dict)]
+    imported = [
+        _normalise_legacy_job(j, i)
+        for i, j in enumerate(raw_jobs)
+        if isinstance(j, dict)
+    ]
     if not imported:
         return False, f"No report definitions found in {path}", []
     return True, str(path), imported
@@ -138,42 +154,106 @@ def ensure_browser():
 
 
 jobs = load_jobs()
+for job in jobs:
+    normalize_job(job)
 
-st.title("Downloader Portal")
-st.caption("Controlled parallel downloader • legacy 8506 remains untouched")
+if R["states"] is None:
+    R["states"] = StateStore(ROOT / "runtime" / "job_state.json")
 
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Total Jobs", len(jobs))
-m2.metric("Enabled", sum(bool(j.get("enabled")) for j in jobs))
-m3.metric("Execution", "PARALLEL")
-m4.metric("Legacy 8506", "UNTOUCHED")
+if R["scheduler"] is None:
+    R["scheduler"] = Scheduler(R["browser"], jobs, R["states"])
 
-st.divider()
+    async def _start_scheduler():
+        await R["scheduler"].start_async()
+
+    try:
+        submit(_start_scheduler()).result(timeout=5)
+    except Exception:
+        pass
+
+
+def state_for(job):
+    return R["states"].get(job["id"])
+
+
+def job_group(job):
+    if job.get("id") == "optionchain_end_to_end" or job.get("group_id") == "specialized_collectors":
+        return "Specialized Collectors"
+    return "Legacy Downloaders"
+
+
+def _live_row(job):
+    s = state_for(job)
+    meta = R["scheduler"].runtime_snapshot().get("active_meta", {}).get(job["id"], {})
+    live = s.state == "RUNNING" and job["id"] in R["scheduler"].active_job_ids
+    return {
+        "Job": job.get("name", job["id"]),
+        "Mode": "F&O Option Chain" if job.get("transport") == "optionchain_end_to_end" else job.get("transport", "Browser"),
+        "State": s.state,
+        "Stage": meta.get("stage") or s.current_stage or "—",
+        "Activity": meta.get("detail") or s.current_detail or s.last_message or "—",
+        "Heartbeat": s.heartbeat_at or "—",
+        "Live": "YES" if live else "NO",
+        "Last Run": s.last_run or "—",
+        "Duration": f"{s.duration_seconds:.1f}s" if s.duration_seconds else "—",
+        "Download": s.download_status or "—",
+        "Processing": s.processing_status or "—",
+        "Errors": s.error_count,
+        "Last Error": s.last_error_category or "—",
+    }
+
+
+def status_rows():
+    return [_live_row(job) for job in jobs]
+
+
+st.markdown('<div class="portal-title">Downloader Portal <span style="font-size:.85rem;color:#6b7280;">9001</span></div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="portal-sub">Advanced operational view · independent per-job scheduling · dedicated page isolation · 8506 remains untouched</div>',
+    unsafe_allow_html=True,
+)
+
+@st.fragment(run_every=2)
+def _render_live_metrics():
+    states = [state_for(j) for j in jobs]
+    running_count = sum(s.state == "RUNNING" and j["id"] in R["scheduler"].active_job_ids for j, s in zip(jobs, states))
+    success_count = sum(s.state in {"SUCCESS", "COMPLETE"} for s in states)
+    partial_count = sum(s.state == "PARTIAL" for s in states)
+    failed_count = sum(s.state == "FAILED" for s in states)
+    enabled_count = sum(bool(j.get("enabled")) for j in jobs)
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
+    m1.metric("Jobs", len(jobs))
+    m2.metric("Enabled", enabled_count)
+    m3.metric("Running", running_count)
+    m4.metric("Success", success_count)
+    m5.metric("Partial", partial_count)
+    m6.metric("Failed", failed_count)
+
+_render_live_metrics()
+
+tab_overview, tab_jobs, tab_discovery, tab_runtime = st.tabs(
+    ["Overview", "Job Control", "Discovery & Diagnostics", "Runtime Health"]
+)
 
 with st.sidebar:
-    st.header("Add / Discover Report")
-    discover_url = st.text_input(
-        "Report URL",
-        "https://www.icharts.in/opt/OptionChain.php",
-    )
-    discover_name = st.text_input("Report name", "Option Chain")
-    interval = st.number_input("Cycle interval (minutes)", min_value=1, value=5)
-    output_root = st.text_input(
-        "Output Root",
-        r"D:\My-data\Share_P&L\Ichart Data\Screenshot\OptionChain",
-    )
-    st.caption("Only the root folder is configured here. Year/month/date are generated automatically.")
+    st.markdown("### Portal Controls")
+    st.caption("TEST environment · port 9001")
+    st.write(f"Registered jobs: **{len(jobs)}**")
+    st.write(f"Scheduler: **{'RUNNING' if R['scheduler'].running else 'STOPPED'}**")
 
-    if st.button("Open Chromium", use_container_width=True):
+    if st.button("Open Authenticated Chromium", use_container_width=True):
         try:
             ensure_browser()
-            page = submit(R["browser"].open_discovery_page(discover_url)).result(timeout=75)
-            st.success(f"Chromium opened on: {page.url}")
-            st.info("If iCharts shows the Login page, enter your credentials in this browser window. The page remains open.")
+            page = submit(
+                R["browser"].open_discovery_page(
+                    "https://www.icharts.in/opt/OptionChain.php"
+                )
+            ).result(timeout=75)
+            st.success(f"Chromium ready: {page.url}")
         except Exception as exc:
             st.error(f"Chromium open failed: {exc}")
 
-    if st.button("Import 8506 Report Configuration (read-only)", use_container_width=True):
+    if st.button("Import 8506 Configuration (read-only)", use_container_width=True):
         try:
             ok, source, imported = import_legacy_jobs()
             if not ok:
@@ -186,656 +266,234 @@ with st.sidebar:
                         jobs.append(item)
                         added += 1
                 save_jobs(jobs)
-                st.success(f"Imported {added} new report definitions from {source}. All imported jobs remain DISABLED/TEST.")
+                R["scheduler"].refresh_jobs(jobs)
+                st.success(f"Imported {added} new definitions. Imported jobs remain DISABLED/TEST.")
                 st.rerun()
         except Exception as exc:
-            st.error(f"8506 configuration import failed: {exc}")
-
-    if st.button("Discover URL", type="primary", use_container_width=True):
-        try:
-            ensure_browser()
-            page = submit(R["browser"].open_discovery_page(discover_url)).result(timeout=75)
-            result = submit(
-                discover(page, discover_url, int(R["portal"]["discovery_timeout_seconds"] * 1000))
-            ).result(timeout=70)
-            st.session_state["discovery"] = result.to_dict()
-            final_url = str(result.to_dict().get("final_url", ""))
-            if "login" in final_url.lower():
-                st.warning("iCharts authentication is required. Enter credentials in Chromium, then Discover URL again.")
-            else:
-                st.success("Discovery completed. The authenticated browser page remains open.")
-        except Exception as exc:
-            st.error(f"Discovery failed: {exc}")
+            st.error(f"Import failed: {exc}")
 
     st.divider()
-    st.header("Option Chain Parallel Test")
-    st.caption("Controlled test only. No production scheduler and no XLSX output.")
-    test_symbols = st.text_input(
-        "Symbols",
-        "DIXON,RELIANCE",
-        help="Start with 2 symbols. Increase only after the 2-symbol test passes.",
-    )
-    test_timeout = st.number_input("Per-symbol timeout (seconds)", 10, 120, 30)
+    st.caption("8506 production process is not controlled by this portal.")
 
-    if st.button("Run Parallel Test", use_container_width=True):
-        try:
-            ensure_browser()
-            symbols = [x.strip().upper() for x in test_symbols.split(",") if x.strip()]
-            if len(symbols) < 2 or len(symbols) > 10:
-                st.error("Controlled test accepts 2 to 10 symbols only.")
-            else:
-                with st.spinner(f"Running {len(symbols)} symbols in parallel..."):
-                    result = submit(
-                        run_parallel_probe(
-                            R["browser"].context,
-                            symbols,
-                            int(test_timeout * 1000),
-                        )
-                    ).result(timeout=(test_timeout * len(symbols)) + 30)
-                st.session_state["parallel_probe"] = result
-                if result["failed"] == 0:
-                    st.success(
-                        f"Parallel probe PASS: {result['passed']}/{result['requested']} "
-                        f"in {result['elapsed_ms']} ms."
-                    )
-                else:
-                    st.warning(
-                        f"Parallel probe PARTIAL: {result['passed']}/{result['requested']} passed "
-                        f"in {result['elapsed_ms']} ms."
-                    )
-        except Exception as exc:
-            st.error(f"Parallel test failed: {exc}")
+with tab_overview:
+    st.markdown('<div class="section-label">Live Job Board</div>', unsafe_allow_html=True)
 
-st.divider()
-st.header("Option Chain Direct POST Test")
-st.caption("Controlled transport test only. No XLSX output is written.")
-direct_symbols=st.text_input("Direct POST Symbols","DIXON,RELIANCE,INFY,TCS,HDFCBANK,ICICIBANK,SBIN,AXISBANK,LT,ITC,ITBEES,BAJFINANCE,KOTAKBANK,MARUTI,ADANIENT,ONGC,SUNPHARMA,WIPRO,HINDALCO,POWERGRID",help="Controlled validation: up to 20 symbols.")
-direct_timeout=st.number_input("Direct POST timeout (seconds)",10,120,30,key="direct_timeout")
-direct_concurrency=st.number_input("Direct POST concurrency",1,10,5,key="direct_concurrency")
-st.info("Direct POST uses the authenticated Playwright browser context. Response bodies are inspected in memory only; no XLSX output is written.")
-if st.button("Run Direct POST Test",use_container_width=True):
-    try:
-        symbols=[x.strip().upper() for x in direct_symbols.split(",") if x.strip()]
-        if not 1<=len(symbols)<=20:
-            st.error("Direct POST validation accepts 1 to 20 symbols.")
-        else:
-            with st.spinner(f"Testing direct POST for {len(symbols)} symbols..."):
-                ensure_browser()
-            result=submit(
-                run_direct_post_probe(
-                    context=R["browser"].context,
-                    symbols=symbols,
-                    timeout_seconds=int(direct_timeout),
-                    concurrency=int(direct_concurrency),
-                )
-            ).result(timeout=(int(direct_timeout) * len(symbols)) + 30)
-            st.session_state["direct_post_probe"]=result
-            if result["failed"]==0:
-                st.success(f"Direct POST PASS: {result['passed']}/{result['requested']} in {result['elapsed_ms']} ms.")
-            else:
-                st.warning(f"Direct POST diagnostic: {result['passed']}/{result['requested']} passed in {result['elapsed_ms']} ms.")
-
-            # Immediate payload diagnostic: keep it directly under the test result
-            # so the user does not need to scroll to the bottom of the portal.
-            st.subheader("Immediate Payload Diagnostic")
-            for rr in result.get("results", []):
-                st.markdown(f"**{rr.get('symbol','')}** — {rr.get('status','')} / HTTP {rr.get('http_status','')}")
-                st.json({
-                    "symbol": rr.get("symbol"),
-                    "attempts": rr.get("attempts"),
-                    "elapsed_ms": rr.get("elapsed_ms"),
-                    "json_valid": rr.get("json_valid"),
-                    "iTotalRecords": rr.get("reported_total_records"),
-                    "aaData_count": rr.get("aaData_count"),
-                    "aaData_row_type": rr.get("aaData_row_type"),
-                    "aaData_row_length": rr.get("aaData_row_length"),
-                    "payload_structure": rr.get("payload_structure"),
-                    "data_state": rr.get("data_state"),
-                    "first_row_preview": rr.get("aaData_first_row_preview", []),
-                    "error": rr.get("error", ""),
-                })
-    except Exception as exc:
-        st.error(f"Direct POST test failed: {exc}")
-
-st.divider()
-st.header("Option Chain Mapped-Data Probe")
-st.caption("Controlled extraction test: maps aaData[3:64] to the discovered 61 main-table columns. No XLSX or scheduler output is written.")
-mapped_symbols=st.text_input("Mapped Probe Symbols","DIXON,RELIANCE,INFY,TCS,HDFCBANK",key="mapped_symbols")
-mapped_concurrency=st.number_input("Mapped Probe concurrency",1,10,5,key="mapped_concurrency")
-if st.button("Run Mapped Data Probe",use_container_width=True):
-    try:
-        symbols=[x.strip().upper() for x in mapped_symbols.split(",") if x.strip()]
-        if not 1<=len(symbols)<=10:
-            st.error("Mapped probe accepts 1 to 10 symbols.")
-        else:
-            ensure_browser()
-            with st.spinner(f"Collecting and mapping {len(symbols)} symbols..."):
-                result=submit(run_direct_post_probe(context=R["browser"].context, symbols=symbols, timeout_seconds=30, concurrency=int(mapped_concurrency))).result(timeout=(30*len(symbols))+30)
-            st.session_state["mapped_probe"]=result
-            st.success(f"Mapped probe: {result['passed']}/{result['requested']} PASS, {result.get('no_data',0)} NO_DATA, {result['failed']} FAILED in {result['elapsed_ms']} ms.")
-            rows=[]
-            for rr in result.get("results",[]):
-                for mr in rr.get("mapped_rows",[]):
-                    rows.append({"Symbol":rr.get("symbol"), **{k:v for k,v in mr.items() if k!="row_number"}, "Row":mr.get("row_number")})
-            if rows:
-                st.dataframe(rows, use_container_width=True, height=500)
-            else:
-                st.warning("No mapped rows returned.")
-    except Exception as exc:
-        st.error(f"Mapped data probe failed: {exc}")
-
-st.subheader("Option Chain Dynamic Strike / Parameter Validation")
-strike_symbols=st.text_input("Strike Probe Symbols","DIXON,RELIANCE,INFY,TCS,HDFCBANK",key="strike_symbols")
-strike_concurrency=st.number_input("Strike Probe concurrency",1,10,5,key="strike_concurrency")
-if st.button("Run Dynamic Strike / Parameter Validation",use_container_width=True):
-    symbols=[x.strip().upper() for x in strike_symbols.split(",") if x.strip()]
-    if not symbols or len(symbols)>10:
-        st.error("Strike probe accepts 1 to 10 symbols.")
-    else:
-        try:
-            with st.spinner(f"Discovering dynamic strike/expiry and validating direct POST for {len(symbols)} symbols..."):
-                result=submit(run_strike_probe(context=R["browser"].context,symbols=symbols,timeout_seconds=15,concurrency=int(strike_concurrency))).result(timeout=(15*len(symbols))+30)
-            st.success(f"Dynamic strike validation: {result['passed']}/{result['requested']} PASS, {result['failed']} FAILED in {result['elapsed_ms']} ms.")
-            st.json(result["results"])
-        except Exception as exc:
-            st.error(f"Strike / parameter probe failed: {exc}")
-
-st.subheader("Option Chain Dynamic Parameters Probe")
-st.caption("Controlled endpoint inspection only. Determines whether symbol-specific expiry/strike/date parameters can be obtained without loading a separate browser page. No XLSX or scheduler output is written.")
-dyn_symbols=st.text_input("Dynamic Parameter Symbols","DIXON,RELIANCE,INFY,TCS,HDFCBANK",key="dyn_symbols")
-dyn_concurrency=st.number_input("Dynamic Parameter concurrency",1,10,5,key="dyn_concurrency")
-if st.button("Run Dynamic Parameters Probe",use_container_width=True):
-    try:
-        symbols=[x.strip().upper() for x in dyn_symbols.split(",") if x.strip()]
-        if not 1<=len(symbols)<=10:
-            st.error("Dynamic parameter probe accepts 1 to 10 symbols.")
-        else:
-            ensure_browser()
-            with st.spinner(f"Inspecting symbol parameters for {len(symbols)} symbols..."):
-                result=submit(run_dynamic_params_probe(context=R["browser"].context, symbols=symbols, timeout_seconds=15, concurrency=int(dyn_concurrency))).result(timeout=(15*len(symbols))+30)
-            st.session_state["dynamic_params_probe"]=result
-            st.success(f"Dynamic parameter probe: {result['passed']}/{result['requested']} PASS, {result['failed']} FAILED in {result['elapsed_ms']} ms.")
-            compact=[]
-            for r in result.get("results",[]):
-                compact.append({"Symbol":r.get("symbol"),"HTTP":r.get("http_status"),"JSON":r.get("json_valid"),"ms":r.get("elapsed_ms"),"Candidate fields":json.dumps(r.get("candidate_fields",{}),default=str),"Error":r.get("error","")})
-            st.dataframe(compact,use_container_width=True,hide_index=True)
-            for r in result.get("results",[]):
-                with st.expander(f"{r.get('symbol')} — response details"):
-                    st.json(r)
-    except Exception as exc:
-        st.error(f"Dynamic parameter probe failed: {exc}")
-
-
-st.subheader("Option Chain Dynamic State → Direct POST Probe")
-st.caption(
-    "TEST ONLY. Uses the existing authenticated context, changes the iCharts "
-    "symbol selector through the page's own control, reads the resulting "
-    "dynamic parameters, then validates the direct POST request."
-)
-state_symbols = st.text_input(
-    "Dynamic State Symbols",
-    "DIXON,RELIANCE,INFY,TCS,HDFCBANK",
-    key="state_symbols",
-)
-
-if st.button("Run Dynamic State → Direct POST Probe", use_container_width=True):
-    try:
-        symbols = [x.strip().upper() for x in state_symbols.split(",") if x.strip()]
-        if not 1 <= len(symbols) <= 10:
-            st.error("Dynamic State probe accepts 1 to 10 symbols.")
-        else:
-            ensure_browser()
-            with st.spinner(
-                f"Resolving iCharts page state for {len(symbols)} symbols..."
-            ):
-                result = submit(
-                    run_optionchain_dynamic_state_probe(
-                        context=R["browser"].context,
-                        symbols=symbols,
-                        timeout_seconds=30,
-                    )
-                ).result(timeout=(30 * len(symbols)) + 60)
-
-            st.session_state["dynamic_state_probe"] = result
-            if result["failed"] == 0:
-                st.success(
-                    f"Dynamic State probe PASS: {result['passed']}/{result['requested']} "
-                    f"in {result['elapsed_ms']} ms."
-                )
-            else:
-                st.warning(
-                    f"Dynamic State probe PARTIAL: {result['passed']}/{result['requested']} "
-                    f"passed in {result['elapsed_ms']} ms."
-                )
-
-            compact = []
-            for r in result.get("results", []):
-                compact.append({
-                    "Requested": r.get("symbol"),
-                    "Selected": r.get("selected_symbol"),
-                    "Expiry": r.get("optExpDate"),
-                    "ATM": r.get("strikePriceATM"),
-                    "Central": r.get("centralStrike"),
-                    "optStrike": r.get("optStrike"),
-                    "7 Rows": r.get("aaData_count"),
-                    "Table HTTP": r.get("table_http"),
-                    "Server Symbol": r.get("server_symbol"),
-                    "POST Valid": r.get("post_valid"),
-                    "Pass": r.get("pass"),
-                    "ms": r.get("elapsed_ms"),
-                    "Error": r.get("error", ""),
-                })
-            if compact:
-                st.dataframe(compact, use_container_width=True, hide_index=True)
-            for r in result.get("results", []):
-                with st.expander(f"{r.get('symbol')} — dynamic state details"):
-                    st.json(r)
-    except Exception as exc:
-        st.error(f"Dynamic State probe failed: {exc}")
-
-
-st.subheader("Option Chain Actual Request Capture Probe")
-st.caption(
-    "TEST ONLY. Uses the authenticated iCharts page selector and captures the "
-    "actual OptionChainTable POST generated by iCharts. No manual POST replay."
-)
-capture_symbols = st.text_input(
-    "Capture Symbols",
-    "DIXON,RELIANCE,INFY,TCS,HDFCBANK",
-    key="capture_symbols",
-)
-
-if st.button("Run Actual Request Capture Probe", use_container_width=True):
-    try:
-        symbols = [x.strip().upper() for x in capture_symbols.split(",") if x.strip()]
-        if not 1 <= len(symbols) <= 10:
-            st.error("Request Capture probe accepts 1 to 10 symbols.")
-        else:
-            ensure_browser()
-            with st.spinner(
-                f"Capturing iCharts-generated requests for {len(symbols)} symbols..."
-            ):
-                result = submit(
-                    run_optionchain_request_capture_probe(
-                        context=R["browser"].context,
-                        symbols=symbols,
-                        timeout_seconds=30,
-                    )
-                ).result(timeout=(30 * len(symbols)) + 90)
-
-            st.session_state["request_capture_probe"] = result
-            if result["failed"] == 0:
-                st.success(
-                    f"Actual Request Capture PASS: {result['passed']}/{result['requested']} "
-                    f"in {result['elapsed_ms']} ms."
-                )
-            else:
-                st.warning(
-                    f"Actual Request Capture PARTIAL: {result['passed']}/{result['requested']} "
-                    f"passed in {result['elapsed_ms']} ms."
-                )
-
-            compact = []
-            for r in result.get("results", []):
-                compact.append({
-                    "Requested": r.get("symbol"),
-                    "Selected": r.get("selected_symbol"),
-                    "Request HTTP": r.get("request_http"),
-                    "Request URL": r.get("request_url"),
-                    "Expiry": r.get("captured_expiry"),
-                    "optStrike": r.get("captured_optStrike"),
-                    "ATM": r.get("response_ATM"),
-                    "Returned Rows": r.get("response_rows"),
-                    "Returned Strikes": ", ".join(r.get("returned_strikes", [])),
-                    "Server Symbol": r.get("server_symbol"),
-                    "ATM In Returned Strikes": r.get("atm_in_returned_strikes"),
-                    "Pass": r.get("pass"),
-                    "ms": r.get("elapsed_ms"),
-                    "Error": r.get("error", ""),
-                })
-            if compact:
-                st.dataframe(compact, use_container_width=True, hide_index=True)
-
-            for r in result.get("results", []):
-                with st.expander(f"{r.get('symbol')} — captured request details"):
-                    st.json(r)
-    except Exception as exc:
-        st.error(f"Actual Request Capture probe failed: {exc}")
-
-
-st.subheader("Option Chain Captured Request → Direct Replay Probe")
-st.caption(
-    "TEST ONLY. Captures the real iCharts-generated request for each symbol, "
-    "then replays that exact request through the authenticated context and "
-    "compares the returned Option Chain payload."
-)
-replay_symbols = st.text_input(
-    "Replay Symbols",
-    "DIXON,RELIANCE,INFY,TCS,HDFCBANK",
-    key="replay_symbols",
-)
-
-if st.button("Run Captured Request → Direct Replay Probe", use_container_width=True):
-    try:
-        symbols = [x.strip().upper() for x in replay_symbols.split(",") if x.strip()]
-        if not 1 <= len(symbols) <= 10:
-            st.error("Direct Replay probe accepts 1 to 10 symbols.")
-        else:
-            ensure_browser()
-            with st.spinner(
-                f"Capturing and directly replaying requests for {len(symbols)} symbols..."
-            ):
-                result = submit(
-                    run_optionchain_direct_replay_probe(
-                        context=R["browser"].context,
-                        symbols=symbols,
-                        timeout_seconds=30,
-                    )
-                ).result(timeout=(30 * len(symbols)) + 120)
-
-            st.session_state["direct_replay_probe"] = result
-            if result["failed"] == 0:
-                st.success(
-                    f"Direct Replay PASS: {result['passed']}/{result['requested']} "
-                    f"in {result['elapsed_ms']} ms."
-                )
-            else:
-                st.warning(
-                    f"Direct Replay PARTIAL: {result['passed']}/{result['requested']} "
-                    f"passed in {result['elapsed_ms']} ms."
-                )
-
-            compact = []
-            for r in result.get("results", []):
-                compact.append({
-                    "Symbol": r.get("symbol"),
-                    "Captured HTTP": r.get("captured_http"),
-                    "Replay HTTP": r.get("replay_http"),
-                    "Captured Server": r.get("captured_server_symbol"),
-                    "Replay Server": r.get("replay_server_symbol"),
-                    "Captured ATM": r.get("captured_atm"),
-                    "Replay ATM": r.get("replay_atm"),
-                    "Captured Rows": r.get("captured_rows"),
-                    "Replay Rows": r.get("replay_rows"),
-                    "Payload Match": r.get("payload_match"),
-                    "Pass": r.get("pass"),
-                    "ms": r.get("elapsed_ms"),
-                    "Error": r.get("error", ""),
-                })
-            if compact:
-                st.dataframe(compact, use_container_width=True, hide_index=True)
-
-            for r in result.get("results", []):
-                with st.expander(f"{r.get('symbol')} — replay details"):
-                    st.json(r)
-    except Exception as exc:
-        st.error(f"Direct Replay probe failed: {exc}")
-
-
-st.subheader("Option Chain Direct Replay Probe v2 — Correct Symbol Capture")
-st.caption(
-    "Fixes background/initial Option Chain requests by accepting only the "
-    "POST whose optSymbol exactly matches the requested symbol."
-)
-replay_v2_symbols = st.text_input(
-    "Replay v2 Symbols",
-    "DIXON,RELIANCE,INFY,TCS,HDFCBANK",
-    key="replay_v2_symbols",
-)
-
-if st.button(
-    "Run Direct Replay Probe v2 — Correct Symbol Capture",
-    use_container_width=True,
-):
-    try:
-        symbols = [
-            x.strip().upper()
-            for x in replay_v2_symbols.split(",")
-            if x.strip()
-        ]
-        if not 1 <= len(symbols) <= 10:
-            st.error("Direct Replay v2 accepts 1 to 10 symbols.")
-        else:
-            ensure_browser()
-            with st.spinner(
-                f"Capturing symbol-specific requests for {len(symbols)} symbols..."
-            ):
-                result = submit(
-                    run_optionchain_direct_replay_probe_v2(
-                        context=R["browser"].context,
-                        symbols=symbols,
-                        timeout_seconds=30,
-                    )
-                ).result(timeout=(30 * len(symbols)) + 120)
-
-            st.session_state["direct_replay_probe_v2"] = result
-            if result["failed"] == 0:
-                st.success(
-                    f"Direct Replay v2 PASS: {result['passed']}/{result['requested']} "
-                    f"in {result['elapsed_ms']} ms."
-                )
-            else:
-                st.warning(
-                    f"Direct Replay v2 PARTIAL: {result['passed']}/{result['requested']} "
-                    f"passed in {result['elapsed_ms']} ms."
-                )
-
-            compact = []
-            for r in result.get("results", []):
-                compact.append({
-                    "Requested": r.get("symbol"),
-                    "Captured optSymbol": r.get("captured_optSymbol"),
-                    "Captured Server": r.get("captured_server_symbol"),
-                    "Replay Server": r.get("replay_server_symbol"),
-                    "Captured ATM": r.get("captured_atm"),
-                    "Replay ATM": r.get("replay_atm"),
-                    "Captured Rows": r.get("captured_rows"),
-                    "Replay Rows": r.get("replay_rows"),
-                    "Payload Match": r.get("payload_match"),
-                    "Pass": r.get("pass"),
-                    "ms": r.get("elapsed_ms"),
-                    "Error": r.get("error", ""),
-                })
-            if compact:
-                st.dataframe(compact, use_container_width=True, hide_index=True)
-
-            for r in result.get("results", []):
-                with st.expander(f"{r.get('symbol')} — v2 capture details"):
-                    st.json(r)
-    except Exception as exc:
-        st.error(f"Direct Replay v2 failed: {exc}")
-
-
-st.subheader("Option Chain End-to-End Collector — Benchmark")
-st.caption(
-    "Controlled end-to-end test: capture each symbol's real iCharts request, "
-    "direct-replay it with 429 protection, map the 70-field payload to the "
-    "61-column Option Chain view, and write ONE final XLSX. No scheduler."
-)
-
-collector_default_symbols = (
-    "DIXON,RELIANCE,INFY,TCS,HDFCBANK,ONGC,SUNPHARMA,HINDALCO,POWERGRID,"
-    "SBIN,ICICIBANK,AXISBANK,KOTAKBANK,LT,ITC,ADANIENT,MARUTI,TMPV,"
-    "BHARTIARTL,BAJFINANCE"
-)
-
-collector_symbols = st.text_area(
-    "Collector Symbols",
-    collector_default_symbols,
-    height=90,
-    key="collector_symbols",
-)
-collector_concurrency = st.number_input(
-    "Direct replay concurrency", 1, 10, 5, key="collector_concurrency"
-)
-collector_output_root = st.text_input(
-    "Collector output root",
-    r"D:\My-data\Share_P&L\Ichart Data\Screenshot\OptionChain",
-    key="collector_output_root",
-)
-
-if st.button(
-    "Run 20-Symbol End-to-End Collection + Final XLSX",
-    use_container_width=True,
-):
-    try:
-        symbols = [x.strip().upper() for x in collector_symbols.split(",") if x.strip()]
-        if len(symbols) != 20:
-            st.error(
-                f"This benchmark requires exactly 20 symbols. Current count: {len(symbols)}."
-            )
-        else:
-            ensure_browser()
-            with st.spinner(
-                "Running 20-symbol capture → direct replay → final XLSX..."
-            ):
-                future = submit(
-                    run_optionchain_end_to_end_collector_v3(
-                        context=R["browser"].context,
-                        symbols=symbols,
-                        output_root=collector_output_root,
-                        replay_concurrency=int(collector_concurrency),
-                        timeout_seconds=30,
-                        max_retries=2,
-                        backoff_initial_ms=1500,
-                        backoff_max_ms=15000,
-                        request_gap_ms=100,
-                        jitter_ms=100,
-                    )
-                )
-                result = future.result(timeout=20 * 45 + 180)
-
-            st.session_state["collector_result"] = result
-
-            if result["failed"] == 0:
-                st.success(
-                    f"20-symbol collection v2 PASS: "
-                    f"{result['passed']}/{result['requested']} "
-                    f"in {result['elapsed_ms']} ms."
-                )
-            else:
-                st.warning(
-                    f"20-symbol collection v2 PARTIAL: "
-                    f"{result['passed']}/{result['requested']} "
-                    f"passed in {result['elapsed_ms']} ms."
-                )
-
-            st.write(f"**Final workbook:** `{result.get('output_file', '')}`")
-            st.write(
-                f"Data rows: **{result.get('data_rows', 0)}** | "
-                f"Passed: **{result.get('passed', 0)}** | "
-                f"No data: **{result.get('no_data', 0)}** | "
-                f"Failed: **{result.get('failed', 0)}**"
-            )
-
-            compact = []
-            for r in result.get("results", []):
-                compact.append(
+    @st.fragment(run_every=2)
+    def _render_live_job_board():
+        for group in ["Specialized Collectors", "Legacy Downloaders"]:
+            group_jobs = [j for j in jobs if job_group(j) == group]
+            if not group_jobs:
+                continue
+            st.markdown(f"#### {group}")
+            st.dataframe(
+                [
                     {
-                        "Symbol": r.get("symbol"),
-                        "HTTP": r.get("replay_http"),
-                        "Expiry": r.get("expiry"),
-                        "ATM": r.get("atm"),
-                        "Rows": r.get("rows"),
-                        "Status": r.get("status"),
-                        "Capture ms": r.get("capture_ms"),
-                        "Replay ms": r.get("replay_ms"),
-                        "Error": r.get("error", ""),
+                        "Job": j.get("name", j["id"]),
+                        "Mode": "F&O Option Chain" if j.get("transport") == "optionchain_end_to_end" else "Browser Download",
+                        "State": state_for(j).state,
+                        "Stage": R["scheduler"].runtime_snapshot().get("active_meta", {}).get(j["id"], {}).get("stage") or state_for(j).current_stage or "—",
+                        "Activity": R["scheduler"].runtime_snapshot().get("active_meta", {}).get(j["id"], {}).get("detail") or state_for(j).current_detail or "—",
+                        "Heartbeat": state_for(j).heartbeat_at or "—",
+                        "Last": state_for(j).last_run or "—",
+                        "Next": state_for(j).next_run or "—",
+                        "Errors": state_for(j).error_count,
                     }
-                )
-            if compact:
-                st.dataframe(
-                    compact,
-                    use_container_width=True,
-                    hide_index=True,
-                )
-    except Exception as exc:
-        st.error(f"20-symbol collector v2 failed: {exc}")
+                    for j in group_jobs
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
 
-st.subheader("Registered Jobs")
+        recent = sorted(
+            status_rows(),
+            key=lambda r: r["Last Run"] if r["Last Run"] != "—" else "",
+            reverse=True,
+        )
+        st.markdown("#### Current Job State")
+        st.dataframe(recent, use_container_width=True, hide_index=True)
 
-if not jobs:
-    st.info("No jobs registered.")
-else:
+    _render_live_job_board()
+
+    st.markdown('<div class="section-label">Operational Notes</div>', unsafe_allow_html=True)
+    oc = next((j for j in jobs if j.get("transport") == "optionchain_end_to_end"), None)
+    if oc:
+        st.info(
+            f"Option Chain is configured as a dedicated collector: "
+            f"daily iCharts #optSymbol universe, one XLSX per cycle, "
+            f"{oc.get('capture_concurrency',5)} capture / {oc.get('replay_concurrency',5)} replay workers, "
+            f"250 ms request gap, 500 ms jitter and 5 s global 429 cooldown. "
+            f"It remains TEST/DISABLED until explicitly enabled."
+        )
+
+with tab_jobs:
+    st.markdown('<div class="section-label">Independent Job Control</div>', unsafe_allow_html=True)
+    st.caption("Each job owns its own schedule, execution state, timeout, page and output path. There is no portal-wide execution semaphore.")
+
     for idx, job in enumerate(jobs):
-        with st.expander(
-            f"{idx + 1}. {job.get('name', job['id'])} — {job.get('transport', '')}",
-            expanded=(idx == 0),
-        ):
-            c1, c2 = st.columns(2)
+        state = state_for(job)
+        is_option = job.get("transport") == "optionchain_end_to_end"
+        label = f"{'◉' if state.state == 'RUNNING' else '○'} {job.get('name', job['id'])}  ·  {state.state}"
+        with st.expander(label, expanded=is_option and state.state in {"RUNNING", "PARTIAL", "FAILED"}):
+            top1, top2, top3, top4 = st.columns([2.5, 2, 2, 1.3])
+            with top1:
+                st.markdown(f"**{job.get('report_name', job.get('name', job['id']))}**")
+                st.caption(job.get("url", ""))
+            with top2:
+                st.write(f"Group: **{job.get('group_id','—')}**")
+                st.write(f"Transport: **{job.get('transport','—')}**")
+            with top3:
+                sched = job.setdefault("schedule", {})
+                st.write(
+                    f"Schedule: **{sched.get('recurrence_minutes',5)} min** · "
+                    f"{sched.get('start_time','09:25')}–{sched.get('stop_time','15:35')}"
+                )
+                st.write(f"Next: **{state.next_run or '—'}**")
+            with top4:
+                if st.button("Run Now", key=f"run_{idx}", use_container_width=True):
+                    try:
+                        ok = R["scheduler"].manual_run(job["id"])
+                        if ok:
+                            st.toast(f"Started: {job.get('name', job['id'])}")
+                        else:
+                            st.warning("Job is already running.")
+                    except Exception as exc:
+                        st.error(f"Manual run failed: {exc}")
+
+            c1, c2, c3 = st.columns(3)
             with c1:
-                st.text_input("Job ID", job["id"], disabled=True, key=f"id_{idx}")
-                job["name"] = st.text_input("Job Name", job.get("name", ""), key=f"name_{idx}")
-                job["report_name"] = st.text_input("Report Name", job.get("report_name", ""), key=f"report_{idx}")
-                job["url"] = st.text_input("URL", job.get("url", ""), key=f"url_{idx}")
-                job["transport"] = st.text_input("Transport", job.get("transport", ""), key=f"transport_{idx}")
-                job["group_id"] = st.text_input("Group", job.get("group_id", ""), key=f"group_{idx}")
-                job["scheduler_id"] = st.text_input("Scheduler", job.get("scheduler_id", ""), key=f"scheduler_{idx}")
+                job["enabled"] = st.toggle(
+                    "Job Enabled",
+                    bool(job.get("enabled")),
+                    key=f"enabled_{idx}",
+                )
                 job["environment"] = st.selectbox(
-                    "Environment", ["TEST", "LIVE"], index=0 if job.get("environment") != "LIVE" else 1,
-                    key=f"env_{idx}"
+                    "Environment",
+                    ["TEST", "LIVE"],
+                    index=0 if job.get("environment") != "LIVE" else 1,
+                    key=f"env_{idx}",
+                )
+                job["timeout_seconds"] = st.number_input(
+                    "Job Timeout (seconds)", 5, 3600,
+                    int(job.get("timeout_seconds", 180)),
+                    key=f"timeout_{idx}",
                 )
             with c2:
-                job["enabled"] = st.checkbox("Enabled", bool(job.get("enabled")), key=f"enabled_{idx}")
-                job["browser_required"] = st.checkbox("Browser Required", bool(job.get("browser_required")), key=f"browser_{idx}")
-                job["interval_minutes"] = st.number_input("Interval (minutes)", 1, 1440, int(job.get("interval_minutes", 5)), key=f"interval_{idx}")
-                job["wait_seconds"] = st.number_input("Wait Seconds", 0.0, 120.0, float(job.get("wait_seconds", 2)), key=f"wait_{idx}")
-                job["timeout_seconds"] = st.number_input("Timeout Seconds", 5, 3600, int(job.get("timeout_seconds", 180)), key=f"timeout_{idx}")
-                job["retry_count"] = st.number_input("Retry Count", 0, 10, int(job.get("retry_count", 1)), key=f"retry_{idx}")
-                job["concurrency"] = st.number_input("Request Concurrency", 1, 50, int(job.get("concurrency", 8)), key=f"conc_{idx}")
-                job["batch_size"] = st.number_input("Batch Size", 1, 500, int(job.get("batch_size", 20)), key=f"batch_{idx}")
-                job["expected_symbol_count"] = st.number_input("Expected Symbols/Records", 0, 10000, int(job.get("expected_symbol_count", 0)), key=f"expected_{idx}")
+                sched = job.setdefault("schedule", {})
+                sched["enabled"] = st.toggle(
+                    "Schedule Enabled",
+                    bool(sched.get("enabled", job.get("enabled", False))),
+                    key=f"sched_enabled_{idx}",
+                )
+                sched["start_time"] = st.text_input(
+                    "Start", str(sched.get("start_time", "09:25")),
+                    key=f"start_{idx}",
+                )
+                sched["stop_time"] = st.text_input(
+                    "Stop", str(sched.get("stop_time", "15:35")),
+                    key=f"stop_{idx}",
+                )
+                sched["recurrence_minutes"] = st.number_input(
+                    "Every (minutes)", 1, 1440,
+                    int(sched.get("recurrence_minutes", job.get("interval_minutes", 5))),
+                    key=f"rec_{idx}",
+                )
+                days = ["MON","TUE","WED","THU","FRI","SAT","SUN"]
+                sched["days"] = st.multiselect(
+                    "Trading Days", days,
+                    default=[d for d in sched.get("days", days[:5]) if d in days],
+                    key=f"days_{idx}",
+                )
+            with c3:
+                job["output_root"] = st.text_input(
+                    "Output Root",
+                    job.get("output_root", job.get("destination", "")),
+                    key=f"out_{idx}",
+                )
+                job["request_gap_ms"] = st.number_input(
+                    "Request Gap (ms)", 0, 60000,
+                    int(job.get("request_gap_ms", 750)),
+                    key=f"gap_{idx}",
+                )
+                job["jitter_ms"] = st.number_input(
+                    "Jitter (ms)", 0, 60000,
+                    int(job.get("jitter_ms", 250)),
+                    key=f"jitter_{idx}",
+                )
 
-            st.markdown("**Execution / rate-limit controls**")
-            e1, e2, e3, e4 = st.columns(4)
-            with e1:
-                job["request_gap_ms"] = st.number_input("Request Gap ms", 0, 60000, int(job.get("request_gap_ms", 750)), key=f"gap_{idx}")
-            with e2:
-                job["jitter_ms"] = st.number_input("Jitter ms", 0, 60000, int(job.get("jitter_ms", 250)), key=f"jitter_{idx}")
-            with e3:
-                job["backoff_initial_ms"] = st.number_input("Backoff Initial ms", 1000, 600000, int(job.get("backoff_initial_ms", 15000)), key=f"bo1_{idx}")
-            with e4:
-                job["backoff_max_ms"] = st.number_input("Backoff Max ms", 1000, 1800000, int(job.get("backoff_max_ms", 180000)), key=f"bo2_{idx}")
+            if is_option:
+                st.markdown("**Option Chain Collector**")
+                o1, o2, o3, o4, o5 = st.columns(5)
+                with o1:
+                    job["capture_concurrency"] = st.number_input(
+                        "Capture Workers", 1, 10,
+                        int(job.get("capture_concurrency", 5)),
+                        key=f"oc_cap_{idx}",
+                    )
+                with o2:
+                    job["replay_concurrency"] = st.number_input(
+                        "Replay Workers", 1, 20,
+                        int(job.get("replay_concurrency", 5)),
+                        key=f"oc_rep_{idx}",
+                    )
+                with o3:
+                    job["retry_count"] = st.number_input(
+                        "429 Retries", 0, 10,
+                        int(job.get("retry_count", 2)),
+                        key=f"oc_retry_{idx}",
+                    )
+                with o4:
+                    job["replay_429_cooldown_ms"] = st.number_input(
+                        "429 Cooldown ms", 0, 60000,
+                        int(job.get("replay_429_cooldown_ms", 5000)),
+                        key=f"oc_cd_{idx}",
+                    )
+                with o5:
+                    st.write("Universe")
+                    st.success(
+                        f"{'FROZEN DAILY' if job.get('freeze_universe_per_trading_day', True) else 'JOB LIST'}"
+                    )
+                st.caption(
+                    "Universe source: authenticated iCharts #optSymbol. "
+                    "The daily list is frozen and reused for subsequent cycles."
+                )
 
-            st.markdown("**Browser / action controls**")
-            b1, b2, b3 = st.columns(3)
-            with b1:
-                actions = ["none", "refresh", "submit", "refresh_submit", "radio_submit", "radio"]
-                current_action = job.get("action", "none")
-                if current_action not in actions:
-                    current_action = "none"
-                job["action"] = st.selectbox("Action", actions, index=actions.index(current_action), key=f"action_{idx}")
-                job["selection"] = st.text_input("Selection", job.get("selection", ""), key=f"sel_{idx}")
-            with b2:
-                job["selection_selector"] = st.text_input("Selection Selector", job.get("selection_selector", ""), key=f"ss_{idx}")
-                job["submit_selector"] = st.text_input("Submit Selector", job.get("submit_selector", ""), key=f"sub_{idx}")
-            with b3:
-                job["download_selector"] = st.text_input("Download Selector", job.get("download_selector", ""), key=f"dl_{idx}")
-                job["browser_profile"] = st.text_input("Browser Profile", job.get("browser_profile", ""), key=f"profile_{idx}")
+            with st.expander("Advanced Job Configuration", expanded=False):
+                a1, a2, a3 = st.columns(3)
+                with a1:
+                    job["name"] = st.text_input("Job Name", job.get("name", ""), key=f"name_{idx}")
+                    job["report_name"] = st.text_input("Report Name", job.get("report_name", ""), key=f"report_{idx}")
+                    st.text_input("Job ID", job["id"], disabled=True, key=f"id_{idx}")
+                    st.text_input("Transport", job.get("transport", ""), disabled=True, key=f"transport_{idx}")
+                with a2:
+                    job["group_id"] = st.text_input("Group", job.get("group_id", ""), key=f"group_{idx}")
+                    job["scheduler_id"] = st.text_input("Scheduler ID", job.get("scheduler_id", ""), key=f"scheduler_{idx}")
+                    job["browser_profile"] = st.text_input("Browser Profile", job.get("browser_profile", ""), key=f"profile_{idx}")
+                    job["page_isolation"] = st.checkbox("Dedicated Page", bool(job.get("page_isolation", True)), key=f"pageiso_{idx}")
+                with a3:
+                    job["backoff_initial_ms"] = st.number_input(
+                        "Backoff Initial ms", 1000, 600000,
+                        int(job.get("backoff_initial_ms", 15000)),
+                        key=f"bo1_{idx}",
+                    )
+                    job["backoff_max_ms"] = st.number_input(
+                        "Backoff Max ms", 1000, 1800000,
+                        int(job.get("backoff_max_ms", 180000)),
+                        key=f"bo2_{idx}",
+                    )
+                    job["http_429_policy"] = st.text_input(
+                        "429 Policy",
+                        job.get("http_429_policy", "respect_retry_after_then_exponential_backoff"),
+                        key=f"429_{idx}",
+                    )
 
-            st.markdown("**Output / processing controls**")
-            job["output_root"] = st.text_input("Output Root", job.get("output_root", ""), key=f"out_{idx}")
-            st.caption("Final path: `<root>\\<year>\\<month_name>\\<date>\\<report>_<timestamp>.xlsx`")
-            p1, p2, p3 = st.columns(3)
-            with p1:
-                job["processing_root"] = st.text_input("Processing Root", job.get("processing_root", ""), key=f"proc_{idx}")
-            with p2:
-                job["final_output_root"] = st.text_input("Final Output Root", job.get("final_output_root", ""), key=f"final_{idx}")
-            with p3:
-                job["filename_rule"] = st.text_input("Filename Rule", job.get("filename_rule", ""), key=f"frule_{idx}")
-
-            st.markdown("**Validation / alert controls**")
-            v1, v2, v3 = st.columns(3)
-            with v1:
-                job["validation_required"] = st.checkbox("Validation Required", bool(job.get("validation_required", True)), key=f"valid_{idx}")
-            with v2:
-                severities = ["INFO","WARNING","ERROR","CRITICAL"]
-                current_severity = job.get("alert_severity","WARNING")
-                if current_severity not in severities:
-                    current_severity = "WARNING"
-                job["alert_severity"] = st.selectbox("Alert Severity", severities, index=severities.index(current_severity), key=f"alert_{idx}")
-            with v3:
-                job["http_429_policy"] = st.text_input("HTTP 429 Policy", job.get("http_429_policy",""), key=f"429_{idx}")
+            meta = R["scheduler"].runtime_snapshot().get("active_meta", {}).get(job["id"], {})
+            st.caption(
+                f"State: {state.state} · Stage: {meta.get('stage') or state.current_stage or '—'} · "
+                f"Activity: {meta.get('detail') or state.current_detail or '—'} · "
+                f"Heartbeat: {state.heartbeat_at or '—'} · "
+                f"Last: {state.last_run or '—'} · Duration: {state.duration_seconds:.1f}s · "
+                f"Download: {state.download_status or '—'} · Error: {state.last_error_category or '—'}"
+            )
 
             errors = validate_job(job)
             if errors:
@@ -843,151 +501,94 @@ else:
             else:
                 st.success("Configuration valid")
 
-            if st.button("Save Job Configuration", key=f"save_{idx}"):
-                save_jobs(jobs)
-                st.success("Saved.")
+            s1, s2 = st.columns(2)
+            with s1:
+                if st.button("Save Job", key=f"save_{idx}", use_container_width=True):
+                    normalize_job(job)
+                    save_jobs(jobs)
+                    R["scheduler"].refresh_jobs(jobs)
+                    st.toast("Job saved")
+            with s2:
+                if st.button("Refresh Dashboard", key=f"refresh_{idx}", use_container_width=True):
+                    st.rerun()
 
-st.divider()
+with tab_discovery:
+    st.markdown('<div class="section-label">Discovery & Diagnostics</div>', unsafe_allow_html=True)
 
-if "discovery" in st.session_state:
-    st.subheader("Latest URL Discovery")
-    st.json(st.session_state["discovery"])
-
-if "parallel_probe" in st.session_state:
-    st.subheader("Latest Option Chain Parallel Test")
-    st.json(st.session_state["parallel_probe"])
-
-if "direct_post_probe" in st.session_state:
-    st.subheader("Latest Option Chain Direct POST Test")
-    probe = st.session_state["direct_post_probe"]
-    st.json(probe)
-    results = probe.get("results", []) if isinstance(probe, dict) else []
-    if results:
-        st.markdown("**Compact diagnostic**")
-        compact = []
-        for r in results:
-            compact.append({
-                "Symbol": r.get("symbol"), "Status": r.get("status"), "HTTP": r.get("http_status"),
-                "Attempts": r.get("attempts"), "ms": r.get("elapsed_ms"), "aaData": r.get("aaData_count"),
-                "Reported": r.get("reported_total_records"), "Row Type": r.get("aaData_row_type"),
-                "Row Length": r.get("aaData_row_length"), "Payload": r.get("payload_structure"),
-                "Error": r.get("error", ""),
-            })
-        st.dataframe(compact, use_container_width=True, hide_index=True)
-        shape = next((r for r in results if r.get("status") == "PASS" and r.get("aaData_count", 0) > 0), None)
-        if shape:
-            st.markdown("**First successful payload shape**")
-            st.write({
-                "symbol": shape.get("symbol"), "aaData_count": shape.get("aaData_count"),
-                "reported_total_records": shape.get("reported_total_records"),
-                "aaData_row_type": shape.get("aaData_row_type"),
-                "aaData_row_length": shape.get("aaData_row_length"),
-                "first_row_preview": shape.get("aaData_first_row_preview", []),
-            })
-
-st.info(
-    "Option Chain remains TEST/DISCOVERY. The parallel probe exercises the authenticated browser "
-    "request mechanism only; it does not activate the production scheduler or write consumer reports."
-)
-
-
-st.divider()
-st.subheader("Option Chain — Variable-Size Parallel Capture Benchmark + Failure Diagnostics")
-st.caption(
-    "Controlled 50-symbol benchmark: dedicated browser pages capture the real "
-    "iCharts request in parallel, then authenticated direct POST replay runs "
-    "concurrently and ONE final XLSX is written. No scheduler."
-)
-
-collector_variable_default = """DIXON,RELIANCE,INFY,TCS,HDFCBANK,ONGC,SUNPHARMA,HINDALCO,POWERGRID,SBIN,ICICIBANK,AXISBANK,KOTAKBANK,LT,ITC,ADANIENT,MARUTI,TMPV,BHARTIARTL,BAJFINANCE,BAJAJFINSV,ADANIPORTS,ASIANPAINT,APOLLOHOSP,BAJAJ-AUTO,BEL,BPCL,CIPLA,COALINDIA,COFORGE,DRREDDY,EICHERMOT,GRASIM,HCLTECH,HINDZINC,JSWSTEEL,NTPC,PIDILITIND,PNB,RECLTD,SBILIFE,SHRIRAMFIN,TATACONSUM,TATASTEEL,TECHM,TITAN,ULTRACEMCO,WIPRO,M&M,HEROMOTOCO,INDIGO,JINDALSTEL,JUBLFOOD,LICHSGFIN,LUPIN,MANAPPURAM,MCX,MUTHOOTFIN,NATIONALUM,NAUKRI,OBEROIRLTY,OFSS,PAGEIND,PATANJALI,PEL,PERSISTENT,PIIND,POLYCAB,SAIL,SAMMAANCAP,SIEMENS,SOLARINDS,SRF,SUNTV,SUPREMEIND,TATACHEM,TATACOMM,TATAELXSI,TRENT,TVSMOTOR,UNOMINDA,UPL,VEDL,VOLTAS,ZYDUSLIFE,AMBUJACEM,AUROPHARMA,BANDHANBNK,BANKBARODA,CANBK,CHOLAFIN,CONCOR,DALBHARAT,FEDERALBNK,IDFCFIRSTB,IRCTC,INDIANB,BANKINDIA,IEX,PFC"""
-
-collector_variable_symbols = st.text_area(
-    "Symbol list (no fixed count limit)",
-    collector_variable_default,
-    height=90,
-    key="collector_variable_symbols",
-)
-collector_variable_capture_concurrency = st.number_input(
-    "Browser capture concurrency",
-    min_value=1,
-    max_value=10,
-    value=5,
-    step=1,
-    key="collector_variable_capture_concurrency",
-)
-collector_variable_replay_concurrency = st.number_input(
-    "Direct replay concurrency",
-    min_value=1,
-    max_value=20,
-    value=5,
-    step=1,
-    key="collector_variable_replay_concurrency",
-)
-
-if st.button(
-    "Run Variable-Size Parallel-Capture Benchmark",
-    use_container_width=True,
-    key="run_variable_parallel_capture",
-):
-    symbols_50 = [
-        x.strip().upper()
-        for x in collector_variable_symbols.split(",")
-        if x.strip()
-    ]
-    if not symbols_50 or len(symbols_50) != len(set(symbols_50)):
-        st.error(
-            f"Enter at least 1 unique symbol, with no duplicates. "
-            f"Current count: {len(symbols_50)}."
+    d1, d2 = st.columns([2, 1])
+    with d1:
+        discover_url = st.text_input(
+            "Report URL",
+            "https://www.icharts.in/opt/OptionChain.php",
+            key="discover_url",
         )
-    else:
-        try:
-            ensure_browser()
-            with st.spinner(
-                "Running 50-symbol parallel capture → direct replay → final XLSX..."
-            ):
-                future_50 = submit(
-                    run_optionchain_end_to_end_collector_v3(
-                        context=R["browser"].context,
-                        symbols=symbols_50,
-                        output_root=collector_output_root,
-                        replay_concurrency=int(collector_variable_replay_concurrency),
-                        capture_concurrency=int(collector_variable_capture_concurrency),
-                        timeout_seconds=30,
-                        max_retries=2,
-                        backoff_initial_ms=1500,
-                        backoff_max_ms=15000,
-                        request_gap_ms=100,
-                        jitter_ms=100,
+        discover_name = st.text_input("Report Name", "Option Chain", key="discover_name")
+    with d2:
+        st.write("Output root")
+        st.code(
+            r"D:\My-data\Share_P&L\Ichart Data\Screenshot\OptionChain",
+            language="text",
+        )
+
+    b1, b2 = st.columns(2)
+    with b1:
+        if st.button("Discover URL / DOM / Network", type="primary", use_container_width=True):
+            try:
+                ensure_browser()
+                page = submit(
+                    R["browser"].open_discovery_page(discover_url)
+                ).result(timeout=75)
+                result = submit(
+                    discover(
+                        page,
+                        discover_url,
+                        int(R["portal"]["discovery_timeout_seconds"] * 1000),
                     )
-                )
-                result_50 = future_50.result(timeout=max(300, len(symbols_50) * 45 + 300))
+                ).result(timeout=70)
+                st.session_state["discovery"] = result.to_dict()
+                st.success("Discovery completed. Authenticated Chromium page remains open.")
+            except Exception as exc:
+                st.error(f"Discovery failed: {exc}")
+    with b2:
+        if st.button("Reload Current Job State", use_container_width=True):
+            st.rerun()
 
-            if result_50["failed"] == 0:
-                st.success(
-                    f"Variable-size parallel-capture PASS: "
-                    f"{result_50['passed']}/{result_50['requested']} "
-                    f"in {result_50['elapsed_ms']} ms."
-                )
-            else:
-                st.warning(
-                    f"Variable-size parallel-capture PARTIAL: "
-                    f"{result_50['passed']}/{result_50['requested']} "
-                    f"in {result_50['elapsed_ms']} ms."
-                )
+    if "discovery" in st.session_state:
+        with st.expander("Latest Discovery Result", expanded=False):
+            st.json(st.session_state["discovery"])
 
-            st.write(f"**Final workbook:** `{result_50.get('output_file', '')}`")
-            st.write(
-                f"Data rows: **{result_50.get('data_rows', 0)}** | "
-                f"Passed: **{result_50.get('passed', 0)}** | "
-                f"No data: **{result_50.get('no_data', 0)}** | "
-                f"Failed: **{result_50.get('failed', 0)}**"
-            )
-            if result_50.get("status_rows"):
-                st.dataframe(result_50["status_rows"], use_container_width=True)
-            diagnostics = result_50.get("failure_diagnostics", [])
-            if diagnostics:
-                st.warning("Failure diagnostics — no automatic retries in this diagnostic run.")
-                st.dataframe(diagnostics, use_container_width=True)
-        except Exception as exc:
-            st.error(f"50-symbol parallel benchmark failed: {exc}")
+    endpoint_path = ROOT / "config" / "OptionChain_Endpoint_Master.json"
+    if endpoint_path.exists():
+        with st.expander("Option Chain Endpoint Master", expanded=False):
+            try:
+                st.json(json.loads(endpoint_path.read_text(encoding="utf-8")))
+            except Exception as exc:
+                st.error(f"Endpoint master read failed: {exc}")
+    else:
+        st.info("OptionChain_Endpoint_Master.json is not installed in config yet.")
 
+with tab_runtime:
+    st.markdown('<div class="section-label">Runtime Health</div>', unsafe_allow_html=True)
+    active = sorted(R["scheduler"].active_job_ids)
+    h1, h2, h3, h4 = st.columns(4)
+    h1.metric("Scheduler", "RUNNING" if R["scheduler"].running else "STOPPED")
+    h2.metric("Active Jobs", len(active))
+    h3.metric("Registered", len(jobs))
+    h4.metric("Execution", "Independent")
+
+    st.markdown("#### Active Jobs")
+    if active:
+        st.code("\n".join(active), language="text")
+    else:
+        st.success("No jobs currently running.")
+
+    st.markdown("#### Runtime Policy")
+    st.write(
+        {
+            "execution_model": "independent per-job scheduler tasks",
+            "portal_wide_semaphore": False,
+            "page_isolation": "shared authenticated context + dedicated page per job",
+            "legacy_8506": "untouched",
+            "environment": "TEST",
+        }
+    )
