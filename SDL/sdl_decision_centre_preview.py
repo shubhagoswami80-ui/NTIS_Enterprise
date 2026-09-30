@@ -5964,6 +5964,7 @@ def latest_live() -> tuple[
             and pd.notna(persisted_ts)
             and pd.Timestamp(persisted_ts) == pd.Timestamp(latest_ts)
             and isinstance(persisted.get("pred"), pd.DataFrame)
+            and not persisted.get("pred").empty
         ):
             pred = persisted["pred"].copy()
             pred = _attach_first_alert_provenance(
