@@ -1,4 +1,5 @@
 from __future__ import annotations
+from News_Engine.news_predictor import promote_major_impact_news
 
 from pathlib import Path
 from datetime import datetime
@@ -32,7 +33,7 @@ from source_loader import load_primary_snapshot, parse_observation_timestamp
 from storage import load_events, load_state
 
 # ============================================================================
-# CONSOLIDATED B4 BUNDLE — 23-SEP-2026
+# CONSOLIDATED B4 BUNDLE â€” 23-SEP-2026
 # Alert runtime, persistent edge evaluation, approved rule defaults, on-demand
 # external news, on-demand price timeline, and performance-safe cold paths.
 # Frozen SDL scoring/gates, First Alert, Replay/Futures/cache architecture,
@@ -79,10 +80,10 @@ def to_ist(value):
 
 
 # ============================================================================
-# NTIS SDL — FINAL CONSOLIDATED DECISION CENTRE
+# NTIS SDL â€” FINAL CONSOLIDATED DECISION CENTRE
 #
-# CONTROLLED PRESENTATION-LAYER REPLACEMENT — 31-Aug-2026
-# CONTROLLED BUNDLE — First Alert durable-state restoration + Replay UI/performance
+# CONTROLLED PRESENTATION-LAYER REPLACEMENT â€” 31-Aug-2026
+# CONTROLLED BUNDLE â€” First Alert durable-state restoration + Replay UI/performance
 # improvements. Frozen decision/scoring/replay point-in-time semantics remain unchanged.
 #
 # SDL/app.py and the existing SDL decision engine remain authoritative.
@@ -93,7 +94,7 @@ def to_ist(value):
 # ============================================================================
 
 st.set_page_config(
-    page_title="NTIS SDL — Intraday Decision Centre",
+    page_title="NTIS SDL â€” Intraday Decision Centre",
     page_icon="SDL",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -1079,7 +1080,7 @@ div[data-testid="stDataFrame"] *{font-size:11px!important}
 .st-key-replay_calendar_wrap div[data-testid="stButton"] button p { color:#eef5ff!important; font-size:8px!important; }
 
 
-/* CONTROLLED REPLAY PERFORMANCE / READABILITY BUNDLE — 23-Sep-2026 */
+/* CONTROLLED REPLAY PERFORMANCE / READABILITY BUNDLE â€” 23-Sep-2026 */
 .replay-selected-time{
   margin:4px 0 6px!important;padding:6px 9px!important;
   background:#0b1b30!important;border:1px solid #2b4c70!important;border-radius:6px!important;
@@ -1187,14 +1188,14 @@ def safe_text(value) -> str:
 def fmt_time(value, full: bool = False) -> str:
     value = to_ist(value)
     if pd.isna(value):
-        return "—"
+        return "â€”"
     return value.strftime("%d %b %Y, %H:%M:%S" if full else "%H:%M:%S")
 
 
 def pct(value) -> str:
     value = pd.to_numeric(value, errors="coerce")
     if pd.isna(value):
-        return "—"
+        return "â€”"
     return f"{float(value):+.2f}%"
 
 
@@ -1256,7 +1257,7 @@ def point_in_time_oi_evidence(
         ),
         "pe_minus_ce_oi_chg_pct": (
             "pe_minus_ce_oi_chg_pct", "PE-CE OI Chg %",
-            "PE−CE OI Chg %", "Tot PE-CE OI Chg %",
+            "PEâˆ’CE OI Chg %", "Tot PE-CE OI Chg %",
         ),
     }
 
@@ -1937,6 +1938,10 @@ def _day_option_evidence(daywise: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     out = pd.DataFrame({"symbol": daywise[symbol_col].astype(str).str.strip().str.upper()})
     pece_col = _named_column(daywise, "Tot PE-CE OI Chg")
+    # TEMPORARY UUA SEMANTIC: until the correct direct PE-CE OI Chg %
+    # source field is available, construct the percentage as PE OI Chg %
+    # minus CE OI Chg %. This is intentionally temporary and must be
+    # replaced by the authoritative direct source field later.
     pe_pct_col = _named_column(daywise, "Tot PE OI Chg %")
     ce_pct_col = _named_column(daywise, "Tot CE OI Chg %")
     pcr_pct_col = _named_column(daywise, "PCR Chg %")
@@ -2092,16 +2097,16 @@ def _day_cache_marker(summary: dict) -> str:
     cached_count = int(summary.get("cached_count", 0))
     pending_count = int(summary.get("futures_pending_count", summary.get("pending_count", 0)))
     if source_count <= 0:
-        return "⚪"
+        return "âšª"
     if cached_count <= 0:
-        return "🔴"
+        return "ðŸ”´"
     if cached_count < source_count:
-        return "🟠"
+        return "ðŸŸ "
     if pending_count > 0:
-        return "🟡"
+        return "ðŸŸ¡"
     if int(summary.get("gap_count", 0) or 0) > 0:
-        return "🟡"
-    return "🟢"
+        return "ðŸŸ¡"
+    return "ðŸŸ¢"
 
 
 
@@ -2485,7 +2490,7 @@ def attach_point_in_time_oi(df: pd.DataFrame, snapshot_path: Path, snapshot_ts: 
 def logo(symbol) -> str:
     text = str(symbol or "").strip().upper()
     if not text or text == "NAN":
-        return '<span class="logo">—</span>'
+        return '<span class="logo">â€”</span>'
     return f'<span class="logo">{safe_text(text[:4])}</span>'
 
 
@@ -2609,7 +2614,7 @@ def _first_alert_map_cached(
     result: dict[str, pd.Timestamp] = {}
 
     # ------------------------------------------------------------------
-    # 1) Durable SDL first-alert state — established carried provenance.
+    # 1) Durable SDL first-alert state â€” established carried provenance.
     # ------------------------------------------------------------------
     # Runtime variants exist for the durable state layout. In particular,
     # processing_state.json can store: trading_day -> symbol ->
@@ -2722,7 +2727,7 @@ def _first_alert_map_cached(
                 result.setdefault(symbol, pd.Timestamp(ts))
 
     # ------------------------------------------------------------------
-    # 2) Required evidence — secondary carried source, never a generator.
+    # 2) Required evidence â€” secondary carried source, never a generator.
     # ------------------------------------------------------------------
     evidence = _daily_evidence(trading_date)
     if (
@@ -3278,7 +3283,7 @@ def candidates(
                 out[column] = out["symbol"].map(lookup[column])
     except Exception:
         # Dashboard remains functional even if a source field cannot be
-        # reattached; missing source data is displayed as "—".
+        # reattached; missing source data is displayed as "â€”".
         pass
 
     # Canonical dashboard timestamp alias.
@@ -3355,10 +3360,10 @@ def normalize_dashboard_predictions(df: pd.DataFrame) -> pd.DataFrame:
         out["stage"] = progress.map(
             lambda v: (
                 "100%+ BREAKOUT" if pd.notna(v) and v >= 100 else
-                "75–<100% APPROACHING" if pd.notna(v) and v >= 75 else
-                "50–<75%" if pd.notna(v) and v >= 50 else
-                "25–<50% EARLY" if pd.notna(v) and v >= 25 else
-                "—"
+                "75â€“<100% APPROACHING" if pd.notna(v) and v >= 75 else
+                "50â€“<75%" if pd.notna(v) and v >= 50 else
+                "25â€“<50% EARLY" if pd.notna(v) and v >= 25 else
+                "â€”"
             )
         )
 
@@ -3383,7 +3388,7 @@ def breakout_series(df: pd.DataFrame) -> pd.Series:
 
 
 # ============================================================================
-# FILTERS — DIRECTLY ABOVE THE QUEUE THEY CONTROL
+# FILTERS â€” DIRECTLY ABOVE THE QUEUE THEY CONTROL
 # ============================================================================
 
 def _parse_data_filter(value: str):
@@ -3411,25 +3416,25 @@ def apply_data_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
     if df is None or df.empty:
         return df
 
-    with st.expander("DATA FILTERS · OI / PCR", expanded=False):
+    with st.expander("DATA FILTERS Â· OI / PCR", expanded=False):
         cols = st.columns(4)
         specs = [
             (cols[0], "FUTURES OI CHANGE", "futures_oi_chg", [
                 "futures_oi_chg", "Futures OI Change", "Future OI Change",
-                "Futures OI Δ", "Future OI Δ", "futures_oi_change", "future_oi_change",
+                "Futures OI Î”", "Future OI Î”", "futures_oi_change", "future_oi_change",
             ]),
             (cols[1], "FUTURES OI CHANGE %", "futures_oi_chg_pct", [
                 "futures_oi_chg_pct", "Futures OI Change %", "Future OI Change %",
                 "Futures OI Chg %", "Future OI Chg %", "futures_oi_change_pct",
                 "future_oi_change_pct",
             ]),
-            (cols[2], "OPTION OI CHANGE (PE−CE)", "pe_minus_ce_oi_chg", [
+            (cols[2], "OPTION OI CHANGE (PEâˆ’CE)", "pe_minus_ce_oi_chg", [
                 "pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change",
-                "PE−CE OI Change", "PE-CE OI Δ", "PE−CE OI Δ",
+                "PEâˆ’CE OI Change", "PE-CE OI Î”", "PEâˆ’CE OI Î”",
                 "pe_minus_ce_oi", "pe_ce_oi_change", "pe_minus_ce_oi_change",
             ]),
             (cols[3], "PCR CHANGE %", "pcr_chg_pct", [
-                "pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Δ %",
+                "pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Î” %",
                 "PCR_Chg_Pct", "pcr_change_pct",
             ]),
         ]
@@ -3463,7 +3468,7 @@ def apply_data_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
     aliases_by_canonical = {
         "futures_oi_chg": [
             "futures_oi_chg", "Futures OI Change", "Future OI Change",
-            "Futures OI Δ", "Future OI Δ", "futures_oi_change", "future_oi_change",
+            "Futures OI Î”", "Future OI Î”", "futures_oi_change", "future_oi_change",
         ],
         "futures_oi_chg_pct": [
             "futures_oi_chg_pct", "Futures OI Change %", "Future OI Change %",
@@ -3472,11 +3477,11 @@ def apply_data_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
         ],
         "pe_minus_ce_oi_chg": [
             "pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change",
-            "PE−CE OI Change", "PE-CE OI Δ", "PE−CE OI Δ",
+            "PEâˆ’CE OI Change", "PE-CE OI Î”", "PEâˆ’CE OI Î”",
             "pe_minus_ce_oi", "pe_ce_oi_change", "pe_minus_ce_oi_change",
         ],
         "pcr_chg_pct": [
-            "pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Δ %",
+            "pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Î” %",
             "PCR_Chg_Pct", "pcr_change_pct",
         ],
     }
@@ -3524,8 +3529,8 @@ def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
     direction_opts = ["All", "Bullish", "Bearish"]
     strength_opts = ["All", "Developing", "Strong", "Supported", "Wait / Conflict"]
     stage_opts = [
-        "All", "100%+ BREAKOUT", "25–<50% EARLY", "50–<75%",
-        "75–<100% APPROACHING",
+        "All", "100%+ BREAKOUT", "25â€“<50% EARLY", "50â€“<75%",
+        "75â€“<100% APPROACHING",
     ]
 
     # One five-part header: queue identity on the left, the four existing
@@ -3538,17 +3543,17 @@ def render_live_queue_filters(df: pd.DataFrame, data_ts) -> pd.DataFrame:
         st.markdown(
             '<div class="live-queue-header-block">'
             '<div class="panel-title">LIVE QUEUE</div>'
-            f'<div class="panel-meta">Source snapshot {safe_text(fmt_time(data_ts, True))} · '
-            f'{len(df)} qualified · filters control this queue only.</div>'
+            f'<div class="panel-meta">Source snapshot {safe_text(fmt_time(data_ts, True))} Â· '
+            f'{len(df)} qualified Â· filters control this queue only.</div>'
             '</div>',
             unsafe_allow_html=True,
         )
 
     groups = [
-        (cols[1], "PROGRESS ⓘ", progress_opts, "progress"),
-        (cols[2], "DIRECTION ⓘ", direction_opts, "direction"),
-        (cols[3], "STRENGTH ⓘ", strength_opts, "strength"),
-        (cols[4], "STAGE ⓘ", stage_opts, "stage"),
+        (cols[1], "PROGRESS â“˜", progress_opts, "progress"),
+        (cols[2], "DIRECTION â“˜", direction_opts, "direction"),
+        (cols[3], "STRENGTH â“˜", strength_opts, "strength"),
+        (cols[4], "STAGE â“˜", stage_opts, "stage"),
     ]
 
     for col, title, options, key in groups:
@@ -3596,16 +3601,16 @@ def render_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
     stage_opts = [
         "All",
         "100%+ BREAKOUT",
-        "25–<50% EARLY",
-        "50–<75%",
-        "75–<100% APPROACHING",
+        "25â€“<50% EARLY",
+        "50â€“<75%",
+        "75â€“<100% APPROACHING",
     ]
 
     selections = {}
 
     with cols[0]:
         st.markdown(
-            '<div class="filter-group"><div class="filter-title">PROGRESS ⓘ</div>',
+            '<div class="filter-group"><div class="filter-title">PROGRESS â“˜</div>',
             unsafe_allow_html=True,
         )
         selections["progress"] = st.radio(
@@ -3619,7 +3624,7 @@ def render_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
 
     with cols[1]:
         st.markdown(
-            '<div class="filter-group"><div class="filter-title">DIRECTION ⓘ</div>',
+            '<div class="filter-group"><div class="filter-title">DIRECTION â“˜</div>',
             unsafe_allow_html=True,
         )
         selections["direction"] = st.radio(
@@ -3633,7 +3638,7 @@ def render_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
 
     with cols[2]:
         st.markdown(
-            '<div class="filter-group"><div class="filter-title">STRENGTH ⓘ</div>',
+            '<div class="filter-group"><div class="filter-title">STRENGTH â“˜</div>',
             unsafe_allow_html=True,
         )
         selections["strength"] = st.radio(
@@ -3647,7 +3652,7 @@ def render_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
 
     with cols[3]:
         st.markdown(
-            '<div class="filter-group"><div class="filter-title">STAGE ⓘ</div>',
+            '<div class="filter-group"><div class="filter-title">STAGE â“˜</div>',
             unsafe_allow_html=True,
         )
         selections["stage"] = st.radio(
@@ -3698,11 +3703,11 @@ def render_filters(df: pd.DataFrame, key_prefix: str) -> pd.DataFrame:
 
         if stage == "100%+ BREAKOUT":
             out = out[breakout_series(out)]
-        elif stage == "25–<50% EARLY":
+        elif stage == "25â€“<50% EARLY":
             out = out[(p >= 25) & (p < 50)]
-        elif stage == "50–<75%":
+        elif stage == "50â€“<75%":
             out = out[(p >= 50) & (p < 75)]
-        elif stage == "75–<100% APPROACHING":
+        elif stage == "75â€“<100% APPROACHING":
             out = out[(p >= 75) & (p < 100)]
 
     out = apply_data_filters(out, key_prefix)
@@ -3741,7 +3746,7 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
     def row_time(row, aliases):
         value = first_available(row, aliases)
         if value is None:
-            return "—"
+            return "â€”"
         ts = pd.to_datetime(value, errors="coerce")
         return fmt_time(ts) if pd.notna(ts) else safe_text(str(value))
 
@@ -3753,7 +3758,7 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
         strength = pd.to_numeric(row.get("strength"), errors="coerce")
         futures_oi = metric(row, [
             "futures_oi_chg", "Futures OI Change", "Future OI Change",
-            "Futures OI Δ", "Future OI Δ", "futures_oi_change", "future_oi_change",
+            "Futures OI Î”", "Future OI Î”", "futures_oi_change", "future_oi_change",
         ])
         futures_oi_pct = metric(row, [
             "futures_oi_chg_pct", "Futures OI Change %", "Future OI Change %",
@@ -3762,22 +3767,22 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
         ])
         option_oi = metric(row, [
             "pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change",
-            "PE−CE OI Change", "PE-CE OI Δ", "PE−CE OI Δ", "pe_minus_ce_oi",
+            "PEâˆ’CE OI Change", "PE-CE OI Î”", "PEâˆ’CE OI Î”", "pe_minus_ce_oi",
             "pe_ce_oi_change", "pe_minus_ce_oi_change",
         ])
         pcr_change = metric(row, [
-            "pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Δ %", "PCR_Chg_Pct",
+            "pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Î” %", "PCR_Chg_Pct",
             "pcr_change_pct",
         ])
 
         def fmt_oi(value):
             if value is None or pd.isna(value):
-                return "—"
+                return "â€”"
             return f"{float(value):+,.0f}"
 
         def fmt_pct_value(value):
             if value is None or pd.isna(value):
-                return "—"
+                return "â€”"
             return f"{float(value):+.2f}%"
 
         def change_class(value):
@@ -3785,9 +3790,9 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
                 return ""
             return "up" if float(value) > 0 else "down" if float(value) < 0 else ""
 
-        direction = str(row.get("direction_label", "—"))
-        strength_label = str(row.get("strength_label", "—"))
-        stage = str(row.get("stage", "—"))
+        direction = str(row.get("direction_label", "â€”"))
+        strength_label = str(row.get("strength_label", "â€”"))
+        stage = str(row.get("stage", "â€”"))
         breakout = bool(row.get("factual_breakout", False))
 
         first = fmt_time(first_seen(row))
@@ -3822,7 +3827,7 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
                 data_status_display = (
                     f'<span class="badge badge-data-d" '
                     f'title="Carried forward from last valid source timestamp">'
-                    f'D · {safe_text(fmt_time(data_source_ts))}</span>'
+                    f'D Â· {safe_text(fmt_time(data_source_ts))}</span>'
                 )
             else:
                 data_status_display = (
@@ -3854,7 +3859,7 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
             # Current SDL prediction_engine exposes strength_label as the
             # authoritative factor-derived confirmation state. Do not invent
             # a fallback such as STRONG.
-            confirmation = str(row.get("strength_label", "—"))
+            confirmation = str(row.get("strength_label", "â€”"))
         else:
             confirmation = str(confirmation_value)
 
@@ -3873,7 +3878,7 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
             f'<span>{safe_text(str(row.get("symbol","")).upper())}</span></div></td>'
             f'<td>{data_status_display}</td>'
             f'<td><span class="badge {badge_class(row)}">'
-            f'{safe_text(direction.title())} · '
+            f'{safe_text(direction.title())} Â· '
             f'{safe_text(strength_label.title())}</span></td>'
             f'<td class="{price_class}">{pct(price)}</td>'
             f'<td class="{change_class(futures_oi)}">{futures_oi_display}</td>'
@@ -3887,9 +3892,9 @@ def queue_html(df: pd.DataFrame, replay_mode: bool = False) -> str:
             f'<td><span class="badge badge-blue">{safe_text(stage)}</span></td>'
             f'<td><span class="badge badge-blue">{safe_text(confirmation)}</span></td>'
             f'<td class="strength">'
-            f'{"—" if pd.isna(strength) else f"{float(strength):.0f}"}'
+            f'{"â€”" if pd.isna(strength) else f"{float(strength):.0f}"}'
             f'</td>'
-            f'<td class="breakout">{"YES" if breakout else "—"}</td>'
+            f'<td class="breakout">{"YES" if breakout else "â€”"}</td>'
             f'<td>{first}</td>'
             f'<td title="First observed factual breakout in source snapshots">{breakout_time}</td>'
             f'<td>{updated}</td>'
@@ -3954,24 +3959,24 @@ def future_oi_interpretation(
         if direction == "BULLISH":
             return (
                 "Rising futures OI with bullish price direction "
-                "→ long-buildup context."
+                "â†’ long-buildup context."
             )
         if direction == "BEARISH":
             return (
                 "Rising futures OI with bearish price direction "
-                "→ short-buildup context."
+                "â†’ short-buildup context."
             )
 
     elif value < 0:
         if direction == "BULLISH":
             return (
                 "Falling futures OI with bullish price direction "
-                "→ short-covering context."
+                "â†’ short-covering context."
             )
         if direction == "BEARISH":
             return (
                 "Falling futures OI with bearish price direction "
-                "→ long-unwinding context."
+                "â†’ long-unwinding context."
             )
 
     return "Futures OI is changing without a clear directional buildup interpretation."
@@ -3996,7 +4001,7 @@ def render_stock_detail(
         return
 
     with st.expander(
-        "STOCK DETAIL · trader-specific context · click to expand",
+        "STOCK DETAIL Â· trader-specific context Â· click to expand",
         expanded=False,
     ):
         selected = st.selectbox(
@@ -4040,8 +4045,8 @@ def render_stock_detail(
             [
                 "Futures OI Change",
                 "Future OI Change",
-                "Futures OI Δ",
-                "Future OI Δ",
+                "Futures OI Î”",
+                "Future OI Î”",
                 "futures_oi_change",
                 "future_oi_change",
                 "futures_oi_chg",
@@ -4055,8 +4060,8 @@ def render_stock_detail(
                 "Future OI Chg %",
                 "Futures OI Change %",
                 "Future OI Change %",
-                "Futures OI Δ %",
-                "Future OI Δ %",
+                "Futures OI Î” %",
+                "Future OI Î” %",
                 "futures_oi_chg_pct",
                 "future_oi_chg_pct",
                 "fut_oi_chg_pct",
@@ -4067,9 +4072,9 @@ def render_stock_detail(
             [
                 "PCR Chg %",
                 "PCR Change %",
-                "PCR Δ %",
+                "PCR Î” %",
                 "PCR Change",
-                "PCR Δ %",
+                "PCR Î” %",
                 "PCR Change",
                 "pcr_chg_pct",
                 "pcr_change_pct",
@@ -4081,8 +4086,8 @@ def render_stock_detail(
             [
                 "IV Chg %",
                 "IV Change %",
-                "IV Δ %",
-                "IV Δ %",
+                "IV Î” %",
+                "IV Î” %",
                 "iv_chg_pct",
                 "iv_change_pct",
                 "IV_Chg_Pct",
@@ -4093,9 +4098,9 @@ def render_stock_detail(
             [
                 "PE_CE_OI_Chg",
                 "PE-CE OI Change",
-                "PE−CE OI Change",
-                "PE-CE OI Δ",
-                "PE−CE OI Δ",
+                "PEâˆ’CE OI Change",
+                "PE-CE OI Î”",
+                "PEâˆ’CE OI Î”",
                 "pe_minus_ce_oi",
                 "pe_ce_oi_change",
                 "pe_minus_ce_oi_change",
@@ -4104,12 +4109,12 @@ def render_stock_detail(
         pe_ce_pct = metric(
             row,
             [
-                "PE−CE OI Chg %",
+                "PEâˆ’CE OI Chg %",
                 "PE-CE OI Chg %",
-                "PE−CE OI Change %",
+                "PEâˆ’CE OI Change %",
                 "PE-CE OI Change %",
-                "PE−CE OI Δ %",
-                "PE-CE OI Δ %",
+                "PEâˆ’CE OI Î” %",
+                "PE-CE OI Î” %",
                 "Tot PE-CE OI Chg %",
                 "pe_minus_ce_oi_chg_pct",
                 "pe_ce_oi_chg_pct",
@@ -4147,12 +4152,12 @@ def render_stock_detail(
                   {logo(selected)} {safe_text(selected)}
                 </div>
                 <div class="detail-sub">
-                  First alert: {fmt_time(first, True)} · Breakout: {fmt_time(breakout_ts, True)} · Data updated: {fmt_time(current_ts, True)}
+                  First alert: {fmt_time(first, True)} Â· Breakout: {fmt_time(breakout_ts, True)} Â· Data updated: {fmt_time(current_ts, True)}
                 </div>
               </div>
               <span class="badge {badge_class(row)}">
                 {safe_text(direction.title())}
-                · {safe_text(str(row.get("strength_label","—")).title())}
+                Â· {safe_text(str(row.get("strength_label","â€”")).title())}
               </span>
             </div>
             """,
@@ -4168,7 +4173,7 @@ def render_stock_detail(
         snapshot_html = []
         for label, value, kind in snapshot_cards:
             if value is None or pd.isna(value):
-                shown = "—"
+                shown = "â€”"
                 cls = ""
             else:
                 shown = f"{float(value):+.2f}%" if kind == "change" else f"{float(value):.2f}"
@@ -4179,17 +4184,17 @@ def render_stock_detail(
             )
         st.markdown(f'<div class="snapshot-context-grid">{"".join(snapshot_html)}</div>', unsafe_allow_html=True)
 
-        fut = metric(row, ["futures_oi_chg", "Futures OI Change", "Future OI Change", "Futures OI Δ", "Future OI Δ", "futures_oi_change", "future_oi_change", "futures_oi_chg", "future_oi_chg"])
+        fut = metric(row, ["futures_oi_chg", "Futures OI Change", "Future OI Change", "Futures OI Î”", "Future OI Î”", "futures_oi_change", "future_oi_change", "futures_oi_chg", "future_oi_chg"])
         fut_pct = metric(row, ["futures_oi_chg_pct", "Futures OI Chg %", "Future OI Chg %", "Futures OI Change %", "Future OI Change %", "futures_oi_chg_pct", "future_oi_chg_pct", "fut_oi_chg_pct"])
-        pcr_pct = metric(row, ["pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Δ %", "PCR_Chg_Pct", "pcr_change_pct"])
-        pe_ce = metric(row, ["pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change", "PE−CE OI Change", "PE-CE OI Δ", "PE−CE OI Δ", "pe_minus_ce_oi", "pe_ce_oi_change", "pe_minus_ce_oi_change"])
-        pe_ce_pct = metric(row, ["pe_minus_ce_oi_chg_pct", "PE−CE OI Chg %", "PE-CE OI Chg %", "PE−CE OI Change %", "PE-CE OI Change %", "PE−CE OI Δ %", "PE-CE OI Δ %", "pe_minus_ce_oi_chg_pct", "pe_ce_oi_chg_pct"])
+        pcr_pct = metric(row, ["pcr_chg_pct", "PCR Chg %", "PCR Change %", "PCR Î” %", "PCR_Chg_Pct", "pcr_change_pct"])
+        pe_ce = metric(row, ["pe_minus_ce_oi_chg", "PE_CE_OI_Chg", "PE-CE OI Change", "PEâˆ’CE OI Change", "PE-CE OI Î”", "PEâˆ’CE OI Î”", "pe_minus_ce_oi", "pe_ce_oi_change", "pe_minus_ce_oi_change"])
+        pe_ce_pct = metric(row, ["pe_minus_ce_oi_chg_pct", "PEâˆ’CE OI Chg %", "PE-CE OI Chg %", "PEâˆ’CE OI Change %", "PE-CE OI Change %", "PEâˆ’CE OI Î” %", "PE-CE OI Î” %", "pe_minus_ce_oi_chg_pct", "pe_ce_oi_chg_pct"])
 
         cards = [
             ("FUTURES OI CHANGE", fut, fut_pct),
             ("PCR CHANGE %", pcr_pct, None),
-            ("IV Δ", iv, None),
-            ("PE−CE OI CHANGE", pe_ce, pe_ce_pct),
+            ("IV Î”", iv, None),
+            ("PEâˆ’CE OI CHANGE", pe_ce, pe_ce_pct),
             ("SUPPORT", support, None),
             ("RESISTANCE", resistance, None),
         ]
@@ -4198,7 +4203,7 @@ def render_stock_detail(
 
         for label, value, value_pct in cards:
             if value is None or pd.isna(value):
-                shown = "—"
+                shown = "â€”"
                 value_cls = ""
                 secondary = ""
                 note = "Not supplied by current primary snapshot"
@@ -4294,7 +4299,7 @@ def render_stock_detail(
 
         with left:
             with st.expander(
-                f"STOCK-SPECIFIC NEWS · {selected}",
+                f"STOCK-SPECIFIC NEWS Â· {selected}",
                 expanded=False,
             ):
                 if combined_stock_news:
@@ -4302,12 +4307,12 @@ def render_stock_detail(
                     for item in combined_stock_news[:8]:
                         is_major = item.get("text") in major_texts
                         cls = "news-item major-news" if is_major else "news-item"
-                        star = "★ " if is_major else ""
+                        star = "â˜… " if is_major else ""
                         st.markdown(
                             f'<div class="{cls}">'
                             f'{star}{safe_text(item["text"])}'
                             f'<span class="news-time">'
-                            f'{safe_text(item["time"])} · '
+                            f'{safe_text(item["time"])} Â· '
                             f'{safe_text(impact_hint(item["text"]))}'
                             f'</span></div>',
                             unsafe_allow_html=True,
@@ -4322,7 +4327,7 @@ def render_stock_detail(
 
         with right:
             with st.expander(
-                "MAJOR NSE / MARKET NEWS · TODAY / NEXT SESSION",
+                "MAJOR NSE / MARKET NEWS Â· TODAY / NEXT SESSION",
                 expanded=False,
             ):
                 if market_news:
@@ -4330,13 +4335,13 @@ def render_stock_detail(
                     for item in market_news[:6]:
                         is_major = item.get("text") in major_texts
                         cls = "news-item major-news" if is_major else "news-item"
-                        star = "★ " if is_major else ""
+                        star = "â˜… " if is_major else ""
                         st.markdown(
                             f'<div class="{cls}">'
-                            f'{star}<b>{safe_text(item["symbol"])}</b> · '
+                            f'{star}<b>{safe_text(item["symbol"])}</b> Â· '
                             f'{safe_text(item["text"])}'
                             f'<span class="news-time">'
-                            f'{safe_text(item["time"])} · '
+                            f'{safe_text(item["time"])} Â· '
                             f'{safe_text(item["impact"])}'
                             f'</span></div>',
                             unsafe_allow_html=True,
@@ -4377,17 +4382,17 @@ def impact_hint(subject: str) -> str:
     text = str(subject).lower()
 
     if any(k in text for k in ("order", "bagging", "contract")):
-        return "Potential business/catalyst relevance — verify filing details."
+        return "Potential business/catalyst relevance â€” verify filing details."
     if any(k in text for k in ("result", "financial", "earnings")):
-        return "Results-related context — verify reported figures and guidance."
+        return "Results-related context â€” verify reported figures and guidance."
     if any(k in text for k in ("dividend", "bonus", "split", "record date")):
-        return "Corporate-action context — verify dates and terms."
+        return "Corporate-action context â€” verify dates and terms."
     if any(k in text for k in ("board meeting", "meeting", "investor")):
-        return "Scheduled corporate event — outcome may change context."
+        return "Scheduled corporate event â€” outcome may change context."
     if any(k in text for k in ("fund raising", "fundraising", "capital")):
-        return "Capital/financing context — verify size and terms."
+        return "Capital/financing context â€” verify size and terms."
 
-    return "Factual filing context only — no automatic trade signal."
+    return "Factual filing context only â€” no automatic trade signal."
 
 
 POSITIVE_NEWS_TERMS = (
@@ -4530,10 +4535,10 @@ def catalyst_badge(analysis: dict) -> str:
     impact = analysis.get("impact")
     alignment = analysis.get("alignment")
     if impact == "POSITIVE":
-        return '<span class="catalyst-star" title="Major positive news catalyst">★</span>'
+        return '<span class="catalyst-star" title="Major positive news catalyst">â˜…</span>'
     if impact == "NEGATIVE":
-        return '<span class="catalyst-star" title="Major negative news catalyst">★</span>'
-    return '<span class="catalyst-star" title="Major mixed/neutral news catalyst">★</span>'
+        return '<span class="catalyst-star" title="Major negative news catalyst">â˜…</span>'
+    return '<span class="catalyst-star" title="Major mixed/neutral news catalyst">â˜…</span>'
 
 
 def catalyst_panel_html(analysis: dict) -> str:
@@ -4543,7 +4548,7 @@ def catalyst_panel_html(analysis: dict) -> str:
             '<div class="catalyst-head"><div class="catalyst-title">NEWS CATALYST</div>'
             '<div class="catalyst-bias-neutral">NO MATERIAL CATALYST DETECTED</div></div>'
             '<div class="catalyst-body">No major available news item is strong enough to explain today\'s move. News absence is valid and does not change the SDL decision.</div>'
-            '<div class="catalyst-note">Presentation layer only · no SDL re-scoring</div>'
+            '<div class="catalyst-note">Presentation layer only Â· no SDL re-scoring</div>'
             '</div>'
         )
     impact = analysis.get("impact", "NEUTRAL")
@@ -4553,10 +4558,10 @@ def catalyst_panel_html(analysis: dict) -> str:
     scope = analysis.get("major_items", [{}])[0].get("scope", "NEWS") if analysis.get("major_items") else "NEWS"
     return (
         f'<div class="news-catalyst {cls}">'
-        f'<div class="catalyst-head"><div class="catalyst-title">★ MAJOR NEWS CATALYST · {safe_text(scope)}</div>'
-        f'<div class="{bias_cls}">{impact} · {alignment}</div></div>'
+        f'<div class="catalyst-head"><div class="catalyst-title">â˜… MAJOR NEWS CATALYST Â· {safe_text(scope)}</div>'
+        f'<div class="{bias_cls}">{impact} Â· {alignment}</div></div>'
         f'<div class="catalyst-body">{safe_text(analysis.get("headline", ""))}</div>'
-        '<div class="catalyst-note">Compared with today\'s price direction/SDL direction · does not modify the frozen decision score</div>'
+        '<div class="catalyst-note">Compared with today\'s price direction/SDL direction Â· does not modify the frozen decision score</div>'
         '</div>'
     )
 
@@ -4722,7 +4727,7 @@ def live_nse_market_news() -> list[dict]:
 
 
 # ============================================================================
-# HISTORICAL EVIDENCE — DATE-WISE FACTUAL LAYER
+# HISTORICAL EVIDENCE â€” DATE-WISE FACTUAL LAYER
 # ============================================================================
 
 def evidence_dates() -> list[str]:
@@ -4828,7 +4833,7 @@ def historical_view() -> None:
     display = display[keep].rename(columns=rename)
 
     st.caption(
-        f"{len(display):,} factual observation rows · "
+        f"{len(display):,} factual observation rows Â· "
         f"selected day {pd.Timestamp(day).strftime('%d %b %Y')}."
     )
 
@@ -4841,7 +4846,7 @@ def historical_view() -> None:
 
 
 # ============================================================================
-# READ-ONLY REPLAY — DIFFERENT FROM HISTORICAL EVIDENCE
+# READ-ONLY REPLAY â€” DIFFERENT FROM HISTORICAL EVIDENCE
 # ============================================================================
 
 def replay_snapshot_frame(
@@ -5116,13 +5121,13 @@ def _render_cache_build_state() -> None:
     except Exception: heartbeat_age=-1
     if status == "RUNNING":
         pct=int(round(((max(0,di-1)+(done/total if total else 0))/td)*100)) if td else 0; pct=max(0,min(100,pct))
-        state_label="🟢 RUNNING" if 0<=heartbeat_age<300 else "🟠 HEARTBEAT STALE"
+        state_label="ðŸŸ¢ RUNNING" if 0<=heartbeat_age<300 else "ðŸŸ  HEARTBEAT STALE"
         st.markdown('<div class="cache-build-monitor"><div class="cache-build-monitor-head">'
-                    f'<div>⚙ CACHE BUILD <span class="cache-build-live">{state_label}</span></div>'
-                    f'<div class="cache-build-mode">{mode} · DAY {di}/{td}</div></div>'
-                    f'<div class="cache-build-title">{safe_text(day or "starting…")} · {done}/{total} snapshots · {pct}% · Futures {complete} mapped / {pending} pending · {skipped} skipped</div></div>', unsafe_allow_html=True)
+                    f'<div>âš™ CACHE BUILD <span class="cache-build-live">{state_label}</span></div>'
+                    f'<div class="cache-build-mode">{mode} Â· DAY {di}/{td}</div></div>'
+                    f'<div class="cache-build-title">{safe_text(day or "startingâ€¦")} Â· {done}/{total} snapshots Â· {pct}% Â· Futures {complete} mapped / {pending} pending Â· {skipped} skipped</div></div>', unsafe_allow_html=True)
         st.progress(pct/100.0,text=f"Build {pct}%")
-        st.markdown(f'<div class="cache-build-compact-note">Current: {safe_text(filename or "preparing…")} · Heartbeat: {heartbeat_age}s · Refresh-safe background worker.</div>',unsafe_allow_html=True)
+        st.markdown(f'<div class="cache-build-compact-note">Current: {safe_text(filename or "preparingâ€¦")} Â· Heartbeat: {heartbeat_age}s Â· Refresh-safe background worker.</div>',unsafe_allow_html=True)
     elif status == "FINISHED":
         # FINISHED describes the worker job, not necessarily 100% source/cache
         # coverage. Invalidate the short UI summary cache before reading the
@@ -5132,6 +5137,14 @@ def _render_cache_build_state() -> None:
             _day_cache_summary.clear()
         except Exception:
             pass
+        # V31 introduced a separate batched Replay calendar index. Clear it
+        # after a background build so stale "not built" counts cannot remain
+        # visible after the selected-day summary has already refreshed.
+        try:
+            if "_replay_calendar_index_v31" in globals():
+                _replay_calendar_index_v31.clear()
+        except Exception:
+            pass
         final_summary = _day_cache_summary(day) if day else {}
         final_source = int(final_summary.get("source_count", 0) or 0)
         final_cached = int(final_summary.get("cached_count", 0) or 0)
@@ -5139,18 +5152,18 @@ def _render_cache_build_state() -> None:
         if final_source > 0 and final_cached < final_source:
             st.markdown(
                 f'<div class="cache-build-monitor" style="border-color:#8b6114">'
-                f'<div class="cache-build-monitor-head"><div>⚙ CACHE BUILD <span class="cache-build-live" style="color:#ffc650">🟠 FINISHED · PARTIAL CACHE</span></div>'
+                f'<div class="cache-build-monitor-head"><div>âš™ CACHE BUILD <span class="cache-build-live" style="color:#ffc650">ðŸŸ  FINISHED Â· PARTIAL CACHE</span></div>'
                 f'<div class="cache-build-mode">{td} DAY(S)</div></div>'
-                f'<div class="cache-build-title">Build job finished · {safe_text(day or "—")} · {final_cached}/{final_source} snapshots cached · {final_missing} not built</div></div>',
+                f'<div class="cache-build-title">Build job finished Â· {safe_text(day or "â€”")} Â· {final_cached}/{final_source} snapshots cached Â· {final_missing} not built</div></div>',
                 unsafe_allow_html=True,
             )
         else:
             st.markdown(
-                f'<div class="cache-build-monitor"><div class="cache-build-monitor-head"><div>⚙ CACHE BUILD <span class="cache-build-live">🟢 FINISHED · CACHE COMPLETE</span></div><div class="cache-build-mode">{td} DAY(S)</div></div><div class="cache-build-title">Build job finished · {safe_text(day or "—")} · all available source snapshots cached</div></div>',
+                f'<div class="cache-build-monitor"><div class="cache-build-monitor-head"><div>âš™ CACHE BUILD <span class="cache-build-live">ðŸŸ¢ FINISHED Â· CACHE COMPLETE</span></div><div class="cache-build-mode">{td} DAY(S)</div></div><div class="cache-build-title">Build job finished Â· {safe_text(day or "â€”")} Â· all available source snapshots cached</div></div>',
                 unsafe_allow_html=True,
             )
     else:
-        st.markdown(f'<div class="cache-build-monitor" style="border-color:#8c3540"><div class="cache-build-monitor-head"><div>⚙ CACHE BUILD <span style="color:#ff7b84">🔴 STOPPED</span></div><div class="cache-build-mode">DAY {di}/{td}</div></div><div class="cache-build-title">{safe_text(state.get("error","unknown error"))} · Snapshot {done}/{total}</div></div>',unsafe_allow_html=True)
+        st.markdown(f'<div class="cache-build-monitor" style="border-color:#8c3540"><div class="cache-build-monitor-head"><div>âš™ CACHE BUILD <span style="color:#ff7b84">ðŸ”´ STOPPED</span></div><div class="cache-build-mode">DAY {di}/{td}</div></div><div class="cache-build-title">{safe_text(state.get("error","unknown error"))} Â· Snapshot {done}/{total}</div></div>',unsafe_allow_html=True)
 
 
 if hasattr(st, "fragment"):
@@ -5162,7 +5175,7 @@ if hasattr(st, "fragment"):
             return
         st.markdown(
             '<div class="filter-panel"><div class="filter-caption">'
-            'REPLAY FILTERS · independent from live feed</div>',
+            'REPLAY FILTERS Â· independent from live feed</div>',
             unsafe_allow_html=True,
         )
         filtered = render_filters(pred, "replay")
@@ -5184,7 +5197,7 @@ else:
             return
         st.markdown(
             '<div class="filter-panel"><div class="filter-caption">'
-            'REPLAY FILTERS · independent from live feed</div>',
+            'REPLAY FILTERS Â· independent from live feed</div>',
             unsafe_allow_html=True,
         )
         filtered = render_filters(pred, "replay")
@@ -5201,24 +5214,144 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
 
+@st.cache_data(ttl=20, show_spinner=False)
+def _replay_calendar_index_v31() -> dict:
+    # One source discovery + one PIT cache read for all calendar cells.
+    source_keys_by_day: dict[str, list[str]] = {}
+    try:
+        paths = discover_historical_snapshots(None)
+    except Exception:
+        paths = []
+
+    for raw_path in paths or []:
+        try:
+            path = Path(raw_path)
+            ts = observation_ts(path)
+            if pd.isna(ts):
+                continue
+            ts = pd.Timestamp(ts)
+            source_keys_by_day.setdefault(
+                ts.date().isoformat(), []
+            ).append(ts.isoformat())
+        except Exception:
+            continue
+
+    for day, keys in source_keys_by_day.items():
+        source_keys_by_day[day] = list(dict.fromkeys(keys))
+
+    cache = _load_day_point_cache_render_cached()
+    result: dict[str, dict] = {}
+
+    for day, source_keys in source_keys_by_day.items():
+        day_cache = cache.get(day, {}) if isinstance(cache, dict) else {}
+        entries = (
+            day_cache.get("snapshots", {})
+            if isinstance(day_cache, dict)
+            and isinstance(day_cache.get("snapshots", {}), dict)
+            else {}
+        )
+
+        valid_cached = 0
+        gap_count = 0
+        futures_complete = 0
+        futures_unavailable = 0
+        futures_pending = 0
+
+        for key in source_keys:
+            entry = entries.get(key)
+            if not isinstance(entry, dict):
+                continue
+
+            if str(entry.get("snapshot_status", "VALID")).upper() == "GAP":
+                gap_count += 1
+                continue
+
+            if not isinstance(entry.get("pred"), pd.DataFrame):
+                continue
+
+            valid_cached += 1
+            status = str(entry.get("futures_status", "")).upper()
+            if status == "MAPPED":
+                futures_complete += 1
+            elif status == "D":
+                futures_unavailable += 1
+            elif status in {"P", "PARTIAL"}:
+                futures_pending += 1
+
+        accounted = valid_cached + gap_count
+        missing = max(0, len(source_keys) - accounted)
+
+        result[day] = {
+            "day": day,
+            "source_count": len(source_keys),
+            "cached_count": accounted,
+            "valid_cached_count": valid_cached,
+            "gap_count": gap_count,
+            "complete_count": futures_complete,
+            "futures_complete_count": futures_complete,
+            "futures_unavailable_count": futures_unavailable,
+            "futures_pending_count": futures_pending,
+            "pending_count": futures_pending,
+            "missing_count": missing,
+            "ready": bool(source_keys) and accounted == len(source_keys),
+        }
+
+    return result
+
+
+@st.cache_data(ttl=20, show_spinner=False)
+def _replay_month_files_v31(selected_month: str) -> dict[str, list[Path]]:
+    # Resolve selected-month source files once for Replay.
+    month = str(selected_month)[:7]
+    grouped: dict[str, list[Path]] = {}
+    try:
+        paths = discover_historical_snapshots(None)
+    except Exception:
+        paths = []
+
+    for raw_path in paths or []:
+        try:
+            path = Path(raw_path)
+            ts = observation_ts(path)
+            if pd.isna(ts):
+                continue
+            ts = pd.Timestamp(ts)
+            if ts.strftime("%Y-%m") != month:
+                continue
+            grouped.setdefault(ts.date().isoformat(), []).append(path)
+        except Exception:
+            continue
+
+    for day, items in grouped.items():
+        grouped[day] = sorted(
+            items,
+            key=lambda p: (observation_ts(p), str(p).lower()),
+        )
+    return grouped
+
+
 def replay_view() -> None:
-    with st.expander(
-        "INTRADAY REPLAY · HISTORICAL SNAPSHOT · LIVE STATE REMAINS UNCHANGED",
+    # _replay_view_lazy_v27: collapsed Replay performs no calendar/source work.
+    replay_expander = st.expander(
+        "INTRADAY REPLAY Â· HISTORICAL SNAPSHOT Â· LIVE STATE REMAINS UNCHANGED",
         expanded=False,
-    ):
+        on_change="rerun",
+        key="replay_view_expander",
+    )
+    if not replay_expander.open:
+        return
+
+    with replay_expander:
         st.markdown(
             '<div class="panel-meta">'
-            'Point-in-time replay only · LIVE state is never modified by Replay.'
+            'Point-in-time replay only Â· LIVE state is never modified by Replay.'
             '</div>',
             unsafe_allow_html=True,
         )
 
-        files = snapshot_files()
-        if not files:
-            st.info("No Daywise snapshots are available for replay.")
-            return
-
-        date_values = list(_replay_date_index())
+        # V31: one cached batch index replaces repeated Replay calendar scans.
+        calendar_index = _replay_calendar_index_v31()
+        date_values = list(sorted(calendar_index.keys(), reverse=True))
         if not date_values:
             st.info("No snapshots have a valid observation timestamp for replay.")
             return
@@ -5244,7 +5377,7 @@ def replay_view() -> None:
         with left_col:
             if not bool(st.session_state.get("replay_calendar_open", True)):
                 if st.button(
-                    "📅 Change Day",
+                    "ðŸ“… Change Day",
                     key="replay_change_day",
                     use_container_width=True,
                 ):
@@ -5265,9 +5398,9 @@ def replay_view() -> None:
                     month_date_values = [d for d in date_values if d[:7] == selected_month]
                     st.markdown(
                         '<div class="replay-calendar-legend">'
-                        '<b>DAY STATUS</b> · '
-                        '🟢 complete · 🟡 cache complete / Futures pending · '
-                        '🟠 partial build · 🔴 not built · ⚪ no source'
+                        '<b>DAY STATUS</b> Â· '
+                        'ðŸŸ¢ complete Â· ðŸŸ¡ cache complete / Futures pending Â· '
+                        'ðŸŸ  partial build Â· ðŸ”´ not built Â· âšª no source'
                         '</div>',
                         unsafe_allow_html=True,
                     )
@@ -5276,7 +5409,6 @@ def replay_view() -> None:
                         int(selected_month[:4]),
                         int(selected_month[5:7]),
                     )
-                    month_day_files = _calendar_month_day_files(selected_month)
 
                     with st.container(key="replay_calendar_wrap"):
                         headers = st.columns(7, gap="small")
@@ -5308,8 +5440,15 @@ def replay_view() -> None:
                                         )
                                         continue
 
-                                    day_files = month_day_files.get(day_value, [])
-                                    summary = _day_cache_summary(day_value, day_files)
+                                    summary = calendar_index.get(
+                                        day_value,
+                                        {
+                                            "source_count": 0,
+                                            "cached_count": 0,
+                                            "gap_count": 0,
+                                            "futures_pending_count": 0,
+                                        },
+                                    )
                                     marker = _day_cache_marker(summary)
                                     if st.button(
                                         f"{marker} {number}",
@@ -5347,29 +5486,32 @@ def replay_view() -> None:
 
         gap_n = int(summary.get("gap_count", 0))
         valid_n = int(summary.get("valid_cached_count", cached_n - gap_n))
-        if marker == "🟢":
+        if marker == "ðŸŸ¢":
             status_class = "ready"
             status_text = (
-                f"READY · {valid_n} valid + {gap_n} D/NA · {source_n}/{source_n} accounted · "
-                f"Futures {complete_n} mapped · {unavailable_n} D · {pending_n} pending"
+                f"BASE PIT CACHE COMPLETE Â· {valid_n} valid + {gap_n} D/NA Â· "
+                f"{source_n}/{source_n} accounted Â· Futures {complete_n} mapped Â· "
+                f"{unavailable_n} D Â· {pending_n} pending"
             )
-        elif marker == "🟡":
+        elif marker == "ðŸŸ¡":
             status_class = "pending"
             status_text = (
-                f"COMPLETE WITH D/NA · {valid_n} valid + {gap_n} D/NA · {source_n}/{source_n} accounted · "
-                f"Futures {complete_n} mapped · {unavailable_n} D · {pending_n} pending"
+                f"BASE PIT CACHE COMPLETE Â· {valid_n} valid + {gap_n} D/NA Â· "
+                f"{source_n}/{source_n} accounted Â· Futures {complete_n} mapped Â· "
+                f"{unavailable_n} D Â· {pending_n} pending"
             )
-        elif marker == "🟠":
+        elif marker == "ðŸŸ ":
             status_class = "partial"
             status_text = (
-                f"PARTIAL BUILD · {valid_n} valid + {gap_n} D/NA · {cached_n}/{source_n} accounted · "
-                f"Futures {complete_n} mapped · {unavailable_n} D · {pending_n} pending · {missing_n} not built"
+                f"BASE PIT CACHE PARTIAL Â· {valid_n} valid + {gap_n} D/NA Â· "
+                f"{cached_n}/{source_n} accounted Â· {missing_n} base not built Â· "
+                f"Futures {complete_n} mapped Â· {unavailable_n} D Â· {pending_n} pending"
             )
         else:
             status_class = "notbuilt"
             status_text = (
-                f"NOT BUILT · {source_n} source snapshots · "
-                f"{valid_n} valid + {gap_n} D/NA · {missing_n} not built"
+                f"NOT BUILT Â· {source_n} source snapshots Â· "
+                f"{valid_n} valid + {gap_n} D/NA Â· {missing_n} not built"
             )
 
         with right_col:
@@ -5377,7 +5519,7 @@ def replay_view() -> None:
                 st.markdown(
                     f'<div class="replay-day-heading">'
                     f'<span>REPLAY DAY</span>'
-                    f'<b>{pd.Timestamp(day).strftime("%A · %d %b %Y")}</b>'
+                    f'<b>{pd.Timestamp(day).strftime("%A Â· %d %b %Y")}</b>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
@@ -5395,27 +5537,27 @@ def replay_view() -> None:
                 bday, bbulk = st.columns([1, 1], gap="small")
                 with bday:
                     if missing_n > 0 and pending_n > 0:
-                        build_label = f"BUILD MISSING ({missing_n}) + PENDING ({pending_n})"
+                        build_label = f"BUILD MISSING BASE + REFRESH FUTURES ({missing_n} + {pending_n})"
                     elif missing_n > 0:
-                        build_label = f"BUILD MISSING ({missing_n})"
+                        build_label = f"BUILD MISSING BASE ({missing_n})"
                     elif pending_n > 0:
-                        build_label = f"BUILD PENDING ({pending_n})"
+                        build_label = f"REFRESH FUTURES EVIDENCE ({pending_n})"
                     else:
-                        build_label = "DAY CACHE COMPLETE"
+                        build_label = "BASE PIT CACHE COMPLETE"
                     if missing_n > 0 or pending_n > 0:
                         if st.button(build_label, key=f"build_replay_cache_{day}", type="primary", use_container_width=True, disabled=cache_running):
                             _start_background_cache_build([day], mode="DAY"); st.rerun()
                     else:
                         st.button(build_label, key=f"build_replay_cache_done_{day}", use_container_width=True, disabled=True)
                 with bbulk:
-                    if st.button(f"BUILD ALL ({len(bulk_days)})", key="build_all_replay_cache", type="secondary", use_container_width=True, disabled=(not bulk_days) or cache_running):
+                    if st.button(f"BUILD ALL DAYS ({len(bulk_days)})", key="build_all_replay_cache", type="secondary", use_container_width=True, disabled=(not bulk_days) or cache_running):
                         _start_background_cache_build(bulk_days, mode="BULK"); st.rerun()
-                st.markdown('<div class="replay-cache-build-note" style="margin:2px 0 4px">Point-in-time Daywise + IVR/IVP · Futures optional · LIVE state unchanged.</div>', unsafe_allow_html=True)
+                st.markdown('<div class="replay-cache-build-note" style="margin:2px 0 4px">BASE = Point-in-time Daywise + IVR/IVP Â· FUTURES = optional evidence Â· Futures pending does not mean the base cache is missing Â· LIVE state unchanged.</div>', unsafe_allow_html=True)
 
                 if cached_n == source_n and source_n > 0:
                     st.markdown(
                         '<div class="replay-cache-ready-note">'
-                        'Selected-day base snapshot cache is complete. Futures is an optional evidence layer; D rows remain valid.'
+                        'BASE PIT CACHE COMPLETE Â· All source snapshots are accounted for. Futures is an optional evidence layer; pending Futures does not invalidate the base cache. D rows remain valid.'
                         '</div>',
                         unsafe_allow_html=True,
                     )
@@ -5444,7 +5586,7 @@ def replay_view() -> None:
                 # remains internal and is never presented in the Replay UI.
                 replay_ts_text = fmt_time(ts, full=True)
                 st.markdown(
-                    f'<div class="replay-selected-time">SELECTED SNAPSHOT · <b>{safe_text(replay_ts_text)}</b></div>',
+                    f'<div class="replay-selected-time">SELECTED SNAPSHOT Â· <b>{safe_text(replay_ts_text)}</b></div>',
                     unsafe_allow_html=True,
                 )
 
@@ -5468,7 +5610,7 @@ def replay_view() -> None:
                     )
                     st.markdown(
                         f'<div class="replay-cache-status pending">'
-                        f'<b>DATA STATUS · D</b> · {_d_rows} row(s) carried forward from '
+                        f'<b>DATA STATUS Â· D</b> Â· {_d_rows} row(s) carried forward from '
                         f'{safe_text(_d_source_text)} because the selected Daywise source was unavailable/invalid. '
                         f'<b>This is delayed data, not a new observation.</b>'
                         f'</div>',
@@ -5477,7 +5619,7 @@ def replay_view() -> None:
                 elif _na_rows:
                     st.markdown(
                         f'<div class="replay-cache-status pending">'
-                        f'<b>DATA STATUS · NA</b> · {_na_rows} row(s) have no prior valid source value.'
+                        f'<b>DATA STATUS Â· NA</b> Â· {_na_rows} row(s) have no prior valid source value.'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
@@ -5509,7 +5651,7 @@ def replay_view() -> None:
                         )
                 else:
                     st.caption(
-                        "Futures evidence: PENDING — no point-in-time IVR/IVP values mapped "
+                        "Futures evidence: PENDING â€” no point-in-time IVR/IVP values mapped "
                         "for this replay snapshot."
                     )
 
@@ -5525,7 +5667,7 @@ def replay_view() -> None:
                         st.caption(
                             "Data not available in the point-in-time IVR/IVP source: "
                             + ", ".join(_unmapped_symbols)
-                            + " · shown as yellow D in Replay Queue."
+                            + " Â· shown as yellow D in Replay Queue."
                         )
 
         _render_replay_filter_queue(pred, ts)
@@ -5762,6 +5904,10 @@ def _build_live_prediction_from_source(path: Path):
     )
     return path, pred, ts, f"Source session: {day}"
 
+
+
+if hasattr(st, "fragment"):
+    replay_view = st.fragment(replay_view)
 
 
 # ============================================================================
@@ -6076,7 +6222,7 @@ def latest_live() -> tuple[
                 futures_fresh=False,
             )
             fallback_message = (
-                f"LIVE source gap at {pd.Timestamp(ts).strftime('%H:%M:%S')} — "
+                f"LIVE source gap at {pd.Timestamp(ts).strftime('%H:%M:%S')} â€” "
                 f"showing last valid data from {pd.Timestamp(persisted_ts).strftime('%H:%M:%S')} (D)."
             )
             return fallback_path, fallback_pred, pd.Timestamp(ts), fallback_message
@@ -6093,14 +6239,653 @@ def latest_live() -> tuple[
         return None, pd.DataFrame(), pd.NaT, f"{type(exc).__name__}: {exc}"
 
 
+
+# ============================================================================
+# LIVE DASHBOARD CACHE PERFORMANCE PATH
+# ============================================================================
+
+@st.cache_data(ttl=5, show_spinner=False)
+def _dashboard_latest_source_timestamp():
+    try:
+        _session_day, available, _current_day_has_source = _latest_session_sources()
+        if not available:
+            return None
+        latest = available[-1]
+        ts = observation_ts(latest)
+        if pd.isna(ts):
+            return None
+        return pd.Timestamp(ts).isoformat()
+    except Exception:
+        return None
+
+
+def _dashboard_live_snapshot_uncached(force_refresh: bool = False):
+    if force_refresh:
+        return latest_live()
+
+    persisted = _load_persisted_live_snapshot()
+
+    if (
+        isinstance(persisted, dict)
+        and isinstance(persisted.get("pred"), pd.DataFrame)
+        and not persisted.get("pred").empty
+    ):
+        persisted_ts = pd.to_datetime(
+            persisted.get("observation_timestamp"),
+            errors="coerce",
+        )
+
+        if pd.notna(persisted_ts):
+            latest_iso = _dashboard_latest_source_timestamp()
+            latest_ts = (
+                pd.to_datetime(latest_iso, errors="coerce")
+                if latest_iso
+                else pd.NaT
+            )
+
+            if pd.isna(latest_ts) or latest_ts <= pd.Timestamp(persisted_ts):
+                pred = persisted["pred"].copy()
+                pred = _attach_first_alert_provenance(
+                    pred,
+                    pd.Timestamp(persisted_ts).date().isoformat(),
+                    pd.Timestamp(persisted_ts),
+                )
+                pred = _apply_live_futures_delay_policy(
+                    pred,
+                    pd.Timestamp(persisted_ts),
+                    futures_fresh=False,
+                )
+                path = (
+                    Path(persisted["source_path"])
+                    if persisted.get("source_path")
+                    else None
+                )
+                return (
+                    path,
+                    pred,
+                    pd.Timestamp(persisted_ts),
+                    str(persisted.get("message") or "Persisted LIVE snapshot"),
+                )
+
+    return latest_live()
+
+def _dashboard_live_snapshot(force_refresh: bool = False):
+    # V28 runtime acceleration only; existing V26 producer remains authoritative.
+    cache_key = '_dashboard_live_runtime_cache_v28'
+
+    if force_refresh:
+        result = _dashboard_live_snapshot_uncached(True)
+        try:
+            st.session_state[cache_key] = {'observation_timestamp': result[2], 'result': result}
+        except Exception:
+            pass
+        return result
+
+    try:
+        cached = st.session_state.get(cache_key)
+        if isinstance(cached, dict):
+            cached_result = cached.get('result')
+            cached_ts = pd.to_datetime(cached.get('observation_timestamp'), errors='coerce')
+            if isinstance(cached_result, tuple) and len(cached_result) == 4 and pd.notna(cached_ts):
+                latest_iso = _dashboard_latest_source_timestamp()
+                latest_ts = pd.to_datetime(latest_iso, errors='coerce') if latest_iso else pd.NaT
+                if pd.isna(latest_ts) or latest_ts <= pd.Timestamp(cached_ts):
+                    path, pred, data_ts, message = cached_result
+                    if isinstance(pred, pd.DataFrame):
+                        pred = pred.copy()
+                    return path, pred, data_ts, message
+    except Exception:
+        pass
+
+    result = _dashboard_live_snapshot_uncached(False)
+    try:
+        if isinstance(result, tuple) and len(result) == 4:
+            st.session_state[cache_key] = {'observation_timestamp': result[2], 'result': result}
+    except Exception:
+        pass
+    return result
+
+
+# ============================================================================
+# V41 ADDITIVE PRESENTATION â€” UUA EXACT-SNAPSHOT REPLAY HANDOFF REPAIR
+# V41_UUA_EXACT_REPLAY_FRAME_HANDOFF
+# V40R3_EXACT_SESSION_FOLDER_BASELINE
+#
+# Stage 1 is deliberately simple and frozen:
+#   * Universe = stocks already qualified by SDL.
+#   * Current point = the current/replayed intraday snapshot timestamp.
+#   * Baseline = previous trading day's final/last valid EOD report.
+#   * No same-clock-time previous-day PIT comparison.
+#   * No 15m/30m/1h intraday windows in this stage. Those are a later,
+#     separate pure-intraday comparison pipeline.
+#   * Evidence/display only; SDL qualification and decision ownership remain
+#     completely unchanged.
+
+_UNUSUAL_ACTIVITY_FIELDS = (
+    ("PECE", "pe_minus_ce_oi_chg", "PEâˆ’CE OI CHANGE"),
+    ("PECE %", "pe_minus_ce_oi_chg_pct", "PEâˆ’CE OI CHANGE %"),
+    ("FUT OI", "futures_oi_chg", "FUTURES OI CHANGE"),
+    ("FUT OI %", "futures_oi_chg_pct", "FUTURES OI CHANGE %"),
+)
+
+
+def _unusual_activity_symbol_key(value) -> str:
+    text = str(value or "").strip().upper()
+    text = re.sub(r"^(?:NSE:|NFO:)", "", text)
+    text = re.sub(r"(?:\.NS|-EQ|-BE|-FUT|-FUTURES)$", "", text)
+    text = re.sub(r"\s+", "", text)
+    return "" if text in {"", "NAN", "NONE"} else text
+
+
+def _exact_production_daywise_files(trading_date: str) -> list[Path]:
+    """Return Daywise files from the exact authoritative production session folder.
+
+    The parent YYYY-MM-DD directory is the market/session date.  This helper
+    deliberately does not use recursive discovery or another date embedded in
+    the filename, and it never searches earlier session folders.
+    """
+    try:
+        day = pd.Timestamp(trading_date).date()
+    except Exception:
+        return []
+    root = Path(getattr(sdl_config, "INTRADAY_SOURCE_ROOT", "")).expanduser()
+    if not root.exists() or not root.is_dir():
+        return []
+    month_candidates = [
+        root / day.strftime("%B%y"),
+        root / (day.strftime("%B").lower() + day.strftime("%y")),
+    ]
+    # The production tree used by Replay is MonthYY/YYYY-MM-DD.
+    day_dirs = [root / day.strftime("%B%y") / day.isoformat()]
+    for month_dir in month_candidates:
+        candidate = month_dir / day.isoformat()
+        if candidate.is_dir() and candidate not in day_dirs:
+            day_dirs.append(candidate)
+    found = []
+    for day_dir in day_dirs:
+        if not day_dir.is_dir():
+            continue
+        for path in day_dir.glob("Daywise_*.xlsx"):
+            if _is_production_daywise_path(path, root) and path.parent.name == day.isoformat():
+                found.append(path)
+    return sorted(set(found), key=lambda p: (observation_ts(p), str(p).lower()))
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _load_previous_eod_derivative_activity(trading_date: str) -> tuple[pd.DataFrame, str | None]:
+    """Load the previous trading session's FINAL Daywise derivative baseline.
+
+    IMPORTANT: the market date is the authoritative production Daywise folder
+    date, not filesystem creation/arrival time.  This prevents copied/archived
+    files from being misclassified as an older EOD session.  Within the exact
+    previous trading-day folder, the latest valid observation timestamp is the
+    FINAL EOD point.  No older-date fallback is permitted.
+    """
+    try:
+        target = pd.Timestamp(trading_date).date()
+    except Exception:
+        return pd.DataFrame(), None
+
+    expected_date = None
+    report_files: list[Path] = []
+
+    # Resolve the previous trading session from the same authoritative
+    # production Daywise repository used by Replay.  The parent day directory
+    # is the market/session date and therefore survives file-copy timestamp
+    # changes.
+    for offset in range(1, 46):
+        candidate = (pd.Timestamp(target) - pd.Timedelta(days=offset)).date()
+        candidate_text = candidate.isoformat()
+        if not _nse_is_trading_day(candidate_text):
+            continue
+        # Exact production session-folder lookup.  Never recurse into another
+        # date and never allow filename/arrival-date inference to choose the session.
+        files = _exact_production_daywise_files(candidate_text)
+        if files:
+            expected_date = candidate
+            report_files = files
+            break
+
+    if expected_date is None or not report_files:
+        return pd.DataFrame(), f"{target.isoformat()} Â· PREVIOUS TRADING DAY EOD NOT FOUND"
+
+    ordered = sorted(
+        [(observation_ts(Path(f)), Path(f)) for f in report_files],
+        key=lambda x: (x[0] if pd.notna(x[0]) else pd.Timestamp.min, str(x[1]).lower()),
+    )
+    valid_ordered = [(ts, f) for ts, f in ordered if pd.notna(ts)]
+    if not valid_ordered:
+        return pd.DataFrame(), f"{expected_date.isoformat()} FINAL EOD Â· NO VALID OBSERVATION TIMESTAMP"
+
+    final_ts, report = valid_ordered[-1]
+    baseline_label = f"{expected_date.isoformat()} FINAL EOD"
+
+    try:
+        raw = pd.read_excel(report)
+        raw.columns = [str(c).strip() for c in raw.columns]
+        symbol_col = next((c for c in raw.columns if str(c).strip().lower() == "symbol"), None)
+        if symbol_col is None:
+            return pd.DataFrame(), f"{baseline_label} Â· SYMBOL COLUMN MISSING"
+
+        opt = _day_option_evidence(raw)
+        out = opt.copy() if isinstance(opt, pd.DataFrame) else pd.DataFrame()
+        if out.empty:
+            out = pd.DataFrame({"symbol": raw[symbol_col].map(_unusual_activity_symbol_key)})
+
+        # Optional exact-time companion evidence may provide a direct PE-CE
+        # percentage. Accept it only when physically present; never derive it.
+        try:
+            companion = point_in_time_oi_evidence(report, pd.Timestamp(final_ts))
+            if isinstance(companion, pd.DataFrame) and not companion.empty and "symbol" in companion.columns and "pe_minus_ce_oi_chg_pct" in companion.columns:
+                c = companion[["symbol", "pe_minus_ce_oi_chg_pct"]].copy()
+                c["symbol"] = c["symbol"].map(_unusual_activity_symbol_key)
+                out = out.merge(c, on="symbol", how="outer", suffixes=("", "_companion")) if not out.empty else c
+                if "pe_minus_ce_oi_chg_pct_companion" in out.columns:
+                    incoming = pd.to_numeric(out["pe_minus_ce_oi_chg_pct_companion"], errors="coerce")
+                    existing = pd.to_numeric(out["pe_minus_ce_oi_chg_pct"], errors="coerce") if "pe_minus_ce_oi_chg_pct" in out.columns else pd.Series(pd.NA, index=out.index)
+                    out["pe_minus_ce_oi_chg_pct"] = existing.combine_first(incoming)
+                    out.drop(columns=["pe_minus_ce_oi_chg_pct_companion"], inplace=True)
+        except Exception:
+            pass
+
+        buildup_col = next((c for c in raw.columns if re.sub(r"[^a-z0-9]+", "", str(c).lower()) in {
+            "buildup", "futuresbuildup", "futurebuildup", "futuresbuildupclass", "futuresbuildupclassification"
+        }), None)
+        if buildup_col is not None:
+            b = pd.DataFrame({
+                "symbol": raw[symbol_col].map(_unusual_activity_symbol_key),
+                "futures_buildup": raw[buildup_col].astype(str).replace({"nan": pd.NA}),
+            })
+            out = out.merge(b, on="symbol", how="outer") if not out.empty else b
+
+        # Futures evidence is resolved against the exact final observation of
+        # the same previous trading session, never against an older session.
+        fut = _read_ivrp_for_timestamp(expected_date.isoformat(), final_ts, force_refresh=True)
+        if isinstance(fut, pd.DataFrame) and not fut.empty and "symbol" in fut.columns:
+            keep = [c for c in ("symbol", "futures_oi_chg", "futures_oi_chg_pct") if c in fut.columns]
+            f = fut[keep].copy()
+            f["symbol"] = f["symbol"].map(_unusual_activity_symbol_key)
+            out = out.merge(f, on="symbol", how="outer", suffixes=("", "_fut")) if not out.empty else f
+            for c in ("futures_oi_chg", "futures_oi_chg_pct"):
+                alt = f"{c}_fut"
+                if alt in out.columns:
+                    incoming = pd.to_numeric(out[alt], errors="coerce")
+                    existing = pd.to_numeric(out[c], errors="coerce") if c in out.columns else pd.Series(pd.NA, index=out.index)
+                    out[c] = incoming.combine_first(existing)
+                    out.drop(columns=[alt], inplace=True)
+
+        if "symbol" not in out.columns:
+            return pd.DataFrame(), f"{baseline_label} Â· NO DERIVATIVE BASELINE"
+        out["symbol"] = out["symbol"].map(_unusual_activity_symbol_key)
+        out = out[out["symbol"].ne("")].drop_duplicates("symbol")
+        return out, baseline_label
+    except Exception:
+        return pd.DataFrame(), f"{baseline_label} Â· EOD READ ERROR"
+
+
+def _uua_ratio(current, baseline):
+    try:
+        c = float(current)
+        b = float(baseline)
+        if abs(b) <= 0:
+            return None
+        return abs(c) / abs(b)
+    except Exception:
+        return None
+
+
+def _uua_style(df: pd.DataFrame):
+    """Compact dark-surface trader styling with directional text evidence."""
+    styler = df.style
+    all_cols = list(df.columns)
+    signed_cols = [c for c in (
+        "PE-CE OI Î”", "PE-CE OI Î” %", "FUT OI Î”", "FUT OI Î” %"
+    ) if c in all_cols]
+    ratio_cols = [c for c in all_cols if c.endswith(" Ã—") or c == "MAX Ã—"]
+
+    def signed_style(v):
+        try:
+            x = float(v)
+        except Exception:
+            return "color:#94a3b8;font-weight:700;"
+        if x > 0:
+            return "color:#20f28a;background-color:#062f1d;font-weight:900;"
+        if x < 0:
+            return "color:#ff6570;background-color:#3b0d12;font-weight:900;"
+        return "color:#aab7c8;font-weight:700;"
+
+    def ratio_style(v):
+        try:
+            x = float(v)
+        except Exception:
+            return "color:#7f8da0;font-weight:650;"
+        if x >= 4:
+            return "color:#ffffff;background-color:#7f1d1d;font-weight:950;"
+        if x >= 3:
+            return "color:#ffffff;background-color:#9a3412;font-weight:950;"
+        if x >= 2:
+            return "color:#ffe9a8;background-color:#654f0a;font-weight:900;"
+        return "color:#aebbd0;font-weight:700;"
+
+    def direction_style(v):
+        t = str(v).upper()
+        if "BEARISH" in t or "NEGATIVE" in t:
+            return "color:#ff6570;background-color:#280b0f;font-weight:950;"
+        if "BULLISH" in t or "POSITIVE" in t:
+            return "color:#20f28a;background-color:#062f1d;font-weight:950;"
+        if "MIXED" in t:
+            return "color:#ffd166;background-color:#332708;font-weight:950;"
+        return "color:#93a4ba;font-weight:800;"
+
+    styler = styler.set_properties(**{
+        "background-color": "#081321",
+        "color": "#d9e5f2",
+        "border-color": "#1d3047",
+        "font-size": "12px",
+    })
+    if signed_cols:
+        styler = styler.map(signed_style, subset=signed_cols)
+    if ratio_cols:
+        styler = styler.map(ratio_style, subset=ratio_cols)
+    for col in ("SIGNAL", "DIRECTION"):
+        if col in df.columns:
+            styler = styler.map(direction_style, subset=[col])
+    if "SYMBOL" in df.columns and "SIGNAL" in df.columns:
+        def symbol_style(v):
+            return "color:#20f28a;font-weight:950;" if str(v) else "color:#d9e5f2;"
+        styler = styler.map(symbol_style, subset=["SYMBOL"])
+    return styler
+
+
+@st.cache_data(ttl=15, show_spinner=False)
+def _build_unusual_activity_table(
+    current_day: str,
+    end_iso: str,
+    threshold: float,
+    symbols: tuple[str, ...],
+    cache_signature: tuple,
+    selected_frame: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict]:
+    """Build UUA from the exact SDL Replay frame already selected by the UI.
+
+    Critical Replay rule: the UUA table must consume the same `selected_frame`
+    returned by `replay_snapshot_frame()`. It must never re-open the PIT cache
+    and silently require an independently persisted cache entry for the same
+    timestamp. SDL Replay may legitimately obtain a one-point uncached frame
+    through its controlled fallback while the cache is still being completed.
+    Requiring a second cache lookup here caused early-session UUA to show an
+    empty table even though SDL Replay had valid qualified rows.
+    """
+    del cache_signature
+    end_ts = pd.to_datetime(end_iso, errors="coerce")
+    wanted = {_unusual_activity_symbol_key(s) for s in symbols if _unusual_activity_symbol_key(s)}
+    if pd.isna(end_ts) or not wanted or not isinstance(selected_frame, pd.DataFrame):
+        return pd.DataFrame(), {"baseline_label": "â€”"}
+
+    # Use the exact SDL Replay frame supplied by the caller. This is the
+    # authoritative historical candidate/selection result for this snapshot.
+    current = selected_frame.copy()
+    best_ts = end_ts
+    if current.empty or "symbol" not in current.columns:
+        return pd.DataFrame(), {"baseline_label": "â€”"}
+
+    current["__ua_symbol"] = current["symbol"].map(_unusual_activity_symbol_key)
+    current = current[current["__ua_symbol"].isin(wanted)].copy()
+    if current.empty:
+        return pd.DataFrame(), {"baseline_label": "â€”"}
+
+    # V40R4 additive evidence repair: the persisted replay frame can predate
+    # companion OI enrichment (or have been cached before that workbook was
+    # available). Re-attach ONLY the exact selected snapshot's companion
+    # evidence here. This is presentation/evidence enrichment and does not
+    # change SDL qualification, ranking, First Alert, First Breakout, or PIT
+    # semantics. Never use a later timestamp or another session folder.
+    try:
+        exact_path = None
+        for candidate in _exact_production_daywise_files(current_day):
+            cts = observation_ts(candidate)
+            if pd.notna(cts) and abs((pd.Timestamp(cts) - pd.Timestamp(best_ts)).total_seconds()) <= 2.0:
+                exact_path = candidate
+                break
+        if exact_path is not None:
+            current = attach_point_in_time_oi(current, exact_path, pd.Timestamp(best_ts))
+    except Exception:
+        pass
+
+    current = current.drop_duplicates("__ua_symbol").set_index("__ua_symbol")
+    baseline, baseline_label = _load_previous_eod_derivative_activity(current_day)
+    baseline = baseline.set_index("symbol") if not baseline.empty else pd.DataFrame()
+
+    records = []
+    for symbol in sorted(wanted):
+        if symbol not in current.index:
+            continue
+        crow = current.loc[symbol]
+        prow = baseline.loc[symbol] if isinstance(baseline, pd.DataFrame) and symbol in baseline.index else None
+        metric_values = {}
+        ratios = []
+        triggers = []
+        reversal = False
+        for short, canonical, _label in _UNUSUAL_ACTIVITY_FIELDS:
+            cv = pd.to_numeric(crow.get(canonical), errors="coerce")
+            pv = pd.to_numeric(prow.get(canonical), errors="coerce") if prow is not None else pd.NA
+            cv = float(cv) if pd.notna(cv) else None
+            pv = float(pv) if pd.notna(pv) else None
+            ratio = _uua_ratio(cv, pv)
+            if ratio is not None:
+                ratios.append(ratio)
+                if cv and pv and ((cv > 0) != (pv > 0)):
+                    reversal = True
+                if ratio >= float(threshold):
+                    triggers.append(short)
+            metric_values[short] = (cv, pv, ratio)
+
+        # Stage 1 default view is ALL SDL-qualified stocks.
+        # Unusual cells are highlighted; non-trigger rows remain visible.
+        current_signs = [v[0] for v in metric_values.values() if v[0] not in (None, 0)]
+        if current_signs and all(v > 0 for v in current_signs):
+            signal = "POSITIVE"
+        elif current_signs and all(v < 0 for v in current_signs):
+            signal = "NEGATIVE"
+        else:
+            signal = "MIXED"
+        if reversal:
+            signal += " Â· REVERSAL"
+        if not triggers:
+            signal = "NORMAL" if signal == "MIXED" else signal
+
+        p, pp, pr = metric_values["PECE"]
+        p2, pp2, pr2 = metric_values["PECE %"]
+        f, fp, fr = metric_values["FUT OI"]
+        f2, fp2, fr2 = metric_values["FUT OI %"]
+        futures_buildup = None
+        for buildup_col in ("futures_buildup", "futures_build_up", "futures_buildup_class", "futures_build_up_class"):
+            if buildup_col in crow.index and pd.notna(crow.get(buildup_col)):
+                futures_buildup = str(crow.get(buildup_col)).strip()
+                break
+        authoritative_direction = str(crow.get("direction_label", "")).strip().upper()
+        if authoritative_direction in {"BULLISH", "BEARISH", "MIXED"}:
+            direction = authoritative_direction
+        else:
+            direction = ("BEARISH" if current_signs and all(v < 0 for v in current_signs)
+                         else "BULLISH" if current_signs and all(v > 0 for v in current_signs)
+                         else "MIXED")
+
+        # Do NOT synthesize a Futures buildup interpretation here. UUA is an
+        # evidence surface. If the selected PIT frame contains an authoritative
+        # buildup classification, show it; otherwise leave the field missing.
+        # This prevents presentation-only text such as "Rising futures" from
+        # becoming a misleading driver or inferred trading signal.
+
+        records.append({
+            "SYMBOL": symbol,
+            "SNAPSHOT": best_ts.strftime("%H:%M:%S") if best_ts is not None else "â€”",
+            "PE-CE OI Î”": p,
+            "PE-CE OI Ã—": pr,
+            "PE-CE OI Î” %": p2,
+            "PE-CE % Ã—": pr2,
+            "FUT OI Î”": f,
+            "FUT OI Ã—": fr,
+            "FUT OI Î” %": f2,
+            "FUT OI % Ã—": fr2,
+            "FUT BUILDUP": futures_buildup or "â€”",
+            "MAX Ã—": max(ratios) if ratios else float("nan"),
+            "UNUSUAL": "YES" if triggers else "â€”",
+            "DIRECTION": direction,
+            "SIGNAL": signal,
+        })
+
+    result = pd.DataFrame(records)
+    if result.empty:
+        return result, {"baseline_label": baseline_label}
+    result = result.sort_values(["MAX Ã—", "SYMBOL"], ascending=[False, True], kind="stable").reset_index(drop=True)
+    return result, {"baseline_label": baseline_label}
+
+
+def _render_unusual_activity_section(pred: pd.DataFrame, data_ts: pd.Timestamp) -> None:
+    """Stage-1 UUA: LIVE or exact persisted SNAPSHOT versus previous-day FINAL EOD."""
+    if pred is None or pred.empty or pd.isna(data_ts) or "symbol" not in pred.columns:
+        return
+
+    live_pred = pred
+    live_ts = pd.Timestamp(data_ts)
+    session_day = live_ts.date().isoformat()
+
+    with st.expander("UNUSUAL DERIVATIVE ACTIVITY Â· SDL QUALIFIED ONLY", expanded=True):
+        st.markdown(
+            '<div style="color:#9bb0c8;font-size:11px;margin-bottom:6px">'
+            'Fast evidence view Â· current intraday point vs previous trading day FINAL EOD Â· no intraday windows.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        c1, c2, c3 = st.columns([0.9, 1.25, 1.0], gap="small")
+        with c1:
+            view_mode = st.radio(
+                "VIEW", ["LIVE", "SNAPSHOT"], horizontal=True,
+                key="uua_view_mode_v40", label_visibility="collapsed"
+            )
+        selected_pred = live_pred
+        selected_ts = live_ts
+        if view_mode == "SNAPSHOT":
+            files = snapshot_files(session_day)
+            if not files:
+                st.warning("No persisted snapshots are available for this session.")
+                return
+            labels = [fmt_time(observation_ts(p)) for p in files]
+            live_idx = min(range(len(files)), key=lambda i: abs((pd.Timestamp(observation_ts(files[i])) - live_ts).total_seconds()))
+            with c2:
+                selected_idx = st.selectbox(
+                    "SNAPSHOT TIME", range(len(files)), index=live_idx,
+                    format_func=lambda i: labels[i], key="uua_snapshot_index_v40",
+                    label_visibility="collapsed"
+                )
+            selected_path = files[int(selected_idx)]
+            selected_pred, selected_ts = replay_snapshot_frame(selected_path, observation_ts(selected_path))
+            selected_pred = normalize_dashboard_predictions(selected_pred)
+        else:
+            with c2:
+                st.markdown(
+                    f'<div class="snapshot-context-card" style="padding:7px 9px;min-height:0">'
+                    f'<div class="snapshot-context-label">LIVE SNAPSHOT</div>'
+                    f'<div class="snapshot-context-value" style="font-size:15px!important">{safe_text(fmt_time(live_ts))}</div></div>',
+                    unsafe_allow_html=True,
+                )
+        with c3:
+            threshold = st.number_input(
+                "MIN Ã—", min_value=2.0, max_value=10.0, value=2.0, step=0.5,
+                key="unusual_activity_threshold_v40", label_visibility="collapsed"
+            )
+
+        f1, f2 = st.columns([1.0, 2.2], gap="small")
+        with f1:
+            direction_filter = st.selectbox(
+                "DIRECTION", ["ALL", "BULLISH", "BEARISH", "MIXED"],
+                index=0, key="uua_direction_filter_v40", label_visibility="collapsed"
+            )
+        with f2:
+            st.markdown(
+                '<div style="color:#7f93aa;font-size:9px;padding:7px 0 3px">'
+                'Ã— = |intraday change| Ã· |previous trading day FINAL EOD change| Â· direction uses authoritative SDL direction when available.'
+                '</div>', unsafe_allow_html=True
+            )
+
+        if selected_pred is None or selected_pred.empty or pd.isna(selected_ts) or "symbol" not in selected_pred.columns:
+            st.info("No valid snapshot data is available for this view.")
+            return
+
+        symbols = tuple(sorted({
+            _unusual_activity_symbol_key(v) for v in selected_pred["symbol"].tolist()
+            if _unusual_activity_symbol_key(v)
+        }))
+        table, meta = _build_unusual_activity_table(
+            session_day, pd.Timestamp(selected_ts).isoformat(), float(threshold), symbols,
+            _cache_file_signature(), selected_pred
+        )
+        baseline_label = meta.get("baseline_label", "â€”")
+        unusual_n = int(table["UNUSUAL"].astype(str).eq("YES").sum()) if not table.empty and "UNUSUAL" in table.columns else 0
+        if not table.empty and direction_filter != "ALL":
+            table = table[table["DIRECTION"].astype(str).str.upper().eq(direction_filter)].copy()
+        direction_counts = {}
+        if not table.empty and "DIRECTION" in table.columns:
+            direction_counts = table["DIRECTION"].astype(str).str.upper().value_counts().to_dict()
+        baseline_ok = bool(baseline_label and "EOD NOT FOUND" not in str(baseline_label) and "READ ERROR" not in str(baseline_label))
+        baseline_color = "#20f28a" if baseline_ok else "#ff6570"
+        st.markdown(
+            f'<div style="display:flex;gap:12px;flex-wrap:wrap;color:#93a4ba;font-size:9px;margin:5px 0 7px">'
+            f'<span><b style="color:#eef4fb">SNAPSHOT</b> {safe_text(pd.Timestamp(selected_ts).strftime("%d-%b %H:%M:%S"))}</span>'
+            f'<span><b style="color:#eef4fb">EOD BASELINE</b> <span style="color:{baseline_color};font-weight:900">{safe_text(baseline_label)}</span></span>'
+            f'<span><b style="color:#eef4fb">SDL</b> {len(symbols)}</span>'
+            f'<span style="color:#20f28a">BULL {direction_counts.get("BULLISH", 0)}</span>'
+            f'<span style="color:#ff6570">BEAR {direction_counts.get("BEARISH", 0)}</span>'
+            f'<span style="color:#ffd166">MIX {direction_counts.get("MIXED", 0)}</span>'
+            f'<span><b style="color:#ffd166">â‰¥ {float(threshold):.1f}Ã—</b> unusual: {unusual_n}</span>'
+            f'</div>', unsafe_allow_html=True
+        )
+
+        if table.empty:
+            st.info("No qualified stocks are available at this snapshot.")
+            return
+
+        st.dataframe(
+            _uua_style(table), use_container_width=True, hide_index=True, height=min(500, 78 + 31 * len(table)),
+            column_config={
+                "SYMBOL": st.column_config.TextColumn("STOCK", width="small"),
+                "SNAPSHOT": st.column_config.TextColumn("TIME", width="small"),
+                "PE-CE OI Î”": st.column_config.NumberColumn("PE-CE Î”", format="%+.0f", width="small"),
+                "PE-CE OI Ã—": st.column_config.NumberColumn("PE-CE Ã—", format="%.2fx", width="small"),
+                "PE-CE OI Î” %": st.column_config.NumberColumn("PE-CE %", format="%+.2f%%", width="small"),
+                "PE-CE % Ã—": st.column_config.NumberColumn("PE-CE % Ã—", format="%.2fx", width="small"),
+                "FUT OI Î”": st.column_config.NumberColumn("FUT OI Î”", format="%+.0f", width="small"),
+                "FUT OI Ã—": st.column_config.NumberColumn("FUT OI Ã—", format="%.2fx", width="small"),
+                "FUT OI Î” %": st.column_config.NumberColumn("FUT OI %", format="%+.2f%%", width="small"),
+                "FUT OI % Ã—": st.column_config.NumberColumn("FUT OI % Ã—", format="%.2fx", width="small"),
+                "FUT BUILDUP": st.column_config.TextColumn("FUTURES", width="small"),
+                "MAX Ã—": st.column_config.NumberColumn("MAX Ã—", format="%.2fx", width="small"),
+                "UNUSUAL": st.column_config.TextColumn("UNUSUAL", width="small"),
+                "DIRECTION": st.column_config.TextColumn("DIR", width="small"),
+                "SIGNAL": st.column_config.TextColumn("EVIDENCE", width="medium"),
+            },
+        )
+        st.caption(
+            "Green = bullish/positive Â· red = bearish/negative Â· amber = mixed Â· bright 2Ã—/3Ã—/4Ã— cells = increasing unusual magnitude. "
+            "All SDL-qualified stocks stay visible; sort any column. Missing EOD baselines remain N/A and never fall back to an older day. Pure intraday 15m/30m/1h comparison remains deferred."
+        )
+
+
 def _render_live_content() -> None:
-    path, pred, data_ts, message = latest_live()
+    force_live_refresh = bool(
+        st.session_state.pop("_dashboard_force_live_refresh", False)
+    )
+    path, pred, data_ts, message = _dashboard_live_snapshot(
+        force_live_refresh
+    )
 
     # B4 is a persistent dashboard surface, not conditional on whether the
     # current source produced qualified rows. Render it even when LIVE data
     # is unavailable so the bell/configuration/history remain visible.
     emitted_alerts = _b4_emit_alerts(pred, data_ts) if path is not None else []
-    _render_b4_alert_drawer(emitted_alerts)
+    # B4 drawer presentation temporarily hidden. Alert production/persistence remains active for later safe reattachment.
 
     if path is None:
         st.warning(message)
@@ -6126,7 +6911,7 @@ def _render_live_content() -> None:
     )
 
     if not scheduled_trading_day:
-        snapshot_note = "Latest completed trading session · market not scheduled today"
+        snapshot_note = "Latest completed trading session Â· market not scheduled today"
     elif preserved_session:
         snapshot_note = "Waiting for today's first Daywise source snapshot"
     else:
@@ -6135,13 +6920,13 @@ def _render_live_content() -> None:
     if preserved_session:
         if market_state == "NON-TRADING DAY":
             context_message = (
-                f"<b>PREVIOUS SESSION PRESERVED</b> · Market is not scheduled to trade today. "
+                f"<b>PREVIOUS SESSION PRESERVED</b> Â· Market is not scheduled to trade today. "
                 f"Showing the latest completed source session: "
                 f"<b>{safe_text(fmt_time(data_ts, True))}</b>."
             )
         else:
             context_message = (
-                "<b>PREVIOUS SESSION PRESERVED</b> · No Daywise snapshot is available "
+                "<b>PREVIOUS SESSION PRESERVED</b> Â· No Daywise snapshot is available "
                 "for today's trading session yet. The dashboard will switch automatically "
                 "when the first new source snapshot arrives."
             )
@@ -6187,8 +6972,8 @@ def _render_live_content() -> None:
 
     if preserved_session and pd.notna(data_ts):
         st.caption(
-            f"Data session: {safe_text(fmt_time(data_ts, True))} · "
-            f"Market state: {safe_text(market_state)} · "
+            f"Data session: {safe_text(fmt_time(data_ts, True))} Â· "
+            f"Market state: {safe_text(market_state)} Â· "
             f"Session selection is source-driven."
         )
 
@@ -6266,11 +7051,14 @@ def _render_live_content() -> None:
 
     st.markdown(
         f'<div class="live-feed-summary">'
-        f'Latest source: {safe_text(fmt_time(data_ts, True))} · '
-        f'{len(pred)} qualified decisions · Live Queue filters and data are live-session only.'
+        f'Latest source: {safe_text(fmt_time(data_ts, True))} Â· '
+        f'{len(pred)} qualified decisions Â· Live Queue filters and data are live-session only.'
         f'</div>',
         unsafe_allow_html=True,
     )
+
+    # V34: additive unusual-activity evidence for the current qualified list.
+    _render_unusual_activity_section(pred, data_ts)
 
     # Priority Radar is a prioritisation view, not a filter.
     radar = pred.sort_values(
@@ -6281,14 +7069,19 @@ def _render_live_content() -> None:
     st.markdown(
         '<div class="radar-panel">'
         '<div class="radar-title">'
-        'PRIORITY RADAR · PRIORITISATION VIEW'
+        'PRIORITY RADAR Â· PRIORITISATION VIEW'
         '</div>',
         unsafe_allow_html=True,
     )
 
     radar_count = len(radar)
     rcols = st.columns(radar_count) if radar_count else []
-    radar_market_news = live_nse_market_news()
+
+    # Performance boundary: Priority Radar is an SDL prioritisation view.
+    # External NSE/news retrieval and catalyst analysis belong only to the
+    # dedicated News surface and must never execute during Decision Board
+    # navigation.
+    radar_market_news = []
 
     for col, (_, row) in zip(
         rcols,
@@ -6305,11 +7098,9 @@ def _render_live_content() -> None:
                 else "radar-down" if direction_text.startswith("bear")
                 else ""
             )
-            radar_news = live_nse_stock_news(str(row.get("symbol", "")))
-            radar_catalyst = analyze_news_catalyst(
-                str(row.get("symbol", "")), row, radar_news, radar_market_news
-            )
-            radar_star = catalyst_badge(radar_catalyst)
+            # No external news/catalyst work is performed in Priority Radar.
+            # News analysis is isolated to the dedicated News surface.
+            radar_star = ""
 
             st.markdown(
                 f'<div class="radar-card {radar_class}">'
@@ -6318,11 +7109,11 @@ def _render_live_content() -> None:
                 f'</div>'
                 f'<div class="radar-meta">'
                 f'{safe_text(str(row.get("direction_label","")).title())}'
-                f' · '
+                f' Â· '
                 f'{safe_text(str(row.get("strength_label","")).title())}'
                 f'</div>'
                 f'<div class="radar-meta">'
-                f'{safe_text(str(row.get("stage","—")))}'
+                f'{safe_text(str(row.get("stage","â€”")))}'
                 f'</div>'
                 f'<div class="radar-progress">'
                 f'{float(row.get("progress",0)):.1f}%'
@@ -6339,7 +7130,7 @@ def _render_live_content() -> None:
     # LIVE QUEUE is independently collapsible. Collapsing it does not alter
     # Priority Radar or Replay state.
     with st.expander(
-        "LIVE QUEUE · FILTERED DECISION TABLE · click to expand / collapse",
+        "LIVE QUEUE Â· FILTERED DECISION TABLE Â· click to expand / collapse",
         expanded=False,
     ):
         filtered = render_live_queue_filters(pred, data_ts)
@@ -6363,7 +7154,7 @@ def _render_live_content() -> None:
 
 
 # ============================================================================
-# SECTOR ANALYSIS — EXISTING NEWS FEED ADAPTER (PRESENTATION ONLY)
+# SECTOR ANALYSIS â€” EXISTING NEWS FEED ADAPTER (PRESENTATION ONLY)
 # ============================================================================
 
 def sector_analysis_news_provider() -> list[dict]:
@@ -6380,9 +7171,9 @@ def sector_analysis_news_provider() -> list[dict]:
     return [
         {
             "title": (
-                f"{str(item.get('symbol', '')).strip().upper()} · "
+                f"{str(item.get('symbol', '')).strip().upper()} Â· "
                 f"{str(item.get('text', '')).strip()}"
-            ).strip(" ·"),
+            ).strip(" Â·"),
             "timestamp": item.get("time"),
             "source": "NSE Corporate Announcements",
         }
@@ -6392,13 +7183,13 @@ def sector_analysis_news_provider() -> list[dict]:
 
 
 # ============================================================================
-# B4 LIVE ALERT EVALUATION — PRESENTATION/ALERT LAYER ONLY
+# B4 LIVE ALERT EVALUATION â€” PRESENTATION/ALERT LAYER ONLY
 # ============================================================================
 
 _B4_FIELD_MAP = {
     "Futures OI Change": ("_futures_oi", "futures_oi_chg"),
     "Futures OI Change %": ("futures_oi_chg_pct",),
-    "PE − CE OI Change": ("pe_minus_ce_oi_chg", "Tot PE-CE OI Chg"),
+    "PE âˆ’ CE OI Change": ("pe_minus_ce_oi_chg", "Tot PE-CE OI Chg"),
     "PCR": ("pcr", "PCR", "PCR Ratio", "pcr_ratio"),
     "Momentum %": ("momentum_pct", "momentum", "price_move_pct", "signed_price_move_pct"),
     "Straddle Progress": ("progress",),
@@ -6571,7 +7362,64 @@ def _b4_previous_context_map(
     return {symbol: context for symbol, (_ts, context) in best.items()}
 
 
-def _b4_emit_alerts(pred: pd.DataFrame, observation_ts: pd.Timestamp) -> list[dict]:
+
+def _b4_runtime_cache_key(
+    pred: pd.DataFrame,
+    observation_ts: pd.Timestamp,
+    rules: list,
+) -> tuple:
+    # Runtime invalidation key for B4 evaluation.
+    # This is presentation/runtime state only.
+    try:
+        obs = pd.Timestamp(observation_ts).isoformat()
+    except Exception:
+        obs = str(observation_ts)
+
+    try:
+        normalized_rules = []
+        for idx, raw in enumerate(rules if isinstance(rules, list) else []):
+            if not isinstance(raw, dict) or not raw.get("enabled", True):
+                continue
+            rule = _normalize_b4_rule(raw, idx)
+            normalized_rules.append(
+                {
+                    "id": str(rule.get("id", "")),
+                    "field": str(rule.get("field", "")),
+                    "operator": str(rule.get("operator", "")),
+                    "value": rule.get("value"),
+                    "enabled": bool(rule.get("enabled", True)),
+                    "sound": bool(rule.get("sound", False)),
+                }
+            )
+        rule_blob = json.dumps(
+            normalized_rules,
+            sort_keys=True,
+            default=str,
+            separators=(",", ":"),
+        )
+    except Exception:
+        rule_blob = repr(rules)
+
+    try:
+        frame = pred.copy().reset_index(drop=True)
+        frame = frame.sort_index(axis=1)
+        frame_hash = hashlib.sha1(
+            pd.util.hash_pandas_object(frame, index=True).values.tobytes()
+        ).hexdigest()
+    except Exception:
+        frame_hash = hashlib.sha1(
+            repr(pred).encode("utf-8", errors="replace")
+        ).hexdigest()
+
+    return (
+        obs,
+        frame_hash,
+        rule_blob,
+        _b4_cache_signature(),
+    )
+
+
+def _b4_emit_alerts_uncached(pred: pd.DataFrame, observation_ts: pd.Timestamp) -> list[dict]:
     """Evaluate the approved B4 rules and persist only genuine new events.
 
     This is deliberately an additive presentation/alert layer.  SDL candidate
@@ -6675,6 +7523,53 @@ def _b4_emit_alerts(pred: pd.DataFrame, observation_ts: pd.Timestamp) -> list[di
     return emitted
 
 
+def _b4_emit_alerts(pred: pd.DataFrame, observation_ts: pd.Timestamp) -> list[dict]:
+    # Runtime-cached public B4 entry point.
+    # The original evaluator remains authoritative.
+    if (
+        AlertStore is None
+        or pred is None
+        or pred.empty
+        or pd.isna(observation_ts)
+    ):
+        st.session_state["_b4_runtime_cache_hit_v30"] = False
+        return []
+
+    if "snapshot_data_status" in pred.columns:
+        statuses = pred["snapshot_data_status"].astype(str).str.upper()
+        if not statuses.empty and statuses.eq("D").all():
+            st.session_state["_b4_runtime_cache_hit_v30"] = False
+            return []
+
+    rules = _UI.get("alert_rules", [])
+    if not isinstance(rules, list) or not rules:
+        st.session_state["_b4_runtime_cache_hit_v30"] = False
+        return []
+
+    try:
+        key = _b4_runtime_cache_key(pred, observation_ts, rules)
+    except Exception:
+        key = None
+
+    cached = st.session_state.get("_b4_runtime_cache_v30")
+    if isinstance(cached, dict) and cached.get("key") == key:
+        # Do not return old events on rerun; this prevents repeated sound.
+        st.session_state["_b4_runtime_cache_hit_v30"] = True
+        return []
+
+    emitted = _b4_emit_alerts_uncached(pred, observation_ts)
+
+    st.session_state["_b4_runtime_cache_v30"] = {
+        "key": key,
+        "observation_timestamp": pd.Timestamp(observation_ts).isoformat(),
+        "evaluated_at": pd.Timestamp.now(tz=IST).isoformat(),
+        "event_count": len(emitted),
+    }
+    st.session_state["_b4_runtime_cache_hit_v30"] = False
+    return emitted
+
+
+
 # ============================================================================
 # B4 ALERT DRAWER ADAPTER
 # ============================================================================
@@ -6695,7 +7590,7 @@ def _render_b4_alert_drawer(emitted: list[dict] | None = None) -> None:
     """Render the B4 drawer and expose integration failures instead of hiding them."""
     if render_alert_drawer is None:
         if _B4_IMPORT_ERROR:
-            st.warning(f"B4 alert drawer unavailable: {_B4_IMPORT_ERROR}", icon="⚠️")
+            st.warning(f"B4 alert drawer unavailable: {_B4_IMPORT_ERROR}", icon="âš ï¸")
         return
     try:
         events = _load_b4_alert_events(8)
@@ -6758,7 +7653,7 @@ def _render_b4_alert_drawer(emitted: list[dict] | None = None) -> None:
             )
     except Exception as exc:
         _UI["b4_runtime_error"] = f"{type(exc).__name__}: {exc}"
-        st.warning(f"B4 alert drawer runtime error: {type(exc).__name__}: {exc}", icon="⚠️")
+        st.warning(f"B4 alert drawer runtime error: {type(exc).__name__}: {exc}", icon="âš ï¸")
 
 
 # ============================================================================
@@ -6769,15 +7664,15 @@ if "page" not in st.session_state:
     st.session_state.page = "decision"
 
 header_cols = st.columns(
-    [1.35, 1.00, 1.00, 1.00, .80, .42, .62, .58, .78, .52]
+    [1.35, .90, .90, .90, .90, .90, .42, .62, .58, .78, .52]
 )
 
 with header_cols[0]:
     st.markdown(
         '<div class="sdl-header">'
-        '<div class="sdl-brand">◉ NTIS SDL</div>'
+        '<div class="sdl-brand">â—‰ NTIS SDL</div>'
         '<div class="sdl-sub">'
-        'INTRADAY DECISION CENTRE · STRADDLE BREAKOUT'
+        'INTRADAY DECISION CENTRE Â· STRADDLE BREAKOUT'
         '</div>'
         '</div>',
         unsafe_allow_html=True,
@@ -6786,7 +7681,7 @@ with header_cols[0]:
 with header_cols[1]:
     st.markdown('<div class="header-nav">', unsafe_allow_html=True)
     if st.button(
-        "▣ Decision Board",
+        "â–£ Decision Board",
         type=(
             "primary"
             if st.session_state.page == "decision"
@@ -6796,13 +7691,13 @@ with header_cols[1]:
         key="nav_decision",
     ):
         st.session_state.page = "decision"
-        st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 with header_cols[2]:
     st.markdown('<div class="header-nav">', unsafe_allow_html=True)
     if st.button(
-        "▦ Sector Analysis",
+        "â–¦ Sector Analysis",
         type=(
             "primary"
             if st.session_state.page == "sector"
@@ -6812,13 +7707,25 @@ with header_cols[2]:
         key="nav_sector",
     ):
         st.session_state.page = "sector"
-        st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 with header_cols[3]:
     st.markdown('<div class="header-nav">', unsafe_allow_html=True)
     if st.button(
-        "▤ Historical Evidence",
+        "News Engine",
+        type=("primary" if st.session_state.page == "news_engine" else "secondary"),
+        use_container_width=True,
+        key="nav_news_engine",
+    ):
+        st.session_state.page = "news_engine"
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with header_cols[10]:
+    st.markdown('<div class="header-nav">', unsafe_allow_html=True)
+    if st.button(
+        "â–¤ Historical Evidence",
         type=(
             "primary"
             if st.session_state.page == "historical"
@@ -6828,13 +7735,13 @@ with header_cols[3]:
         key="nav_history",
     ):
         st.session_state.page = "historical"
-        st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 with header_cols[4]:
     st.markdown('<div class="header-nav">', unsafe_allow_html=True)
     if st.button(
-        "⚙ Settings",
+        "âš™ Settings",
         type=(
             "primary"
             if st.session_state.page == "settings"
@@ -6844,7 +7751,7 @@ with header_cols[4]:
         key="nav_settings",
     ):
         st.session_state.page = "settings"
-        st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 with header_cols[5]:
@@ -6868,10 +7775,11 @@ with header_cols[6]:
 with header_cols[7]:
     st.markdown('<div class="header-control">', unsafe_allow_html=True)
     if st.button(
-        "↻ Refresh",
+        "â†» Refresh",
         use_container_width=True,
         key="header_refresh",
     ):
+        st.session_state["_dashboard_force_live_refresh"] = True
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -6916,10 +7824,147 @@ if (
 
 
 # ============================================================================
-# PAGE BODIES
-# ============================================================================
 
-if st.session_state.page == "settings":
+@st.cache_data(ttl=NEWS_CACHE_SECONDS, show_spinner=False)
+def _news_engine_fetch_cached(limit_per_source: int = 25):
+    from News_Engine.news_sources import fetch_multi_source_news
+    return fetch_multi_source_news(
+        limit_per_source=limit_per_source,
+        include_nse=True,
+        include_global=True,
+    )
+
+
+def _render_news_engine_page() -> None:
+    from News_Engine.news_predictor import build_news_predictions, promote_major_impact_news
+
+    st.markdown("## NEWS INTELLIGENCE ENGINE")
+    st.caption("Collect broadly Â· analyse deeply Â· display only major-impact intelligence")
+
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        depth = st.selectbox(
+            "Discovery depth", [10, 20, 25, 40], index=1,
+            key="v23_news_depth"
+        )
+    with c2:
+        if st.button("Refresh intelligence", key="v23_news_refresh"):
+            try:
+                _news_engine_fetch_cached.clear()
+            except Exception:
+                pass
+            st.rerun()
+
+    try:
+        rows, health = _news_engine_fetch_cached(int(depth))
+    except TypeError:
+        rows = _news_engine_fetch_cached()
+        health = []
+    except Exception as exc:
+        st.error(f"News discovery error: {type(exc).__name__}: {exc}")
+        rows, health = [], []
+
+    market_frame = None
+    market_ts = None
+    try:
+        persisted = _load_persisted_live_snapshot()
+        if isinstance(persisted, dict):
+            candidate = persisted.get("pred")
+            if isinstance(candidate, pd.DataFrame) and not candidate.empty:
+                market_frame = candidate.copy()
+            market_ts = pd.to_datetime(
+                persisted.get("observation_timestamp"),
+                errors="coerce",
+            )
+            if pd.isna(market_ts):
+                market_ts = None
+    except Exception:
+        market_frame, market_ts = None, None
+
+    try:
+        analysed = build_news_predictions(rows, market_frame=market_frame)
+    except Exception:
+        try:
+            analysed = build_news_predictions(rows)
+        except Exception:
+            analysed = rows
+
+    major = promote_major_impact_news(analysed)
+    discovered = len(rows) if rows is not None else 0
+    analyzed = len(analysed) if analysed is not None else 0
+    suppressed = max(0, discovered - len(major))
+
+    a, b, c, d = st.columns(4)
+    a.metric("MAJOR IMPACT", len(major))
+    b.metric("DISCOVERED", discovered)
+    c.metric("ANALYZED", analyzed)
+    d.metric("SUPPRESSED", suppressed)
+
+    if market_ts is not None:
+        st.caption(
+            f"SDL context: {market_ts} Â· "
+            f"Major-impact intelligence only Â· {discovered} discovered"
+        )
+    else:
+        st.caption(f"Major-impact intelligence only Â· {discovered} discovered")
+
+    if not major:
+        st.info("No news currently meets the major-impact dashboard gate.")
+    else:
+        display = []
+        for r in major:
+            display.append({
+                "IMPACT": r.get("impact", "MAJOR"),
+                "ENTITY": r.get("entity") or r.get("symbol") or "MARKET",
+                "DIRECTION": r.get("direction", ""),
+                "CONFIDENCE": r.get(
+                    "impact_confidence", r.get("confidence", "")
+                ),
+                "HORIZON": r.get("impact_horizon", ""),
+                "REASON": r.get("impact_reason", ""),
+                "SOURCES": r.get("source_count", ""),
+                "HEADLINE": r.get("headline") or r.get("title") or "",
+            })
+        st.dataframe(display, use_container_width=True, hide_index=True)
+
+    with st.expander("Suppressed / non-major discovery", expanded=False):
+        st.caption(
+            "Broad discovery remains available internally; only events that "
+            "pass the major-impact intelligence gate are displayed above."
+        )
+        st.write(
+            f"Discovered: {discovered} Â· Analysed: {analyzed} Â· "
+            f"Suppressed: {suppressed}"
+        )
+
+    with st.expander("Source health / provenance", expanded=False):
+        if health:
+            st.dataframe(health, use_container_width=True, hide_index=True)
+        else:
+            st.caption("Source health is unavailable for this refresh.")
+
+    with st.expander("Engine contract", expanded=False):
+        st.markdown(
+            "- Broad multi-source discovery\n"
+            "- Deep materiality/entity/impact analysis\n"
+            "- Major-impact promotion only for dashboard display\n"
+            "- Routine/editorial items remain suppressed\n"
+            "- No modification of SDL decision, PIT, Replay, Alert, or Breakout logic"
+        )
+# ============================================================================
+# PAGE BODIES â€” V2.3 DISPATCH RESTORE V4
+# ============================================================================
+# Surgical routing only. Existing renderer/engine implementations above are
+# untouched. The former Sector Analysis page renderer is not present in this
+# target, so this V5 does NOT call or recreate that obsolete function.
+
+if st.session_state.page == "news_engine":
+    _render_news_engine_page()
+
+elif st.session_state.page == "historical":
+    historical_view()
+
+elif st.session_state.page == "settings":
     st.markdown(
         '<div class="panel-head">'
         '<div class="panel-title">SETTINGS</div>'
@@ -6963,9 +8008,7 @@ if st.session_state.page == "settings":
             if ok:
                 _UI["source_root"] = msg
                 save_ui_settings(source_root=msg)
-                st.success(
-                    f"Source folder applied: {msg}"
-                )
+                st.success(f"Source folder applied: {msg}")
                 st.rerun()
             else:
                 st.error(msg)
@@ -6990,36 +8033,39 @@ if st.session_state.page == "settings":
     )
 
 elif st.session_state.page == "sector":
-    render_sector_analysis_page(
-        getattr(
-            sdl_pipeline,
-            "INTRADAY_SOURCE_ROOT",
-            sdl_config.INTRADAY_SOURCE_ROOT,
-        ),
-        news_provider=sector_analysis_news_provider,
+    st.info(
+        "Sector Analysis renderer is not present in the current dashboard "
+        "build. No legacy renderer has been reintroduced by V5."
     )
 
-elif st.session_state.page == "historical":
-    historical_view()
-
 else:
-    # Streamlit fragments rerun only the LIVE content. Replay, navigation,
-    # settings and other static page sections are not browser-reloaded.
     _refresh_seconds = max(30, int(_UI.get("refresh_seconds", 60)))
     _live_renderer = _render_live_content
+
     if bool(_UI.get("auto_refresh", False)) and hasattr(st, "fragment"):
-        _live_renderer = st.fragment(run_every=_refresh_seconds)(_render_live_content)
+        _live_renderer = st.fragment(
+            run_every=_refresh_seconds
+        )(_render_live_content)
+
     _live_renderer()
 
-    # Historical cache build monitor is intentionally outside the LIVE
-    # fragment and outside the Replay expander. A dedicated lightweight
-    # fragment keeps the progress display live even when Auto Refresh is off.
     if hasattr(st, "fragment"):
-        _cache_monitor_renderer = st.fragment(run_every=3)(_render_cache_build_state)
+        _cache_monitor_renderer = st.fragment(
+            run_every=3
+        )(_render_cache_build_state)
         _cache_monitor_renderer()
     else:
         _render_cache_build_state()
 
-    # Replay remains outside the LIVE fragment by design. Its selected day,
-    # snapshot and cache state therefore remain untouched by Live refreshes.
     replay_view()
+
+
+# _replay_cache_revision_v32: Replay calendar/accounting invalidation only.
+# PIT/SDL decision semantics remain unchanged.
+
+
+
+# _replay_ui_state_v33: UI-only separation of base PIT cache vs optional Futures evidence.
+# No build, PIT, SDL decision, First Alert, First Breakout, or Futures mapping semantics changed.
+
+

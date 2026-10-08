@@ -103,33 +103,23 @@ def _ensure_first_snapshot_base(
     observed_at,
 ) -> dict:
     """
-    Establish the frozen opening base for a trading day.
+    Establish and incrementally complete the frozen opening base.
 
-    IMPORTANT:
-        If a base already exists for the trading date, it is returned
-        unchanged.
+    The first authoritative snapshot establishes each symbol's opening
+    reference. Symbols missing an authoritative ATM Straddle Price remain
+    unresolved and may be completed from the earliest later snapshot that
+    supplies that value.
 
-    Therefore a later intraday snapshot can NEVER overwrite the
-    opening base.
-
-    Each stock receives its own frozen:
-        - opening price
-        - opening ATM straddle %
-        - opening straddle premium
-        - source of opening straddle
-        - source file
-        - opening reference timestamp
+    Once a symbol has a valid opening straddle premium, it is frozen and
+    cannot be overwritten by a later snapshot.
     """
-
     existing = _load_daily_base(
         state,
         trading_date,
     )
 
-    if existing:
-        return existing
-
-    base_map: dict = {}
+    base_map: dict = dict(existing or {})
+    changed = False
 
     for _, row in df.iterrows():
 
@@ -147,18 +137,42 @@ def _ensure_first_snapshot_base(
         if open_price is None or pd.isna(open_price):
             continue
 
-        # Opening premium is derived exclusively from the first
-        # snapshot's Open and ATM Straddle %.
-        premium = _opening_straddle(row)
-        straddle_source = "open_x_atm_straddle_pct"
+        premium = row.get(
+            "source_atm_straddle_price"
+        )
 
-        if pd.isna(premium):
+        if (
+            premium is None
+            or pd.isna(premium)
+            or float(premium) <= 0
+        ):
             continue
 
         atm_pct = row.get(
             "atm_straddle_pct"
         )
 
+        current = base_map.get(symbol)
+
+        # Correct legacy BASE entries created with the obsolete
+        # Open x ATM Straddle % calculation.
+        if current is not None:
+            current_source = str(
+                current.get("opening_straddle_source", "")
+            ).strip()
+
+            if current_source == "open_x_atm_straddle_pct":
+                current["opening_straddle_premium"] = float(premium)
+                current["opening_straddle_source"] = (
+                    "source_atm_straddle_price"
+                )
+                base_map[symbol] = current
+                changed = True
+
+            continue
+
+        # Previously unresolved symbol: resolve it at the earliest
+        # snapshot containing the authoritative ATM Straddle Price.
         base_map[symbol] = {
             "open_price": float(
                 open_price
@@ -178,7 +192,7 @@ def _ensure_first_snapshot_base(
             ),
 
             "opening_straddle_source": (
-                straddle_source
+                "source_atm_straddle_price"
             ),
 
             "opening_reference_source_file": (
@@ -190,14 +204,16 @@ def _ensure_first_snapshot_base(
             ),
         }
 
-    _save_daily_base(
-        state,
-        trading_date,
-        base_map,
-    )
+        changed = True
+
+    if changed or not existing:
+        _save_daily_base(
+            state,
+            trading_date,
+            base_map,
+        )
 
     return base_map
-
 
 # ---------------------------------------------------------------------------
 # Frozen-base application

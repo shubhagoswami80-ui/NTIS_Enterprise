@@ -1,337 +1,326 @@
-"""Compact intraday trader alert drawer for NTIS SDL."""
+"""Compact B4 Alert Drawer UI for NTIS SDL."""
 from __future__ import annotations
-
 from dataclasses import dataclass
-from html import escape
-from typing import Any, Iterable, Mapping
-
+from typing import Iterable, Mapping, Any
 import streamlit as st
+import html
 
+try:
+    import plotly.graph_objects as go
+except Exception:
+    go = None
 from .alert_sound import SoundSettings, sound_html
 
 DEFAULT_RULES = [
-    {"name": "Strong Breakout", "field": "Straddle Progress", "operator": ">=", "value": 100.0, "enabled": True, "sound": False},
-    {"name": "Breakout", "field": "Straddle Progress", "operator": ">=", "value": 75.0, "enabled": True, "sound": False},
-    {"name": "First Alert", "field": "Straddle Progress", "operator": ">=", "value": 25.0, "enabled": True, "sound": False},
-    {"name": "Futures OI Spike", "field": "Futures OI Change", "operator": ">", "value": 100000.0, "enabled": True, "sound": False},
-    {"name": "PCR Extreme", "field": "PCR", "operator": ">", "value": 3.0, "enabled": True, "sound": False},
-    {"name": "High Momentum", "field": "Momentum %", "operator": ">=", "value": 5.0, "enabled": False, "sound": False},
+    {"name":"Strong Breakout","field":"Straddle Progress","operator":">=","value":100.0,"enabled":True,"sound":False},
+    {"name":"Breakout","field":"Straddle Progress","operator":">=","value":75.0,"enabled":True,"sound":False},
+    {"name":"First Alert","field":"Straddle Progress","operator":">=","value":25.0,"enabled":True,"sound":False},
+    {"name":"Futures OI Spike","field":"Futures OI Change","operator":">","value":100000.0,"enabled":True,"sound":False},
+    {"name":"PCR Extreme","field":"PCR","operator":">","value":3.0,"enabled":True,"sound":False},
+    {"name":"High Momentum","field":"Momentum %","operator":">=","value":5.0,"enabled":False,"sound":False},
 ]
-
-FIELDS = [
-    "Futures OI Change",
-    "Futures OI Change %",
-    "PE − CE OI Change",
-    "PCR",
-    "Momentum %",
-    "Straddle Progress",
-    "Price Change %",
-]
-OPERATORS = [">", ">=", "<", "<=", "=", "!="]
-
+FIELDS=["Futures OI Change","Futures OI Change %","PE − CE OI Change","PCR","Momentum %","Straddle Progress","Price Change %"]
+OPERATORS=[">",">=","<","<=","=","!="]
 
 @dataclass(frozen=True)
 class DrawerConfig:
-    max_events: int = 8
-    max_history: int = 12
+    max_events:int=8
 
-
-def _text(value: Any, fallback: str = "—") -> str:
-    value = "" if value is None else str(value).strip()
+def _text(value:Any,fallback:str="—")->str:
+    value="" if value is None else str(value).strip()
     return value or fallback
 
-
-def _safe_rules(rules: Any) -> list[dict[str, Any]]:
-    if not isinstance(rules, list) or not rules:
-        return [dict(x) for x in DEFAULT_RULES]
-    out: list[dict[str, Any]] = []
-    for i, raw in enumerate(rules[:12]):
-        if not isinstance(raw, Mapping):
-            continue
-        field = str(raw.get("field", "PCR"))
-        field = field if field in FIELDS else "PCR"
-        op = str(raw.get("operator", ">"))
-        op = op if op in OPERATORS else ">"
-        try:
-            value = float(raw.get("value", 0))
-        except Exception:
-            value = 0.0
-        out.append({
-            "name": _text(raw.get("name"), f"Rule {i + 1}"),
-            "field": field,
-            "operator": op,
-            "value": value,
-            "enabled": bool(raw.get("enabled", True)),
-            "sound": bool(raw.get("sound", False)),
-        })
+def _safe_rules(rules:Any)->list[dict[str,Any]]:
+    if not isinstance(rules,list) or not rules: return [dict(x) for x in DEFAULT_RULES]
+    out=[]
+    for i,raw in enumerate(rules[:12]):
+        if not isinstance(raw,Mapping): continue
+        field=str(raw.get("field","PCR")); field=field if field in FIELDS else "PCR"
+        op=str(raw.get("operator",">")); op=op if op in OPERATORS else ">"
+        try: value=float(raw.get("value",0))
+        except Exception: value=0.0
+        out.append({"name":_text(raw.get("name"),f"Rule {i+1}"),"field":field,"operator":op,"value":value,"enabled":bool(raw.get("enabled",True)),"sound":bool(raw.get("sound",False))})
     return out or [dict(x) for x in DEFAULT_RULES]
 
-
-def _event_rows(events: Iterable[Mapping[str, Any]], max_events: int) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for event in list(events)[:max(1, int(max_events))]:
-        payload = event.get("payload") if isinstance(event.get("payload"), Mapping) else {}
-        values = payload.get("values") if isinstance(payload.get("values"), Mapping) else {}
-        rule = _text(event.get("rule_name"), "Alert")
-        rows.append({
-            "symbol": _text(event.get("symbol"), "UNKNOWN").upper(),
-            "severity": _text(event.get("severity"), "INFO").upper(),
-            "message": _text(event.get("message"), "Alert triggered"),
-            "timestamp": _time_only(event.get("observation_timestamp") or event.get("timestamp")),
-            "rule": rule,
-            "direction": _text(event.get("direction"), ""),
-            "strength": _text(event.get("strength"), ""),
-            "values": dict(values),
-            "trading_date": _text(event.get("trading_date"), ""),
-            "alert_id": _text(event.get("alert_id"), ""),
-            "sound": bool(event.get("sound", False)),
-            "raw": event,
-        })
+def _event_rows(events:Iterable[Mapping[str,Any]],max_events:int):
+    rows=[]
+    for event in list(events)[:max(1,int(max_events))]:
+        rows.append({"symbol":_text(event.get("symbol"),"UNKNOWN"),"severity":_text(event.get("severity"),"INFO").upper(),"message":_text(event.get("message"),"Alert triggered"),"timestamp":_text(event.get("observation_timestamp") or event.get("timestamp")),"rule":_text(event.get("rule_name"),"Alert rule")})
     return rows
 
 
-def _time_only(value: Any) -> str:
-    text = _text(value, "—")
-    if "T" in text:
-        text = text.split("T", 1)[1]
-    if "+" in text:
-        text = text.split("+", 1)[0]
-    return text[:8]
+def _render_intraday_evidence_chart(chart_df, alert_timestamp=None):
+    """Render the alert stock chart using exact point-in-time observations.
 
+    Evidence values are never accumulated here.  Markers are placed on the
+    price line at the exact observation where the corresponding Futures or
+    option OI value increased versus the immediately preceding observation.
+    The tooltip reports the values belonging to that timestamp only.
+    """
+    if chart_df is None or chart_df.empty:
+        st.caption("No point-in-time intraday chart data is available.")
+        return
 
-def _fmt_value(field: str, value: Any) -> str:
-    if value is None or value == "":
-        return "—"
-    try:
-        n = float(value)
-    except Exception:
-        return _text(value)
-    if field in {"PCR"}:
-        return f"{n:.2f}"
-    if field in {"Momentum %", "Straddle Progress", "Price Change %", "Futures OI Change %"}:
-        return f"{n:.1f}%"
-    if abs(n) >= 1_000_000:
-        return f"{n / 1_000_000:.2f}M"
-    if abs(n) >= 1_000:
-        return f"{n / 1_000:.1f}K"
-    return f"{n:g}"
+    frame = chart_df.copy()
+    frame["Observation"] = __import__("pandas").to_datetime(frame["Observation"], errors="coerce")
+    frame = frame.dropna(subset=["Observation", "Close"]).sort_values("Observation").reset_index(drop=True)
+    if frame.empty:
+        st.caption("No point-in-time intraday chart data is available.")
+        return
 
+    if go is None:
+        st.line_chart(frame.set_index("Observation")["Close"], height=250, use_container_width=True)
+        return
 
-def _trigger_text(row: Mapping[str, Any]) -> tuple[str, str]:
-    message = _text(row.get("message"), "Alert triggered")
-    values = row.get("values") if isinstance(row.get("values"), Mapping) else {}
-    rule = _text(row.get("rule"), "Alert")
-    field = None
-    for candidate in FIELDS:
-        if candidate in message:
-            field = candidate
-            break
-    if field is None:
-        return rule, message
-    current = _fmt_value(field, values.get(field))
-    return rule, f"{field}  {current}  ·  {message}"
+    def _num(series):
+        return __import__("pandas").to_numeric(series, errors="coerce")
 
+    fig = go.Figure()
+    ohlc_cols = ["Open", "High", "Low", "Close"]
+    have_ohlc = all(c in frame.columns and _num(frame[c]).notna().any() for c in ohlc_cols)
+    if have_ohlc:
+        ohlc = frame.copy()
+        for c in ohlc_cols:
+            ohlc[c] = _num(ohlc[c])
+        ohlc = ohlc.dropna(subset=ohlc_cols)
+        if not ohlc.empty:
+            fig.add_trace(go.Candlestick(
+                x=ohlc["Observation"], open=ohlc["Open"], high=ohlc["High"],
+                low=ohlc["Low"], close=ohlc["Close"], name="Price",
+                increasing_line_color="#16a085", decreasing_line_color="#ef4444",
+                increasing_fillcolor="#16a085", decreasing_fillcolor="#ef4444",
+                hovertext=[
+                    f"{r['Observation']:%H:%M:%S}<br>O: ₹{r['Open']:,.2f}<br>H: ₹{r['High']:,.2f}<br>L: ₹{r['Low']:,.2f}<br>C: ₹{r['Close']:,.2f}"
+                    for _, r in ohlc.iterrows()
+                ],
+                hoverinfo="text",
+            ))
+        else:
+            have_ohlc = False
+    if not have_ohlc:
+        fig.add_trace(go.Scatter(
+            x=frame["Observation"], y=_num(frame["Close"]),
+            mode="lines", name="Price",
+            line=dict(width=2),
+            hovertemplate="%{x|%H:%M:%S}<br>Price: ₹%{y:,.2f}<extra></extra>",
+        ))
 
-def _severity_class(severity: str) -> str:
-    s = str(severity).upper()
-    if s in {"HIGH", "CRITICAL"}:
-        return "high"
-    if "BREAK" in s or s == "ALERT":
-        return "breakout"
-    return "info"
+    def _marker_trace(column, name, symbol, color, label):
+        if column not in frame.columns:
+            return
+        vals = _num(frame[column])
+        prev = vals.shift(1)
+        mask = vals.notna() & prev.notna() & (vals > prev)
+        points = frame.loc[mask].copy()
+        if points.empty:
+            return
+        evidence = _num(points[column])
+        hover = []
+        for _, r in points.iterrows():
+            ts = r["Observation"]
+            value = r[column]
+            pct_col = "Futures OI Change %" if column == "Futures OI Change" else "PE-CE OI Change %"
+            pct_val = r.get(pct_col)
+            pct_text = "—" if pct_val is None or __import__("pandas").isna(pct_val) else f"{float(pct_val):+.2f}%"
+            hover.append(
+                f"{ts:%H:%M:%S}<br>{label}: {float(value):+,.0f}<br>"
+                f"Change % at timestamp: {pct_text}<br>Price: ₹{float(r['Close']):,.2f}<extra></extra>"
+            )
+        fig.add_trace(go.Scatter(
+            x=points["Observation"], y=_num(points["Close"]),
+            mode="markers", name=name,
+            marker=dict(size=6, symbol=symbol, color=color, line=dict(width=0.6, color="#ffffff")),
+            text=hover, hovertemplate="%{text}",
+        ))
 
+    # Marker values are the exact observation values; no day-to-date sum is used.
+    _marker_trace("Futures OI Change", "Futures increase", "triangle-up", "#22c55e", "Futures OI Change")
+    _marker_trace("PE-CE OI Change", "PE−CE OI increase", "diamond", "#f59e0b", "PE−CE OI Change")
+    _marker_trace("CE OI Change", "CE OI increase", "circle", "#60a5fa", "CE OI Change")
+    _marker_trace("PE OI Change", "PE OI increase", "circle-open", "#f472b6", "PE OI Change")
 
-def _rule_short_name(rule: Mapping[str, Any]) -> str:
-    name = _text(rule.get("name"), "Rule")
-    if name == "First Alert":
-        return "EARLY"
-    if name == "Strong Breakout":
-        return "STRONG"
-    if name == "Futures OI Spike":
-        return "FUT OI"
-    if name == "PCR Extreme":
-        return "PCR"
-    if name == "High Momentum":
-        return "MOM"
-    return name.upper()[:10]
+    # Highest available option-OI-change observation for this chart window.
+    if "PE-CE OI Change" in frame.columns:
+        opt = _num(frame["PE-CE OI Change"])
+        valid = opt.dropna()
+        if not valid.empty:
+            idx = valid.abs().idxmax()
+            r = frame.loc[idx]
+            fig.add_trace(go.Scatter(
+                x=[r["Observation"]], y=[float(r["Close"])],
+                mode="markers", name="Max option OI change",
+                marker=dict(size=9, symbol="star", color="#f97316", line=dict(width=0.8, color="#ffffff")),
+                hovertemplate=(
+                    f"{r['Observation']:%H:%M:%S}<br>"
+                    f"MAX option OI change at timestamp: {float(r['PE-CE OI Change']):+,.0f}<br>"
+                    f"Price: ₹{float(r['Close']):,.2f}<extra></extra>"
+                ),
+            ))
 
+    alert_ts = __import__("pandas").to_datetime(alert_timestamp, errors="coerce") if alert_timestamp else __import__("pandas").NaT
+    if __import__("pandas").notna(alert_ts):
+        nearest_idx = (frame["Observation"] - alert_ts).abs().idxmin()
+        r = frame.loc[nearest_idx]
+        fig.add_trace(go.Scatter(
+            x=[r["Observation"]], y=[float(r["Close"])],
+            mode="markers", name="Alert",
+            marker=dict(size=10, symbol="star-diamond", color="#ef4444", line=dict(width=1, color="#ffffff")),
+            hovertemplate=(
+                f"ALERT · {r['Observation']:%H:%M:%S}<br>"
+                f"Price: ₹{float(r['Close']):,.2f}<extra></extra>"
+            ),
+        ))
+        fig.add_vline(x=r["Observation"], line_width=1, line_dash="dot", line_color="#ef4444", opacity=0.7)
 
-def render_alert_drawer(
-    events: Iterable[Mapping[str, Any]] = (),
-    *,
-    config: DrawerConfig | None = None,
-    history_events: Iterable[Mapping[str, Any]] | None = None,
-    sound_enabled: bool = False,
-    sound_volume: float = 0.35,
-    sound_tone: str = "soft",
-    new_alert: bool = False,
-    new_alert_sound: bool = False,
-    rules: list[dict[str, Any]] | None = None,
-    chart_provider=None,
-    diagnostic: str | None = None,
-) -> dict[str, Any]:
-    cfg = config or DrawerConfig()
-    rows = _event_rows(events, cfg.max_events)
-    history_rows = _event_rows(history_events or (), cfg.max_history)
-    current_rules = _safe_rules(rules)
+    if "VWAP" in frame.columns:
+        vwap = _num(frame["VWAP"])
+        if vwap.notna().any():
+            fig.add_trace(go.Scatter(
+                x=frame["Observation"], y=vwap, mode="lines", name="VWAP",
+                line=dict(width=1.2, dash="dot"),
+                hovertemplate="%{x|%H:%M:%S}<br>VWAP: ₹%{y:,.2f}<extra></extra>",
+            ))
 
-    enabled_count = sum(bool(r.get("enabled", True)) for r in current_rules)
-    sound_count = sum(bool(r.get("sound", False)) and bool(r.get("enabled", True)) for r in current_rules)
-    label = f"🔔 {len(rows)}" if rows else "🔔"
+    fig.update_layout(
+        height=300,
+        margin=dict(l=38, r=12, t=28, b=32),
+        paper_bgcolor="#071321",
+        plot_bgcolor="#071321",
+        font=dict(size=9, color="#cbd7e7"),
+        title=dict(text="Intraday Price · Point-in-Time Evidence", font=dict(size=11), x=0),
+        hovermode="x unified",
+        hoverdistance=40,
+        showlegend=True,
+        legend=dict(orientation="h", y=1.02, x=0, font=dict(size=8)),
+        xaxis=dict(
+            title=None, tickformat="%H:%M", showgrid=True, gridcolor="#17304b",
+            showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1,
+            rangeslider=dict(visible=False), hoverformat="%H:%M:%S",
+        ),
+        yaxis=dict(title=None, showgrid=True, gridcolor="#17304b", tickformat=",.0f"),
+        hoverlabel=dict(font_size=9),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
 
-    st.markdown(
-        """
-<style>
-/* B4 trader drawer: compact, right-anchored, information-first. */
-[data-testid="stPopover"] button{position:fixed!important;right:16px!important;top:112px!important;z-index:1000000!important;min-width:40px!important;width:40px!important;height:34px!important;padding:0!important;border-radius:8px!important;background:#0d1b2e!important;border:1px solid #3a5a82!important;color:#fff!important;font-size:15px!important;line-height:1!important;box-shadow:0 4px 14px rgba(0,0,0,.18)!important}
-[data-testid="stPopover"] button svg{display:none!important}
-[data-testid="stPopover"] button span{font-size:0!important}
-[data-testid="stPopover"] button span::before{content:'🔔';font-size:15px!important}
-[data-testid="stPopoverBody"]{position:fixed!important;right:12px!important;top:74px!important;left:auto!important;transform:none!important;width:390px!important;max-width:calc(100vw - 24px)!important;max-height:calc(100vh - 88px)!important;overflow-y:auto!important;overflow-x:hidden!important;padding:9px!important;background:#071321!important;border:1px solid #29476e!important;border-radius:10px!important;box-shadow:0 20px 55px rgba(0,0,0,.55)!important;z-index:999999!important}
-[data-testid="stPopoverBody"] > div{max-width:none!important}
-[data-testid="stPopoverBody"] .stButton button{min-height:27px!important;padding:2px 7px!important;font-size:10px!important}
-[data-testid="stPopoverBody"] label{font-size:9px!important}
-[data-testid="stPopoverBody"] [data-testid="stTabs"] button{font-size:10px!important;padding:4px 7px!important}
-[data-testid="stPopoverBody"] [data-testid="stExpander"]{margin:4px 0!important;border:1px solid #29476e!important;background:#091729!important}
-[data-testid="stPopoverBody"] [data-testid="stExpanderDetails"]{padding:6px 8px!important}
-.b4-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
-.b4-title{font-size:14px;font-weight:700;color:#f3f7fb}
-.b4-sub{font-size:8px;color:#8fa5c0}
-.b4-summary{display:flex;gap:4px;flex-wrap:wrap;margin:2px 0 7px}
-.b4-chip{font-size:8px;color:#a9bdd4;background:#0b1c31;border:1px solid #203b5d;border-radius:5px;padding:2px 5px}
-.b4-chip.hot{color:#fff1d0;border-color:#805f24;background:#2b210e}
-.b4-card{padding:6px 6px 7px;margin:3px 0;border:1px solid #203b5d;border-radius:7px;background:#091827}
-.b4-card.high{border-left:3px solid #ef9b3a}.b4-card.breakout{border-left:3px solid #53d28a}.b4-card.info{border-left:3px solid #55718f}
-.b4-line1{display:flex;align-items:center;gap:5px}
-.b4-symbol{font-size:12px;font-weight:800;color:#fff}.b4-time{margin-left:auto;font-size:8px;color:#8095ae}
-.b4-badge{font-size:7px;font-weight:800;letter-spacing:.4px;border-radius:4px;padding:2px 4px;background:#18314d;color:#a9c7e5}
-.b4-trigger{font-size:9px;color:#d4dfec;margin-top:3px;line-height:1.35}
-.b4-dir{font-size:8px;color:#89a3bf;margin-top:2px}
-.b4-empty{font-size:9px;color:#8196ad;padding:10px 3px;text-align:center}
-.b4-rule-row{padding:5px 0;border-bottom:1px solid #1b304c}
-.b4-rule-name{font-size:9px;color:#d7e2ee;font-weight:700}
-.b4-rule-cond{font-size:8px;color:#8298b1;margin-top:2px}
-.b4-help{font-size:8px;color:#7e94ad;line-height:1.35;margin:3px 0 6px}
-.b4-section-label{font-size:8px;font-weight:800;letter-spacing:.8px;color:#7189a5;margin:6px 0 2px}
-.b4-rule-mini{display:flex;flex-direction:column;line-height:1.15;padding-top:2px}
-.b4-rule-mini b{font-size:9px;color:#e4edf7}
-.b4-rule-mini span{font-size:7px;color:#7f96ae;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-[data-testid="stPopoverBody"] [data-testid="stCheckbox"] label{font-size:8px!important}
-[data-testid="stPopoverBody"] [data-testid="stSlider"]{padding-top:0!important;padding-bottom:0!important}
-</style>
-""",
-        unsafe_allow_html=True,
+    st.caption(
+        "Candles use point-in-time OHLC when the cached observation contains OHLC; otherwise the chart falls back to Close. "
+        "Markers use the exact observation value at that timestamp, never accumulated day-to-date values. "
+        "▲ Futures increase · ◆ option OI increase · ★ max option OI change · red ★ alert."
     )
 
-    with st.popover(label, use_container_width=False):
-        st.markdown(
-            f"<div class='b4-top'><div><span class='b4-title'>Intraday Alerts</span><div class='b4-sub'>crossing alerts · source time · no score/filter change</div></div><span class='b4-badge'>{enabled_count} ON</span></div>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f"<div class='b4-summary'><span class='b4-chip{' hot' if new_alert else ''}'>NEW {'YES' if new_alert else '—'}</span><span class='b4-chip'>RECENT {len(rows)}</span><span class='b4-chip'>HISTORY {len(history_rows)}</span><span class='b4-chip'>SOUND {'ON' if sound_enabled else 'OFF'}</span>{f"<span class='b4-chip'>RULE SOUND {sound_count}</span>" if sound_count else ''}</div>",
-            unsafe_allow_html=True,
-        )
+def render_alert_drawer(events:Iterable[Mapping[str,Any]]=(),*,config:DrawerConfig|None=None,history_events:Iterable[Mapping[str,Any]]|None=None,sound_enabled:bool=False,sound_volume:float=0.35,sound_tone:str="soft",new_alert:bool=False,new_alert_sound:bool=False,rules:list[dict[str,Any]]|None=None,chart_provider=None,news_provider=None,diagnostic:str|None=None)->dict[str,Any]:
+    cfg=config or DrawerConfig(); rows=_event_rows(events,cfg.max_events); history_rows=_event_rows(history_events or (),50); current_rules=_safe_rules(rules)
+    label=f"🔔 {len(rows)}" if rows else "🔔"
+    st.markdown('''<style>
+[data-testid="stPopover"] > button{position:fixed!important;right:31vw!important;top:112px!important;z-index:1000000!important;min-width:38px!important;width:38px!important;height:34px!important;padding:0!important;border-radius:8px!important;background:#0d1b2e!important;border:1px solid #3a5a82!important;color:#fff!important;font-size:16px!important;line-height:1!important}
+[data-testid="stPopover"] > button svg{display:none!important}
+[data-testid="stPopover"] > button span{font-size:0!important}
+[data-testid="stPopover"] > button span::before{content:'🔔';font-size:16px!important}
+[data-testid="stPopoverBody"]{position:fixed!important;right:14px!important;top:74px!important;left:auto!important;transform:none!important;width:455px!important;max-width:calc(100vw - 28px)!important;max-height:calc(100vh - 90px)!important;overflow-y:auto!important;overflow-x:hidden!important;padding:10px!important;background:#071321!important;border:1px solid #29476e!important;border-radius:10px!important;box-shadow:0 20px 55px rgba(0,0,0,.55)!important;z-index:999999!important}
+[data-testid="stPopoverBody"] > div{max-width:none!important}
+[data-testid="stPopoverBody"] .stButton button{min-height:28px!important;padding:3px 8px!important;font-size:10px!important}
+[data-testid="stPopoverBody"] [data-testid="stExpander"]{margin:6px 0!important;border:1px solid #29476e!important;background:#091729!important}
+[data-testid="stPopoverBody"] [data-testid="stExpanderDetails"]{padding:7px 9px!important}
+[data-testid="stPopoverBody"] label{font-size:9px!important}
+.b41-rule{padding:5px 0 6px;border-bottom:1px solid #1b304c}.b41-rule-cond{color:#9fb1c7;font-size:9px;margin:2px 0 3px 24px}.b41-muted{color:#8fa5c0;font-size:9px}
+</style>''',unsafe_allow_html=True)
+    with st.popover(label,use_container_width=False):
+        st.markdown(f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:3px'><b style='font-size:15px'>🔔 Alerts</b><span style='font-size:9px;color:#18df82'>{len(rows)} active/recent</span></div>",unsafe_allow_html=True)
+        if rows:
+            for row in rows:
+                st.markdown(f"<div style='padding:5px 0;border-bottom:1px solid #203653'><b>{row['symbol']}</b> <span style='color:#8194ad;font-size:9px'>{row['rule']}</span><span style='float:right;color:#8194ad;font-size:9px'>{row['timestamp']}</span><div style='color:#cbd7e7;font-size:10px'>{row['message']}</div></div>",unsafe_allow_html=True)
+        else: st.markdown("<div class='b41-muted' style='padding:3px 0 7px'>No active/recent alerts.</div>",unsafe_allow_html=True)
+        # Daily Catalyst Radar is an on-demand side-panel surface. The dashboard
+        # supplies a cached provider so normal LIVE refreshes do not scan news.
+        if news_provider is not None:
+            with st.expander("📰 Daily Catalyst Radar", expanded=True):
+                try:
+                    radar = news_provider() or {}
+                    items = radar.get("items", []) if isinstance(radar, dict) else []
+                    affected = radar.get("affected", []) if isinstance(radar, dict) else []
+                    if items:
+                        for item in items[:8]:
+                            impact = str(item.get("impact") or "NEUTRAL").upper()
+                            badge = "🟢" if impact == "POSITIVE" else "🔴" if impact == "NEGATIVE" else "⚪"
+                            symbols = ", ".join(str(x) for x in (item.get("affected") or [])[:6])
+                            st.markdown(
+                                f"<div style='padding:6px 0;border-bottom:1px solid #203653'>"
+                                f"<b>{badge} {html.escape(_text(item.get('scope'),'NEWS'))}</b> "
+                                f"<span style='float:right;color:#8194ad;font-size:8px'>{_text(item.get('time'),'')}</span>"
+                                f"<div style='color:#dbe5f3;font-size:10px;margin-top:2px'>{html.escape(_text(item.get('text'),''))}</div>"
+                                f"<div style='color:#8fa5c0;font-size:8px;margin-top:2px'>{html.escape(_text(item.get('source'),'News'))} · "
+                                f"Affected: {html.escape(_text(symbols,'market/sector'))}</div></div>",
+                                unsafe_allow_html=True,
+                            )
+                    else:
+                        st.caption("No ranked daily market/sector catalysts available right now.")
+                    if affected:
+                        st.markdown("<div style='margin-top:7px;color:#9fb1c7;font-size:9px;font-weight:800'>AFFECTED STOCKS</div>", unsafe_allow_html=True)
+                        for row in affected[:10]:
+                            chg=row.get("price_change")
+                            chg_text="—" if chg is None else f"{float(chg):+.2f}%"
+                            cls="#18df82" if chg is not None and float(chg)>0 else "#ff5b6e" if chg is not None and float(chg)<0 else "#9fb1c7"
+                            st.markdown(
+                                f"<div style='padding:4px 0;border-bottom:1px solid #172b43;font-size:9px'>"
+                                f"<b>{html.escape(_text(row.get('symbol'),''))}</b> <span style='color:{cls};font-weight:800'>{chg_text}</span>"
+                                f"<div style='color:#8194ad;font-size:8px'>{html.escape(_text(row.get('reason'),'Catalyst context'))}</div></div>",
+                                unsafe_allow_html=True,
+                            )
+                except Exception as exc:
+                    st.caption(f"Catalyst radar unavailable: {type(exc).__name__}: {exc}")
 
-        live_tab, history_tab, setup_tab = st.tabs(["LIVE", "HISTORY", "SETUP"])
-
-        with live_tab:
-            if rows:
-                for row in rows:
-                    rule_name, trigger = _trigger_text(row)
-                    direction = _text(row.get("direction"), "")
-                    strength = _text(row.get("strength"), "")
-                    detail = " · ".join(x for x in (direction, strength) if x)
-                    st.markdown(
-                        f"<div class='b4-card {_severity_class(row['severity'])}'><div class='b4-line1'><span class='b4-symbol'>{escape(row['symbol'])}</span><span class='b4-badge'>{escape(_rule_short_name({'name': rule_name}))}</span><span class='b4-time'>{escape(row['timestamp'])}</span></div><div class='b4-trigger'>{escape(trigger)}</div>{f"<div class='b4-dir'>{escape(detail)}</div>" if detail else ''}</div>",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.markdown("<div class='b4-empty'>No new threshold crossing.<br>Decision Board / Queue continue independently.</div>", unsafe_allow_html=True)
-
-        with history_tab:
+        with st.expander("⚙ Alert Configuration",expanded=True):
+            c1,c2=st.columns([1.35,1])
+            with c1: enabled=st.toggle("Enable sound",value=bool(sound_enabled),key="sdl_alert_sound_enabled")
+            with c2: tone=st.selectbox("Sound",["soft","single","double"],index=["soft","single","double"].index(sound_tone if sound_tone in {"soft","single","double"} else "soft"),key="sdl_alert_sound_tone")
+            volume=st.slider("Volume",0.05,1.0,max(0.05,min(float(sound_volume),1.0)),0.05,key="sdl_alert_sound_volume")
+            st.components.v1.html(sound_html(SoundSettings(True,float(volume),tone),test_button=True,nonce="sdl-b41-test"),height=42)
+            st.markdown("<div class='b41-muted' style='margin:2px 0 5px'>Threshold rules trigger on a new crossing, not on every refresh.</div>",unsafe_allow_html=True)
+            edited=[]
+            for idx,rule in enumerate(current_rules):
+                st.markdown("<div class='b41-rule'>",unsafe_allow_html=True)
+                a,b=st.columns([1.8,.8])
+                with a: rule_enabled=st.toggle(rule["name"],value=bool(rule["enabled"]),key=f"sdl_rule_enabled_{idx}")
+                with b: rule_sound=st.toggle("Sound",value=bool(rule["sound"]),key=f"sdl_rule_sound_{idx}")
+                f,o,v=st.columns([1.55,.7,.75])
+                with f: field=st.selectbox("Field",FIELDS,index=FIELDS.index(rule["field"]),key=f"sdl_rule_field_{idx}")
+                with o: op=st.selectbox("Op",OPERATORS,index=OPERATORS.index(rule["operator"]),key=f"sdl_rule_op_{idx}")
+                with v: value=st.number_input("Value",value=float(rule["value"]),step=1.0,key=f"sdl_rule_value_{idx}")
+                st.markdown(f"<div class='b41-rule-cond'>{field} {op} {float(value):g}</div></div>",unsafe_allow_html=True)
+                edited.append({**rule,"enabled":bool(rule_enabled),"sound":bool(rule_sound),"field":field,"operator":op,"value":float(value)})
+            if st.button("↺ Reset default rules",key="sdl_reset_alert_rules"):
+                for idx,rule in enumerate(DEFAULT_RULES):
+                    st.session_state[f"sdl_rule_enabled_{idx}"]=bool(rule["enabled"]); st.session_state[f"sdl_rule_sound_{idx}"]=bool(rule["sound"]); st.session_state[f"sdl_rule_field_{idx}"]=rule["field"]; st.session_state[f"sdl_rule_op_{idx}"]=rule["operator"]; st.session_state[f"sdl_rule_value_{idx}"]=float(rule["value"])
+                st.rerun()
+            current_rules=edited
+        with st.expander("📜 Alert History",expanded=False):
             if history_rows:
                 for row in history_rows:
-                    rule_name, trigger = _trigger_text(row)
-                    st.markdown(
-                        f"<div class='b4-card info'><div class='b4-line1'><span class='b4-symbol'>{escape(row['symbol'])}</span><span class='b4-badge'>{escape(_rule_short_name({'name': rule_name}))}</span><span class='b4-time'>{escape(row['timestamp'])}</span></div><div class='b4-trigger'>{escape(trigger)}</div></div>",
-                        unsafe_allow_html=True,
-                    )
-                if chart_provider is not None:
-                    chart_symbols = list(dict.fromkeys(row["symbol"] for row in history_rows))
-                    selected_symbol = st.selectbox("Chart", chart_symbols, key="sdl_alert_chart_symbol")
-                    selected_event = next((e for e in (history_events or ()) if _text(e.get("symbol"), "UNKNOWN").upper() == selected_symbol), None)
-                    if selected_event is not None:
-                        try:
-                            chart_df = chart_provider(selected_event)
-                            if chart_df is not None and not chart_df.empty:
-                                if "Observation" in chart_df.columns and "Close" in chart_df.columns:
-                                    st.line_chart(chart_df.set_index("Observation")["Close"])
-                                else:
-                                    st.dataframe(chart_df, use_container_width=True, hide_index=True)
-                        except Exception as exc:
-                            st.caption(f"Chart unavailable: {type(exc).__name__}: {exc}")
+                    st.markdown(f"<div style='padding:4px 0;border-bottom:1px solid #203653'><b>{row["symbol"]}</b> <span style='color:#8194ad;font-size:9px'>{row["rule"]}</span><span style='float:right;color:#8194ad;font-size:9px'>{row["timestamp"]}</span><div style='color:#cbd7e7;font-size:10px'>{row["message"]}</div></div>",unsafe_allow_html=True)
             else:
-                st.markdown("<div class='b4-empty'>No persisted alert history.</div>", unsafe_allow_html=True)
-
-        with setup_tab:
-            st.markdown("<div class='b4-help'>Compact controls only. Alert rules are independent of SDL scoring, Radar, Queue and Replay.</div>", unsafe_allow_html=True)
-            c1, c2, c3 = st.columns([0.9, 1.15, 1.35])
-            with c1:
-                enabled = st.toggle("Sound", value=bool(sound_enabled), key="sdl_alert_sound_enabled")
-            with c2:
-                tone_options = ["long", "double", "single", "soft"]
-                tone_value = sound_tone if sound_tone in tone_options else "long"
-                tone = st.selectbox("Tone", tone_options, index=tone_options.index(tone_value), key="sdl_alert_sound_tone")
-            with c3:
-                volume = st.slider("Vol", 0.05, 1.0, max(0.05, min(float(sound_volume), 1.0)), 0.05, key="sdl_alert_sound_volume")
-            st.components.v1.html(sound_html(SoundSettings(True, float(volume), tone), test_button=True, nonce="sdl-b41-test"), height=38)
-
-            st.markdown("<div class='b4-section-label'>RULES</div>", unsafe_allow_html=True)
-            for idx, rule in enumerate(current_rules):
-                r1, r2, r3 = st.columns([0.42, 1.45, 1.0])
-                with r1:
-                    rule_enabled = st.checkbox("", value=bool(rule["enabled"]), key=f"sdl_rule_enabled_{idx}", label_visibility="collapsed")
-                with r2:
-                    st.markdown(f"<div class='b4-rule-mini'><b>{escape(_rule_short_name(rule))}</b><span>{escape(str(rule['field']))} {escape(str(rule['operator']))} {float(rule['value']):g}</span></div>", unsafe_allow_html=True)
-                with r3:
-                    rule_sound = st.checkbox("Sound", value=bool(rule["sound"]), key=f"sdl_rule_sound_{idx}")
-                current_rules[idx]["enabled"] = bool(rule_enabled)
-                current_rules[idx]["sound"] = bool(rule_sound)
-
-            with st.expander("Edit thresholds", expanded=False):
-                for idx, rule in enumerate(current_rules):
-                    f, o, v = st.columns([1.65, 0.65, 0.8])
-                    with f:
-                        field = st.selectbox("Field", FIELDS, index=FIELDS.index(rule["field"]), key=f"sdl_rule_field_{idx}")
-                    with o:
-                        op = st.selectbox("Op", OPERATORS, index=OPERATORS.index(rule["operator"]), key=f"sdl_rule_op_{idx}")
-                    with v:
-                        value = st.number_input("Value", value=float(rule["value"]), step=1.0, key=f"sdl_rule_value_{idx}")
-                    current_rules[idx]["field"] = field
-                    current_rules[idx]["operator"] = op
-                    current_rules[idx]["value"] = float(value)
-
-                if st.button("↺ Reset defaults", key="sdl_reset_alert_rules"):
-                    for idx, rule in enumerate(DEFAULT_RULES):
-                        st.session_state[f"sdl_rule_enabled_{idx}"] = bool(rule["enabled"])
-                        st.session_state[f"sdl_rule_sound_{idx}"] = bool(rule["sound"])
-                        st.session_state[f"sdl_rule_field_{idx}"] = rule["field"]
-                        st.session_state[f"sdl_rule_op_{idx}"] = rule["operator"]
-                        st.session_state[f"sdl_rule_value_{idx}"] = float(rule["value"])
-                    st.rerun()
-
-        should_sound = bool(new_alert and new_alert_sound and enabled)
-
-    # Audio remains outside the popover so a closed drawer can still announce a new event.
-    should_sound = bool(new_alert and new_alert_sound and enabled)
-    st.components.v1.html(
-        sound_html(SoundSettings(enabled=enabled, volume=volume, tone=tone), trigger=should_sound, nonce="sdl-b41-alert"),
-        height=1,
-    )
-    return {
-        "enabled": bool(enabled),
-        "volume": float(volume),
-        "tone": str(tone),
-        "rules": current_rules,
-    }
+                st.caption("No persisted alert history.")
+            if diagnostic:
+                st.caption(f"Diagnostic: {diagnostic}")
+            if history_rows and chart_provider is not None:
+                chart_symbols = [row["symbol"] for row in history_rows]
+                selected_symbol = st.selectbox("Alert chart", chart_symbols, key="sdl_alert_chart_symbol")
+                selected_event = next((e for e in list(history_events or ()) if _text(e.get("symbol"),"UNKNOWN") == selected_symbol), None)
+                if selected_event is not None:
+                    try:
+                        chart_df = chart_provider(selected_event)
+                        if chart_df is not None and not chart_df.empty:
+                            if "Observation" in chart_df.columns and "Close" in chart_df.columns:
+                                _render_intraday_evidence_chart(
+                                    chart_df,
+                                    selected_event.get("observation_timestamp") or selected_event.get("timestamp"),
+                                )
+                            else:
+                                st.dataframe(chart_df, use_container_width=True, hide_index=True)
+                    except Exception as exc:
+                        st.caption(f"Chart unavailable: {type(exc).__name__}: {exc}")
+        should_sound=bool(new_alert and new_alert_sound and enabled)
+    # This audio component is deliberately outside the popover body. It must
+    # exist even while the drawer is closed so a new alert can be announced.
+    should_sound=bool(new_alert and new_alert_sound and enabled)
+    st.components.v1.html(sound_html(SoundSettings(enabled=enabled,volume=volume,tone=tone),trigger=should_sound,nonce="sdl-b41-alert"),height=1)
+    return {"enabled":bool(enabled),"volume":float(volume),"tone":str(tone),"rules":current_rules}
