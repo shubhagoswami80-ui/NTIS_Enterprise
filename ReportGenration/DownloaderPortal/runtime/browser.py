@@ -12,10 +12,11 @@ class BrowserManager:
         self.playwright = None
         self.context = None
         self.discovery_page = None
+        # Serialize first persistent-context creation.
+        self._start_lock = None
 
     async def start(self):
-        # Reuse the already-running persistent context. A persistent
-        # Chromium profile can have only one owner at a time.
+        # Reuse the already-running persistent context.
         if self.context is not None:
             try:
                 if not self.context.is_closed():
@@ -23,15 +24,27 @@ class BrowserManager:
             except Exception:
                 pass
 
-        if self.playwright is None:
-            self.playwright = await async_playwright().start()
+        if self._start_lock is None:
+            self._start_lock = asyncio.Lock()
 
-        self.context = await self.playwright.chromium.launch_persistent_context(
-            user_data_dir=str(self.profile_dir),
-            headless=False,
-            accept_downloads=True,
-        )
-        return self.context
+        async with self._start_lock:
+            # Another concurrent job may have completed startup while waiting.
+            if self.context is not None:
+                try:
+                    if not self.context.is_closed():
+                        return self.context
+                except Exception:
+                    pass
+
+            if self.playwright is None:
+                self.playwright = await async_playwright().start()
+
+            self.context = await self.playwright.chromium.launch_persistent_context(
+                user_data_dir=str(self.profile_dir),
+                headless=False,
+                accept_downloads=True,
+            )
+            return self.context
 
     async def stop(self):
         self.discovery_page = None

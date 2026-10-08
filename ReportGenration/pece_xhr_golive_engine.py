@@ -11,7 +11,7 @@ from urllib.parse import parse_qsl, urlencode
 
 TARGET_URL = "https://www.icharts.in/opt/TotalPECEOIDiff_Beta.php"
 ENDPOINT_RE = re.compile(
-    r"/getDataForTotalPECEOIDiff_Beta_v7_chart_v5\.php(?:\?|$)", re.I
+    r"/getDataForTotalPECEOIDiff_Beta_v7_chart_v5(?:_1)?\.php(?:\?|$)", re.I
 )
 
 # Authoritative iCharts PE/CE report output schema.
@@ -415,7 +415,7 @@ def run_pece_xhr_batch(context, output_root, job, status_callback=None):
         ),
     )
     max_429_failures = max(1, min(10, int(job.get("max_429_failures", 3))))
-    run_timeout_seconds = max(30, min(180, int(job.get("run_timeout_seconds", 180))))
+    run_timeout_seconds = max(30, min(220, int(job.get("run_timeout_seconds", 220))))
 
     manifest = {
         "status": "starting",
@@ -474,6 +474,7 @@ def run_pece_xhr_batch(context, output_root, job, status_callback=None):
 
         # Capture starts BEFORE navigation so the initial native XHR cannot be missed.
         captured = []
+        captured_requests = []
 
         def on_response(resp):
             try:
@@ -485,7 +486,18 @@ def run_pece_xhr_batch(context, output_root, job, status_callback=None):
             except Exception:
                 pass
 
+        def on_request(req):
+            try:
+                if (
+                    req.method.upper() == "POST"
+                    and ENDPOINT_RE.search(req.url)
+                ):
+                    captured_requests.append(req)
+            except Exception:
+                pass
+
         page.on("response", on_response)
+        page.on("request", on_request)
 
         page.goto(
             manifest["target_url"],
@@ -625,18 +637,218 @@ def run_pece_xhr_batch(context, output_root, job, status_callback=None):
         }
         """
 
+        # Fast symbol-state acquisition:
+        # do not select 208 symbols in the browser one-by-one.
+        # The authoritative iCharts TopRightDetails response supplies the
+        # symbol-specific expiry and IV/ATM closest price needed by the native
+        # PE/CE POST. This preserves the native POST schema while removing the
+        # serial DOM/XHR dependency.
+        TOPRIGHT_URL = (
+            "https://www.icharts.in/opt/hcharts/stx8req/php/getTopRightDetails.php"
+        )
+
+        topright_js = r"""
+        async ({url, symbols, concurrency, timeoutMs, requestGapMs}) => {
+          let next=0;
+          let nextStart=0;
+          const results=new Array(symbols.length);
+
+          async function reserveStart(){
+            const now=performance.now();
+            const start=Math.max(now,nextStart);
+            nextStart=start+requestGapMs;
+            const wait=start-now;
+            if(wait>0) await new Promise(r=>setTimeout(r,wait));
+          }
+
+          async function worker(){
+            while(true){
+              const i=next++;
+              if(i>=symbols.length) return;
+
+              const symbol=symbols[i];
+              await reserveStart();
+              const t=performance.now();
+              const ctl=new AbortController();
+              const timer=setTimeout(()=>ctl.abort(),timeoutMs);
+
+              try{
+                const body=new URLSearchParams({
+                  optSymbol:symbol,
+                  optExpDate:"undefined",
+                  monthlyExpDate:"undefined",
+                  Presentday:"undefined",
+                  Prevday:"undefined",
+                  rdDataType:"latest",
+                  txtDate:"undefined",
+                  defaultDate:"undefined",
+                  e:"1"
+                }).toString();
+
+                const r=await fetch(url,{
+                  method:'POST',
+                  headers:{
+                    'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-Requested-With':'XMLHttpRequest'
+                  },
+                  body,
+                  credentials:'include',
+                  cache:'no-store',
+                  signal:ctl.signal
+                });
+
+                const text=await r.text();
+                let obj=null;
+                try{ obj=JSON.parse(text); }catch(e){}
+
+                results[i]={
+                  symbol,
+                  status:r.status,
+                  ok:r.ok,
+                  elapsed_ms:performance.now()-t,
+                  object:obj,
+                  body:text
+                };
+              }catch(e){
+                results[i]={
+                  symbol,
+                  status:0,
+                  ok:false,
+                  elapsed_ms:performance.now()-t,
+                  error:String(e)
+                };
+              }finally{
+                clearTimeout(timer);
+              }
+            }
+          }
+
+          await Promise.all(
+            Array.from(
+              {length:Math.min(concurrency,symbols.length)},
+              ()=>worker()
+            )
+          );
+          return results;
+        }
+        """
+
+        def _build_authoritative_body(base_pairs, symbol, state):
+            expiry = str(state.get("expiry") or "").strip()
+            closest = str(state.get("closestPrice") or "").strip()
+            if not expiry or not closest:
+                raise RuntimeError(
+                    f"Missing authoritative TopRightDetails state for {symbol}"
+                )
+
+            pairs = []
+            for key, value in base_pairs:
+                if key == "optSymbol":
+                    value = symbol
+                elif key == "optExpDate":
+                    value = expiry
+                elif key == "closestPrice":
+                    value = closest
+                elif key == "save_data":
+                    try:
+                        save_obj = json.loads(value)
+                    except Exception as exc:
+                        raise RuntimeError(
+                            f"Native save_data is not valid JSON for {symbol}"
+                        ) from exc
+                    save_obj["symbol"] = symbol
+                    save_obj["exp_date"] = expiry
+                    value = json.dumps(
+                        save_obj,
+                        separators=(",", ":"),
+                        ensure_ascii=False,
+                    )
+                pairs.append((key, value))
+
+            return urlencode(pairs)
+
+        def _resolve_symbol_states(batch):
+            symbols_for_state = [s["value"] for s in batch]
+            raw_states = page.evaluate(
+                topright_js,
+                {
+                    "url": TOPRIGHT_URL,
+                    "symbols": symbols_for_state,
+                    "concurrency": 8,
+                    "timeoutMs": 5000,
+                    "requestGapMs": 150,
+                },
+            )
+
+            states = {}
+            failures = []
+            for item in raw_states:
+                symbol = item.get("symbol")
+                if not item.get("ok"):
+                    failures.append(
+                        f"{symbol}: HTTP {item.get('status') or 0} "
+                        f"{item.get('error') or 'top-right request failed'}"
+                    )
+                    continue
+
+                obj = item.get("object")
+                futures = obj.get("futures") if isinstance(obj, dict) else None
+                iv = obj.get("iv") if isinstance(obj, dict) else None
+
+                if (
+                    not isinstance(futures, list)
+                    or len(futures) < 3
+                    or str(futures[0]).strip().upper() != str(symbol).upper()
+                ):
+                    failures.append(
+                        f"{symbol}: invalid TopRightDetails state"
+                    )
+                    continue
+
+                # Current iCharts TopRightDetails responses may legitimately
+                # return iv=null while futures[1] and futures[2] remain the
+                # authoritative expiry and closest/ATM price used by the
+                # native PE/CE POST. Do not reject the state solely because
+                # the optional IV array is absent.
+                expiry = str(futures[1]).strip()
+                closest = str(futures[2]).strip()
+                if not expiry or not closest:
+                    failures.append(
+                        f"{symbol}: missing expiry/closestPrice"
+                    )
+                    continue
+
+                states[symbol] = {
+                    "expiry": expiry,
+                    "closestPrice": closest,
+                }
+
+            if failures:
+                raise RuntimeError(
+                    "Authoritative symbol-state acquisition failed: "
+                    + " | ".join(failures)
+                )
+            return states
+
         def execute(batch):
+            states = _resolve_symbol_states(batch)
+            jobs = [
+                {
+                    "symbol": s["value"],
+                    "body": _build_authoritative_body(
+                        base_pairs,
+                        s["value"],
+                        states[s["value"]],
+                    ),
+                }
+                for s in batch
+            ]
+
             return page.evaluate(
                 fetch_js,
                 {
                     "url": template.url,
-                    "jobs": [
-                        {
-                            "symbol": s["value"],
-                            "body": _make_body(base_pairs, s["value"]),
-                        }
-                        for s in batch
-                    ],
+                    "jobs": jobs,
                     "concurrency": concurrency,
                     "timeoutMs": timeout_ms,
                     "requestGapMs": request_gap_ms,
@@ -811,7 +1023,7 @@ def run_pece_xhr_batch(context, output_root, job, status_callback=None):
                         "timeout": True,
                     }
             manifest["run_timeout"] = True
-            manifest["timeout_reason"] = "3-minute hard deadline reached"
+            manifest["timeout_reason"] = "220-second hard deadline reached"
         else:
             manifest["run_timeout"] = False
 

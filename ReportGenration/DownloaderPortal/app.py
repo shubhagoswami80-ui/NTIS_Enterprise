@@ -25,11 +25,56 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .block-container {padding-top: 1.0rem; padding-bottom: 2rem;}
-    .portal-title {font-size:2rem;font-weight:700;line-height:1.1;margin-bottom:.15rem;}
-    .portal-sub {color:#6b7280;font-size:.92rem;margin-bottom:1rem;}
-    .section-label {font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin:1rem 0 .45rem;}
-    .job-note {padding:.55rem .75rem;border:1px solid rgba(128,128,128,.20);border-radius:.55rem;margin:.25rem 0 .55rem;}
+    .block-container {padding-top:.45rem;padding-bottom:.7rem;max-width:1540px;margin:0 auto;}
+    .portal-title {font-size:1.78rem;font-weight:850;line-height:1.04;margin-bottom:.04rem;}
+    .portal-sub {color:#475569;font-size:.86rem;margin-bottom:.42rem;}
+    .section-label {font-size:.76rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase;color:#475569;margin:.45rem 0 .28rem;}
+    .dash-section-title {font-size:.78rem;font-weight:900;letter-spacing:.10em;color:#334155;margin:.58rem 0 .34rem;border-left:4px solid #2563eb;padding-left:.5rem;}
+
+    .kpi-card {border-radius:.7rem;padding:.48rem .66rem;min-height:64px;border:1px solid rgba(71,85,105,.20);box-shadow:0 2px 5px rgba(15,23,42,.09);}
+    .kpi-label {font-size:.70rem;font-weight:850;letter-spacing:.07em;color:#475569;}
+    .kpi-value {font-size:1.48rem;font-weight:900;line-height:1.05;margin-top:.14rem;color:#0f172a;}
+    .kpi-blue {background:linear-gradient(135deg,#dbeafe,#bfdbfe);border-left:5px solid #2563eb;}
+    .kpi-cyan {background:linear-gradient(135deg,#cffafe,#a5f3fc);border-left:5px solid #0891b2;}
+    .kpi-green {background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-left:5px solid #16a34a;}
+    .kpi-teal {background:linear-gradient(135deg,#ccfbf1,#99f6e4);border-left:5px solid #0d9488;}
+    .kpi-amber {background:linear-gradient(135deg,#fef3c7,#fde68a);border-left:5px solid #d97706;}
+    .kpi-red {background:linear-gradient(135deg,#ffe4e6,#fecdd3);border-left:5px solid #dc2626;}
+
+    .smart-job {border:1px solid rgba(71,85,105,.22);border-radius:.68rem;padding:.62rem .70rem .52rem;min-height:112px;margin-bottom:.10rem;box-shadow:0 2px 5px rgba(15,23,42,.08);}
+    .job-running {background:linear-gradient(135deg,#dcfce7,#f0fdf4);border-left:5px solid #16a34a;}
+    .job-success {background:linear-gradient(135deg,#ccfbf1,#f0fdfa);border-left:5px solid #0d9488;}
+    .job-partial {background:linear-gradient(135deg,#fef3c7,#fffbeb);border-left:5px solid #d97706;}
+    .job-failed {background:linear-gradient(135deg,#fecdd3,#fff1f2);border-left:5px solid #dc2626;}
+    .job-idle {background:linear-gradient(135deg,#e2e8f0,#f8fafc);border-left:5px solid #64748b;}
+
+    .smart-top {display:flex;justify-content:space-between;align-items:center;gap:.4rem;}
+    .smart-name {font-size:.94rem;font-weight:850;line-height:1.18;color:#0f172a;}
+    .smart-badge {font-size:.65rem;font-weight:900;letter-spacing:.05em;padding:.20rem .42rem;border-radius:.4rem;background:rgba(15,23,42,.09);white-space:nowrap;color:#0f172a;}
+    .smart-transport {font-size:.67rem;color:#475569;margin:.22rem 0 .34rem;font-weight:600;}
+    .smart-activity {font-size:.73rem;line-height:1.30;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .smart-meta {display:flex;justify-content:space-between;gap:.35rem;margin-top:.34rem;font-size:.67rem;color:#475569;white-space:nowrap;overflow:hidden;font-weight:600;}
+    .smart-meta span {overflow:hidden;text-overflow:ellipsis;}
+
+    .rail-heading {font-size:.78rem;font-weight:900;letter-spacing:.10em;color:#0f172a;margin-bottom:.62rem;}
+    .rail-label {font-size:.69rem;font-weight:900;letter-spacing:.07em;margin:.50rem 0 .28rem;}
+    .rail-label.green {color:#15803d;}
+    .rail-label.blue {color:#1d4ed8;}
+    .rail-label.amber {color:#b45309;}
+    .live-item {border-radius:.56rem;padding:.48rem .56rem;margin-bottom:.28rem;font-size:.72rem;line-height:1.28;border:1px solid rgba(71,85,105,.18);box-shadow:0 1px 3px rgba(15,23,42,.06);}
+    .live-item b,.live-item span {display:block;}
+    .live-item span {font-size:.66rem;color:#475569;margin-top:.10rem;}
+    .live-item.running {background:#dcfce7;border-left:4px solid #16a34a;}
+    .live-item.ready {background:#dbeafe;border-left:4px solid #2563eb;}
+    .live-item.attention {background:#fef3c7;border-left:4px solid #d97706;}
+    .rail-empty {border:1px dashed rgba(71,85,105,.28);border-radius:.55rem;padding:.46rem .56rem;color:#64748b;font-size:.67rem;margin-bottom:.55rem;background:#f8fafc;}
+
+    div[data-testid="stButton"] > button {height:2.05rem;min-height:2.05rem;padding:.15rem .40rem;font-size:.74rem;font-weight:800;border-radius:.48rem;margin-bottom:.36rem;}
+    div[data-testid="stMetric"] {padding:.10rem .28rem;}
+    div[data-testid="stMetricLabel"] {font-size:.70rem;}
+    div[data-testid="stMetricValue"] {font-size:1.12rem;}
+
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -275,65 +320,169 @@ with st.sidebar:
     st.divider()
     st.caption("8506 production process is not controlled by this portal.")
 
-with tab_overview:
-    st.markdown('<div class="section-label">Live Job Board</div>', unsafe_allow_html=True)
 
+with tab_overview:
     @st.fragment(run_every=2)
-    def _render_live_job_board():
-        for group in ["Specialized Collectors", "Legacy Downloaders"]:
-            group_jobs = [j for j in jobs if job_group(j) == group]
-            if not group_jobs:
-                continue
-            st.markdown(f"#### {group}")
+    def _render_smart_dashboard():
+        snapshot = R["scheduler"].runtime_snapshot()
+        active_meta = snapshot.get("active_meta", {}) if isinstance(snapshot, dict) else {}
+        running_jobs, attention_jobs, ready_jobs = [], [], []
+
+        for job in jobs:
+            state = state_for(job)
+            meta = active_meta.get(job["id"], {})
+            is_running = state.state == "RUNNING" and job["id"] in R["scheduler"].active_job_ids
+            if is_running:
+                running_jobs.append((job, state, meta))
+            elif state.state in {"FAILED", "PARTIAL"}:
+                attention_jobs.append((job, state, meta))
+            else:
+                ready_jobs.append((job, state, meta))
+
+        def short(value, limit=55):
+            value = str(value or "").replace("\n", " ").strip()
+            return value if len(value) <= limit else value[:limit - 3] + "..."
+
+        counts = {
+            "total": len(jobs),
+            "enabled": sum(1 for j in jobs if bool(j.get("enabled", False))),
+            "running": len(running_jobs),
+            "success": sum(1 for j in jobs if state_for(j).state in {"SUCCESS", "COMPLETE"}),
+            "partial": sum(1 for j in jobs if state_for(j).state == "PARTIAL"),
+            "failed": sum(1 for j in jobs if state_for(j).state == "FAILED"),
+        }
+
+        kpi = st.columns(6, gap="small")
+        cards = [
+            ("TOTAL JOBS", counts["total"], "kpi-blue"),
+            ("ENABLED", counts["enabled"], "kpi-cyan"),
+            ("RUNNING", counts["running"], "kpi-green"),
+            ("SUCCESS", counts["success"], "kpi-teal"),
+            ("PARTIAL", counts["partial"], "kpi-amber"),
+            ("FAILED", counts["failed"], "kpi-red"),
+        ]
+        for col, (label, value, cls) in zip(kpi, cards):
+            with col:
+                st.markdown(
+                    f'<div class="kpi-card {cls}"><div class="kpi-label">{label}</div>'
+                    f'<div class="kpi-value">{value}</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+        st.markdown('<div class="dash-section-title">JOB OPERATIONS</div>', unsafe_allow_html=True)
+        main_col, rail_col = st.columns([3.55, 1.05], gap="medium")
+
+        with main_col:
+            for row_start in range(0, len(jobs), 3):
+                row_jobs = jobs[row_start:row_start + 3]
+                cols = st.columns(3, gap="small")
+                for col, job in zip(cols, row_jobs):
+                    with col:
+                        state = state_for(job)
+                        meta = active_meta.get(job["id"], {})
+                        running = state.state == "RUNNING" and job["id"] in R["scheduler"].active_job_ids
+
+                        if running:
+                            status_class, icon, status_text = "job-running", "●", "RUNNING"
+                        elif state.state in {"SUCCESS", "COMPLETE"}:
+                            status_class, icon, status_text = "job-success", "✓", "SUCCESS"
+                        elif state.state == "PARTIAL":
+                            status_class, icon, status_text = "job-partial", "▲", "PARTIAL"
+                        elif state.state == "FAILED":
+                            status_class, icon, status_text = "job-failed", "✕", "FAILED"
+                        else:
+                            status_class, icon, status_text = "job-idle", "○", "IDLE"
+
+                        stage = meta.get("stage") or state.current_stage or "IDLE"
+                        activity = meta.get("detail") or state.current_detail or state.last_message or "Waiting"
+                        result = state.processing_status or state.download_status or state.state or "—"
+                        last = state.last_run or "—"
+                        duration = f"{state.duration_seconds:.1f}s" if state.duration_seconds is not None else "—"
+                        transport = job.get("transport", "Browser")
+
+                        st.markdown(
+                            f'<div class="smart-job {status_class}">'
+                            f'<div class="smart-top"><div class="smart-name">{icon} {job.get("name", job["id"])}</div>'
+                            f'<div class="smart-badge">{status_text}</div></div>'
+                            f'<div class="smart-transport">{transport}</div>'
+                            f'<div class="smart-activity"><b>{short(stage, 20)}</b> · {short(activity, 48)}</div>'
+                            f'<div class="smart-meta"><span>Last {short(last, 22)}</span><span>{result}</span><span>{duration}</span></div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                        if st.button("RUN NOW", key=f"v9_run_{job['id']}", use_container_width=True):
+                            try:
+                                ok = R["scheduler"].manual_run(job["id"])
+                                if ok:
+                                    st.toast(f"Started: {job.get('name', job['id'])}")
+                                else:
+                                    st.warning("Job is already running.")
+                            except Exception as exc:
+                                st.error(f"Manual run failed: {exc}")
+
+        with rail_col:
+            st.markdown('<div class="rail-heading">LIVE OPERATIONS</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="rail-label green">● RUNNING NOW</div>', unsafe_allow_html=True)
+            if running_jobs:
+                for job, state, meta in running_jobs:
+                    st.markdown(
+                        f'<div class="live-item running"><b>{job.get("name", job["id"])}</b>'
+                        f'<span>{short(meta.get("stage") or state.current_stage or "RUNNING", 30)}</span>'
+                        f'<span>{short(meta.get("detail") or state.current_detail or "Working", 42)}</span></div>',
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.markdown('<div class="rail-empty">No job running</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="rail-label blue">○ READY / IDLE</div>', unsafe_allow_html=True)
+            if ready_jobs:
+                for job, state, meta in ready_jobs:
+                    st.markdown(
+                        f'<div class="live-item ready"><b>{job.get("name", job["id"])}</b>'
+                        f'<span>{state.state} · every {job.get("interval_minutes", 5)}m</span></div>',
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.markdown('<div class="rail-empty">No ready jobs</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="rail-label amber">▲ ATTENTION</div>', unsafe_allow_html=True)
+            if attention_jobs:
+                for job, state, meta in attention_jobs:
+                    st.markdown(
+                        f'<div class="live-item attention"><b>{job.get("name", job["id"])}</b>'
+                        f'<span>{state.state} · {short(state.last_error_category or state.current_detail or "Review", 40)}</span></div>',
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.markdown('<div class="rail-empty">No partial or failed jobs</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="dash-section-title">RECENT ACTIVITY</div>', unsafe_allow_html=True)
+        recent = sorted(status_rows(), key=lambda r: r["Last Run"] if r["Last Run"] != "—" else "", reverse=True)
+        with st.expander("Open recent job results", expanded=False):
             st.dataframe(
                 [
-                    {
-                        "Job": j.get("name", j["id"]),
-                        "Mode": "F&O Option Chain" if j.get("transport") == "optionchain_end_to_end" else "Browser Download",
-                        "State": state_for(j).state,
-                        "Stage": R["scheduler"].runtime_snapshot().get("active_meta", {}).get(j["id"], {}).get("stage") or state_for(j).current_stage or "—",
-                        "Activity": R["scheduler"].runtime_snapshot().get("active_meta", {}).get(j["id"], {}).get("detail") or state_for(j).current_detail or "—",
-                        "Heartbeat": state_for(j).heartbeat_at or "—",
-                        "Last": state_for(j).last_run or "—",
-                        "Next": state_for(j).next_run or "—",
-                        "Errors": state_for(j).error_count,
-                    }
-                    for j in group_jobs
+                    {"Job": r["Job"], "State": r["State"], "Stage": r["Stage"],
+                     "Last": r["Last Run"], "Duration": r["Duration"],
+                     "Result": r["Processing"], "Errors": r["Errors"]}
+                    for r in recent
                 ],
                 use_container_width=True,
                 hide_index=True,
+                height=min(300, 55 + 34 * max(1, len(recent))),
             )
 
-        recent = sorted(
-            status_rows(),
-            key=lambda r: r["Last Run"] if r["Last Run"] != "—" else "",
-            reverse=True,
-        )
-        st.markdown("#### Current Job State")
-        st.dataframe(recent, use_container_width=True, hide_index=True)
-
-    _render_live_job_board()
-
-    st.markdown('<div class="section-label">Operational Notes</div>', unsafe_allow_html=True)
-    oc = next((j for j in jobs if j.get("transport") == "optionchain_end_to_end"), None)
-    if oc:
-        st.info(
-            f"Option Chain is configured as a dedicated collector: "
-            f"daily iCharts #optSymbol universe, one XLSX per cycle, "
-            f"{oc.get('capture_concurrency',5)} capture / {oc.get('replay_concurrency',5)} replay workers, "
-            f"250 ms request gap, 500 ms jitter and 5 s global 429 cooldown. "
-            f"It remains TEST/DISABLED until explicitly enabled."
-        )
-
+    _render_smart_dashboard()
 with tab_jobs:
     st.markdown('<div class="section-label">Independent Job Control</div>', unsafe_allow_html=True)
-    st.caption("Each job owns its own schedule, execution state, timeout, page and output path. There is no portal-wide execution semaphore.")
+    st.caption("Use the compact Overview for normal operation. Open a job only when configuration changes are needed.")
 
     for idx, job in enumerate(jobs):
         state = state_for(job)
         is_option = job.get("transport") == "optionchain_end_to_end"
         label = f"{'◉' if state.state == 'RUNNING' else '○'} {job.get('name', job['id'])}  ·  {state.state}"
-        with st.expander(label, expanded=is_option and state.state in {"RUNNING", "PARTIAL", "FAILED"}):
+        with st.expander(label, expanded=False):
             top1, top2, top3, top4 = st.columns([2.5, 2, 2, 1.3])
             with top1:
                 st.markdown(f"**{job.get('report_name', job.get('name', job['id']))}**")

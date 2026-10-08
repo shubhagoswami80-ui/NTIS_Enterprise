@@ -16,25 +16,17 @@ from .specialized_transports import support_resistance, pece_xhr_batch
 def _dynamic_destination(job: dict) -> Path:
     raw = str(job.get("output_root") or job.get("destination") or "").strip()
     if not raw:
-        raise RuntimeError(f"{job.get('name', job.get('id', 'job'))}: destination folder is empty")
-    p = Path(raw)
-    today = datetime.now().strftime("%Y-%m-%d")
-    # TEST output_root is a ROOT. Always derive the trading-date folder from it.
-    # If a date folder is already supplied, replace only that final date component.
-    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", p.name):
-        p = p.parent
-    else:
-        # If the supplied root already ends in a year/month hierarchy, preserve the
-        # root semantics by rebuilding only the final trading-date component below.
-        pass
+        raise RuntimeError(
+            f"{job.get('name', job.get('id', 'job'))}: destination folder is empty"
+        )
+    root = Path(raw)
     now = datetime.now()
-    if p.name.lower() == now.strftime("%B").lower() and re.fullmatch(r"\d{4}", p.parent.name):
-        p = p.parent.parent
-    elif re.fullmatch(r"\d{4}", p.name):
-        p = p.parent
-    p = p / str(now.year) / now.strftime("%B").lower() / now.strftime("%Y-%m-%d")
-    p.mkdir(parents=True, exist_ok=True)
-    return p
+    month_folder = now.strftime("%B") + now.strftime("%y")
+    day_folder = now.strftime("%Y-%m-%d")
+    destination = root / month_folder / day_folder
+    destination.mkdir(parents=True, exist_ok=True)
+    return destination
+
 
 
 async def browser_download(page, job: dict) -> dict:
