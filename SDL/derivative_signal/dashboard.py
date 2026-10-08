@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import date, datetime
 import gzip
@@ -29,6 +29,7 @@ from decision_evidence import merge_evidence, enrich_decision
 from dashboard_evidence_bridge import build_live_evidence, resolve_alert_runtime
 from retracement_runtime.integration import enrich_snapshot
 from ntis_dashboard_evidence.renderer import render_ntis_evidence_surface
+from uua_dashboard_surface import render_uua_surface
 
 STATE_KEY = "derivative_signal"
 STATE_JSON = Path(__file__).resolve().parent / "data" / "output" / "state" / "processing_state.json"
@@ -502,11 +503,11 @@ def _timeline_first_alert_value(
     """Return immutable First Alert provenance for every timeline event."""
     value = str(row.get("first_alert_timestamp", "")).strip()
     if not value:
-        return "—"
+        return "â€”"
     try:
         return datetime.fromisoformat(value).isoformat()
     except (TypeError, ValueError):
-        return "—"
+        return "â€”"
 
 
 def _update_first_alerts(
@@ -1249,7 +1250,7 @@ def process_all_sources(
                         "Previous": (
                             old_direction
                             if direction_changed
-                            else old_state or "—"
+                            else old_state or "â€”"
                         ),
                         "Evidence": row.get(
                             "decision_score",
@@ -1257,11 +1258,11 @@ def process_all_sources(
                         ),
                         "Strength": row.get(
                             "decision_strength",
-                            "—",
+                            "â€”",
                         ),
                         "S/R": row.get(
                             "sr_status",
-                            "—",
+                            "â€”",
                         ),
                     }
                 )
@@ -2915,10 +2916,10 @@ def _auto_process_new_snapshots(
                         "Symbol": symbol,
                         "Decision": row.get("decision_state", "NO DECISION"),
                         "Direction": direction,
-                        "Previous": old_direction if direction_changed else old_state or "—",
+                        "Previous": old_direction if direction_changed else old_state or "â€”",
                         "Evidence": row.get("decision_score", 0),
-                        "Strength": row.get("decision_strength", "—"),
-                        "S/R": row.get("sr_status", "—"),
+                        "Strength": row.get("decision_strength", "â€”"),
+                        "S/R": row.get("sr_status", "â€”"),
                     })
                 previous_state[symbol] = state_name
                 previous_direction[symbol] = direction
@@ -3379,7 +3380,7 @@ def _phase(row: pd.Series) -> str:
 
 
 def _sr_text(row: pd.Series) -> str:
-    return str(row.get("sr_status", "—")).replace("_", " ")
+    return str(row.get("sr_status", "â€”")).replace("_", " ")
 
 
 def _css() -> None:
@@ -3482,7 +3483,7 @@ html, body{
 .top-status-armed .top-status-dot{background:#2563eb}
 .top-status-active .top-status-dot{background:#16a34a}
 
-/* SECTION 3 — Current Decision Opportunities */
+/* SECTION 3 â€” Current Decision Opportunities */
 .opportunity-grid{
     display:grid;
     grid-template-columns:repeat(3,minmax(0,1fr));
@@ -3947,7 +3948,7 @@ def _render_table(candidates: pd.DataFrame) -> None:
             "First Alert": candidates.get(
                 "first_alert_timestamp",
                 pd.Series("", index=candidates.index),
-            ).astype(str).str.replace("T", " ", regex=False).str.slice(11, 19).replace("", "—"),
+            ).astype(str).str.replace("T", " ", regex=False).str.slice(11, 19).replace("", "â€”"),
             "Time": candidates.get(
                 "observation_timestamp",
                 pd.Series("", index=candidates.index),
@@ -3983,7 +3984,7 @@ def _render_table(candidates: pd.DataFrame) -> None:
             ).round(2),
             "Reason": candidates.get(
                 "decision_reason",
-                pd.Series("—", index=candidates.index),
+                pd.Series("â€”", index=candidates.index),
             ).astype(str),
         }
     )
@@ -4012,17 +4013,17 @@ def _render_table(candidates: pd.DataFrame) -> None:
 def _render_evidence(row: pd.Series) -> None:
     # Compact inspection strip: keep the same evidence, but avoid the large
     # metric cards that previously consumed most of the vertical space.
-    symbol = str(row.get("symbol", "—"))
+    symbol = str(row.get("symbol", "â€”"))
     first_alert = str(row.get("first_alert_timestamp", "")).strip()
-    first_alert = first_alert.replace("T", " ")[:19] if first_alert else "—"
-    state = str(row.get("decision_state", "—"))
-    direction = str(row.get("decision_direction", row.get("direction", "—")))
+    first_alert = first_alert.replace("T", " ")[:19] if first_alert else "â€”"
+    state = str(row.get("decision_state", "â€”"))
+    direction = str(row.get("decision_direction", row.get("direction", "â€”")))
     cells = [
         ("Stock", symbol),
         ("First Alert", first_alert),
         ("State", state.replace("_", " ")),
-        ("Evidence", row.get("decision_score", "—")),
-        ("Confirm", row.get("confirmation_count", "—")),
+        ("Evidence", row.get("decision_score", "â€”")),
+        ("Confirm", row.get("confirmation_count", "â€”")),
         ("S/R", _sr_text(row)),
     ]
     cell_html = "".join(
@@ -4031,7 +4032,7 @@ def _render_evidence(row: pd.Series) -> None:
         for label, value in cells
     )
     st.markdown(
-        f'<div class="inspect-strip"><div class="inspect-title">Decision Evidence — {symbol}</div>'
+        f'<div class="inspect-strip"><div class="inspect-title">Decision Evidence â€” {symbol}</div>'
         f'<div class="inspect-direction">{direction}</div><div class="inspect-grid">{cell_html}</div></div>',
         unsafe_allow_html=True,
     )
@@ -4053,17 +4054,17 @@ def _render_evidence(row: pd.Series) -> None:
                     "Decision Reason",
                 ],
                 "Interpretation": [
-                    row.get("decision_state", "—"),
-                    row.get("directional_interpretation", "—"),
-                    row.get("first_range_event", "—"),
-                    row.get("futures_interpretation", "—"),
-                    row.get("options_interpretation", "—"),
-                    row.get("pcr_interpretation", "—"),
-                    row.get("iv_interpretation", "—"),
-                    row.get("volume_interpretation", "—"),
-                    row.get("oi_interpretation", "—"),
-                    row.get("sr_interpretation", "—"),
-                    row.get("decision_reason", "—"),
+                    row.get("decision_state", "â€”"),
+                    row.get("directional_interpretation", "â€”"),
+                    row.get("first_range_event", "â€”"),
+                    row.get("futures_interpretation", "â€”"),
+                    row.get("options_interpretation", "â€”"),
+                    row.get("pcr_interpretation", "â€”"),
+                    row.get("iv_interpretation", "â€”"),
+                    row.get("volume_interpretation", "â€”"),
+                    row.get("oi_interpretation", "â€”"),
+                    row.get("sr_interpretation", "â€”"),
+                    row.get("decision_reason", "â€”"),
                 ],
             }
         )
@@ -4098,7 +4099,7 @@ def _render_timeline(
     ]
     for col in required:
         if col not in df.columns:
-            df[col] = "—"
+            df[col] = "â€”"
 
     df["Symbol"] = df["Symbol"].astype(str).str.upper().str.strip()
     df["Direction"] = df["Direction"].astype(str).str.upper().str.strip()
@@ -4215,29 +4216,29 @@ def _render_timeline(
     # reversal are different things and should not be conflated.
     stock["Decision Change"] = stock.apply(
         lambda r: (
-            f'{r["Previous"]} → {r["Decision"]}'
-            if r["Previous"] not in {"", "—", "NONE", "NAN"}
-            else f'INITIAL → {r["Decision"]}'
+            f'{r["Previous"]} â†’ {r["Decision"]}'
+            if r["Previous"] not in {"", "â€”", "NONE", "NAN"}
+            else f'INITIAL â†’ {r["Decision"]}'
         ),
         axis=1,
     )
     stock["Direction Change"] = stock.apply(
         lambda r: (
-            f'{r["Previous"]} → {r["Direction"]}'
+            f'{r["Previous"]} â†’ {r["Direction"]}'
             if r["Previous"] in {"BULLISH", "BEARISH"}
             and r["Direction"] in {"BULLISH", "BEARISH"}
             and r["Previous"] != r["Direction"]
-            else "—"
+            else "â€”"
         ),
         axis=1,
     )
     stock["Event"] = stock.apply(
         lambda r: (
             "REVERSAL"
-            if r["Direction Change"] != "—"
+            if r["Direction Change"] != "â€”"
             else (
                 "STATE CHANGE"
-                if r["Previous"] not in {"", "—", "NONE", "NAN"}
+                if r["Previous"] not in {"", "â€”", "NONE", "NAN"}
                 and r["Previous"] != r["Decision"]
                 else "OBSERVATION"
             )
@@ -4248,8 +4249,8 @@ def _render_timeline(
     reversals = int((stock["Event"] == "REVERSAL").sum())
     state_changes = int((stock["Event"] == "STATE CHANGE").sum())
     st.markdown(
-        f"**{selected_symbol} — Intraday Decision Evolution**  "
-        f"({len(stock)} observation(s) · {state_changes} state change(s) · "
+        f"**{selected_symbol} â€” Intraday Decision Evolution**  "
+        f"({len(stock)} observation(s) Â· {state_changes} state change(s) Â· "
         f"{reversals} direction reversal(s))"
     )
 
@@ -4389,7 +4390,7 @@ def _directional_alignment(row: pd.Series) -> tuple[str, int, int]:
     bearish_terms = ('BEARISH','NEGATIVE','SHORT BUILDUP','LONG UNWINDING')
     for field in fields:
         text = str(row.get(field, '')).upper()
-        if not text or text in {'NAN','NONE','—'}:
+        if not text or text in {'NAN','NONE','â€”'}:
             continue
         if direction == 'BULLISH':
             supportive += int(any(token in text for token in bullish_terms))
@@ -4571,7 +4572,7 @@ def _prior_day_structural_break(
                         saved_row.get("direction", "NEUTRAL"),
                     )
                 ).upper().strip()
-                saved_sr = str(saved_row.get("sr_status", "—")).replace("_", " ").upper().strip()
+                saved_sr = str(saved_row.get("sr_status", "â€”")).replace("_", " ").upper().strip()
                 if (
                     saved_symbol == symbol
                     and saved_direction == direction
@@ -4600,7 +4601,7 @@ def _prior_day_structural_break(
                         "break_timestamp": "",
                         "break_level": legacy_level,
                         "first_alert_timestamp": first_alert,
-                        "source": "PRIOR DAY BROKEN STRUCTURE · BREAK TIME UNKNOWN",
+                        "source": "PRIOR DAY BROKEN STRUCTURE Â· BREAK TIME UNKNOWN",
                     }
 
         # Do not search indefinitely once the latest prior day has no evidence.
@@ -4619,7 +4620,7 @@ def _data_cycle_development(row: pd.Series) -> str:
     )
     raw = None
     for key in keys:
-        if key in row.index and row.get(key) not in (None, "", "—"):
+        if key in row.index and row.get(key) not in (None, "", "â€”"):
             raw = row.get(key)
             break
     if raw is None:
@@ -4927,7 +4928,7 @@ def _retracement_context(
                 break_ts = parsed
             else:
                 # Legacy state may know the day but not the exact break time.
-                # Keep the timestamp unknown; the audit will display — rather
+                # Keep the timestamp unknown; the audit will display â€” rather
                 # than inventing midnight or another synthetic clock time.
                 break_ts = None
             break_origin = str(
@@ -5230,21 +5231,21 @@ def _setup_readiness_diagnostic(
 
     if broken:
         if move_abs > 4.0:
-            stage = "POST-BREAK · HIGHLY EXTENDED"
+            stage = "POST-BREAK Â· HIGHLY EXTENDED"
         elif move_abs > 2.5:
-            stage = "POST-BREAK · MATURE"
+            stage = "POST-BREAK Â· MATURE"
         elif prior_structural:
-            stage = "BREAK TRIGGER · FOLLOW-UP"
+            stage = "BREAK TRIGGER Â· FOLLOW-UP"
         else:
-            stage = "BREAK TRIGGER · FIRST OBSERVATION"
+            stage = "BREAK TRIGGER Â· FIRST OBSERVATION"
     elif testing:
-        stage = "TESTING · ENTRY WINDOW"
+        stage = "TESTING Â· ENTRY WINDOW"
     elif approaching:
-        stage = "APPROACHING · EARLY WATCH"
+        stage = "APPROACHING Â· EARLY WATCH"
     elif sr in {"RESISTANCE REJECTED", "SUPPORT REJECTED"}:
-        stage = "REJECTION · RETRACE / BOUNCE WATCH"
+        stage = "REJECTION Â· RETRACE / BOUNCE WATCH"
     else:
-        stage = "DIRECTIONAL · WAIT FOR LEVEL"
+        stage = "DIRECTIONAL Â· WAIT FOR LEVEL"
 
     if approaching or testing:
         label = (
@@ -5299,7 +5300,7 @@ def _setup_readiness_diagnostic(
         "alignment": alignment,
         "supportive": supportive,
         "contradictory": contradictory,
-        "reason": " · ".join(reasons) if reasons else "existing engine evidence only",
+        "reason": " Â· ".join(reasons) if reasons else "existing engine evidence only",
         "first_alert": lifecycle["first_alert"],
         "freshness": lifecycle["freshness"],
         "age_minutes": lifecycle["age_minutes"],
@@ -5348,17 +5349,17 @@ def _alert_lifecycle_diagnostic(
     if age is None:
         freshness = "TIME UNKNOWN"
     elif age <= 10:
-        freshness = "FRESH · ≤10M"
+        freshness = "FRESH Â· â‰¤10M"
     elif age <= 30:
-        freshness = "ACTIVE · ≤30M"
+        freshness = "ACTIVE Â· â‰¤30M"
     elif age <= 60:
-        freshness = "AGING · ≤60M"
+        freshness = "AGING Â· â‰¤60M"
     else:
         freshness = "ORIGINAL ENTRY PASSED"
 
     return {
-        "first_alert": first_ts.strftime("%H:%M:%S") if pd.notna(first_ts) else "—",
-        "current_event": current_ts.strftime("%H:%M:%S") if pd.notna(current_ts) else "—",
+        "first_alert": first_ts.strftime("%H:%M:%S") if pd.notna(first_ts) else "â€”",
+        "current_event": current_ts.strftime("%H:%M:%S") if pd.notna(current_ts) else "â€”",
         "age_minutes": age,
         "freshness": freshness,
     }
@@ -5391,7 +5392,7 @@ def _setup_outlook_diagnostic(row: pd.Series) -> dict[str, Any]:
     )
     populated = sum(
         1 for field in evidence_fields
-        if str(row.get(field, "")).strip().upper() not in {"", "NAN", "NONE", "—"}
+        if str(row.get(field, "")).strip().upper() not in {"", "NAN", "NONE", "â€”"}
     )
     completeness = round((populated / len(evidence_fields)) * 35)
 
@@ -5416,76 +5417,76 @@ def _setup_outlook_diagnostic(row: pd.Series) -> dict[str, Any]:
     if direction == "BULLISH" and sr == "APPROACHING RESISTANCE":
         if highly_extended:
             outlook = "RETRACE RISK"
-            caution = "resistance overhead · move already highly extended"
+            caution = "resistance overhead Â· move already highly extended"
         elif supportive >= 4 and contradictory <= 1:
             outlook = "BREAKOUT WATCH"
-            caution = "resistance overhead · evidence supports a break attempt"
+            caution = "resistance overhead Â· evidence supports a break attempt"
         else:
             outlook = "RETRACE RISK"
-            caution = "resistance overhead · evidence not strong enough yet"
+            caution = "resistance overhead Â· evidence not strong enough yet"
 
     elif direction == "BULLISH" and sr == "RESISTANCE TEST":
         if extended:
             outlook = "BREAKOUT CAUTION"
-            caution = "resistance test · move is already extended; avoid chasing"
+            caution = "resistance test Â· move is already extended; avoid chasing"
         elif supportive >= 4 and contradictory <= 1:
             outlook = "BREAKOUT SETUP"
-            caution = "resistance test · evidence aligned"
+            caution = "resistance test Â· evidence aligned"
         else:
             outlook = "RETRACE RISK"
-            caution = "resistance test · mixed evidence"
+            caution = "resistance test Â· mixed evidence"
 
     elif direction == "BEARISH" and sr == "APPROACHING SUPPORT":
         if highly_extended:
             outlook = "BOUNCE RISK"
-            caution = "support below · move already highly extended"
+            caution = "support below Â· move already highly extended"
         elif supportive >= 4 and contradictory <= 1:
             outlook = "BREAKDOWN WATCH"
-            caution = "support below · evidence supports a break attempt"
+            caution = "support below Â· evidence supports a break attempt"
         else:
             outlook = "BOUNCE RISK"
-            caution = "support below · evidence not strong enough yet"
+            caution = "support below Â· evidence not strong enough yet"
 
     elif direction == "BEARISH" and sr == "SUPPORT TEST":
         if extended:
             outlook = "BREAKDOWN CAUTION"
-            caution = "support test · move is already extended; avoid chasing"
+            caution = "support test Â· move is already extended; avoid chasing"
         elif supportive >= 4 and contradictory <= 1:
             outlook = "BREAKDOWN SETUP"
-            caution = "support test · evidence aligned"
+            caution = "support test Â· evidence aligned"
         else:
             outlook = "BOUNCE RISK"
-            caution = "support test · mixed evidence"
+            caution = "support test Â· mixed evidence"
 
     elif direction == "BULLISH" and sr == "RESISTANCE BROKEN":
         if highly_extended:
-            outlook = "BREAKOUT — LATE"
-            caution = "resistance broken · move highly extended; wait for retest/hold"
+            outlook = "BREAKOUT â€” LATE"
+            caution = "resistance broken Â· move highly extended; wait for retest/hold"
         elif extended:
-            outlook = "BREAKOUT — CAUTION"
-            caution = "resistance broken · move extended; confirmation preferred"
+            outlook = "BREAKOUT â€” CAUTION"
+            caution = "resistance broken Â· move extended; confirmation preferred"
         else:
             outlook = "BREAKOUT CONFIRMATION"
-            caution = "resistance broken · wait for subsequent hold"
+            caution = "resistance broken Â· wait for subsequent hold"
 
     elif direction == "BEARISH" and sr == "SUPPORT BROKEN":
         if highly_extended:
-            outlook = "BREAKDOWN — LATE"
-            caution = "support broken · move highly extended; wait for retest/hold"
+            outlook = "BREAKDOWN â€” LATE"
+            caution = "support broken Â· move highly extended; wait for retest/hold"
         elif extended:
-            outlook = "BREAKDOWN — CAUTION"
-            caution = "support broken · move extended; confirmation preferred"
+            outlook = "BREAKDOWN â€” CAUTION"
+            caution = "support broken Â· move extended; confirmation preferred"
         else:
             outlook = "BREAKDOWN CONFIRMATION"
-            caution = "support broken · wait for subsequent hold"
+            caution = "support broken Â· wait for subsequent hold"
 
     elif direction == "BULLISH":
-        outlook = "BULLISH · WAIT FOR LEVEL"
-        caution = "direction positive · no immediate structural trigger"
+        outlook = "BULLISH Â· WAIT FOR LEVEL"
+        caution = "direction positive Â· no immediate structural trigger"
 
     elif direction == "BEARISH":
-        outlook = "BEARISH · WAIT FOR LEVEL"
-        caution = "direction negative · no immediate structural trigger"
+        outlook = "BEARISH Â· WAIT FOR LEVEL"
+        caution = "direction negative Â· no immediate structural trigger"
 
     else:
         outlook = "WAIT FOR STRUCTURE"
@@ -5521,17 +5522,17 @@ def _break_quality_diagnostic(row: pd.Series, snapshot_results: dict[str, pd.Dat
     if broken_status and sr == broken_status:
         first_idx = next((i for i, obs in enumerate(history) if _sr_text(obs).upper() == broken_status), None)
         if first_idx is None:
-            sustain_label, sustain_points = 'BREAK PRESENT · HISTORY UNAVAILABLE', 8
+            sustain_label, sustain_points = 'BREAK PRESENT Â· HISTORY UNAVAILABLE', 8
         else:
             tail = history[first_idx:]
             checks_after = max(0, len(tail) - 1)
             statuses = [_sr_text(obs).upper() for obs in tail]
             if checks_after == 0:
-                sustain_label, sustain_points = 'NEW BREAK · NOT YET TESTED', 10
+                sustain_label, sustain_points = 'NEW BREAK Â· NOT YET TESTED', 10
             elif all(value == broken_status for value in statuses):
-                sustain_label, sustain_points = f'SUSTAINED · {checks_after} FOLLOW-UP CHECKS', (25 if checks_after >= 2 else 18)
+                sustain_label, sustain_points = f'SUSTAINED Â· {checks_after} FOLLOW-UP CHECKS', (25 if checks_after >= 2 else 18)
             elif statuses[-1] == broken_status:
-                sustain_label, sustain_points = 'RECLAIMED · BREAK RE-ESTABLISHED', 15
+                sustain_label, sustain_points = 'RECLAIMED Â· BREAK RE-ESTABLISHED', 15
             else:
                 sustain_label, sustain_points = 'BREAK WEAKENED / RETESTED', 5
     alignment, supportive, contradictory = _directional_alignment(row)
@@ -5565,7 +5566,7 @@ def _break_quality_diagnostic(row: pd.Series, snapshot_results: dict[str, pd.Dat
     elif alignment == 'INSUFFICIENT': reasons.append('limited supporting data')
     if conflict == 0: reasons.append('no recorded conflicts')
     elif conflict > 0: reasons.append(f'{conflict} conflict{"s" if conflict != 1 else ""}')
-    return {'quality': quality, 'quality_label': quality_label, 'sustain_label': sustain_label, 'alignment': alignment, 'supportive': supportive, 'contradictory': contradictory, 'reason': ' · '.join(reasons) if reasons else 'Existing engine evidence only'}
+    return {'quality': quality, 'quality_label': quality_label, 'sustain_label': sustain_label, 'alignment': alignment, 'supportive': supportive, 'contradictory': contradictory, 'reason': ' Â· '.join(reasons) if reasons else 'Existing engine evidence only'}
 
 def _opportunity_palette(row: pd.Series) -> tuple[str, str, str]:
     """Continuous visual grading using existing decision score/strength only."""
@@ -5621,13 +5622,13 @@ def _render_opportunity_cards(
     cards=[]
     for rank, (_, row) in enumerate(candidates.head(limit).iterrows(), start=1):
         bg, accent, text_color = _opportunity_palette(row)
-        symbol=html.escape(str(row.get('symbol','—')).upper())
+        symbol=html.escape(str(row.get('symbol','â€”')).upper())
         direction=str(row.get('decision_direction',row.get('direction','NEUTRAL'))).upper()
-        strength=str(row.get('decision_strength','—')).replace('_',' ')
+        strength=str(row.get('decision_strength','â€”')).replace('_',' ')
         move=pd.to_numeric(row.get('price_change_pct',row.get('move_pct',0)),errors='coerce')
         lifecycle=_alert_lifecycle_diagnostic(row,snapshot_results)
         first=lifecycle['first_alert']
-        if first == '—':
+        if first == 'â€”':
             try:
                 trading_day = str(st.session_state.get('ds_trading_date','')).strip()
                 symbol_key = str(row.get('symbol','')).strip().upper()
@@ -5641,14 +5642,14 @@ def _render_opportunity_cards(
         sr=_sr_text(row)
         outlook=_setup_outlook_diagnostic(row)
         retrace=_retracement_context(row, snapshot_results)
-        move_text='—' if pd.isna(move) else f'{float(move):+.2f}%'
+        move_text='â€”' if pd.isna(move) else f'{float(move):+.2f}%'
         outlook_text=html.escape(outlook['outlook'])
         caution_text=html.escape(outlook['caution'])
         retrace_html=''
         if retrace.get('status') in {'WATCH','REENTRY ALERT'}:
             rlabel='RE-ENTRY ALERT' if retrace.get('status') == 'REENTRY ALERT' else 'RETRACE WATCH'
             rlevel=retrace.get('entry_level')
-            rlevel_text=(f" · {retrace.get('entry_name')} {rlevel:.2f}"
+            rlevel_text=(f" Â· {retrace.get('entry_name')} {rlevel:.2f}"
                          if isinstance(rlevel,(int,float)) else '')
             origin=str(retrace.get('break_origin','')).strip()
             retrace_html=f'<div class="minimal-retrace">{rlabel}{html.escape(rlevel_text)}</div>'
@@ -5681,18 +5682,18 @@ def _render_live_queue(
     tiles=[]
     for _,row in work.iterrows():
         bg,accent,_=_opportunity_palette(row)
-        symbol=html.escape(str(row.get('symbol','—')).upper())
+        symbol=html.escape(str(row.get('symbol','â€”')).upper())
         direction=str(row.get('decision_direction',row.get('direction','NEUTRAL'))).upper()
-        strength=str(row.get('decision_strength',row.get('decision_state','—'))).replace('_',' ')
+        strength=str(row.get('decision_strength',row.get('decision_state','â€”'))).replace('_',' ')
         move=pd.to_numeric(row.get('price_change_pct',0),errors='coerce')
-        move_text='—' if pd.isna(move) else f'{float(move):+.2f}%'
+        move_text='â€”' if pd.isna(move) else f'{float(move):+.2f}%'
         setup_q=_setup_readiness_diagnostic(row, snapshot_results, history_by_symbol)
         outlook_q=_setup_outlook_diagnostic(row)
         lifecycle_q=_alert_lifecycle_diagnostic(row,snapshot_results)
         quality=int(setup_q['readiness'])
-        tiles.append(f'''<div class="live-queue-tile" style="--queue-bg:{bg};--queue-accent:{accent};"><div class="queue-head"><b>{symbol}</b><span>{direction}</span></div><div class="queue-state">{html.escape(strength.title())}</div><div class="queue-move">{move_text}</div><div class="queue-quality"><span style="width:{quality}%"></span></div><div class="queue-foot"><span>{html.escape(outlook_q['outlook'])} · {quality}%</span><span>First {html.escape(lifecycle_q['first_alert'])}</span></div></div>''')
-    queue_title = 'REPLAY QUEUE · SELECTED POINT-IN-TIME ALERTS' if replay_mode else 'LIVE QUEUE · RECENT FIRST ALERTS'
-    queue_sub = ('Point-in-time historical queue · direction + strength colour coded · existing selection unchanged' if replay_mode else 'Direction + strength colour coded · diagnostic quality only · existing selection unchanged')
+        tiles.append(f'''<div class="live-queue-tile" style="--queue-bg:{bg};--queue-accent:{accent};"><div class="queue-head"><b>{symbol}</b><span>{direction}</span></div><div class="queue-state">{html.escape(strength.title())}</div><div class="queue-move">{move_text}</div><div class="queue-quality"><span style="width:{quality}%"></span></div><div class="queue-foot"><span>{html.escape(outlook_q['outlook'])} Â· {quality}%</span><span>First {html.escape(lifecycle_q['first_alert'])}</span></div></div>''')
+    queue_title = 'REPLAY QUEUE Â· SELECTED POINT-IN-TIME ALERTS' if replay_mode else 'LIVE QUEUE Â· RECENT FIRST ALERTS'
+    queue_sub = ('Point-in-time historical queue Â· direction + strength colour coded Â· existing selection unchanged' if replay_mode else 'Direction + strength colour coded Â· diagnostic quality only Â· existing selection unchanged')
     st.markdown(f'<div class="live-queue-panel"><div class="live-queue-title">{queue_title}</div><div class="live-queue-sub">{queue_sub}</div><div class="live-queue-grid">'+''.join(tiles)+'</div></div>',unsafe_allow_html=True)
 
 
@@ -5704,7 +5705,7 @@ def _render_historical_live_queue(
     if candidates is None or not isinstance(candidates, pd.DataFrame) or candidates.empty:
         return
     with st.expander(
-        f"LIVE Queue • historical snapshot {snapshot_label}",
+        f"LIVE Queue â€¢ historical snapshot {snapshot_label}",
         expanded=True,
     ):
         st.caption(
@@ -5740,13 +5741,13 @@ def _render_processing_output(
 
     effective_processed_time = processing_checkpoint_time or processed_time
     title_suffix = (
-        f" • decision-bearing display {processed_time:%H:%M:%S}"
+        f" â€¢ decision-bearing display {processed_time:%H:%M:%S}"
         if processing_checkpoint_time is not None
         and processing_checkpoint_time != processed_time
         else ""
     )
     with st.expander(
-        f"Processing Output • {effective_processed_time:%H:%M:%S} • latest processed snapshot{title_suffix}",
+        f"Processing Output â€¢ {effective_processed_time:%H:%M:%S} â€¢ latest processed snapshot{title_suffix}",
         expanded=False,
     ):
         c1, c2, c3, c4 = st.columns(4)
@@ -5806,7 +5807,7 @@ def _render_processing_output(
                             errors="coerce",
                         )
                         .dt.strftime("%H:%M:%S")
-                        .fillna("—")
+                        .fillna("â€”")
                     )
             def _style_live_output(data: pd.DataFrame) -> pd.io.formats.style.Styler:
                 def _row_style(row: pd.Series) -> list[str]:
@@ -5864,14 +5865,14 @@ def _render_processing_output(
                 ),
                 use_container_width=True,
             ):
-                with st.spinner("Calculating processing diagnostics…"):
+                with st.spinner("Calculating processing diagnosticsâ€¦"):
                     diagnostic_source = candidates.copy()
                     diagnostic_source['_setup_readiness'] = diagnostic_source.apply(
                         lambda row: _setup_readiness_diagnostic(row, snapshot_results).get('readiness', 0),
                         axis=1,
                     )
                     diagnostic_source['_break_confirmation'] = diagnostic_source.apply(
-                        lambda row: _break_quality_diagnostic(row, snapshot_results).get('sustain_label', '—'),
+                        lambda row: _break_quality_diagnostic(row, snapshot_results).get('sustain_label', 'â€”'),
                         axis=1,
                     )
                     diagnostic_source['_diagnostic_quality'] = diagnostic_source.apply(
@@ -5899,7 +5900,7 @@ def _render_processing_output(
                 # The full 219-row engine audit is also explicitly opt-in.
                 audit_key = f"show_processing_full_audit_{str(processed_time).replace(':', '').replace(' ', '_')}"
                 if st.button(
-                    f"Load Full Engine Evaluation Audit • {len(result)} rows",
+                    f"Load Full Engine Evaluation Audit â€¢ {len(result)} rows",
                     key=audit_key,
                     use_container_width=True,
                 ):
@@ -5917,7 +5918,7 @@ def _render_processing_output(
                             audit[timestamp_col] = (
                                 pd.to_datetime(audit[timestamp_col], errors="coerce")
                                 .dt.strftime("%H:%M:%S")
-                                .fillna("—")
+                                .fillna("â€”")
                             )
                     st.dataframe(audit, use_container_width=True, hide_index=True)
         else:
@@ -6453,7 +6454,7 @@ def _render_retracement_lifecycle(
             or str((replay_event if replay_mode else {}).get("entry_name", "")).strip()
             or str((event_index.get(symbol, {}).get("REENTRY ALERT", {}) or {}).get("entry_name", "")).strip()
             or str((event_index.get(symbol, {}).get("WATCH", {}) or {}).get("entry_name", "")).strip()
-            or "—"
+            or "â€”"
         )
         entry_level = (
             ctx.get("entry_level")
@@ -6503,14 +6504,14 @@ def _render_retracement_lifecycle(
         def _fmt_ts(value: Any) -> str:
             raw = str(value).strip()
             if not raw:
-                return "—"
+                return "â€”"
             try:
                 return datetime.fromisoformat(raw).strftime("%H:%M:%S")
             except (TypeError, ValueError):
                 try:
                     return pd.to_datetime(raw).strftime("%H:%M:%S")
                 except Exception:
-                    return "—"
+                    return "â€”"
 
         live_watch_time = str(saved_watch.get("watch_timestamp", "")).strip()
         original_alert_value = (
@@ -6534,7 +6535,7 @@ def _render_retracement_lifecycle(
         alert_dt = pd.to_datetime(alert_raw, errors="coerce")
         if replay_mode and replay_event:
             development = str(replay_event.get("data_cycle_development", "UNKNOWN")).upper().strip()
-            price_interaction = str(replay_event.get("price_interaction", "")).upper().strip() or "—"
+            price_interaction = str(replay_event.get("price_interaction", "")).upper().strip() or "â€”"
             alert_type = str(replay_event.get("alert_type", "")).upper().strip() or (
                 "REVERSAL ALERT" if status == "REVERSAL"
                 else "REENTRY ALERT" if status == "REENTRY ALERT"
@@ -6582,7 +6583,7 @@ def _render_retracement_lifecycle(
         rows.append(
             {
                 "Stock": symbol,
-                "Direction": direction or "—",
+                "Direction": direction or "â€”",
                 "Original Alert": _fmt_ts(original_alert_value),
                 "Break Origin": break_origin,
                 "Break Time": _fmt_ts(break_ts),
@@ -6592,7 +6593,7 @@ def _render_retracement_lifecycle(
                     f"{float(entry_level):.2f}"
                     if entry_level is not None
                     and pd.notna(pd.to_numeric(entry_level, errors="coerce"))
-                    else "—"
+                    else "â€”"
                 ),
                 "Data Cycle": development,
                 "Price Interaction": price_interaction,
@@ -6606,7 +6607,7 @@ def _render_retracement_lifecycle(
                     or saved_alert.get("reason", "")
                     or ctx.get("reason", "")
                     or saved_watch.get("reason", "")
-                    or "—"
+                    or "â€”"
                 ),
                 "_bar_count": ctx.get("bar_count"),
                 "_ema_ready": ctx.get("ema_ready"),
@@ -6624,7 +6625,7 @@ def _render_retracement_lifecycle(
         )
 
     with st.expander(
-        "Retracement / Re-entry Opportunities • lifecycle audit",
+        "Retracement / Re-entry Opportunities â€¢ lifecycle audit",
         expanded=False,
     ):
         if not rows:
@@ -6638,9 +6639,9 @@ def _render_retracement_lifecycle(
 
         st.markdown(
             '<div class="rt-section-head"><div><b>Retracement / Re-entry Opportunities</b>'
-            '<span class="rt-section-sub">Lifecycle event audit • existing SDL qualification unchanged</span></div>'
-            '<div class="rt-legend"><span class="rt-legend-bull">● BULLISH</span>'
-            '<span class="rt-legend-bear">● BEARISH</span>'
+            '<span class="rt-section-sub">Lifecycle event audit â€¢ existing SDL qualification unchanged</span></div>'
+            '<div class="rt-legend"><span class="rt-legend-bull">â— BULLISH</span>'
+            '<span class="rt-legend-bear">â— BEARISH</span>'
             '<span class="rt-legend-watch">WATCH</span>'
             '<span class="rt-legend-reentry">RE-ENTRY</span></div></div>', 
             unsafe_allow_html=True,
@@ -6656,7 +6657,7 @@ def _render_retracement_lifecycle(
                 if value is None or (isinstance(value, float) and pd.isna(value)):
                     continue
                 text = str(value).strip()
-                if text and text not in {"—", "nan", "NaT"}:
+                if text and text not in {"â€”", "nan", "NaT"}:
                     values.append(text)
             return sorted(set(values), key=str.upper)
 
@@ -6695,7 +6696,7 @@ def _render_retracement_lifecycle(
         with f7:
             time_filter = st.selectbox(
                 "Alert Time",
-                ["All times", "Before 10:00", "10:00–12:00", "12:00–14:00", "After 14:00"],
+                ["All times", "Before 10:00", "10:00â€“12:00", "12:00â€“14:00", "After 14:00"],
                 key=f"{widget_key_prefix}rt_time_filter_{filter_scope}",
             )
 
@@ -6733,16 +6734,16 @@ def _render_retracement_lifecycle(
             alert_hours = table["_alert_datetime"].map(_alert_hour)
             if time_filter == "Before 10:00":
                 mask &= alert_hours < 10
-            elif time_filter == "10:00–12:00":
+            elif time_filter == "10:00â€“12:00":
                 mask &= (alert_hours >= 10) & (alert_hours < 12)
-            elif time_filter == "12:00–14:00":
+            elif time_filter == "12:00â€“14:00":
                 mask &= (alert_hours >= 12) & (alert_hours < 14)
             elif time_filter == "After 14:00":
                 mask &= alert_hours >= 14
 
         # Retracement-only audit filters. These affect display only and never
         # feed _rank(), qualification, lifecycle generation, or replay state.
-        with st.expander("Advanced Filters • audit/display only", expanded=False):
+        with st.expander("Advanced Filters â€¢ audit/display only", expanded=False):
             numeric_map = {
                 "15m RSI": "_rsi_15m", "30m RSI": "_rsi_30m",
                 "1H RSI": "_rsi_1h", "2H RSI": "_rsi_2h",
@@ -6828,7 +6829,7 @@ def _render_retracement_lifecycle(
         # section only; no other dashboard surface is modified.
         def _html(value: Any) -> str:
             import html
-            return html.escape(str(value if value is not None else "—"))
+            return html.escape(str(value if value is not None else "â€”"))
 
         def _status_badge(status: str) -> str:
             s = str(status).upper().strip()
@@ -6841,17 +6842,17 @@ def _render_retracement_lifecycle(
                 "INVALIDATED": "invalidated",
                 "NOT_ACTIVE": "inactive",
             }.get(s, "inactive")
-            return f'<span class="rt-status {cls}">{_html(s or "—")}</span>'
+            return f'<span class="rt-status {cls}">{_html(s or "â€”")}</span>'
 
         def _direction_html(direction: str) -> str:
             d = str(direction).upper().strip()
             cls = "bullish" if d == "BULLISH" else "bearish" if d == "BEARISH" else "neutral"
-            return f'<span class="rt-direction {cls}">{_html(d or "—")}</span>'
+            return f'<span class="rt-direction {cls}">{_html(d or "â€”")}</span>'
 
         def _alert_type_html(alert_type: str) -> str:
             value = str(alert_type).upper().strip()
             if not value:
-                return "—"
+                return "â€”"
             cls = "reentry" if "REENTRY" in value or "REVERSAL" in value else "watch" if "WATCH" in value else "neutral"
             return f'<span class="rt-alert-type {cls}">{_html(value)}</span>'
 
@@ -7065,7 +7066,7 @@ def _render_retracement_lifecycle(
                 ),
             })
         if rsi_rows:
-            with st.expander("MTF Momentum / RSI • formula-derived", expanded=False):
+            with st.expander("MTF Momentum / RSI â€¢ formula-derived", expanded=False):
                 st.caption(
                     "Wilder RSI(14) from the selected point-in-time intraday prefix. "
                     "A value requires at least 15 bars; otherwise WARMING UP is shown. "
@@ -7137,17 +7138,17 @@ def _render_current_result(
         # Keep the controls immediately available and calculate the audit views
         # only when the user explicitly requests them.  No decision logic changes.
         replay_scope = str(st.session_state.get("ds_replay_date", "unknown")).replace("-", "")
-        st.caption("REPLAY audit tools — load only when needed")
+        st.caption("REPLAY audit tools â€” load only when needed")
         c1, c2 = st.columns(2)
         with c1:
             load_lifecycle = st.button(
-                "REPLAY • Load Retracement / Re-entry",
+                "REPLAY â€¢ Load Retracement / Re-entry",
                 key=f"{widget_key_prefix}load_replay_lifecycle_{replay_scope}",
                 use_container_width=True,
             )
         with c2:
             load_evolution = st.button(
-                "REPLAY • Load Intraday Stock Evolution",
+                "REPLAY â€¢ Load Intraday Stock Evolution",
                 key=f"{widget_key_prefix}load_replay_evolution_{replay_scope}",
                 use_container_width=True,
             )
@@ -7158,7 +7159,7 @@ def _render_current_result(
 
         if st.session_state.get(f"{widget_key_prefix}show_replay_lifecycle_{replay_scope}", False):
             try:
-                with st.spinner("Loading REPLAY retracement / re-entry audit…"):
+                with st.spinner("Loading REPLAY retracement / re-entry auditâ€¦"):
                     _render_retracement_lifecycle(
                         result,
                         snapshot_results=snapshot_results,
@@ -7184,7 +7185,7 @@ def _render_current_result(
             _render_timeline(timeline, current_result=result)
         return
 
-    with st.expander("Current Decision Opportunities • Top candidates", expanded=True):
+    with st.expander("Current Decision Opportunities â€¢ Top candidates", expanded=True):
         direction = candidates.get("decision_direction", pd.Series("", index=candidates.index)).astype(str).str.upper()
         state = candidates.get("decision_state", pd.Series("", index=candidates.index)).astype(str).str.upper()
         bullish_view = candidates.loc[direction.eq("BULLISH")].copy()
@@ -7239,7 +7240,7 @@ def _render_current_result(
                     f"NTIS evidence surface unavailable: {type(exc).__name__}: {exc}"
                 )
 
-        with st.expander("Full qualified decision table • audit view", expanded=False):
+        with st.expander("Full qualified decision table â€¢ audit view", expanded=False):
             _render_table(filtered)
 
         no_decision_count = int(
@@ -7253,6 +7254,13 @@ def _render_current_result(
             unsafe_allow_html=True,
         )
 
+    # UUA launcher only. The dedicated ?view=uua route performs cache reads/calculation.
+    render_uua_surface(
+        snapshot_results=snapshot_results,
+        snapshot_label=snapshot_label,
+        trading_date=str(lifecycle_trading_date or st.session_state.get("ds_trading_date", "")),
+        live_queue_symbols=[str(v) for v in candidates.get("symbol", pd.Series(dtype=str)).tolist()],
+    )
     # Never let an empty optional replay cache erase the current row from the
     # retracement audit.  LIVE remains lightweight: when full replay history is
     # unavailable, provide the current decision-bearing snapshot as a minimal
@@ -7290,20 +7298,20 @@ def _live_audit_controls() -> None:
 
     retracement_enabled = bool(st.session_state.get("ds_live_retracement_enabled", False))
     st.caption(
-        "LIVE audit tools — retracement "
+        "LIVE audit tools â€” retracement "
         + ("ON" if retracement_enabled else "OFF")
-        + " • lifecycle execution is isolated from snapshot processing"
+        + " â€¢ lifecycle execution is isolated from snapshot processing"
     )
     c1, c2 = st.columns(2)
     with c1:
         load_lifecycle = st.button(
-            "LIVE • Load Retracement / Re-entry",
+            "LIVE â€¢ Load Retracement / Re-entry",
             use_container_width=True,
             key=f"live_audit_load_lifecycle_{live_scope}",
         )
     with c2:
         load_evolution = st.button(
-            "LIVE • Load Intraday Stock Evolution",
+            "LIVE â€¢ Load Intraday Stock Evolution",
             use_container_width=True,
             key=f"live_audit_load_evolution_{live_scope}",
         )
@@ -7337,14 +7345,14 @@ def _live_audit_controls() -> None:
 
     # Keep the existing evolution presentation/semantics unchanged. The helper
     # below only receives the already-computed LIVE timeline and current result.
-    with st.expander("Intraday Stock Evolution • meaningful changes", expanded=True):
+    with st.expander("Intraday Stock Evolution â€¢ meaningful changes", expanded=True):
         evo = timeline.copy()
         for col in [
             "Time", "Symbol", "Decision", "Previous", "Direction",
             "Evidence", "Strength", "S/R", "First Alert",
         ]:
             if col not in evo.columns:
-                evo[col] = "—"
+                evo[col] = "â€”"
 
         evo["Time"] = evo["Time"].astype(str)
         evo["Symbol"] = evo["Symbol"].astype(str).str.upper().str.strip()
@@ -7367,7 +7375,7 @@ def _live_audit_controls() -> None:
             symbol = str(row["Symbol"]).upper().strip()
             for key in ("first_alert_timestamp", "first_alert", "First Alert"):
                 raw = str(row.get(key, "")).strip()
-                if raw and raw not in {"—", "NAN", "NONE"}:
+                if raw and raw not in {"â€”", "NAN", "NONE"}:
                     try:
                         return datetime.fromisoformat(raw).strftime("%H:%M:%S")
                     except (TypeError, ValueError):
@@ -7379,7 +7387,7 @@ def _live_audit_controls() -> None:
                     return datetime.fromisoformat(raw).strftime("%H:%M:%S")
                 except (TypeError, ValueError):
                     pass
-            return "—"
+            return "â€”"
 
         evo["First Alert"] = evo.apply(_display_first_alert, axis=1)
 
@@ -7402,14 +7410,14 @@ def _live_audit_controls() -> None:
             if symbol in retrace_alerts:
                 alert = retrace_alerts.get(symbol, {}) or {}
                 name = str(alert.get("entry_name", "EMA20/VWAP")).strip()
-                return f"RE-ENTRY ALERT · {name}"
+                return f"RE-ENTRY ALERT Â· {name}"
             if symbol in retrace_watches:
                 watch = retrace_watches.get(symbol, {}) or {}
                 name = str(watch.get("entry_name", "EMA20/VWAP")).strip()
-                return f"RETRACE WATCH · {name}"
+                return f"RETRACE WATCH Â· {name}"
             if previous in {"BULLISH", "BEARISH"} and direction in {"BULLISH", "BEARISH"} and previous != direction:
                 return "REVERSAL"
-            if previous in {"", "—", "NONE", "NAN", "NO DECISION"}:
+            if previous in {"", "â€”", "NONE", "NAN", "NO DECISION"}:
                 return "NEW ALERT"
             if decision.startswith("DEVELOPING"):
                 return "DEVELOPING"
@@ -7427,8 +7435,8 @@ def _live_audit_controls() -> None:
             symbol = str(row.get("Symbol", "")).upper().strip()
             item = structural_breaks.get(symbol, {}) or {}
             if not isinstance(item, dict):
-                return "—"
-            return str(item.get("date", "")).strip() or "—"
+                return "â€”"
+            return str(item.get("date", "")).strip() or "â€”"
 
         evo["Break Origin"] = evo.apply(_break_origin, axis=1)
         symbols = sorted(evo["Symbol"].dropna().unique().tolist())
@@ -7623,14 +7631,14 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
             )
         with controls_c:
             refresh = st.button(
-                "↻ Refresh",
+                "â†» Refresh",
                 use_container_width=True,
                 key="ds_live_refresh",
             )
 
         st.caption(
             "LIVE retracement processing: "
-            + ("ON • diagnostic" if retracement_enabled else "OFF • snapshot processing protected")
+            + ("ON â€¢ diagnostic" if retracement_enabled else "OFF â€¢ snapshot processing protected")
         )
 
         current_day_backlog_requested = bool(
@@ -7668,13 +7676,13 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
             )
 
             if not current_sources:
-                backlog_label = "Today's Intraday Backlog • No snapshots"
+                backlog_label = "Today's Intraday Backlog â€¢ No snapshots"
             elif not checkpoint_valid and checkpoint_reason == "NO_DURABLE_CHECKPOINT":
                 backlog_label = f"Initialize Today's Intraday State ({processed_total or len(current_groups)} snapshots)"
             elif pending_sources:
                 backlog_label = f"Process Today's Intraday Backlog ({len(pending_sources)} pending)"
             else:
-                backlog_label = "Today's Intraday Backlog • Up to date"
+                backlog_label = "Today's Intraday Backlog â€¢ Up to date"
 
             st.button(
                 backlog_label,
@@ -7691,21 +7699,21 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
             if current_sources:
                 if processed_complete:
                     st.markdown(
-                        f'<div style="padding:8px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #22c55e;color:#166534;font-weight:700;">🟢 CURRENT-DAY REPLAY • {processed_cached}/{processed_total} timestamps processed</div>',
+                        f'<div style="padding:8px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #22c55e;color:#166534;font-weight:700;">ðŸŸ¢ CURRENT-DAY REPLAY â€¢ {processed_cached}/{processed_total} timestamps processed</div>',
                         unsafe_allow_html=True,
                     )
                 else:
                     st.markdown(
-                        f'<div style="padding:8px 12px;border-radius:8px;background:#fff7ed;border:1px solid #f59e0b;color:#9a3412;font-weight:700;">🟠 CURRENT-DAY REPLAY • {processed_cached}/{processed_total} timestamps processed • {max(0, processed_total - processed_cached)} pending</div>',
+                        f'<div style="padding:8px 12px;border-radius:8px;background:#fff7ed;border:1px solid #f59e0b;color:#9a3412;font-weight:700;">ðŸŸ  CURRENT-DAY REPLAY â€¢ {processed_cached}/{processed_total} timestamps processed â€¢ {max(0, processed_total - processed_cached)} pending</div>',
                         unsafe_allow_html=True,
                     )
 
             if backlog_status == "COMPLETE" and not backlog_available:
-                st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #22c55e;color:#166534;font-weight:700;">🟢 BACKLOG COMPLETE • LIVE READY / AUTO-RESUME</div>', unsafe_allow_html=True)
+                st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #22c55e;color:#166534;font-weight:700;">ðŸŸ¢ BACKLOG COMPLETE â€¢ LIVE READY / AUTO-RESUME</div>', unsafe_allow_html=True)
 
             if current_day_backlog_requested:
                 auto_update = False
-                st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#fff1f2;border:1px solid #ef4444;color:#991b1b;font-weight:700;">🔴 LIVE PAUSED • CURRENT-DAY BACKLOG PROCESSING</div>', unsafe_allow_html=True)
+                st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#fff1f2;border:1px solid #ef4444;color:#991b1b;font-weight:700;">ðŸ”´ LIVE PAUSED â€¢ CURRENT-DAY BACKLOG PROCESSING</div>', unsafe_allow_html=True)
                 st.session_state["ds_current_day_backlog_status"] = "RUNNING"
                 try:
                     live_sources_now = _discover_sources(trading_date, source_root)
@@ -7713,7 +7721,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         st.session_state["ds_current_day_backlog_status"] = "COMPLETE"
                         st.session_state["ds_current_day_backlog_active"] = False
                         st.session_state["ds_current_day_backlog_resume"] = True
-                        st.success(f"CURRENT-DAY BACKLOG • {trading_date} • no snapshots available")
+                        st.success(f"CURRENT-DAY BACKLOG â€¢ {trading_date} â€¢ no snapshots available")
                         st.rerun()
 
                     live_groups_now = _live_logical_snapshot_groups(live_sources_now)
@@ -7726,9 +7734,9 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                     def _backlog_progress(done: int, count: int, path: Path, timestamp: datetime) -> None:
                         progress.progress(
                             min(1.0, done / count if count else 1.0),
-                            text=f"Current-day backlog: {done} / {count} • {timestamp:%H:%M:%S}",
+                            text=f"Current-day backlog: {done} / {count} â€¢ {timestamp:%H:%M:%S}",
                         )
-                        detail.caption(f"🔴 LIVE PAUSED • snapshot {done}/{count} • {path.name}")
+                        detail.caption(f"ðŸ”´ LIVE PAUSED â€¢ snapshot {done}/{count} â€¢ {path.name}")
 
                     # Manual current-day backlog is the explicit reconciliation
                     # point. It processes only captures after the durable LIVE
@@ -7747,9 +7755,9 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         raise RuntimeError(
                             f"Current-day backlog stopped before the durable processing frontier: {final_cached}/{final_total}."
                         )
-                    progress.progress(1.0, text=f"Current-day backlog: {final_cached} / {final_total} • COMPLETE")
+                    progress.progress(1.0, text=f"Current-day backlog: {final_cached} / {final_total} â€¢ COMPLETE")
                     st.success(
-                        f"CURRENT-DAY BACKLOG COMPLETE • {trading_date} • {final_cached}/{final_total} logical snapshots processed • LIVE reconciled to latest durable state • LIVE will resume automatically."
+                        f"CURRENT-DAY BACKLOG COMPLETE â€¢ {trading_date} â€¢ {final_cached}/{final_total} logical snapshots processed â€¢ LIVE reconciled to latest durable state â€¢ LIVE will resume automatically."
                     )
 
                     st.session_state["ds_current_day_backlog_status"] = "COMPLETE"
@@ -7885,7 +7893,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         # scheduled cycle to continue immediately. The resolver is
                         # cadence-agnostic; this is a UI/throughput boundary, not a
                         # five/ten/fifteen-minute source interval.
-                        max_batch=1,
+                        max_batch=3,
                         retracement_enabled=retracement_enabled,
                     )
                 else:
@@ -7977,58 +7985,58 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
             )
             if auto_update and processing_time < source_latest_time:
                 status = (
-                    "LIVE FEED • processing catch-up • "
+                    "LIVE FEED â€¢ processing catch-up â€¢ "
                     "chronologically monitored"
                 )
             elif not market_open:
                 if persisted_source:
                     status = (
-                        "LIVE FEED • SESSION CLOSED • "
+                        "LIVE FEED â€¢ SESSION CLOSED â€¢ "
                         "LAST COMPLETE SNAPSHOT"
                     )
                 else:
                     status = (
-                        "LIVE FEED • SESSION CLOSED • "
+                        "LIVE FEED â€¢ SESSION CLOSED â€¢ "
                         "LAST AVAILABLE SNAPSHOT"
                     )
             elif auto_update:
                 if processing_time < source_latest_time:
                     status = (
-                        "LIVE FEED • processing catch-up • "
+                        "LIVE FEED â€¢ processing catch-up â€¢ "
                         "chronologically monitored"
                     )
                 else:
                     status = (
-                        "LIVE FEED • last processed snapshot • "
+                        "LIVE FEED â€¢ last processed snapshot â€¢ "
                         "chronologically monitored"
                     )
             else:
-                status = "LIVE FEED • last processed snapshot • Auto-update OFF"
+                status = "LIVE FEED â€¢ last processed snapshot â€¢ Auto-update OFF"
 
             if durable_checkpoint_time is not None:
                 if latest_time != processing_time:
                     st.caption(
-                        f"{status} • processed {processing_time:%H:%M:%S} / "
-                        f"last decision-bearing snapshot {latest_time:%H:%M:%S} • "
+                        f"{status} â€¢ processed {processing_time:%H:%M:%S} / "
+                        f"last decision-bearing snapshot {latest_time:%H:%M:%S} â€¢ "
                         f"source latest {source_latest_time:%H:%M:%S}"
                     )
                 elif processing_time < source_latest_time:
                     st.caption(
-                        f"{status} • processed {processing_time:%H:%M:%S} / "
-                        f"source latest {source_latest_time:%H:%M:%S} • {latest_path.name}"
+                        f"{status} â€¢ processed {processing_time:%H:%M:%S} / "
+                        f"source latest {source_latest_time:%H:%M:%S} â€¢ {latest_path.name}"
                     )
                 else:
                     st.caption(
-                        f"{status} • processed {processing_time:%H:%M:%S} • {latest_path.name}"
+                        f"{status} â€¢ processed {processing_time:%H:%M:%S} â€¢ {latest_path.name}"
                     )
             elif latest_time < source_latest_time:
                 st.caption(
-                    f"{status} • processed {latest_time:%H:%M:%S} / "
-                    f"source latest {source_latest_time:%H:%M:%S} • {latest_path.name}"
+                    f"{status} â€¢ processed {latest_time:%H:%M:%S} / "
+                    f"source latest {source_latest_time:%H:%M:%S} â€¢ {latest_path.name}"
                 )
             else:
                 st.caption(
-                    f"{status} • {latest_time:%H:%M:%S} • {latest_path.name}"
+                    f"{status} â€¢ {latest_time:%H:%M:%S} â€¢ {latest_path.name}"
                 )
 
             # The LIVE fragment is intentionally limited to source monitoring
@@ -8468,10 +8476,10 @@ def _build_replay_day_in_memory(
                     "Symbol": symbol,
                     "Decision": row.get("decision_state", "NO DECISION"),
                     "Direction": direction,
-                    "Previous": old_direction if direction_changed else old_state or "—",
+                    "Previous": old_direction if direction_changed else old_state or "â€”",
                     "Evidence": row.get("decision_score", 0),
-                    "Strength": row.get("decision_strength", "—"),
-                    "S/R": row.get("sr_status", "—"),
+                    "Strength": row.get("decision_strength", "â€”"),
+                    "S/R": row.get("sr_status", "â€”"),
                 })
             previous_state[symbol] = state_name
             previous_direction[symbol] = direction
@@ -8641,8 +8649,8 @@ def _live_decision_panel() -> None:
     )
     if pd.notna(checkpoint_time) and pd.Timestamp(checkpoint_time) > pd.Timestamp(live_latest_time):
         st.caption(
-            f"LIVE processing checkpoint: {pd.Timestamp(checkpoint_time):%H:%M:%S} • "
-            f"displayed decision-bearing snapshot: {live_latest_time:%H:%M:%S} • "
+            f"LIVE processing checkpoint: {pd.Timestamp(checkpoint_time):%H:%M:%S} â€¢ "
+            f"displayed decision-bearing snapshot: {live_latest_time:%H:%M:%S} â€¢ "
             "later processed snapshots contained no newer decision-bearing result."
         )
     _render_current_result(
@@ -8695,14 +8703,18 @@ def _historical_cache_complete_for_sources(
 
 
 def render() -> None:
-    st.set_page_config(page_title="NTIS SDL — Intraday Decision Center", layout="wide")
+    if str(st.query_params.get("view", "")).strip().lower() == "uua":
+        from uua_dashboard_surface import render_uua_fullscreen
+        render_uua_fullscreen()
+        return
+    st.set_page_config(page_title="NTIS SDL â€” Intraday Decision Center", layout="wide")
     _css()
-    st.markdown('<div class="hero"><div class="hero-title">NTIS SDL — Intraday Decision Center</div><div class="hero-sub">Current decision intelligence from the latest complete snapshot — with intraday and historical replay.</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><div class="hero-title">NTIS SDL â€” Intraday Decision Center</div><div class="hero-sub">Current decision intelligence from the latest complete snapshot â€” with intraday and historical replay.</div></div>', unsafe_allow_html=True)
 
     default_source_root = str(Path(INTRADAY_SOURCE_ROOT).expanduser())
     if "ds_source_root_override" not in st.session_state:
         st.session_state["ds_source_root_override"] = default_source_root
-    with st.expander("⚙ Advanced Configuration", expanded=False):
+    with st.expander("âš™ Advanced Configuration", expanded=False):
         configured_source_root = st.text_input("Intraday source data folder", value=st.session_state["ds_source_root_override"], key="ds_source_root_input", help="Normally leave this unchanged. Use it only if the intraday snapshot source folder changes.").strip()
         if not configured_source_root:
             configured_source_root = default_source_root
@@ -8757,14 +8769,14 @@ def render() -> None:
     session_label = "MARKET OPEN" if market_open else "MARKET CLOSED"
     auto_live_enabled = st.session_state.get("ds_auto_update", True)
     if auto_live_enabled and market_open:
-        live_feed_class, live_feed_label = "top-status-active", "LIVE FEED • LAST AVAILABLE"
+        live_feed_class, live_feed_label = "top-status-active", "LIVE FEED â€¢ LAST AVAILABLE"
     elif auto_live_enabled and not market_open:
-        live_feed_class, live_feed_label = "top-status-closed", "LIVE FEED • SESSION CLOSED"
+        live_feed_class, live_feed_label = "top-status-closed", "LIVE FEED â€¢ SESSION CLOSED"
     else:
-        live_feed_class, live_feed_label = "top-status-closed", "LIVE FEED • PAUSED"
+        live_feed_class, live_feed_label = "top-status-closed", "LIVE FEED â€¢ PAUSED"
     st.markdown(f'<div class="top-status"><div class="top-status-chip top-status-ready"><span class="top-status-dot"></span>DATA READY</div><div class="top-status-chip {live_feed_class}"><span class="top-status-dot"></span>{live_feed_label}</div><div class="top-status-chip {session_class}"><span class="top-status-dot"></span>{session_label}</div><div class="top-status-chip"><span class="top-status-dot"></span>LAST {latest_time:%H:%M:%S}</div></div>', unsafe_allow_html=True)
 
-    with st.expander("LIVE • Feed & Session", expanded=True):
+    with st.expander("LIVE â€¢ Feed & Session", expanded=True):
             # Seed the dashboard from the last durable complete state before LIVE
             # processing starts. Processing a newer snapshot must never blank the
             # last valid decision-bearing dashboard.
@@ -8851,12 +8863,12 @@ def render() -> None:
                 # Calendar inventory is intentionally lightweight. Exact cache
                 # completeness is verified only after the trader selects a day.
                 if n and cache:
-                    return "🟢"
+                    return "ðŸŸ¢"
                 if n:
-                    return "🟡"
+                    return "ðŸŸ¡"
                 if cache:
-                    return "🟢"
-                return "🔴"
+                    return "ðŸŸ¢"
+                return "ðŸ”´"
 
             # Deep-check the currently selected day once so the compact header
             # can distinguish READY from merely CACHE PRESENT.
@@ -8882,27 +8894,27 @@ def render() -> None:
                     selected_deep_complete = False
 
             if selected_deep_complete:
-                quick_status = f"🟢 READY • {selected_deep_cached}/{selected_deep_total}"
+                quick_status = f"ðŸŸ¢ READY â€¢ {selected_deep_cached}/{selected_deep_total}"
             elif inv_source_count and inv_cache_exists:
-                quick_status = f"🟩🟨 PARTIAL / VERIFY • cache present"
+                quick_status = f"ðŸŸ©ðŸŸ¨ PARTIAL / VERIFY â€¢ cache present"
             elif inv_source_count:
-                quick_status = "🟡 BUILD REQUIRED"
+                quick_status = "ðŸŸ¡ BUILD REQUIRED"
             elif inv_cache_exists:
-                quick_status = "🟢 CACHE ONLY"
+                quick_status = "ðŸŸ¢ CACHE ONLY"
             else:
-                quick_status = "🔴 NO DATA"
+                quick_status = "ðŸ”´ NO DATA"
 
             top_a, top_b = st.columns([3, 2])
             with top_a:
                 st.markdown(
-                    f"**📅 {default_replay_date}** &nbsp; {quick_status}",
+                    f"**ðŸ“… {default_replay_date}** &nbsp; {quick_status}",
                     unsafe_allow_html=True,
                 )
             with top_b:
-                with st.popover("📅 Select trading day", use_container_width=True):
+                with st.popover("ðŸ“… Select trading day", use_container_width=True):
                     st.markdown("**Intraday Replay Calendar**")
                     st.caption(
-                        "Choose Year → Month → Day. Colour shows source/cache readiness; "
+                        "Choose Year â†’ Month â†’ Day. Colour shows source/cache readiness; "
                         "detailed coverage appears after selection."
                     )
 
@@ -8964,7 +8976,7 @@ def render() -> None:
                                     use_container_width=True,
                                     disabled=not is_available,
                                     help=(
-                                        f"{day_str} • {replay_day_status.get(day_str, {}).get('source_count', 0)} source reports"
+                                        f"{day_str} â€¢ {replay_day_status.get(day_str, {}).get('source_count', 0)} source reports"
                                         if is_available else "No replay source/cache for this day"
                                     ),
                                 ):
@@ -8978,12 +8990,12 @@ def render() -> None:
                                     # being resolved.
 
                     st.markdown(
-                        "**Legend:** 🟢 Ready/cache complete &nbsp; "
-                        "🟡 Build required &nbsp; 🟩🟨 Partial/verify &nbsp; 🔴 No data",
+                        "**Legend:** ðŸŸ¢ Ready/cache complete &nbsp; "
+                        "ðŸŸ¡ Build required &nbsp; ðŸŸ©ðŸŸ¨ Partial/verify &nbsp; ðŸ”´ No data",
                         unsafe_allow_html=True,
                     )
                     st.caption(
-                        f"Archive: {replay_dates[0]} → {replay_dates[-1]} • "
+                        f"Archive: {replay_dates[0]} â†’ {replay_dates[-1]} â€¢ "
                         f"{len(replay_dates)} available trading days"
                     )
 
@@ -9031,13 +9043,13 @@ def render() -> None:
             if selected_day_has_source and not selected_day_complete:
                 missing = max(0, selected_day_total - selected_day_cached)
                 st.warning(
-                    f"🟠 CACHE BUILD REQUIRED • {replay_date} • "
+                    f"ðŸŸ  CACHE BUILD REQUIRED â€¢ {replay_date} â€¢ "
                     f"{selected_day_cached}/{selected_day_total} snapshots persisted. "
                     "The chronological point-in-time chain will be generated from the raw Daywise archive."
                 )
             elif selected_day_complete:
                 st.success(
-                    f"🟢 REPLAY READY • {replay_date} • "
+                    f"ðŸŸ¢ REPLAY READY â€¢ {replay_date} â€¢ "
                     f"{selected_day_cached}/{selected_day_total} snapshots + point-in-time cache complete."
                 )
 
@@ -9094,11 +9106,11 @@ def render() -> None:
                         and selected_day_complete
                     )
                     if historical_complete:
-                        st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #22c55e;color:#166534;font-weight:700;">🟢 HISTORICAL REPLAY COMPLETE • no backlog required</div>', unsafe_allow_html=True)
+                        st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #22c55e;color:#166534;font-weight:700;">ðŸŸ¢ HISTORICAL REPLAY COMPLETE â€¢ no backlog required</div>', unsafe_allow_html=True)
                     elif future_date:
-                        st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#fff7ed;border:1px solid #f59e0b;color:#9a3412;font-weight:700;">🟠 FUTURE DATE • historical replay is not available</div>', unsafe_allow_html=True)
+                        st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#fff7ed;border:1px solid #f59e0b;color:#9a3412;font-weight:700;">ðŸŸ  FUTURE DATE â€¢ historical replay is not available</div>', unsafe_allow_html=True)
                     elif same_live_date and live_market_open:
-                        st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#fff7ed;border:1px solid #f59e0b;color:#9a3412;font-weight:700;">🟠 LIVE DATE • historical backlog is disabled while the market is open</div>', unsafe_allow_html=True)
+                        st.markdown('<div style="padding:9px 12px;border-radius:8px;background:#fff7ed;border:1px solid #f59e0b;color:#9a3412;font-weight:700;">ðŸŸ  LIVE DATE â€¢ historical backlog is disabled while the market is open</div>', unsafe_allow_html=True)
                     else:
                         cached_count, source_count, _cache_is_complete = _replay_cache_coverage(
                             replay_date, replay_sources
@@ -9114,7 +9126,7 @@ def render() -> None:
                         historical_live_guard = live_auto_enabled and live_market_open
                         missing_count = max(0, source_count - cached_count)
                         backlog_requested = st.button(
-                            f"Build Chronological Replay Cache • {missing_count} missing of {source_count}",
+                            f"Build Chronological Replay Cache â€¢ {missing_count} missing of {source_count}",
                             type="secondary",
                             use_container_width=True,
                             disabled=historical_live_guard,
@@ -9153,7 +9165,7 @@ def render() -> None:
                         )
                         if pre_complete:
                             st.success(
-                                f"INTRADAY BACKLOG ALREADY COMPLETE • {replay_date} • {pre_cached}/{pre_total} snapshots • 0 source snapshots reprocessed."
+                                f"INTRADAY BACKLOG ALREADY COMPLETE â€¢ {replay_date} â€¢ {pre_cached}/{pre_total} snapshots â€¢ 0 source snapshots reprocessed."
                             )
                             return
 
@@ -9162,8 +9174,8 @@ def render() -> None:
                         detail = st.empty()
 
                         def _historical_progress(done: int, count: int, path: Path, timestamp: datetime) -> None:
-                            progress.progress(min(1.0, done / count if count else 1.0), text=f"Historical backlog: {done} / {count} • {timestamp:%H:%M:%S}")
-                            detail.caption(f"🟢 HISTORICAL BACKLOG • {done}/{count} • {path.name}")
+                            progress.progress(min(1.0, done / count if count else 1.0), text=f"Historical backlog: {done} / {count} â€¢ {timestamp:%H:%M:%S}")
+                            detail.caption(f"ðŸŸ¢ HISTORICAL BACKLOG â€¢ {done}/{count} â€¢ {path.name}")
 
                         _, backlog_timeline, backlog_snapshots = _build_replay_day_in_memory(
                             replay_sources, replay_date, selected_index=None, progress_callback=_historical_progress
@@ -9179,10 +9191,10 @@ def render() -> None:
                             raise RuntimeError(
                                 f"Historical replay did not produce a complete point-in-time chain: {cached_count}/{source_count} snapshots persisted."
                             )
-                        progress.progress(1.0, text=f"Historical backlog: {cached_count} / {source_count} • COMPLETE")
+                        progress.progress(1.0, text=f"Historical backlog: {cached_count} / {source_count} â€¢ COMPLETE")
                         backlog_seconds = round(time.perf_counter() - backlog_started, 1)
                         st.success(
-                            f"INTRADAY BACKLOG complete • {replay_date} • {cached_count}/{source_count} snapshots processed chronologically • {backlog_seconds:.1f}s • LIVE state isolated"
+                            f"INTRADAY BACKLOG complete â€¢ {replay_date} â€¢ {cached_count}/{source_count} snapshots processed chronologically â€¢ {backlog_seconds:.1f}s â€¢ LIVE state isolated"
                         )
                     except Exception as exc:
                         st.error(
@@ -9369,9 +9381,9 @@ def render() -> None:
                 replay_snapshots = stored.get("snapshots", {})
                 replay_lifecycle_events = stored.get("lifecycle_events", {})
                 last_seconds = st.session_state.get("ds_replay_last_seconds")
-                suffix = f" • prepared in {last_seconds:.1f}s" if last_seconds is not None else ""
+                suffix = f" â€¢ prepared in {last_seconds:.1f}s" if last_seconds is not None else ""
                 count = len(replay_snapshots) if isinstance(replay_snapshots, dict) else 0
-                st.caption(f"INTRADAY REPLAY • {replay_date} • selected {selected_label} • {count} snapshots included{suffix} • LIVE state isolated")
+                st.caption(f"INTRADAY REPLAY â€¢ {replay_date} â€¢ selected {selected_label} â€¢ {count} snapshots included{suffix} â€¢ LIVE state isolated")
                 _render_current_result(result, replay_timeline, selected_label, "replay_", replay_snapshots, lifecycle_trading_date=replay_date, lifecycle_replay=True, lifecycle_events=replay_lifecycle_events)
             else:
                 st.caption("Select a trading date and snapshot time, then choose View Snapshot.")
@@ -9379,5 +9391,10 @@ def render() -> None:
 
 if __name__ == "__main__":
     render()
+
+
+
+
+
 
 
