@@ -16,5 +16,13 @@
   "min_abs_oi_chg": null,
   "min_abs_straddle_pct": null,
   "max_symbols": 50,
-  "notes": "Eligibility uses data completeness unless optional thresholds are explicitly configured. Priority score is descriptive and does not alter eligibility except max_symbols."
+  "notes": "Eligibility uses data completeness unless optional thresholds are explicitly configured. Priority score is descriptive and does not alter eligibility except max_symbols. Source-of-Truth population is explicit and separate from W73 qualification.",
+  "source_truth_symbols": [
+    "BANDHANBNK",
+    "MOTILALOFS",
+    "POLICYBZR",
+    "RADICO",
+    "SAIL"
+  ],
+  "source_truth_mode": "CONTROLLED_POC"
 }

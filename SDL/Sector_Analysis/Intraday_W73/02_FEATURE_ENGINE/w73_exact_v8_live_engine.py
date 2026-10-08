@@ -438,7 +438,6 @@ def build_exact_v8(
         return ExactV8Result(
             "NOT_READY", symbol, trading_date, "", orb_minutes, maturity, {},
             tuple(V8_COLUMNS), {}, {"W73-A": False, "W73-B": False},
-            {"NO_PRICE_STREAM": True},
             ("NO_PRICE_STREAM",)
         )
 
@@ -451,14 +450,17 @@ def build_exact_v8(
     # For the live maturity snapshot, ORB direction is derived from information
     # available up to the maturity cutoff. A future breakout is never used to
     # label a maturity snapshot.
-    t0 = price_rows[0]["timestamp"]
-    orb_cutoff = t0 + pd.Timedelta(minutes=orb_minutes)
+    # NSE session-anchored ORB: never anchor ORB to first available snapshot.
+    # The first available source observation may arrive after market open.
+    session_start = session_date.replace(hour=9, minute=15, second=0, microsecond=0)
+    orb_cutoff = session_start + pd.Timedelta(minutes=orb_minutes)
     orb_rows = [r for r in price_rows if r["timestamp"] <= orb_cutoff and r["timestamp"] <= maturity_ts]
     if len(orb_rows) < 2:
         return ExactV8Result(
             "NOT_READY", symbol, trading_date, maturity_ts.isoformat(),
             orb_minutes, maturity, {}, tuple(V8_COLUMNS), {},
-            {"ORB_NOT_ESTABLISHED": True}
+            {"W73-A": False, "W73-B": False},
+            ("ORB_NOT_ESTABLISHED",)
         )
 
     orb_high = max(r["high"] for r in orb_rows if r.get("high") is not None)
@@ -467,7 +469,8 @@ def build_exact_v8(
         return ExactV8Result(
             "NOT_READY", symbol, trading_date, maturity_ts.isoformat(),
             orb_minutes, maturity, {}, tuple(V8_COLUMNS), {},
-            {"ORB_INVALID": True}
+            {"W73-A": False, "W73-B": False},
+            ("ORB_INVALID",)
         )
 
     # The authoritative V8 source expects the event's orb_direction. At a live
@@ -499,7 +502,8 @@ def build_exact_v8(
         return ExactV8Result(
             "NOT_READY", symbol, trading_date, maturity_ts.isoformat(),
             orb_minutes, maturity, {}, tuple(V8_COLUMNS), {},
-            {"NO_EVIDENCE_AT_MATURITY": True}
+            {"W73-A": False, "W73-B": False},
+            ("NO_EVIDENCE_AT_MATURITY",)
         )
 
     # Exact V8 build_features semantics, reproduced from the authoritative source.

@@ -13,14 +13,14 @@ for p in [ROOT / "02_FEATURE_ENGINE", ROOT / "03_LIVE_ADAPTER", ROOT / "06_ALERT
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
-from w73_live_ingestor import ingest, source_root
+from w73_live_ingestor import ingest, source_root, discover_files
 from w73_point_in_time_service import load_rows, latest_as_of
 from w73_universe_engine import load_config, evaluate
-from w73_live_decision_service import evaluate_latest_maturity, decision_summary
+from w73_live_decision_service import evaluate_latest_maturity, evaluate_symbol, decision_summary
 
 
 st.set_page_config(
-    page_title="NTIS W73 — Intraday Trader Board",
+    page_title="NTIS W73 â€” Intraday Trader Board",
     page_icon="W73",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -28,26 +28,80 @@ st.set_page_config(
 
 CACHE_ROOT = ROOT / "07_OUTPUT" / "live_cache"
 UNIVERSE_CONFIG = ROOT / "07_OUTPUT" / "universe_config.json"
-
-
 # ---------------------------------------------------------------------
 # Trader-board UI
 # ---------------------------------------------------------------------
 st.markdown(
     """
 <style>
-.block-container {padding: .65rem .8rem .7rem .8rem; max-width: 100%;}
-h1 {font-size: 1.55rem !important; margin: 0 0 .05rem 0 !important;}
-h2 {font-size: 1.0rem !important; margin: .45rem 0 .25rem 0 !important;}
-h3 {font-size: .9rem !important;}
-div[data-testid="stMetric"] {padding:.12rem .28rem;border:1px solid rgba(128,128,128,.16);border-radius:6px;}
-div[data-testid="stMetricLabel"] {font-size:.65rem !important;}
-div[data-testid="stMetricValue"] {font-size:1.02rem !important;}
-div[data-testid="stDataFrame"] {border-radius:6px;}
-.small-note {font-size:.68rem;opacity:.72;}
-.bias-long {color:#117a37;font-weight:800;}
-.bias-short {color:#b21f1f;font-weight:800;}
-.bias-watch {color:#806000;font-weight:800;}
+.stApp {background:#071523;color:#e8f0f7;}
+[data-testid="stHeader"] {background:rgba(7,21,35,.96);}
+section[data-testid="stSidebar"] {
+    background:#eef3f7 !important;
+    border-right:1px solid #b8c7d3;
+    width:300px !important;
+    min-width:300px !important;
+}
+section[data-testid="stSidebar"] > div:first-child {padding-top:.45rem;}
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {gap:.30rem;}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] .stMarkdown {color:#17212b !important;}
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {font-size:.88rem !important;font-weight:800 !important;}
+[data-testid="stSidebar"] label {font-size:.80rem !important;font-weight:650 !important;}
+[data-testid="stSidebar"] input {font-size:.80rem !important;color:#17212b !important;background:#ffffff !important;border:1px solid #9fb0bd !important;}
+[data-testid="stSidebar"] [data-baseweb="select"] > div {background:#ffffff !important;color:#17212b !important;border-color:#9fb0bd !important;}
+[data-testid="stSidebar"] [data-baseweb="select"] * {color:#17212b !important;}
+[data-testid="stSidebar"] [role="radiogroup"] label,
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label {font-size:.77rem !important;color:#17212b !important;}
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radio"] {background:#ffffff !important;}
+[data-testid="stSidebar"] button {font-size:.78rem !important;color:#17212b !important;background:#ffffff !important;border:1px solid #8fa3b2 !important;}
+[data-testid="stSidebar"] .stButton button {padding:.30rem .45rem !important;font-weight:750 !important;}
+[data-testid="stSidebar"] [data-testid="stSlider"] * {color:#17212b !important;}
+[data-testid="stSidebar"] .stCaption {font-size:.68rem !important;color:#435563 !important;}
+[data-testid="stSidebar"] hr {border-color:#c4d0d9 !important;}
+
+.block-container {padding:.42rem .55rem .45rem .55rem;max-width:100%;}
+h1 {font-size:1.38rem !important;margin:0 !important;color:#f2f7fb !important;}
+h2 {font-size:.92rem !important;margin:.22rem 0 .14rem 0 !important;color:#dce9f3 !important;}
+h3 {font-size:.80rem !important;color:#c9d8e4 !important;}
+div[data-testid="stMetric"] {padding:.12rem .25rem;border:1px solid #1b3b55;border-radius:5px;background:#0a1d2d;}
+div[data-testid="stMetricLabel"] {font-size:.66rem !important;color:#9eb3c2 !important;}
+div[data-testid="stMetricValue"] {font-size:.98rem !important;color:#edf6fb !important;}
+div[data-testid="stDataFrame"] {border:1px solid #1b3b55;border-radius:5px;}
+.small-note {font-size:.60rem;opacity:.72;}
+.w73-session-strip {margin:.16rem 0 .28rem 0;padding:.22rem .42rem;border:1px solid #183b55;border-radius:5px;background:#0a1d2d;color:#9fb5c5;font-size:.61rem;}
+.w73-live-dot {color:#20d88b;}
+.w73-decision-card {border:1px solid #1b4c68;border-radius:7px;padding:8px;background:#0a1d2d;margin-bottom:7px;}
+.w73-decision-symbol {font-size:1.18rem;font-weight:900;color:#5ec8ff;}
+.w73-decision-state {font-size:.78rem;font-weight:900;margin-top:2px;}
+.w73-critical {font-size:.67rem;line-height:1.32;margin-top:5px;}
+.w73-critical b {color:#dce9f3;}
+.w73-gate {border:1px solid rgba(100,160,200,.16);border-radius:5px;padding:5px 6px;margin-bottom:4px;background:rgba(8,27,44,.72);}
+.w73-gate-ready {color:#20d88b;font-size:.66rem;}
+.w73-gate-fail {color:#ff5b68;font-size:.66rem;}
+.w73-gate-wait {color:#f0b429;font-size:.66rem;}
+.w73-gate strong {float:right;font-size:.60rem;}
+.w73-gate-detail {font-size:.57rem;opacity:.72;margin-top:2px;line-height:1.15;}
+.w73-summary-label {display:flex;justify-content:space-between;font-size:.62rem;margin-top:3px;}
+.w73-summary-track {height:4px;border-radius:4px;background:#172b3b;overflow:hidden;margin:2px 0 4px;}
+.w73-bar-qualified {height:100%;background:#20d88b;}
+.w73-bar-wait {height:100%;background:#f0b429;}
+.w73-bar-notready {height:100%;background:#ff5b68;}
+.w73-mini-panel {border:1px solid #183b55;border-radius:6px;padding:7px;background:#0a1d2d;font-size:.61rem;line-height:1.28;}
+.w73-first-alert {font-weight:800;color:#f0d36b;}
+.w73-validation {font-size:.62rem;padding:5px 7px;border-radius:5px;background:#0a1d2d;border:1px solid #183b55;}
+.w73-acceptance-head {font-size:.78rem;font-weight:900;color:#f0d36b;margin:.18rem 0 .24rem;}
+@media (max-width: 900px) {
+  .block-container {padding:.35rem .25rem .45rem .25rem;}
+  h1 {font-size:1.18rem !important;}
+  div[data-testid="stMetricValue"] {font-size:.82rem !important;}
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -64,7 +118,13 @@ def _date_from_cache(path: Path):
         return None
 
 
-def _find_latest_prior_cache(requested_date: str):
+def _has_authoritative_source(trading_date: str, month: str) -> bool:
+    try:
+        return bool(discover_files(trading_date, month))
+    except Exception:
+        return False
+
+def _find_latest_prior_cache(requested_date: str, month: str = "September26"):
     try:
         requested = date.fromisoformat(requested_date)
     except ValueError:
@@ -80,6 +140,8 @@ def _find_latest_prior_cache(requested_date: str):
             candidates.append((d, path))
 
     for d, path in sorted(candidates, reverse=True):
+        if not _has_authoritative_source(d.isoformat(), month):
+            continue
         try:
             rows = load_rows(path)
         except Exception:
@@ -114,7 +176,7 @@ def _age_seconds(value):
 def _age_label(value):
     sec = _age_seconds(value)
     if sec is None:
-        return "—"
+        return "â€”"
     if sec < 60:
         return f"{sec}s"
     if sec < 3600:
@@ -126,7 +188,7 @@ def _duration_label(start_value, end_value):
     start = _parse_dt(start_value)
     end = _parse_dt(end_value)
     if start is None or end is None:
-        return "—"
+        return "â€”"
     sec = max(0, int((end - start).total_seconds()))
     if sec < 60:
         return f"{sec}s"
@@ -175,6 +237,7 @@ def _evidence_metrics(rows):
 
 
 def _build_board(rows):
+    """Legacy universe/evidence board retained for supporting panels only."""
     if not rows:
         return pd.DataFrame(), []
 
@@ -206,9 +269,112 @@ def _build_board(rows):
     return df, latest
 
 
+def _build_research_layer_board(live_decisions, rows):
+    """Build the trader board from authoritative Exact V8 decisions.
 
-def _first_qualification(rows):
-    """Return the first exact source timestamp at which each symbol became eligible."""
+    W73-A/B remain frozen. W73-NL is a display/research layer only and uses
+    the previously tested T3/T2 trajectory variants without modifying the
+    Exact V8 engine or LiveDecision service.
+    """
+    if not live_decisions:
+        return pd.DataFrame()
+
+    latest = latest_as_of(rows) if rows else []
+    raw_map = {str(r.get("Symbol", "")).upper(): r for r in latest}
+    board = []
+
+    for d in live_decisions:
+        symbol = str(getattr(d, "symbol", "")).upper().strip()
+        if not symbol:
+            continue
+        raw = dict(raw_map.get(symbol, {}))
+        status = str(getattr(d, "status", "NOT_READY") or "NOT_READY").upper()
+        features = getattr(d, "feature_vector", {}) or {}
+        variant_value = str(getattr(d, "variant", "") or "").upper()
+        trajectory = getattr(d, "trajectory", {}) or {}
+        a = variant_value == "W73-A"
+        b = variant_value == "W73-B"
+        neg = trajectory.get("px_negative_count_pre_maturity")
+        try:
+            neg_num = int(neg) if neg is not None else None
+        except (TypeError, ValueError):
+            neg_num = None
+
+        nl_t3_a = status == "READY" and not (a or b) and features.get("orb_agree") == "NO" and features.get("magnitude_count_band") == "0" and neg_num is not None and neg_num <= 3
+        nl_t3_b = status == "READY" and not (a or b) and features.get("orb_price_agree") == "NO" and features.get("magnitude_count_band") == "0" and neg_num is not None and neg_num <= 3
+        nl_t2_a = status == "READY" and not (a or b) and features.get("orb_agree") == "NO" and features.get("magnitude_count_band") == "0" and neg_num is not None and neg_num <= 2
+        nl_t2_b = status == "READY" and not (a or b) and features.get("orb_price_agree") == "NO" and features.get("magnitude_count_band") == "0" and neg_num is not None and neg_num <= 2
+
+        if status != "READY":
+            layer = "NOT_READY"
+            decision_label = "NOT_READY"
+        elif a or b:
+            layer = "W73-A/B"
+            decision_label = "QUALIFIED"
+        elif nl_t3_a or nl_t3_b or nl_t2_a or nl_t2_b:
+            layer = "W73-NL"
+            decision_label = "NEXT-LAYER RESEARCH"
+        else:
+            layer = "READY-NONMATCH"
+            decision_label = "READY / OTHER"
+
+        raw.update({
+            "Symbol": symbol,
+            "Layer": layer,
+            "Decision": decision_label,
+            "Setup State": "READY" if status == "READY" else "WAITING FOR EXACT V8",
+            "Strategy Status": status,
+            "W73 Maturity": getattr(d, "maturity", "") or "â€”",
+            "W73 Variant": ("W73-A" if a else "W73-B" if b else "â€”"),
+            "Action": getattr(d, "action", "NOT_READY") or "NOT_READY",
+            "Strategy Observation Time": getattr(d, "observation_timestamp", "") or "â€”",
+            "Source Timestamp": getattr(d, "source_timestamp", "") or "â€”",
+            "Missing Fields": ", ".join(str(x) for x in (getattr(d, "missing_fields", ()) or ())) or "â€”",
+            "Warnings": ", ".join(str(x) for x in (getattr(d, "warnings", ()) or ())) or "â€”",
+            "Trajectory": trajectory,
+            "NL-T3-A": nl_t3_a,
+            "NL-T3-B": nl_t3_b,
+            "NL-T2-A": nl_t2_a,
+            "NL-T2-B": nl_t2_b,
+            "NL Negative Count": neg_num if neg_num is not None else "â€”",
+            "W73-A Match": a,
+            "W73-B Match": b,
+            "Reason": "W73-NL research match" if layer == "W73-NL" else ("Frozen W73-A/B match" if layer == "W73-A/B" else "Exact V8 state"),
+        })
+        board.append(raw)
+
+    df = pd.DataFrame(board)
+    if df.empty:
+        return df
+    if "Strength" not in df.columns:
+        df = _add_interpretation(df)
+    # Preserve all READY rows; W73 and NL are ranked ahead of READY/OTHER.
+    layer_rank = {"W73-A/B": 0, "W73-NL": 1, "READY-NONMATCH": 2, "NOT_READY": 3}
+    df["_layer_rank"] = df["Layer"].map(layer_rank).fillna(9)
+    df["_strength_num"] = pd.to_numeric(df.get("Strength", 0), errors="coerce").fillna(0)
+    df = df.sort_values(["_layer_rank", "_strength_num", "Symbol"], ascending=[True, False, True])
+    return df.drop(columns=["_layer_rank", "_strength_num"], errors="ignore")
+
+
+
+def _rows_asof(rows, asof):
+    """Return only observations at or before the authoritative PIT cutoff."""
+    if not rows or not asof:
+        return list(rows or [])
+    cutoff = _parse_dt(asof)
+    if cutoff is None:
+        return list(rows or [])
+    out = []
+    for r in rows:
+        ts = _parse_dt(r.get("_observation_timestamp", r.get("timestamp")))
+        if ts is not None and ts <= cutoff:
+            out.append(r)
+    return out
+
+
+def _first_qualification(rows, asof=None):
+    """Return the first exact source timestamp at which each symbol became eligible, PIT-safe."""
+    rows = _rows_asof(rows, asof)
     if not rows:
         return {}
 
@@ -249,8 +415,9 @@ def _first_qualification(rows):
                 }
     return first
 
-def _qualification_events(rows):
-    """Derive point-in-time universe state transitions from cached intervals."""
+def _qualification_events(rows, asof=None):
+    """Derive point-in-time universe state transitions from cached intervals, PIT-safe."""
+    rows = _rows_asof(rows, asof)
     if not rows:
         return {}
     cfg = load_config(UNIVERSE_CONFIG)
@@ -301,7 +468,7 @@ def _validated_strategy_gate(row):
     )
     if match:
         return {
-            "Decision": "STRATEGY MATCH — WATCH",
+            "Decision": "STRATEGY MATCH â€” WATCH",
             "Strategy Status": "FROZEN CANDIDATE MATCH",
             "Setup State": "CANDIDATE",
             "Reason": "Frozen V8 trajectory candidate condition matched; this is not a validated directional BUY/SELL rule.",
@@ -319,9 +486,9 @@ def _validated_strategy_gate(row):
 def _event_summary(symbol, events, data_asof):
     seq = events.get(symbol, [])
     if not seq:
-        return "NO EVENT", "—"
+        return "NO EVENT", "â€”"
     last = seq[-1]
-    return str(last.get("event", "EVENT")), str(last.get("time", "—"))
+    return str(last.get("event", "EVENT")), str(last.get("time", "â€”"))
 
 
 def _add_interpretation(df):
@@ -354,10 +521,10 @@ def _add_interpretation(df):
         if px is not None:
             if px > 0:
                 long_points += 25
-                reasons_list.append("price↑")
+                reasons_list.append("priceâ†‘")
             elif px < 0:
                 short_points += 25
-                reasons_list.append("price↓")
+                reasons_list.append("priceâ†“")
 
         # OI + price relationship.
         if px is not None and oi is not None:
@@ -366,7 +533,7 @@ def _add_interpretation(df):
                 reasons_list.append("price+OI")
             elif px < 0 and oi > 0:
                 short_points += 20
-                reasons_list.append("price↓+OI")
+                reasons_list.append("priceâ†“+OI")
             elif px > 0 and oi < 0:
                 long_points += 10
                 reasons_list.append("short-cover")
@@ -389,7 +556,7 @@ def _add_interpretation(df):
                 long_points += 10
             else:
                 short_points += 10
-            reasons_list.append("volume↑")
+            reasons_list.append("volumeâ†‘")
 
         # PCR is supporting context only; no standalone direction.
         if pcr is not None and abs(pcr) > 0:
@@ -423,7 +590,7 @@ def _add_interpretation(df):
 
         strengths.append(strength)
         biases.append(bias)
-        reasons.append(" • ".join(reasons_list[:5]))
+        reasons.append(" â€¢ ".join(reasons_list[:5]))
         evidence_counts.append(sum(
             [
                 px is not None,
@@ -441,7 +608,7 @@ def _add_interpretation(df):
     df["Evidence"] = reasons
     df["Evidence#"] = evidence_counts
     df["Strength Meter"] = [
-        ("█" * max(1, s // 10)) + ("░" * (10 - max(1, s // 10)))
+        ("â–ˆ" * max(1, s // 10)) + ("â–‘" * (10 - max(1, s // 10)))
         for s in strengths
     ]
     return df
@@ -454,8 +621,60 @@ def _direction_counts(df):
     return int((p > 0).sum()), int((p < 0).sum()), int(p.eq(0).sum())
 
 
-def _strategy_decision(row):
-    return _validated_strategy_gate(row)
+def _strategy_decision(row, live_decision=None):
+    """Render the authoritative LiveDecision without recomputing strategy state."""
+    if live_decision is None:
+        return {
+            "Decision": "NOT_READY",
+            "Strategy Status": "NOT_READY",
+            "Setup State": "WAITING FOR EXACT V8",
+            "Reason": "No authoritative LiveDecision exists for this symbol at the current maturity.",
+            "Invalidation": "No strategy action until the live decision service returns a READY evaluation.",
+        }
+
+    status = str(getattr(live_decision, "status", "NOT_READY") or "NOT_READY")
+    action = str(getattr(live_decision, "action", "NOT_READY") or "NOT_READY")
+    variant = getattr(live_decision, "variant", None)
+    maturity = str(getattr(live_decision, "maturity", "") or "")
+    observation_timestamp = str(getattr(live_decision, "observation_timestamp", "") or "")
+    source_timestamp = str(getattr(live_decision, "source_timestamp", "") or "")
+    missing = tuple(getattr(live_decision, "missing_fields", ()) or ())
+    warnings = tuple(getattr(live_decision, "warnings", ()) or ())
+    trajectory = getattr(live_decision, "trajectory", {}) or {}
+
+    if status != "READY":
+        decision = "NOT_READY"
+        setup = "WAITING FOR EXACT V8"
+    elif action == "QUALIFIED":
+        decision = "QUALIFIED"
+        setup = "QUALIFIED"
+    else:
+        decision = action
+        setup = "WAIT"
+
+    reason_parts = []
+    if missing:
+        reason_parts.append("Missing: " + ", ".join(str(x) for x in missing))
+    if warnings:
+        reason_parts.append("Warnings: " + ", ".join(str(x) for x in warnings))
+    if not reason_parts:
+        reason_parts.append("Authoritative live decision returned by W73 live decision service.")
+
+    return {
+        "Decision": decision,
+        "Strategy Status": status,
+        "Setup State": setup,
+        "W73 Maturity": maturity or "â€”",
+        "W73 Variant": variant or "â€”",
+        "Action": action,
+        "Strategy Observation Time": observation_timestamp or "â€”",
+        "Source Timestamp": source_timestamp or "â€”",
+        "Missing Fields": ", ".join(str(x) for x in missing) if missing else "â€”",
+        "Warnings": ", ".join(str(x) for x in warnings) if warnings else "â€”",
+        "Trajectory": trajectory,
+        "Reason": " ".join(reason_parts),
+        "Invalidation": "Fail-closed: no directional action is inferred when exact V8 evidence is incomplete.",
+    }
 
 
 def _alerts(df, evidence, requested_date, data_session, ingest_result, data_asof):
@@ -505,6 +724,59 @@ def _alerts(df, evidence, requested_date, data_session, ingest_result, data_asof
         add("CLEAR", "SYSTEM", "No dashboard-level integrity checkpoint is breached.")
 
     return alerts
+
+
+
+def _fmt_timestamp(value):
+    """Compact trader-facing timestamp without changing the underlying value."""
+    if value in (None, "", "â€”", "N/A"):
+        return "â€”"
+    return str(value).replace("T", " ")[:19]
+
+
+def _display_strategy_counts(board_df):
+    if board_df is None or board_df.empty or "Decision" not in board_df.columns:
+        return {"QUALIFIED": 0, "WAIT": 0, "NOT_READY": 0}
+    return {
+        "QUALIFIED": int((board_df["Decision"].astype(str) == "QUALIFIED").sum()),
+        "WAIT": int((board_df["Decision"].astype(str) == "WAIT").sum()),
+        "NOT_READY": int((board_df["Decision"].astype(str) == "NOT_READY").sum()),
+    }
+
+
+def _apply_trader_filters(df, symbol_filter, action_filter, variant_filter,
+                          maturity_filter, min_strength, hide_not_ready):
+    """Display-only controls; never alter PIT rows, universe evaluation, or strategy logic."""
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    out = df.copy()
+    if symbol_filter:
+        needle = str(symbol_filter).strip().upper()
+        out = out[out["Symbol"].astype(str).str.upper().str.contains(needle, na=False)]
+    if action_filter != "ALL" and "Decision" in out.columns:
+        out = out[out["Decision"].astype(str) == action_filter]
+    if variant_filter != "ALL" and "W73 Variant" in out.columns:
+        out = out[out["W73 Variant"].astype(str) == variant_filter]
+    if maturity_filter != "ALL" and "W73 Maturity" in out.columns:
+        out = out[out["W73 Maturity"].astype(str) == maturity_filter]
+    if "Strength" in out.columns:
+        out = out[pd.to_numeric(out["Strength"], errors="coerce").fillna(0) >= int(min_strength)]
+    if hide_not_ready and "Decision" in out.columns:
+        out = out[out["Decision"].astype(str) != "NOT_READY"]
+    return out
+
+
+def _format_trader_board(df):
+    """Trader-facing formatting only; values and timestamps remain unchanged."""
+    if df is None or df.empty:
+        return df
+    out = df.copy()
+    for col in ("Source Timestamp", "Strategy Observation Time", "Filter Alert Time",
+                "Last Event Time", "Qualified Since"):
+        if col in out.columns:
+            out[col] = out[col].map(_fmt_timestamp)
+    return out
 
 
 def _style_priority(df):
@@ -567,6 +839,23 @@ def _style_priority(df):
             lambda v: "color:#a35a00;font-weight:700" if _num(v) not in (None, 0) else "",
             subset=["Volume Chg (%)"],
         )
+
+    def action(v):
+        s = str(v)
+        if s == "QUALIFIED":
+            return "background-color:#dff4e5;color:#126b37;font-weight:900"
+        if s == "WAIT":
+            return "background-color:#fff4d6;color:#805900;font-weight:800"
+        if s == "NOT_READY":
+            return "background-color:#f3f5f7;color:#59636e;font-weight:800"
+        return ""
+
+    if "Decision" in df.columns:
+        styler = styler.map(action, subset=["Decision"])
+    if "Action" in df.columns:
+        styler = styler.map(action, subset=["Action"])
+    if "Strategy Status" in df.columns:
+        styler = styler.map(action, subset=["Strategy Status"])
     return styler
 
 
@@ -588,48 +877,739 @@ def _style_alerts(df):
     return df.style.map(fmt, subset=["Level"])
 
 
+# W73_PECE_VOLUME_DISPLAY_V1
+# Display-only PECE evidence.
+# IMPORTANT:
+# - Resolve the source column by HEADER NAME, never by Excel column position.
+# - "Diff (PE-CE Volume)" is not used by Exact V8, W73-A/B, NL, scoring,
+#   DNA, strategy discovery, or outcome analysis.
+# - Missing remains missing; no reconstruction or zero-fill.
+PECE_VOLUME_HEADER = "Diff (PE-CE Volume)"
+PECE_SYMBOL_HEADER = "Symbol"
+PECE_TIME_HEADER = "Time"
+PECE_ROOT = Path(r"D:\My-data\Share_P&L\Ichart Data\Screenshot\PECE_Volume")
+
+@st.cache_data(show_spinner=False)
+def _find_pece_workbook(filename):
+    if not filename:
+        return None
+    target = str(filename).strip()
+    if not target:
+        return None
+    try:
+        matches = list(PECE_ROOT.rglob(target))
+        return str(matches[0]) if matches else None
+    except Exception:
+        return None
+
+@st.cache_data(show_spinner=False)
+def _read_pece_volume_by_header(workbook_path, symbol, pece_time):
+    """Read Diff (PE-CE Volume) strictly by workbook header name."""
+    if not workbook_path or not symbol:
+        return None
+
+    try:
+        import openpyxl
+
+        wb = openpyxl.load_workbook(
+            workbook_path,
+            read_only=True,
+            data_only=True,
+        )
+        try:
+            ws = wb["Data"] if "Data" in wb.sheetnames else wb[wb.sheetnames[0]]
+            rows = ws.iter_rows(values_only=True)
+            headers = next(rows, None)
+            if not headers:
+                return None
+
+            # Header-driven mapping. Physical Excel position is irrelevant.
+            header_map = {
+                str(value).strip(): idx
+                for idx, value in enumerate(headers)
+                if value is not None and str(value).strip()
+            }
+
+            required = (
+                PECE_VOLUME_HEADER,
+                PECE_SYMBOL_HEADER,
+                PECE_TIME_HEADER,
+            )
+            if not all(h in header_map for h in required):
+                return None
+
+            wanted_symbol = str(symbol).strip().upper()
+            wanted_time = str(pece_time).strip() if pece_time else None
+
+            # Prefer exact symbol + PECE time. If time is unavailable, use
+            # the first matching symbol row only as a display fallback.
+            symbol_idx = header_map[PECE_SYMBOL_HEADER]
+            time_idx = header_map[PECE_TIME_HEADER]
+            value_idx = header_map[PECE_VOLUME_HEADER]
+
+            fallback = None
+            for row in rows:
+                if row is None:
+                    continue
+
+                sym = row[symbol_idx] if symbol_idx < len(row) else None
+                if str(sym).strip().upper() != wanted_symbol:
+                    continue
+
+                val = row[value_idx] if value_idx < len(row) else None
+                row_time = row[time_idx] if time_idx < len(row) else None
+
+                if wanted_time is not None and str(row_time).strip() == wanted_time:
+                    return val
+
+                if fallback is None:
+                    fallback = val
+
+            return fallback
+        finally:
+            wb.close()
+    except Exception:
+        return None
+
+def _pece_volume_display(source_row):
+    """Return display-only PE-CE Volume evidence."""
+    if not source_row:
+        return None
+
+    match_status = str(source_row.get("_pece_match_status", "")).upper()
+    if match_status != "MATCHED":
+        return None
+
+    filename = source_row.get("_pece_source_file")
+    symbol = source_row.get("Symbol")
+    pece_time = source_row.get("_pece_time")
+
+    path = _find_pece_workbook(filename)
+    if not path:
+        return None
+
+    return _read_pece_volume_by_header(path, symbol, pece_time)
+
+def _pece_volume_html(value):
+    if value in (None, "", "NA", "N/A"):
+        return '<span style="color:#9fb5c5">PE-CE VOL: â€”</span>'
+
+    try:
+        n = float(value)
+    except Exception:
+        return f'<span style="color:#9fb5c5">PE-CE VOL: {value}</span>'
+
+    # Display convention only:
+    # negative = green, positive = red, zero = neutral.
+    if n < 0:
+        color = "#20d88b"
+    elif n > 0:
+        color = "#ff5b68"
+    else:
+        color = "#d8e4ec"
+
+    return (
+        f'<span style="color:{color};font-weight:800">'
+        f'PE-CE VOL: {n:g}</span>'
+    )
+
+# W73_HISTORICAL_ANALYSIS_V2
+# Historical Analysis is read-only unless the user explicitly presses
+# BUILD HISTORICAL CACHE. No historical fallback is permitted.
+HISTORICAL_MODE_LABEL = "HISTORICAL ANALYSIS"
+HISTORICAL_UNIVERSE_OPTIONS = ("ALL AVAILABLE", "SELECTED STOCK")
+HISTORICAL_CHECKPOINTS = ("09:30", "09:45", "10:00", "10:15")
+REFERENCE_VALIDATION_SYMBOLS = (
+    "BANDHANBNK",
+    "MOTILALOFS",
+    "POLICYBZR",
+    "RADICO",
+    "SAIL",
+)
+
+
+def _historical_cache_rows(trading_date):
+    """Load only the selected historical cache; never rebuild implicitly."""
+    try:
+        path = CACHE_ROOT / f"{trading_date}.jsonl"
+        if not path.exists():
+            return []
+        return load_rows(path)
+    except Exception:
+        return []
+
+
+def _historical_available_symbols(rows):
+    return sorted({
+        str(r.get("Symbol", "")).strip().upper()
+        for r in (rows or [])
+        if str(r.get("Symbol", "")).strip()
+    })
+
+
+def _historical_available_dates():
+    """Return dates represented by existing cache files only."""
+    if not CACHE_ROOT.exists():
+        return []
+    dates = []
+    for path in CACHE_ROOT.glob("*.jsonl"):
+        try:
+            d = date.fromisoformat(path.stem)
+        except ValueError:
+            continue
+        dates.append(d)
+    return sorted(set(dates))
+
+
+def _historical_cache_status(trading_date, month):
+    """Non-mutating readiness metadata for the selected historical date."""
+    path = CACHE_ROOT / f"{trading_date}.jsonl"
+    result = {
+        "date": str(trading_date),
+        "cache_path": str(path),
+        "cache_exists": path.exists(),
+        "source_available": False,
+        "status": "MISSING",
+        "rows": 0,
+        "symbols": 0,
+        "intervals": 0,
+        "max_observation": "â€”",
+        "checkpoints": {cp: False for cp in HISTORICAL_CHECKPOINTS},
+        "reference_present": [],
+        "reference_missing": list(REFERENCE_VALIDATION_SYMBOLS),
+    }
+
+    try:
+        result["source_available"] = bool(discover_files(str(trading_date), str(month)))
+    except Exception:
+        result["source_available"] = False
+
+    if not path.exists():
+        return result
+
+    try:
+        rows = load_rows(path)
+    except Exception:
+        rows = []
+
+    result["rows"] = len(rows)
+    symbols = _historical_available_symbols(rows)
+    result["symbols"] = len(symbols)
+
+    timestamps = []
+    for row in rows:
+        raw = row.get("_observation_timestamp", row.get("timestamp"))
+        try:
+            ts = raw if isinstance(raw, datetime) else datetime.fromisoformat(str(raw))
+            timestamps.append(ts)
+        except (TypeError, ValueError):
+            continue
+
+    result["intervals"] = len({
+        str(row.get("_observation_timestamp", row.get("timestamp", ""))).strip()
+        for row in rows
+        if str(row.get("_observation_timestamp", row.get("timestamp", ""))).strip()
+    })
+    if timestamps:
+        result["max_observation"] = max(timestamps).isoformat(sep=" ", timespec="seconds")
+
+    # Checkpoint is represented if at least one authoritative observation
+    # exists in the 15-minute causal window ending at that checkpoint.
+    for cp in HISTORICAL_CHECKPOINTS:
+        hh, mm = [int(x) for x in cp.split(":")]
+        cp_minutes = hh * 60 + mm
+        result["checkpoints"][cp] = any(
+            cp_minutes - 15 <= ts.hour * 60 + ts.minute <= cp_minutes
+            for ts in timestamps
+        )
+
+    present = set(symbols)
+    result["reference_present"] = [
+        sym for sym in REFERENCE_VALIDATION_SYMBOLS if sym in present
+    ]
+    result["reference_missing"] = [
+        sym for sym in REFERENCE_VALIDATION_SYMBOLS if sym not in present
+    ]
+
+    if result["rows"] <= 0:
+        result["status"] = "MISSING"
+    elif all(result["checkpoints"].values()):
+        result["status"] = "READY"
+    else:
+        result["status"] = "PARTIAL"
+
+    return result
+
+
+def _resolve_historical_symbols(rows, universe_mode, selected_symbol):
+    available = _historical_available_symbols(rows)
+    if universe_mode == "SELECTED STOCK":
+        s = str(selected_symbol or "").strip().upper()
+        return (s,) if s and s in set(available) else ()
+    return tuple(available)
+
+
+def _available_symbols(rows):
+    """Generic all-symbol helper; never applies the five-stock reference set."""
+    return _historical_available_symbols(rows)
+
+def _historical_signal_register(board_df):
+    """Compact historical signal register; display only."""
+    if board_df is None or board_df.empty:
+        return pd.DataFrame(columns=[
+            "Date", "Stock", "Signal / Alert Time", "Direction",
+            "Strategy Name", "Data Evidence"
+        ])
+    records = []
+    for r in board_df.to_dict("records"):
+        decision = str(r.get("Decision", "NOT_READY"))
+        layer = str(r.get("Layer", ""))
+        if decision not in ("QUALIFIED", "NEXT-LAYER RESEARCH"):
+            continue
+        if layer == "W73-A/B" and r.get("W73 Variant") == "W73-A":
+            strategy = "W73-A"
+        elif layer == "W73-A/B" and r.get("W73 Variant") == "W73-B":
+            strategy = "W73-B"
+        elif bool(r.get("NL-T2-A")):
+            strategy = "W73-NL / T2-A"
+        elif bool(r.get("NL-T2-B")):
+            strategy = "W73-NL / T2-B"
+        elif bool(r.get("NL-T3-A")):
+            strategy = "W73-NL / T3-A"
+        elif bool(r.get("NL-T3-B")):
+            strategy = "W73-NL / T3-B"
+        else:
+            continue
+        d = r.get("_live_decision")
+        features = getattr(d, "feature_vector", {}) or {}
+        trajectory = getattr(d, "trajectory", {}) or {}
+        price_dir = str(features.get("price_dir", "")).upper()
+        direction = "LONG" if price_dir == "UP" else "SHORT" if price_dir == "DOWN" else "â€”"
+        evidence = " | ".join([
+            f"ORB={features.get('orb_dir', 'â€”')}",
+            f"PRICE={features.get('price_dir', 'â€”')}",
+            f"PRICE_STATE={features.get('price_state', 'â€”')}",
+            f"VOL={features.get('volume_state', 'â€”')}",
+            f"FUT={features.get('fut_state', 'â€”')}",
+            f"OPT={features.get('option_dir', 'â€”')}",
+            f"PEC={features.get('pec_state', 'â€”')}",
+            f"PEC%={features.get('pec_pct_state', 'â€”')}",
+            f"PERSIST={features.get('persistent', 'â€”')}",
+            f"NEG_PRE={trajectory.get('px_negative_count_pre_maturity', 'â€”')}",
+        ])
+        records.append({
+            "Date": str(r.get("_trading_date", "â€”")),
+            "Stock": str(r.get("Symbol", "")),
+            "Signal / Alert Time": _fmt_timestamp(
+                r.get("Strategy Observation Time", r.get("_observation_timestamp", "â€”"))
+            ),
+            "Direction": direction,
+            "Strategy Name": strategy,
+            "Data Evidence": evidence,
+        })
+    return pd.DataFrame(records)
+
+def _render_exact_v8_detail(live_decision, source_row=None):
+    """Compact PIT + Exact V8 presentation; never recomputes strategy state."""
+    if live_decision is None:
+        st.info("No authoritative Exact V8 evaluation is available for this symbol at the current maturity.")
+        return
+
+    status = str(getattr(live_decision, "status", "NOT_READY") or "NOT_READY")
+    action = str(getattr(live_decision, "action", "NOT_READY") or "NOT_READY")
+    variant = getattr(live_decision, "variant", None) or "â€”"
+    maturity = str(getattr(live_decision, "maturity", "") or "â€”")
+    obs_ts = str(getattr(live_decision, "observation_timestamp", "") or "â€”")
+    source_ts = str(getattr(live_decision, "source_timestamp", "") or "â€”")
+    missing = tuple(getattr(live_decision, "missing_fields", ()) or ())
+    warnings = tuple(getattr(live_decision, "warnings", ()) or ())
+    trajectory = getattr(live_decision, "trajectory", {}) or {}
+    features = getattr(live_decision, "feature_vector", {}) or {}
+    variant_value = str(getattr(live_decision, "variant", "") or "").upper()
+    variants = {"W73-A": variant_value == "W73-A", "W73-B": variant_value == "W73-B"}
+
+    a, b, c, d, e = st.columns(5)
+    a.metric("V8 STATUS", status)
+    b.metric("ACTION", action)
+    c.metric("W73 VARIANT", variant)
+    d.metric("MATURITY", maturity)
+    e.metric("OBSERVATION", _fmt_timestamp(obs_ts))
+
+    # PE-CE Volume is display-only evidence from the authoritative PECE
+    # workbook. It is deliberately NOT added to features, strategy gates,
+    # scoring, DNA, or outcomes.
+    pece_volume = _pece_volume_display(source_row)
+    st.markdown(_pece_volume_html(pece_volume), unsafe_allow_html=True)
+
+    st.markdown("#### PIT / Canonical provenance")
+    provenance = {
+        "trading_date": getattr(live_decision, "trading_date", None),
+        "source_timestamp": source_ts,
+        "strategy_observation_timestamp": obs_ts,
+        "source_file": source_row.get("_source_file") if source_row else None,
+        "canonical_observation_timestamp": source_row.get("_observation_timestamp") if source_row else None,
+    }
+    if source_row:
+        for key in ("_pece_match_status", "_pece_source_file", "_pece_observation_timestamp"):
+            if key in source_row:
+                provenance[key] = source_row.get(key)
+    st.json(provenance)
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown("#### Exact V8 â€” 25-field state")
+        if features:
+            feature_rows = [{"Field": k, "Value": v} for k, v in features.items()]
+            st.dataframe(pd.DataFrame(feature_rows), use_container_width=True, hide_index=True, height=430)
+        else:
+            st.info("Exact V8 feature vector is unavailable because this maturity is NOT_READY.")
+
+    with right:
+        st.markdown("#### Frozen W73 / trajectory")
+        nl_t3_a = (features.get("orb_agree") == "NO" and features.get("magnitude_count_band") == "0" and trajectory.get("px_negative_count_pre_maturity") is not None and trajectory.get("px_negative_count_pre_maturity") <= 3)
+        nl_t3_b = (features.get("orb_price_agree") == "NO" and features.get("magnitude_count_band") == "0" and trajectory.get("px_negative_count_pre_maturity") is not None and trajectory.get("px_negative_count_pre_maturity") <= 3)
+        nl_t2_a = (features.get("orb_agree") == "NO" and features.get("magnitude_count_band") == "0" and trajectory.get("px_negative_count_pre_maturity") is not None and trajectory.get("px_negative_count_pre_maturity") <= 2)
+        nl_t2_b = (features.get("orb_price_agree") == "NO" and features.get("magnitude_count_band") == "0" and trajectory.get("px_negative_count_pre_maturity") is not None and trajectory.get("px_negative_count_pre_maturity") <= 2)
+        st.json({
+            "W73-A": bool(variants.get("W73-A", False)),
+            "W73-B": bool(variants.get("W73-B", False)),
+            "W73-NL": {
+                "T3-A": nl_t3_a, "T3-B": nl_t3_b,
+                "T2-A": nl_t2_a, "T2-B": nl_t2_b,
+                "negative_count_pre_maturity": trajectory.get("px_negative_count_pre_maturity"),
+            },
+            "trajectory": trajectory,
+            "missing_fields": list(missing),
+            "warnings": list(warnings),
+        })
+        if status == "READY" and not any(bool(v) for v in variants.values()) and any((nl_t3_a, nl_t3_b, nl_t2_a, nl_t2_b)):
+            st.info("W73-NL â€” NEXT-LAYER RESEARCH: this stock fails frozen W73-A/B but matches a separately researched T2/T3 condition. This does not alter W73 qualification.")
+        st.caption("Display only. Frozen W73-A/B and Exact V8 come from the authoritative live decision service. W73-NL is a separate research classification and does not modify the engine or W73 gates.")
+
+
+def _evaluate_maturity(rows, trading_date, maturity, symbols=None):
+    """Evaluate one frozen W73 checkpoint through the same LiveDecision path.
+
+    When symbols is None, evaluate every available symbol in the active rows.
+    Historical Analysis may pass an explicit available-symbol population
+    without changing the LiveDecision or Exact V8 semantics.
+
+    This is historical/validation selection only. It does not create new
+    maturity checkpoints and does not alter the frozen W73-A/B gates.
+    """
+    if not rows or not maturity:
+        return None, None, []
+    try:
+        cutoff = datetime.fromisoformat(str(trading_date)).replace(
+            hour=int(str(maturity).split(":")[0]),
+            minute=int(str(maturity).split(":")[1]),
+            second=0,
+            microsecond=0,
+        )
+    except (TypeError, ValueError):
+        return None, None, []
+
+    if symbols is None:
+        available = _historical_available_symbols(rows)
+    else:
+        allowed = {str(x).strip().upper() for x in symbols if str(x).strip()}
+        available = sorted({
+            str(r.get("Symbol", "")).strip().upper()
+            for r in rows
+            if r.get("Symbol") and str(r.get("Symbol", "")).strip().upper() in allowed
+        })
+    decisions = []
+    for symbol in available:
+        symbol_rows = []
+        for r in rows:
+            if str(r.get("Symbol", "")).strip().upper() != symbol:
+                continue
+            raw_ts = r.get("_observation_timestamp", r.get("timestamp"))
+            try:
+                ts = raw_ts if isinstance(raw_ts, datetime) else datetime.fromisoformat(str(raw_ts))
+            except (TypeError, ValueError):
+                continue
+            if ts <= cutoff:
+                symbol_rows.append(r)
+        if symbol_rows:
+            decisions.append(
+                evaluate_symbol(
+                    symbol_rows,
+                    symbol=symbol,
+                    trading_date=str(trading_date),
+                    maturity=str(maturity),
+                    orb_minutes=15,
+                )
+            )
+    return cutoff, str(maturity), decisions
+
+
+def _post_w73_activity(rows, w73_cutoff="10:15"):
+    """Return post-10:15 source activity without creating W73 signals."""
+    if not rows:
+        return pd.DataFrame()
+    try:
+        hour, minute = [int(x) for x in str(w73_cutoff).split(":")]
+    except (TypeError, ValueError):
+        return pd.DataFrame()
+
+    records = []
+    for r in rows:
+        ts_value = r.get("_observation_timestamp", r.get("timestamp"))
+        try:
+            ts = ts_value if isinstance(ts_value, datetime) else datetime.fromisoformat(str(ts_value))
+        except (TypeError, ValueError):
+            continue
+        if (ts.hour, ts.minute, ts.second) <= (hour, minute, 0):
+            continue
+        symbol = str(r.get("Symbol", "")).strip().upper()
+        if not symbol:
+            continue
+        records.append({
+            "Symbol": symbol,
+            "Post-W73 Time": ts.isoformat(timespec="seconds"),
+            "Price Chg %": r.get("Price Chg %", r.get("price_chg_pct", "â€”")),
+            "OI Chg %": r.get("OI Chg %", r.get("oi_chg_pct", "â€”")),
+            "Volume Chg (%)": r.get("Volume Chg (%)", r.get("volume_chg_pct", "â€”")),
+            "IV": r.get("IV", "â€”"),
+            "PCR Chg %": r.get("PCR Chg %", r.get("PCR Chg", "â€”")),
+            "Buildup": r.get("Buildup", "â€”"),
+        })
+    if not records:
+        return pd.DataFrame()
+    df = pd.DataFrame(records)
+    df["_sort_ts"] = pd.to_datetime(df["Post-W73 Time"], errors="coerce")
+    df = df.sort_values(["_sort_ts", "Symbol"], ascending=[False, True])
+    return df.drop_duplicates("Symbol", keep="first").drop(columns=["_sort_ts"], errors="ignore")
+
+
+# Controlled validation reference derived from the previously run W73 shadow
+# research. It is displayed for comparison only and never feeds W73 decisions.
+# Historical dashboard acceptance baseline â€” display/validation only.
+# Source: the previously run 23/24/25-Sep shadow W73 + softened NL research.
+# It NEVER feeds LiveDecision, W73-A/B, or any trading action.
+# Values are sets by layer at the frozen maturity checkpoint.
+VALIDATION_REFERENCE = {
+    # Layer-specific acceptance baseline. Empty sets are intentional test cases.
+    ("2026-09-23", "09:45"): {"W73-A": {"SAIL"}, "W73-B": set(), "NEXT-LAYER": set()},
+    ("2026-09-23", "10:00"): {"W73-A": {"SAIL"}, "W73-B": {"UPL"}, "NEXT-LAYER": set()},
+    ("2026-09-23", "10:15"): {"W73-A": {"SAIL"}, "W73-B": set(), "NEXT-LAYER": set()},
+    ("2026-09-24", "09:45"): {"W73-A": set(), "W73-B": set(), "NEXT-LAYER": set()},
+    ("2026-09-24", "10:00"): {"W73-A": set(), "W73-B": set(), "NEXT-LAYER": set()},
+    ("2026-09-24", "10:15"): {"W73-A": set(), "W73-B": set(), "NEXT-LAYER": set()},
+    ("2026-09-25", "09:45"): {"W73-A": {"FORTIS", "MAXHEALTH"}, "W73-B": set(), "NEXT-LAYER": {"ZYDUSLIFE", "RADICO"}},
+    ("2026-09-25", "10:00"): {"W73-A": {"ADANIPOWER"}, "W73-B": set(), "NEXT-LAYER": set()},
+    ("2026-09-25", "10:15"): {"W73-A": {"ADANIPOWER"}, "W73-B": set(), "NEXT-LAYER": {"ASIANPAINT"}},
+}
+
+
 # ---------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------
 with st.sidebar:
     st.header("W73 Controls")
-    trading_date = st.text_input("Trading date", datetime.now().strftime("%Y-%m-%d"))
-    month = st.text_input("Source month", "September26")
-    auto_refresh = st.checkbox("Auto refresh", value=True)
-    refresh = st.number_input("Refresh interval (seconds)", min_value=30, max_value=300, value=60, step=15)
-    refresh_now = st.button("Refresh now", use_container_width=True)
-    max_rows = st.number_input("Priority stocks", min_value=5, max_value=30, value=15)
-    st.caption(f"READ ONLY source: {source_root()}")
-    st.caption("30s default. 5s full-page reruns are intentionally disabled.")
+    analysis_mode = st.radio(
+        "Dashboard Mode",
+        ["LIVE TRADER", "HISTORICAL ANALYSIS"],
+        index=0,
+        horizontal=True,
+        help="Historical Analysis is read-only. Cache creation occurs only after an explicit build action."
+    )
 
+    historical_build_requested = False
+    historical_cache_status = None
+    historical_cache_preview = []
+    historical_universe = HISTORICAL_UNIVERSE_OPTIONS[0]
+    historical_selected_symbol = ""
+
+    if analysis_mode == "HISTORICAL ANALYSIS":
+        historical_dates = _historical_available_dates()
+        historical_default_date = max(historical_dates) if historical_dates else date.today()
+        trading_date_value = st.date_input(
+            "Trading date",
+            value=historical_default_date,
+            format="YYYY-MM-DD",
+            help="Select the historical trading date. The calendar reflects existing cache dates; no fallback day is used."
+        )
+        trading_date = trading_date_value.isoformat()
+        month = trading_date_value.strftime("%B%y")
+
+        historical_cache_status = _historical_cache_status(trading_date, month)
+        historical_cache_preview = _historical_cache_rows(trading_date)
+
+        hstatus = historical_cache_status["status"]
+        icon = "â—" if hstatus == "READY" else "â–²" if hstatus == "PARTIAL" else "â—‹"
+        st.markdown(
+            f"**CACHE {icon} {hstatus}**  \n"
+            f"Rows: **{historical_cache_status['rows']:,}** Â· "
+            f"Symbols: **{historical_cache_status['symbols']}** Â· "
+            f"Intervals: **{historical_cache_status['intervals']}**"
+        )
+        st.caption(
+            f"Source: {'AVAILABLE' if historical_cache_status['source_available'] else 'NOT AVAILABLE'} Â· "
+            f"Max PIT: {historical_cache_status['max_observation']}"
+        )
+        cp_text = " Â· ".join(
+            f"{cp} {'âœ“' if ok else 'â€”'}"
+            for cp, ok in historical_cache_status["checkpoints"].items()
+        )
+        st.caption(f"Checkpoints: {cp_text}")
+
+        if hstatus != "READY":
+            if historical_cache_status["source_available"]:
+                historical_build_requested = st.button(
+                    "Build historical cache",
+                    use_container_width=True,
+                    help="Explicit build only. No automatic historical cache creation."
+                )
+            else:
+                st.warning(
+                    "No authoritative source files were discovered for this date. "
+                    "A historical cache cannot be built yet."
+                )
+
+        historical_universe = st.selectbox(
+            "Historical Universe",
+            list(HISTORICAL_UNIVERSE_OPTIONS),
+            index=0,
+            help="ALL AVAILABLE evaluates every symbol present in the selected historical cache."
+        )
+        hist_symbols = _historical_available_symbols(historical_cache_preview)
+        if historical_universe == "SELECTED STOCK":
+            historical_selected_symbol = st.selectbox(
+                "Historical Stock",
+                hist_symbols if hist_symbols else ["â€”"],
+            )
+    else:
+        trading_date = st.date_input(
+            "Trading date",
+            value=date.today(),
+            format="YYYY-MM-DD",
+        ).isoformat()
+        month = datetime.now().strftime("%B%y")
+
+    auto_refresh = st.checkbox("Live auto refresh", value=True)
+    refresh = st.number_input("Refresh seconds", min_value=30, max_value=300, value=60, step=15)
+    refresh_now = st.button("Refresh now", use_container_width=True)
+
+    st.markdown("### Decision View")
+    view_mode = st.radio(
+        "Trader Layer",
+        ["VALIDATION", "READY", "NEXT-LAYER RESEARCH", "NOT_READY", "ALL / AUDIT"],
+        index=4,
+        horizontal=True,
+        help="Display-only. W73-NL never modifies frozen W73-A/B."
+    )
+    evaluation_checkpoint = st.selectbox(
+        "W73 checkpoint",
+        ["AUTO / latest elapsed", "09:30", "09:45", "10:00", "10:15"],
+        help="Only the four frozen W73 maturities are valid."
+    )
+    symbol_filter = st.text_input("Symbol", value="", placeholder="e.g. RELIANCE")
+    variant_filter = st.selectbox("W73 gate", ["ALL", "W73-A", "W73-B"])
+    action_filter = st.selectbox(
+        "Decision",
+        ["ALL", "QUALIFIED", "NEXT-LAYER RESEARCH", "READY / OTHER", "NOT_READY"]
+    )
+    max_rows = st.number_input("Rows", min_value=5, max_value=50, value=20)
+    min_strength = st.slider("Min strength", 0, 100, 0, 5)
+    hide_not_ready = st.checkbox("Hide NOT_READY", value=False)
+    st.caption(f"READ ONLY: {source_root()}")
+    st.caption("Reference validation stocks are shown only as continuity evidence; they are not a production universe boundary.")
+    st.caption("Controls are secondary. Sidebar starts collapsed; use the native arrow only when needed.")
+
+def _build_validation_reference_board(board_df, expected_layers, qualification_map=None):
+    """Reference-only three-layer acceptance board with FIRST ALERT visibility."""
+    if not expected_layers:
+        return pd.DataFrame()
+    current = {}
+    if board_df is not None and not board_df.empty and "Symbol" in board_df.columns:
+        for row in board_df.to_dict("records"):
+            current[str(row.get("Symbol", "")).strip().upper()] = row
+    qualification_map = qualification_map or {}
+    records = []
+    for expected_layer in ("W73-A", "W73-B", "NEXT-LAYER"):
+        for symbol in sorted(expected_layers.get(expected_layer, set())):
+            cur = current.get(symbol, {})
+            q = qualification_map.get(symbol, {})
+            current_layer = str(cur.get("Layer", "NOT FOUND") or "NOT FOUND")
+            current_variant = str(cur.get("W73 Variant", "â€”") or "â€”")
+            if current_layer == "W73-A/B":
+                actual_layer = current_variant if current_variant in ("W73-A", "W73-B") else current_layer
+            elif current_layer == "W73-NL":
+                actual_layer = "NEXT-LAYER"
+            else:
+                actual_layer = current_layer
+            records.append({
+                "Symbol": symbol,
+                "FIRST ALERT": cur.get("Filter Alert Time", q.get("Filter Alert Time", "â€”")),
+                "EXPECTED LAYER": expected_layer,
+                "CURRENT LAYER": actual_layer,
+                "CURRENT DECISION": str(cur.get("Decision", "NOT FOUND") or "NOT FOUND"),
+                "W73 VARIANT": current_variant,
+                "STRENGTH": cur.get("Strength", q.get("Entry Strength", "â€”")),
+                "OBS TIME": cur.get("Strategy Observation Time", "â€”"),
+                "LAST EVENT TIME": cur.get("Last Event Time", "â€”"),
+                "VALIDATION": "MATCH" if actual_layer == expected_layer else "MISMATCH / NOT REPRODUCED",
+            })
+    return pd.DataFrame(records)
 
 
 def _render_live_board():
     # ---------------------------------------------------------------------
     # Ingestion
     # ---------------------------------------------------------------------
-    try:
-        ingest_result = ingest(trading_date, month, CACHE_ROOT)
-    except Exception as exc:
+    if analysis_mode == "HISTORICAL ANALYSIS":
         ingest_result = {
-            "status": "ERROR",
+            "status": "HISTORICAL_READ_ONLY",
             "trading_date": trading_date,
             "new_rows": 0,
             "new_symbols": 0,
             "new_intervals": [],
-            "error": str(exc),
+            "error": "",
         }
+    else:
+        try:
+            ingest_result = ingest(trading_date, month, CACHE_ROOT)
+        except Exception as exc:
+            ingest_result = {
+                "status": "ERROR",
+                "trading_date": trading_date,
+                "new_rows": 0,
+                "new_symbols": 0,
+                "new_intervals": [],
+                "error": str(exc),
+            }
 
     requested_cache = CACHE_ROOT / f"{trading_date}.jsonl"
+
+    if analysis_mode == "HISTORICAL ANALYSIS" and historical_build_requested:
+        try:
+            ingest_result = ingest(trading_date, month, CACHE_ROOT)
+        except Exception as exc:
+            ingest_result = {
+                "status": "ERROR",
+                "trading_date": trading_date,
+                "new_rows": 0,
+                "new_symbols": 0,
+                "new_intervals": [],
+                "error": str(exc),
+            }
+
     current_rows = load_rows(requested_cache) if requested_cache.exists() else []
 
-    if current_rows:
+    if analysis_mode == "HISTORICAL ANALYSIS":
+        data_session = trading_date if current_rows else None
+        active_cache = requested_cache
+        rows = current_rows
+        session_mode = "HISTORICAL" if current_rows else "HISTORICAL_MISSING"
+    elif current_rows and _has_authoritative_source(trading_date, month):
         data_session = trading_date
         active_cache = requested_cache
         rows = current_rows
         session_mode = "LIVE"
     else:
-        data_session, prior_cache, prior_rows = _find_latest_prior_cache(trading_date)
+        data_session, prior_cache, prior_rows = _find_latest_prior_cache(trading_date, month)
         if prior_rows:
             active_cache = prior_cache
             rows = prior_rows
@@ -641,35 +1621,115 @@ def _render_live_board():
 
     # Exact V8 live-decision service is authoritative for signal readiness.
     # It fails closed when the required ORB/V8 evidence is unavailable.
-    live_decision_asof, live_maturity, live_decisions = evaluate_latest_maturity(
-        rows,
-        trading_date=trading_date,
-        orb_minutes=15,
-    )
+    # The active data session is authoritative when the requested date falls
+    # back to a prior trading session (e.g. weekend/holiday).
+    decision_date = data_session or trading_date
+    if analysis_mode == "HISTORICAL ANALYSIS":
+        historical_symbols = _resolve_historical_symbols(
+            rows,
+            historical_universe,
+            historical_selected_symbol,
+        )
+        checkpoint = evaluation_checkpoint
+        if checkpoint == "AUTO / latest elapsed":
+            checkpoint = "10:15"
+        live_decision_asof, live_maturity, live_decisions = _evaluate_maturity(
+            rows,
+            decision_date,
+            checkpoint,
+            symbols=historical_symbols,
+        )
+        evaluation_mode = f"HISTORICAL ANALYSIS Â· {checkpoint} Â· {historical_universe}"
+    elif evaluation_checkpoint == "AUTO / latest elapsed":
+        live_decision_asof, live_maturity, live_decisions = evaluate_latest_maturity(
+            rows,
+            trading_date=decision_date,
+            symbols=_historical_available_symbols(rows),
+            orb_minutes=15,
+        )
+        evaluation_mode = "AUTO / latest elapsed"
+    else:
+        live_decision_asof, live_maturity, live_decisions = _evaluate_maturity(
+            rows,
+            decision_date,
+            evaluation_checkpoint,
+        )
+        evaluation_mode = f"HISTORICAL CHECKPOINT {evaluation_checkpoint}"
+    # Establish the authoritative data timestamp before any PIT slicing or
+    # qualification lookup.  This avoids an unbound local on fallback/empty
+    # decision paths while preserving the same causal cutoff semantics.
+    times = _observation_times(rows)
+    data_asof = max(times) if times else "N/A"
+
+    # Historical checkpoint must be a true point-in-time board.  Never combine
+    # a historical LiveDecision with later raw rows merely for display.
+    board_rows = _rows_asof(rows, live_decision_asof or data_asof)
     live_decision_counts = decision_summary(live_decisions)
+    live_decision_map = {
+        str(getattr(d, "symbol", "")).upper(): d
+        for d in live_decisions
+        if str(getattr(d, "symbol", "")).strip()
+    }
     # Frozen decision vocabulary: incomplete exact V8 evidence remains NOT_READY.
     # This is display/contract vocabulary only; it does not relax signal qualification.
     NOT_READY = "NOT_READY"
-    board_df, latest_rows = _build_board(rows)
-    qualification_map = _first_qualification(rows)
-    event_map = _qualification_events(rows)
+    legacy_board_df, latest_rows = _build_board(board_rows)
+    # Main trader population comes from authoritative Exact V8/LiveDecision
+    # results, not the separate universe-priority filter. This exposes every
+    # READY stock while keeping W73-NL visibly separate from frozen W73-A/B.
+    board_df = _build_research_layer_board(live_decisions, board_rows)
+    qualification_map = _first_qualification(rows, live_decision_asof or data_asof)
+    event_map = _qualification_events(rows, live_decision_asof or data_asof)
     evidence = _evidence_metrics(latest_rows)
-    times = _observation_times(rows)
-    data_asof = max(times) if times else "N/A"
     if not board_df.empty:
-        board_df["Filter Alert Time"] = board_df["Symbol"].astype(str).str.upper().map(lambda s: qualification_map.get(s, {}).get("Filter Alert Time", qualification_map.get(s, {}).get("Qualified Since", "—")))
+        board_df["Filter Alert Time"] = board_df["Symbol"].astype(str).str.upper().map(lambda s: qualification_map.get(s, {}).get("Filter Alert Time", qualification_map.get(s, {}).get("Qualified Since", "â€”")))
         board_df["Qualified Since"] = board_df["Filter Alert Time"]
         board_df["Entry Strength"] = board_df["Symbol"].astype(str).str.upper().map(lambda s: qualification_map.get(s, {}).get("Entry Strength", 0))
-        board_df["Entry Evidence"] = board_df["Symbol"].astype(str).str.upper().map(lambda s: qualification_map.get(s, {}).get("Entry Evidence", "—"))
+        board_df["Entry Evidence"] = board_df["Symbol"].astype(str).str.upper().map(lambda s: qualification_map.get(s, {}).get("Entry Evidence", "â€”"))
         board_df["Qualification Age"] = board_df["Filter Alert Time"].map(lambda ts: _duration_label(ts, data_asof))
-        strategy_rows = board_df.apply(_strategy_decision, axis=1, result_type="expand")
-        board_df = pd.concat([board_df.reset_index(drop=True), strategy_rows.reset_index(drop=True)], axis=1)
+        board_df["_live_decision"] = board_df["Symbol"].astype(str).str.upper().map(live_decision_map)
+        strategy_rows = board_df.apply(
+            lambda row: _strategy_decision(row, row.get("_live_decision")),
+            axis=1,
+            result_type="expand",
+        )
+
+        # Merge strategy display fields into the authoritative board instead of
+        # concatenating DataFrames side-by-side.  The research-layer board
+        # already owns fields such as Decision, Strategy Status, Bias,
+        # Strength and Filter Alert Time.  A horizontal concat would create
+        # duplicate column names and Streamlit rejects those tables.
+        #
+        # Preserve the board's authoritative layer Decision; the remaining
+        # strategy-service fields are assigned by name so each column remains
+        # unique.
+        if "Decision" in strategy_rows.columns:
+            strategy_rows = strategy_rows.drop(columns=["Decision"])
+
+        for column in strategy_rows.columns:
+            board_df[column] = strategy_rows[column].to_numpy()
+
+        board_df = board_df.drop(columns=["_live_decision"], errors="ignore")
+
+        if board_df.columns.duplicated().any():
+            duplicate_columns = board_df.columns[board_df.columns.duplicated()].tolist()
+            raise RuntimeError(
+                "W73 dashboard internal error: duplicate board columns after "
+                f"strategy merge: {duplicate_columns}"
+            )
         board_df["Last Event"] = board_df["Symbol"].astype(str).str.upper().map(lambda s: _event_summary(s, event_map, data_asof)[0])
         board_df["Last Event Time"] = board_df["Symbol"].astype(str).str.upper().map(lambda s: _event_summary(s, event_map, data_asof)[1])
     age = _age_label(data_asof)
-    qualified_count = len(board_df)
+    evaluated_count = len(board_df)
+    ready_count = int((board_df["Strategy Status"].astype(str).str.upper() == "READY").sum()) if "Strategy Status" in board_df.columns else 0
+    qualified_count = int((board_df["Layer"].astype(str) == "W73-A/B").sum()) if "Layer" in board_df.columns else 0
     up, down, flat = _direction_counts(board_df)
     alerts = _alerts(board_df, evidence, trading_date, data_session, ingest_result, data_asof)
+    strategy_counts = {
+        "QUALIFIED": int(live_decision_counts.get("QUALIFIED", 0)),
+        "WAIT": int(live_decision_counts.get("WAIT", 0)),
+        "NOT_READY": int(live_decision_counts.get("NOT_READY", 0)),
+    }
     if live_maturity:
         st.session_state["w73_live_decision_summary"] = {
             "maturity": live_maturity,
@@ -680,33 +1740,51 @@ def _render_live_board():
     # Explicit readiness gate: never claim the final intraday strategy is ready
     # unless the exact V8 fields required by the frozen candidate exist in the
     # current point-in-time observations.
-    required_v8 = [
-        "orb_agree",
-        "magnitude_count_band",
-        "px_all_negative_pre_maturity",
-        "strategy_family",
-    ]
-    exact_v8_present = bool(latest_rows) and all(
-        key in latest_rows[0] for key in required_v8
+    # Readiness is based on the authoritative LiveDecision results, not on
+    # derived V8 fields being embedded in raw PIT observations.
+    exact_ready_count = sum(
+        1 for d in live_decisions
+        if str(getattr(d, "status", "")).upper() == "READY"
     )
+    not_ready_count = sum(
+        1 for d in live_decisions
+        if str(getattr(d, "status", "")).upper() != "READY"
+    )
+    # Evaluator readiness is separate from per-symbol evidence readiness.
+    # A NOT_READY symbol fails closed for itself; it must not invalidate other symbols.
+    exact_v8_present = bool(live_decisions)
+    exact_v8_status = (
+        f"{exact_ready_count}/{len(live_decisions)} READY"
+        if live_decisions else "NOT READY"
+    )
+    w73_strategy_evaluation_ready = bool(live_decisions)
     live_session_ready = data_session == trading_date and bool(latest_rows)
     universe_ready = bool(UNIVERSE_CONFIG.exists()) and bool(board_df is not None)
     ingestion_ready = ingest_result.get("status") == "OK"
-    final_strategy_ready = live_session_ready and universe_ready and ingestion_ready and exact_v8_present
+    qualified_live_count = int(
+        sum(1 for d in live_decisions if str(getattr(d, "action", "")).upper() == "QUALIFIED")
+    )
+    final_strategy_ready = (
+        live_session_ready
+        and universe_ready
+        and ingestion_ready
+        and qualified_live_count > 0
+    )
 
 
 
     # ---------------------------------------------------------------------
     # Header
     # ---------------------------------------------------------------------
-    st.title("NTIS W73 — Intraday Trader Board")
-    st.caption("Decision-first • qualified universe • evidence strength • exact event timestamps • port 9005")
+    st.title("NTIS W73 â€” Intraday Trader Board")
+    st.caption("Decision-first â€¢ frozen W73 09:30/09:45/10:00/10:15 â€¢ separate next-layer research â€¢ exact PIT timestamps")
+    st.caption("SOURCE-OF-TRUTH POPULATION Â· BANDHANBNK Â· MOTILALOFS Â· POLICYBZR Â· RADICO Â· SAIL")
 
     badge = {
-        "LIVE": ("🟢", "LIVE"),
-        "FALLBACK": ("🟠", "FALLBACK — PRIOR SESSION"),
-        "WAITING": ("⚪", "WAITING FOR SOURCE"),
-    }.get(session_mode, ("🔴", "ERROR"))
+        "LIVE": ("ðŸŸ¢", "LIVE"),
+        "FALLBACK": ("ðŸŸ ", "FALLBACK â€” PRIOR SESSION"),
+        "WAITING": ("âšª", "WAITING FOR SOURCE"),
+    }.get(session_mode, ("ðŸ”´", "ERROR"))
     st.markdown(f"### {badge[0]} {badge[1]}")
 
     if session_mode == "FALLBACK":
@@ -721,235 +1799,512 @@ def _render_live_board():
 
 
     # ---------------------------------------------------------------------
-    # At-a-glance market / session strip
+    # Trader KPI ribbon â€” one compact hierarchy, no duplicate readiness block.
     # ---------------------------------------------------------------------
-    s = st.columns(9)
-    s[0].metric("DATA SESSION", data_session or "—")
-    s[1].metric("DATA TIME", data_asof)
-    s[2].metric("AGE", age)
-    s[3].metric("INTERVALS", len(times))
-    s[4].metric("QUALIFIED", qualified_count if rows else "—")
-    s[5].metric("UP", up)
-    s[6].metric("DOWN", down)
-    s[7].metric("EVIDENCE", f"{evidence['core_pct']:.0f}%")
-
-    strategy_statuses = board_df["Strategy Status"].value_counts().to_dict() if not board_df.empty else {}
-    actionable = sum(1 for x in board_df.get("Decision", []) if str(x) in ("BUY", "SELL")) if not board_df.empty else 0
-    s[8].metric("ACTIONABLE", actionable)
+    layer_counts = {
+        "W73": int(sum(1 for d in live_decisions if str(getattr(d, "status", "")).upper() == "READY" and str(getattr(d, "variant", "") or "").upper() in {"W73-A", "W73-B"})),
+        "NL": int(sum(1 for r in board_df.to_dict("records") if r.get("Layer") == "W73-NL")),
+        "NOT_READY": int(sum(1 for d in live_decisions if str(getattr(d, "status", "")).upper() != "READY")),
+    }
+    k = st.columns(7)
+    k[0].metric("EVALUATED", len(live_decisions))
+    k[1].metric("W73-A/B READY", layer_counts["W73"])
+    k[2].metric("NEXT-LAYER", layer_counts["NL"])
+    k[3].metric("NOT_READY", layer_counts["NOT_READY"])
+    k[4].metric("EXACT V8", exact_v8_status)
+    k[5].metric("MATURITY", live_maturity or "â€”")
+    k[6].metric("DATA SESSION", data_session or "â€”")
 
     st.markdown(
-        '<div class="small-note">Data Time = source observation timestamp. '
-        'Detected/alert time is separate. No prior-session observation is relabelled as today.</div>',
+        f'<div class="w73-session-strip">'
+        f'<span class="w73-live-dot">â—</span> LIVE DATA '
+        f'&nbsp;|&nbsp; Session <b>{data_session or "â€”"}</b> '
+        f'&nbsp;|&nbsp; Source <b>{_fmt_timestamp(data_asof)}</b> '
+        f'&nbsp;|&nbsp; Age <b>{age}</b> '
+        f'&nbsp;|&nbsp; W73 checkpoint <b>{live_maturity or "â€”"}</b>'
+        f'&nbsp;|&nbsp; Mode <b>{evaluation_mode}</b>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
+    # Contract label retained for dashboard restoration tests: Intraday Setup Readiness.
     # ---------------------------------------------------------------------
-    # Setup readiness — explicit, conservative, non-deceptive.
+    # Trader display view + compact readiness rail
     # ---------------------------------------------------------------------
-    st.subheader("Intraday Setup Readiness")
-    readiness = pd.DataFrame([
-        ["Source ingestion", "READY" if ingestion_ready else "NOT READY",
-         "Latest source interval can be read." if ingestion_ready else "Ingestion returned an error."],
-        ["Point-in-time cache", "READY" if bool(latest_rows) else "WAITING",
-         f"{len(times)} source intervals available." if latest_rows else "No point-in-time observations available."],
-        ["Filtered universe", "READY" if universe_ready and qualified_count > 0 else "WAITING",
-         f"{qualified_count} stocks currently qualify." if qualified_count else "No stock currently qualifies."],
-        ["Today's live session", "READY" if live_session_ready else "WAITING",
-         f"Using {data_session}." if data_session else "Waiting for today's first source interval."],
-        ["Exact V8 strategy fields", "READY" if exact_v8_present else "NOT READY",
-         "All frozen candidate fields are present." if exact_v8_present else "Exact V8 trajectory fields are not in the live cache."],
-        ["Validated BUY/SELL engine", "NOT DEPLOYED",
-         "No validated directional BUY/SELL rule is being inferred from the 65/100 evidence meter."],
-        ["FINAL TRADING READINESS", "READY" if final_strategy_ready else "NOT READY",
-         "All required live strategy inputs are present." if final_strategy_ready else "Do not treat the current board as an executable BUY/SELL signal."],
-    ], columns=["Checkpoint", "Status", "Interpretation"])
-
-    def _readiness_style(df):
-        def s(v):
-            if v == "READY":
-                return "background-color:#e5f5e9;color:#126b37;font-weight:800"
-            if v in ("NOT READY", "NOT DEPLOYED"):
-                return "background-color:#fde8e8;color:#9b1c1c;font-weight:800"
-            return "background-color:#fff4d6;color:#805900;font-weight:800"
-        return df.style.map(s, subset=["Status"])
-
-    st.dataframe(_readiness_style(readiness), use_container_width=True, hide_index=True, height=270)
-
-    # ---------------------------------------------------------------------
-    # What to watch / strongest candidates
-    # ---------------------------------------------------------------------
-    st.subheader("What to Watch Now")
-
-    if not board_df.empty:
-        top = board_df.head(3)
-        cards = st.columns(3)
-        for col, (_, r) in zip(cards, top.iterrows()):
-            bias = str(r.get("Bias", "WATCH"))
-            strength = int(r.get("Strength", 0))
-            symbol = str(r.get("Symbol", "—"))
-            meter = str(r.get("Strength Meter", ""))
-            evidence_text = str(r.get("Evidence", ""))
-            qualified_since = str(r.get("Qualified Since", "—"))
-            decision = str(r.get("Decision", "NO TRADE"))
-            strategy_status = str(r.get("Strategy Status", "NOT DEPLOYED"))
-            if "LONG" in bias:
-                color = "#117a37"
-            elif "SHORT" in bias:
-                color = "#b21f1f"
-            else:
-                color = "#806000"
-
-            col.markdown(
-                f"""
-                <div style="border:1px solid rgba(128,128,128,.22);border-radius:8px;padding:10px;
-                            min-height:118px;background:rgba(128,128,128,.025)">
-                  <div style="font-size:1.05rem;font-weight:800">{symbol}</div>
-                  <div style="color:{color};font-weight:800">{bias} · {strength}/100</div>
-                  <div style="font-family:monospace;letter-spacing:1px">{meter}</div>
-                  <div style="font-size:.74rem;font-weight:800;margin-top:3px">DECISION: {decision}</div>
-                  <div style="font-size:.67rem">Strategy: {strategy_status}</div>
-                  <div style="font-size:.70rem;margin-top:3px">FILTER ALERT: {qualified_since}</div>
-                  <div style="font-size:.70rem;margin-top:3px">{evidence_text}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-    else:
-        st.info("No qualified candidates are available yet.")
-
-
-    # ---------------------------------------------------------------------
-    # Main actionable priority board
-    # ---------------------------------------------------------------------
-    st.subheader("Priority Stocks — Select the Strongest Evidence")
-
-    if not board_df.empty:
-        cols = [
-            "Symbol", "Decision", "Setup State", "Bias", "Strength", "Strength Meter",
-            "Filter Alert Time", "Qualification Age", "Last Event", "Last Event Time",
-            "Evidence", "Price Chg %", "OI Chg %", "Volume Chg (%)",
-        ]
-        cols = [c for c in cols if c in board_df.columns]
-        shown = board_df[cols].head(int(max_rows)).copy()
-
-        st.dataframe(
-            _style_priority(shown),
-            use_container_width=True,
-            hide_index=True,
-            height=540,
-        )
-
-        st.caption(
-            "Decision is generated only by the frozen strategy gate when exact V8 fields are available. "
-            "Strength is evidence prioritisation, not probability. Filter Alert Time is the exact first qualifying source timestamp."
-        )
-    else:
-        st.info("No qualified stocks are available at this point in time.")
-
-
-    # ---------------------------------------------------------------------
-    # Secondary panels
-    # ---------------------------------------------------------------------
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["Alerts & timestamps", "Stock evidence", "Lineage", "Universe health"]
+    # Compatibility display filter: checkpoint selection above is the real
+    # W73 evaluation control. Keep this as ALL so it cannot alter PIT semantics.
+    maturity_filter = "ALL"
+    filtered_board = _apply_trader_filters(
+        board_df,
+        symbol_filter,
+        action_filter,
+        variant_filter,
+        maturity_filter,
+        min_strength,
+        hide_not_ready,
     )
 
-    with tab1:
-        st.subheader("Alerts / Checkpoints")
-        st.caption("FILTER ALERT TIME = exact source interval when the stock first satisfied the configured W73 universe rule. DETECTED TIME is a separate dashboard event time.")
-        if not board_df.empty:
-            stock_alerts = board_df[["Symbol", "Decision", "Strategy Status", "Bias", "Strength", "Filter Alert Time", "Qualification Age", "Last Event", "Last Event Time", "Entry Evidence"]].copy()
-            stock_alerts = stock_alerts.rename(columns={"Filter Alert Time": "FILTER ALERT TIME", "Entry Evidence": "FILTER EVIDENCE", "Last Event Time": "LAST EVENT TIME"})
-            st.dataframe(stock_alerts.head(int(max_rows)), use_container_width=True, hide_index=True, height=300)
-        alert_df = pd.DataFrame(alerts)
+    # Empty authoritative board is valid while waiting for source/decisions.
+    # Never access Layer until decision rows exist.
+    if not filtered_board.empty and "Layer" in filtered_board.columns:
+        if view_mode == "VALIDATION":
+            filtered_board = filtered_board[filtered_board["Layer"].isin(["W73-A/B", "W73-NL"])]
+        elif view_mode == "READY":
+            filtered_board = filtered_board[filtered_board["Layer"].isin(["W73-A/B", "READY-NONMATCH"])]
+        elif view_mode == "NEXT-LAYER RESEARCH":
+            filtered_board = filtered_board[filtered_board["Layer"] == "W73-NL"]
+        elif view_mode == "NOT_READY":
+            filtered_board = filtered_board[filtered_board["Layer"] == "NOT_READY"]
+    # ALL / AUDIT leaves the full authoritative population intact.
+    filtered_board = filtered_board.head(int(max_rows))
+
+    # Post-W73 activity is deliberately separate from frozen W73-A/B.
+    post_w73_df = _post_w73_activity(rows, "10:15")
+
+    # Controlled validation reference: display-only, never feeds decisions.
+    ref_key = (str(decision_date), str(live_maturity or ""))
+    expected_layers = VALIDATION_REFERENCE.get(ref_key, {"W73-A": set(), "W73-B": set(), "NEXT-LAYER": set()})
+    expected_a = set(expected_layers.get("W73-A", set()))
+    expected_b = set(expected_layers.get("W73-B", set()))
+    expected_nl = set(expected_layers.get("NEXT-LAYER", set()))
+    expected_w73 = expected_a | expected_b
+
+    actual_a = {str(r.get("Symbol", "")).upper() for r in board_df.to_dict("records") if str(r.get("Layer", "")) == "W73-A/B" and str(r.get("W73 Variant", "")) == "W73-A"}
+    actual_b = {str(r.get("Symbol", "")).upper() for r in board_df.to_dict("records") if str(r.get("Layer", "")) == "W73-A/B" and str(r.get("W73 Variant", "")) == "W73-B"}
+    actual_nl = {str(r.get("Symbol", "")).upper() for r in board_df.to_dict("records") if str(r.get("Layer", "")) == "W73-NL"}
+    actual_w73 = actual_a | actual_b
+    validation_applicable = ref_key in VALIDATION_REFERENCE
+    validation_pass = validation_applicable and actual_a == expected_a and actual_b == expected_b and actual_nl == expected_nl
+    expected_symbols = expected_w73 | expected_nl
+    actual_symbols = actual_w73 | actual_nl
+    validation_board = _build_validation_reference_board(board_df, expected_layers, qualification_map)
+
+    main_col, rail_col = st.columns([5.8, 1.35], gap="small")
+
+    with main_col:
+        st.subheader(
+            "Historical Validation â€” 23/24/25-Sep Source-of-Truth"
+            if view_mode == "VALIDATION"
+            else "Decision Board â€” Intraday Eye View"
+        )
+
+        if view_mode == "VALIDATION":
+            display_df = validation_board.copy()
+            if not display_df.empty:
+                for c in ("FIRST ALERT", "OBS TIME", "LAST EVENT TIME"):
+                    if c in display_df.columns:
+                        display_df[c] = display_df[c].map(_fmt_timestamp)
+                expected_count = len(expected_symbols)
+                reproduced_count = len(actual_symbols & expected_symbols)
+                missing_count = len(expected_symbols - actual_symbols)
+                unexpected_count = len(actual_symbols - expected_symbols)
+                vc = st.columns(4)
+                vc[0].metric("W73-A", len(expected_a))
+                vc[1].metric("W73-B", len(expected_b))
+                vc[2].metric("NEXT-LAYER", len(expected_nl))
+                vc[3].metric("MATCHED", reproduced_count)
+
+                display_cols = [
+                    "Symbol", "FIRST ALERT", "EXPECTED LAYER", "CURRENT LAYER", "CURRENT DECISION",
+                    "W73 VARIANT", "STRENGTH", "OBS TIME",
+                    "LAST EVENT TIME", "VALIDATION",
+                ]
+                display_cols = [c for c in display_cols if c in display_df.columns]
+                st.dataframe(
+                    display_df[display_cols],
+                    use_container_width=True,
+                    hide_index=True,
+                    height=340,
+                )
+                st.markdown('<div class="w73-acceptance-head">FIRST ALERT â†’ 3-LAYER ACCEPTANCE PROOF</div>', unsafe_allow_html=True)
+                st.caption("Every historically identified candidate is shown across W73-A, W73-B and NEXT-LAYER. FIRST ALERT is the source-backed earliest filter qualification timestamp; reference rows never create signals.")
+            else:
+                display_df = pd.DataFrame()
+                st.info(
+                    f"No expected W73/NL candidates are recorded for {decision_date} @ {live_maturity}. "
+                    "An empty reference set is itself a valid historical test case."
+                )
+        else:
+            display_df = filtered_board.copy()
+            if not display_df.empty:
+                cols = [
+                    "Symbol", "Layer", "Decision", "W73 Variant", "NL-T3-A", "NL-T3-B",
+                    "NL-T2-A", "NL-T2-B", "Strength", "Bias", "Filter Alert Time",
+                    "Strategy Observation Time", "Last Event", "Last Event Time",
+                ]
+                cols = [c for c in cols if c in display_df.columns]
+                shown = display_df[cols].copy().rename(columns={
+                    "Filter Alert Time": "FIRST ALERT",
+                    "Strategy Observation Time": "OBS TIME",
+                    "Last Event": "LAST EVENT",
+                    "Last Event Time": "LAST EVENT TIME",
+                })
+                for c in ("FIRST ALERT", "OBS TIME", "LAST EVENT TIME"):
+                    if c in shown.columns:
+                        shown[c] = shown[c].map(_fmt_timestamp)
+                if "Strength" in shown.columns:
+                    shown["Strength"] = pd.to_numeric(
+                        shown["Strength"], errors="coerce"
+                    ).fillna(0).astype(int).astype(str) + "/100"
+                st.dataframe(
+                    shown.head(int(max_rows)),
+                    use_container_width=True,
+                    hide_index=True,
+                    height=340,
+                )
+                st.caption(
+                    "FIRST ALERT = first exact source timestamp for filter eligibility. "
+                    "OBS TIME = authoritative PIT maturity observation. "
+                    "W73-NL is separate research and never modifies frozen W73-A/B."
+                )
+            else:
+                st.info("No stocks match the current decision filters.")
+
+        validation_state = (
+            "PASS" if validation_pass else
+            "MISMATCH" if validation_applicable else
+            "N/A â€” LIVE / NO HISTORICAL BASELINE"
+        )
+        validation_detail = (
+            f"A expected: {', '.join(sorted(expected_a)) or 'NONE'} | got: {', '.join(sorted(actual_a)) or 'NONE'}"
+            f" &nbsp; â€¢ &nbsp; B expected: {', '.join(sorted(expected_b)) or 'NONE'} | got: {', '.join(sorted(actual_b)) or 'NONE'}"
+            f" &nbsp; â€¢ &nbsp; NEXT-LAYER expected: {', '.join(sorted(expected_nl)) or 'NONE'} | got: {', '.join(sorted(actual_nl)) or 'NONE'}"
+        ) if validation_applicable else (
+            "No frozen 23/24/25-Sep acceptance baseline is attached to this session/checkpoint."
+        )
+        st.markdown(
+            f'<div class="w73-validation"><b>HISTORICAL VALIDATION Â· {validation_state}</b><br>{validation_detail}</div>',
+            unsafe_allow_html=True,
+        )
+
+    with rail_col:
+        st.markdown("#### Decision Focus")
+
+        selected_symbol = None
+        if not display_df.empty:
+            selected_symbol = st.selectbox(
+                "Stock",
+                display_df["Symbol"].astype(str).tolist(),
+                key="decision_focus_symbol",
+                label_visibility="collapsed",
+            )
+            selected_row = display_df[display_df["Symbol"].astype(str) == selected_symbol].iloc[0]
+            selected_decision = live_decision_map.get(selected_symbol.upper())
+            decision = str(selected_row.get("CURRENT DECISION", selected_row.get("Decision", "NOT_READY")))
+            variant = str(selected_row.get("W73 VARIANT", selected_row.get("W73 Variant", "â€”")))
+            strength_value = selected_row.get("STRENGTH", selected_row.get("Strength", 0))
+            try:
+                strength = int(float(strength_value))
+            except (TypeError, ValueError):
+                strength = 0
+            bias = str(selected_row.get("Bias", "WATCH"))
+            first_alert = _fmt_timestamp(selected_row.get("FIRST ALERT", selected_row.get("Filter Alert Time", "â€”")))
+            obs_time = _fmt_timestamp(selected_row.get("OBS TIME", selected_row.get("Strategy Observation Time", "â€”")))
+            source_time = _fmt_timestamp(selected_row.get("Source Timestamp", "â€”"))
+            reason = str(selected_row.get("CURRENT REASON", selected_row.get("Reason", "â€”")))
+            expected_layer_focus = str(selected_row.get("EXPECTED LAYER", selected_row.get("EXPECTED", "")))
+            current_layer_focus = str(selected_row.get("CURRENT LAYER", selected_row.get("Layer", "â€”")))
+
+            nl_rule = "â€”"
+            if bool(selected_row.get("NL-T3-A", False)): nl_rule = "T3-A"
+            elif bool(selected_row.get("NL-T3-B", False)): nl_rule = "T3-B"
+            elif bool(selected_row.get("NL-T2-A", False)): nl_rule = "T2-A"
+            elif bool(selected_row.get("NL-T2-B", False)): nl_rule = "T2-B"
+            gate_label = variant if variant in ("W73-A","W73-B") else (f"W73-NL {nl_rule}" if nl_rule != "â€”" else "NO MATCH")
+            st.markdown(
+                f'<div class="w73-decision-card">'
+                f'<div class="w73-decision-symbol">{selected_symbol}</div>'
+                f'<div class="w73-decision-state">{decision} Â· {selected_row.get("CURRENT LAYER", selected_row.get("Layer", "â€”"))}</div>'
+                f'<div class="w73-critical"><b>STRENGTH</b> {strength}/100 Â· <b>BIAS</b> {bias}</div>'
+                f'<div class="w73-critical w73-first-alert"><b>FIRST ALERT</b> {first_alert}</div>'
+                f'<div class="w73-critical"><b>OBS</b> {obs_time}</div>'
+                f'<div class="w73-critical"><b>SOURCE</b> {source_time}</div>'
+                f'<div class="w73-critical"><b>EXPECTED</b> {expected_layer_focus or "â€”"} Â· <b>GATE</b> {gate_label}</div>'
+                f'<div class="w73-critical"><b>NEG PRE-MATURITY</b> {selected_row.get("NL Negative Count", "â€”")}</div>'
+                f'<div class="w73-critical"><b>REASON</b> {reason}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+            # Only the decision-critical gates are shown in the trader view.
+            if view_mode == "VALIDATION":
+                validation_match = str(selected_row.get("VALIDATION", "")).upper() == "MATCH"
+                validation_detail = (
+                    "Current engine reproduces the expected historical layer."
+                    if validation_match else
+                    f"Expected {expected_layer_focus or 'â€”'}; current result is {current_layer_focus or 'â€”'}."
+                )
+                gate_rows = [
+                    ("EXPECTED", expected_layer_focus or "â€”", "Historical reference only."),
+                    ("CURRENT", current_layer_focus or "â€”", validation_detail),
+                    ("EXACT V8", "READY" if str(getattr(selected_decision, "status", "")).upper() == "READY" else "NOT READY",
+                     f"Maturity {getattr(selected_decision, 'maturity', 'â€”')}" if selected_decision else "No current LiveDecision."),
+                    ("VALIDATION", "MATCH" if validation_match else "MISMATCH",
+                     "Reference-only acceptance comparison; never creates a signal."),
+                ]
+            else:
+                gate_rows = [
+                    ("FILTER", "PASS" if first_alert != "â€”" else "WAIT", "First filter qualification timestamp available." if first_alert != "â€”" else "No filter qualification yet."),
+                    ("EXACT V8", "READY" if str(getattr(selected_decision, "status", "")).upper() == "READY" else "NOT READY",
+                     f"Maturity {getattr(selected_decision, 'maturity', 'â€”')}" if selected_decision else "No LiveDecision."),
+                    ("W73 GATE", "QUALIFIED" if variant in ("W73-A","W73-B") else "NO MATCH",
+                     "Frozen A/B match." if variant in ("W73-A","W73-B") else "Does not change W73."),
+                    ("DECISION", decision, "Authoritative LiveDecision action."),
+                ]
+            for name, status, detail in gate_rows:
+                cls = "w73-gate-ready" if status in ("PASS","READY","QUALIFIED") else ("w73-gate-fail" if status in ("NO MATCH","NOT_READY") else "w73-gate-wait")
+                st.markdown(
+                    f'<div class="w73-gate"><div class="{cls}">â— <b>{name}</b><strong>{status}</strong></div>'
+                    f'<div class="w73-gate-detail">{detail}</div></div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.info("Select a validation candidate or current decision row to inspect the decision-critical state.")
+
+        if validation_applicable:
+            st.markdown(
+                f'<div class="w73-mini-panel"><b>Validation @ {live_maturity}</b><br>'
+                f'W73: {", ".join(sorted(expected_w73)) or "NONE"}<br>'
+                f'NL: {", ".join(sorted(expected_nl)) or "NONE"}<br>'
+                f'Current: {"PASS" if validation_pass else "MISMATCH"}</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("#### Decision Counts")
+        for label, count in [
+            ("W73-A/B", layer_counts["W73"]),
+            ("NEXT-LAYER", layer_counts["NL"]),
+            ("NOT_READY", layer_counts["NOT_READY"]),
+        ]:
+            st.markdown(f'<div class="w73-summary-label"><span>{label}</span><b>{count}</b></div>', unsafe_allow_html=True)
+
+        st.markdown("#### Post-W73 Activity")
+        if not post_w73_df.empty:
+            compact_post = post_w73_df[["Symbol","Post-W73 Time","Price Chg %"]].copy()
+            compact_post = compact_post.rename(columns={"Post-W73 Time":"TIME","Price Chg %":"PRICE %"})
+            compact_post["TIME"] = compact_post["TIME"].map(_fmt_timestamp)
+            st.dataframe(compact_post.head(8), use_container_width=True, hide_index=True, height=150)
+        else:
+            st.caption("No post-10:15 observations yet.")
+
+
+    # ---------------------------------------------------------------------
+    # Post-W73 monitoring data is displayed compactly in the right rail.
+    # It remains separate from frozen W73-A/B.
+    # ---------------------------------------------------------------------
+
+
+    # ---------------------------------------------------------------------
+
+    if analysis_mode == "HISTORICAL ANALYSIS":
+        st.markdown("### Historical Analysis")
+        h = historical_cache_status or _historical_cache_status(trading_date, month)
+
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("CACHE", h["status"])
+        c2.metric("ROWS", f'{h["rows"]:,}')
+        c3.metric("SYMBOLS", h["symbols"])
+        c4.metric("INTERVALS", h["intervals"])
+        c5.metric("SOURCE", "AVAILABLE" if h["source_available"] else "MISSING")
+
+        st.caption(
+            f"Historical date: **{trading_date}** Â· "
+            f"Max PIT: **{h['max_observation']}** Â· "
+            f"Universe: **ALL AVAILABLE**"
+        )
+
+        if h["status"] == "READY":
+            st.success("Historical cache READY â€” selected date is eligible for historical evaluation.")
+        elif h["status"] == "PARTIAL":
+            st.warning(
+                f"Historical cache is PARTIAL for {trading_date}. "
+                "Missing checkpoints remain unavailable; no fallback date is used."
+            )
+        else:
+            st.warning(
+                f"Historical cache is NOT READY for {trading_date}. "
+                "Build it explicitly from the authoritative source before backtesting."
+            )
+
+        ref_records = []
+        decision_by_symbol = {
+            str(getattr(d, "symbol", "")).strip().upper(): d
+            for d in live_decisions
+            if str(getattr(d, "symbol", "")).strip()
+        }
+        present = set(_historical_available_symbols(rows))
+        for ref_symbol in REFERENCE_VALIDATION_SYMBOLS:
+            d = decision_by_symbol.get(ref_symbol)
+            status = str(getattr(d, "status", "NOT_READY") or "NOT_READY")
+            variants = getattr(d, "variants", {}) or {}
+            ref_records.append({
+                "REFERENCE STOCK": ref_symbol,
+                "CACHE": "PRESENT" if ref_symbol in present else "MISSING",
+                "V8": status,
+                "W73-A": "YES" if bool(variants.get("W73-A")) else "NO",
+                "W73-B": "YES" if bool(variants.get("W73-B")) else "NO",
+            })
+        st.markdown("#### Established reference continuity â€” audit only")
         st.dataframe(
-            _style_alerts(alert_df),
+            pd.DataFrame(ref_records),
             use_container_width=True,
             hide_index=True,
-            height=min(330, 90 + 45 * len(alert_df)),
-        )
-        st.caption("FILTER ALERT TIME is the exact market-data/source timestamp. DETECTED is the dashboard processing/checkpoint timestamp; they are never substituted for each other.")
-
-    with tab2:
-        st.subheader("Selected Stock — Why is it strong?")
-        if not board_df.empty:
-            selected = st.selectbox("Priority stock", board_df["Symbol"].astype(str).tolist())
-            r = board_df[board_df["Symbol"].astype(str) == selected].iloc[0]
-
-            a, b, c, d, e = st.columns(5)
-            a.metric("Decision", r.get("Decision", "NO TRADE"))
-            b.metric("Bias", r.get("Bias", "WATCH"))
-            c.metric("Current strength", f"{int(r.get('Strength', 0))}/100")
-            d.metric("FILTER ALERT TIME", r.get("Filter Alert Time", "—"))
-            e.metric("Qualification age", r.get("Qualification Age", "—"))
-
-            st.markdown(f"**Filter alert time:** `{r.get('Filter Alert Time', '—')}` — exact source timestamp of first qualification.")
-            st.markdown(f"**Why it qualified:** {r.get('Entry Evidence', '—')}")
-            st.markdown(f"**Current evidence:** {r.get('Evidence', '—')}")
-            st.markdown(f"**Strategy status:** `{r.get('Strategy Status', 'NOT DEPLOYED')}`")
-            st.markdown(f"**Decision reason:** {r.get('Reason', '—')}")
-            st.markdown(f"**Invalidation:** {r.get('Invalidation', '—')}")
-            st.progress(min(100, int(r.get("Strength", 0))) / 100)
-
-            st.markdown(
-                "**Interpretation:** price direction + price/OI relationship + buildup + "
-                "participation/volume + supporting PCR/IV evidence. Missing fields are not treated as zero."
-            )
-        else:
-            st.info("No qualified stock available.")
-
-    with tab3:
-        st.subheader("Point-in-Time Lineage")
-        st.json({
-            "requested_trading_date": trading_date,
-            "actual_data_session": data_session,
-            "session_mode": session_mode,
-            "data_as_of": data_asof,
-            "data_age": age,
-            "filter_alert_timestamp_definition": "First exact source observation timestamp at which the configured universe rule returned eligible=True for the stock.",
-            "event_timeline_definition": "QUALIFIED, RE-QUALIFIED, and INVALIDATED transitions are derived chronologically from cached source intervals.",
-            "validated_strategy_gate": "Frozen V8_PLUS_TRAJECTORY candidate is evaluated only when all exact live fields exist; otherwise status is NOT EVALUABLE.",
-            "active_cache": str(active_cache),
-            "requested_cache": str(requested_cache),
-            "source_intervals": len(times),
-            "qualified_stocks": qualified_count,
-            "source_root": str(source_root()),
-            "ingest_result": ingest_result,
-            "detected_at": datetime.now().isoformat(timespec="seconds"),
-            "fallback_rule": "Prior cache is display-only and never copied into requested-date cache.",
-        })
-
-    with tab4:
-        st.subheader("Filter / Selection Audit")
-        st.caption("This panel answers when each stock first became qualified by the configured point-in-time universe rule.")
-        if not board_df.empty:
-            audit_cols = [
-                "Symbol", "Decision", "Strategy Status", "Filter Alert Time",
-                "Qualification Age", "Entry Strength", "Priority", "Bias",
-                "Strength", "Entry Evidence",
-            ]
-            audit_cols = [c for c in audit_cols if c in board_df.columns]
-            st.dataframe(
-                board_df[audit_cols].head(int(max_rows)),
-                use_container_width=True,
-                hide_index=True,
-            )
-        else:
-            st.info("No stocks have qualified in the available point-in-time cache.")
-
-        st.markdown(
-            f"**Universe health:** {qualified_count} qualified / {evidence['symbols']} observed symbols; "
-            f"core evidence completeness {evidence['core_pct']:.1f}%."
+            height=235,
         )
 
+        hist_register = _historical_signal_register(filtered_board)
+        if hist_register.empty:
+            st.info("No W73-A/B or W73-NL signal qualified at this historical checkpoint.")
+        else:
+            st.dataframe(hist_register, use_container_width=True, hide_index=True, height=260)
+    # ---------------------------------------------------------------------
+    # Secondary audit panels â€” collapsed by default so the trader viewport
+    # remains one-screen and decision-first.
+    # ---------------------------------------------------------------------
+    with st.expander("Diagnostics â€” PIT / Exact V8 / Lineage / Audit", expanded=False, key="w73_diagnostics_v1"):
+        tab1, tab2, tab3, tab4 = st.tabs(
+            ["Alerts & timestamps", "PIT / Exact V8", "Lineage", "Universe health"]
+        )
+
+        with tab1:
+            st.subheader("Alerts / timestamps")
+            st.caption(
+                "FIRST ALERT is the first exact source timestamp for filter eligibility. "
+                "Dashboard detected time is separate."
+            )
+            if not board_df.empty:
+                stock_alerts = board_df[[
+                    "Symbol", "Decision", "Strategy Status", "Bias", "Strength",
+                    "Filter Alert Time", "Qualification Age", "Last Event",
+                    "Last Event Time", "Entry Evidence"
+                ]].copy()
+                stock_alerts = stock_alerts.rename(columns={
+                    "Filter Alert Time": "FIRST ALERT",
+                    "Entry Evidence": "FILTER EVIDENCE",
+                    "Last Event Time": "LAST EVENT TIME"
+                })
+                st.dataframe(stock_alerts.head(int(max_rows)), use_container_width=True, hide_index=True)
+            st.dataframe(_style_alerts(pd.DataFrame(alerts)), use_container_width=True, hide_index=True)
+
+        with tab2:
+            st.subheader("Selected Stock â€” PIT / Exact V8 / Frozen W73")
+            if not filtered_board.empty:
+                selected = st.selectbox("Priority stock", filtered_board["Symbol"].astype(str).tolist(), key="pit_v8_symbol")
+                r = filtered_board[filtered_board["Symbol"].astype(str) == selected].iloc[0]
+                source_row = next((x for x in latest_rows if str(x.get("Symbol", "")).upper() == selected.upper()), None)
+                live_decision = live_decision_map.get(selected.upper())
+                _render_exact_v8_detail(live_decision, source_row)
+                a, b, c, d = st.columns(4)
+                a.metric("Decision", r.get("Decision", "NO TRADE"))
+                b.metric("Bias", r.get("Bias", "WATCH"))
+                c.metric("Strength", f"{int(r.get('Strength', 0))}/100")
+                d.metric("FIRST ALERT", _fmt_timestamp(r.get("Filter Alert Time", "â€”")))
+                st.write(f"**Why it qualified:** {r.get('Entry Evidence', 'â€”')}")
+                st.write(f"**Decision reason:** {r.get('Reason', 'â€”')}")
+
+        with tab3:
+            st.subheader("Point-in-Time Lineage")
+            st.json({
+                "requested_trading_date": trading_date,
+                "actual_data_session": data_session,
+                "session_mode": session_mode,
+                "data_as_of": data_asof,
+                "evaluation_checkpoint": evaluation_checkpoint,
+                "evaluation_mode": evaluation_mode,
+                "live_decision_service": {
+                    "maturity": live_maturity,
+                    "asof": str(live_decision_asof) if live_decision_asof else None,
+                    "summary": live_decision_counts,
+                },
+                "timestamp_contract": {
+                    "source_timestamp": "Authoritative source observation timestamp.",
+                    "strategy_observation_timestamp": "LiveDecision maturity observation timestamp.",
+                    "dashboard_detected_timestamp": datetime.now().isoformat(timespec="seconds"),
+                },
+                "active_cache": str(active_cache),
+                "requested_cache": str(requested_cache),
+                "source_intervals": len(times),
+                "evaluated_stocks": evaluated_count,
+                "w73_ab_qualified_stocks": qualified_count,
+                "post_w73_activity_symbols": int(len(post_w73_df)),
+                "source_root": str(source_root()),
+                "ingest_result": ingest_result,
+            })
+
+        with tab4:
+            st.subheader("Filter / Selection Audit")
+            if not filtered_board.empty:
+                audit_cols = [
+                    "Symbol", "Decision", "Strategy Status", "Filter Alert Time",
+                    "Qualification Age", "Entry Strength", "Priority", "Bias",
+                    "Strength", "Entry Evidence",
+                ]
+                audit_cols = [c for c in audit_cols if c in board_df.columns]
+                st.dataframe(filtered_board[audit_cols].head(int(max_rows)), use_container_width=True, hide_index=True)
+            st.caption(
+                f"Universe health: {evaluated_count} evaluated / {evidence['symbols']} observed symbols; "
+                f"core evidence completeness {evidence['core_pct']:.1f}%."
+            )
 
 
 
-if hasattr(st, "fragment"):
-    _render_live_board_fragment = st.fragment(run_every=(int(refresh) if auto_refresh else None))(_render_live_board)
-    _render_live_board_fragment()
-else:
-    _render_live_board()
+# ---------------------------------------------------------------------
+# Main dashboard render â€” failure-safe.
+#
+# The trader pane must never become completely blank while the sidebar
+# remains visible. Any runtime failure is surfaced inside the main pane
+# with the exact exception and the active checkpoint/session context.
+# This wrapper does not change W73 or NL decisions.
+# ---------------------------------------------------------------------
+_render_started = st.empty()
+
+try:
+    if hasattr(st, "fragment"):
+        # Historical validation must be stable: no periodic rerun/fading.
+        # Live AUTO mode alone receives the timed refresh.
+        run_every = int(refresh) if (auto_refresh and evaluation_checkpoint == "AUTO / latest elapsed") else None
+        _render_live_board_fragment = st.fragment(run_every=run_every)(_render_live_board)
+        _render_live_board_fragment()
+    else:
+        _render_live_board()
+
+    _render_started.empty()
+
+except Exception as _dashboard_exc:
+    _render_started.markdown(
+        """
+        <div style="
+            margin:.5rem 0;
+            padding:12px 14px;
+            border:1px solid #7b2d35;
+            border-radius:7px;
+            background:#160d13;
+            color:#f2d9dd;">
+            <div style="font-size:1rem;font-weight:800;color:#ff6875;">
+                W73 DASHBOARD RENDER ERROR
+            </div>
+            <div style="margin-top:5px;font-size:.72rem;">
+                The trader pane stopped during rendering. No trading decision is
+                inferred from this failure and the W73 engine has not been modified.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.error(f"{type(_dashboard_exc).__name__}: {_dashboard_exc}")
+    with st.expander("Technical traceback / deployment diagnostic", expanded=True):
+        st.code(
+            "Trading date: " + str(trading_date) + "\n"
+            "Source month: " + str(month) + "\n"
+            "W73 checkpoint: " + str(evaluation_checkpoint) + "\n"
+            "Trader layer: " + str(view_mode) + "\n"
+            "Python: " + sys.executable + "\n\n"
+            + repr(_dashboard_exc),
+            language="text",
+        )
 
 if refresh_now:
     st.rerun()
+
+
+
