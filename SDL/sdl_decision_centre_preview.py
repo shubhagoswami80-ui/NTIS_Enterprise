@@ -1647,8 +1647,9 @@ def _read_ivrp_for_timestamp(
 
     target_key = target.strftime("%Y-%m-%d_%H%M%S")
     exact = []
-    forward = []
+    nearest = []
     now = pd.Timestamp.now()
+    companion_max_delta = 180.0
 
     for path in candidates:
         ckey = _source_filename_timestamp_key(path)
@@ -1672,16 +1673,16 @@ def _read_ivrp_for_timestamp(
         if pd.isna(companion_ts) or pd.Timestamp(companion_ts) > now:
             continue
         delta = (pd.Timestamp(companion_ts) - target).total_seconds()
-        if 0.0 <= delta <= 300.0:
-            forward.append((delta, path))
+        if abs(delta) <= companion_max_delta:
+            nearest.append((abs(delta), delta, path))
 
     if exact:
         path = sorted(exact, key=lambda p: str(p).lower())[0]
-    elif forward:
+    elif nearest:
         path = sorted(
-            forward,
-            key=lambda x: (x[0], str(x[1]).lower()),
-        )[0][1]
+            nearest,
+            key=lambda x: (x[0], x[1], str(x[2]).lower()),
+        )[0][2]
     else:
         cache[key] = {
             "checked_at": now_epoch,
@@ -4853,13 +4854,14 @@ def replay_snapshot_frame(
     path: Path,
     snapshot_ts: pd.Timestamp | None = None,
 ) -> tuple[pd.DataFrame, pd.Timestamp]:
-    """Load the current persisted point-in-time Replay entry.
+    """Load a PIT Replay point with explicit historical-gap continuity handling.
 
-    Deliberately not Streamlit-cache this reader: the cache builder updates
-    the persistent day-cache in place, so a 300-second UI cache can otherwise
-    show stale Futures evidence (for example 0/34 after the builder has
-    already refreshed the same point). The expensive source/Futures work is
-    still protected by the timestamp-driven resolver cache.
+    Replay is cache-first. A genuine historical source gap is recorded as GAP
+    and resolved to the next chronological VALID PIT snapshot. If no later
+    valid snapshot exists, the latest valid snapshot before the request is
+    used. Requested/resolved timestamps are retained on DataFrame attrs.
+
+    No LIVE candidate path is consulted.
     """
     ts = pd.to_datetime(snapshot_ts, errors="coerce")
     if pd.isna(ts):
@@ -4874,24 +4876,78 @@ def replay_snapshot_frame(
         if isinstance(day_cache.get("snapshots", {}), dict)
         else {}
     )
+
+    def _valid_cached_entries():
+        rows = []
+        for cache_key, cache_entry in entries.items():
+            if not isinstance(cache_entry, dict):
+                continue
+            if str(cache_entry.get("snapshot_status", "VALID")).upper() != "VALID":
+                continue
+            frame = cache_entry.get("pred")
+            if not isinstance(frame, pd.DataFrame) or frame.empty:
+                continue
+            resolved = pd.to_datetime(
+                cache_entry.get("timestamp", cache_key), errors="coerce"
+            )
+            if pd.isna(resolved):
+                continue
+            rows.append((resolved, cache_key, cache_entry))
+        return sorted(rows, key=lambda item: item[0])
+
+    def _resolve_cached_fallback(requested_ts: pd.Timestamp, reason: str):
+        valid = _valid_cached_entries()
+
+        # Primary rule: continue forward to the next valid chronological PIT
+        # snapshot. This handles gaps in the middle of a trading session.
+        later = [item for item in valid if item[0] > requested_ts]
+        chosen = later[0] if later else None
+        resolution = "NEXT_VALID"
+
+        # End-of-day / terminal-gap rule: if no later valid point exists,
+        # use the latest valid point before the request.
+        if chosen is None:
+            earlier = [item for item in valid if item[0] < requested_ts]
+            chosen = earlier[-1] if earlier else None
+            resolution = "LAST_VALID_BEFORE"
+
+        if chosen is None:
+            return pd.DataFrame(), pd.NaT
+
+        resolved_ts, _, resolved_entry = chosen
+        frame = resolved_entry["pred"].copy()
+        frame.attrs["replay_requested_timestamp"] = requested_ts.isoformat()
+        frame.attrs["replay_resolved_timestamp"] = resolved_ts.isoformat()
+        frame.attrs["replay_resolution_status"] = resolution
+        frame.attrs["replay_gap_reason"] = str(reason)
+        frame = _attach_first_alert_provenance(frame, day, resolved_ts)
+        return frame, resolved_ts
+
     entry = entries.get(key)
+
+    # Explicit GAP is a continuity record. Never reopen the known-bad source.
+    if (
+        isinstance(entry, dict)
+        and str(entry.get("snapshot_status", "")).upper() == "GAP"
+    ):
+        reason = str(
+            entry.get("gap_reason", entry.get("reason", "SOURCE_GAP"))
+        )
+        return _resolve_cached_fallback(pd.Timestamp(ts), reason)
 
     if isinstance(entry, dict) and isinstance(entry.get("pred"), pd.DataFrame):
         pred = entry["pred"].copy()
         snapshot_status = str(entry.get("snapshot_status", "VALID")).upper()
         entry_status = str(entry.get("evidence_status", "pending")).lower()
 
-        # GAP entries are continuity records, not fresh observations.  Never
-        # refresh them from the bad source or reinterpret carried values as
-        # current Futures evidence.
-        if snapshot_status == "GAP":
-            replay_gap_ts = pd.Timestamp(entry.get("timestamp", ts))
-            pred = _attach_first_alert_provenance(pred, day, replay_gap_ts)
-            return pred, replay_gap_ts
+        if snapshot_status != "VALID" or pred.empty:
+            return _resolve_cached_fallback(
+                pd.Timestamp(ts), f"INVALID_CACHE_ENTRY:{snapshot_status}"
+            )
 
-        # Do not permanently freeze a replay point with missing Futures
-        # evidence. Re-check the point-in-time IVR/IVP companion whenever the
-        # cached point is pending or has no Futures values.
+        # Preserve the existing Futures evidence-refresh behaviour for a
+        # genuinely valid cached PIT point. This does not reconstruct Replay
+        # candidates or consult the LIVE decision path.
         if entry_status != "complete" or not _futures_mapping_complete(pred):
             future_ev = _read_ivrp_for_timestamp(day, pd.Timestamp(ts))
             if _futures_evidence_available(future_ev):
@@ -4904,7 +4960,9 @@ def replay_snapshot_frame(
                         pred, evidence = _merge_snapshot_evidence(
                             pred, option_ev, future_ev
                         )
-                        pred = _apply_futures_evidence_status(pred, future_ev, source_available=True)
+                        pred = _apply_futures_evidence_status(
+                            pred, future_ev, source_available=True
+                        )
                         mapped_rows, total_rows = _futures_mapping_stats(pred)
                         refreshed_status = (
                             "complete"
@@ -4917,7 +4975,11 @@ def replay_snapshot_frame(
                             "pred": pred.copy(),
                             "evidence": evidence.copy(),
                             "snapshot_status": "VALID",
-                            "futures_status": "MAPPED" if _futures_evidence_available(future_ev) else "D",
+                            "futures_status": (
+                                "MAPPED"
+                                if _futures_evidence_available(future_ev)
+                                else "D"
+                            ),
                             "evidence_status": refreshed_status,
                         }
                         day_cache["snapshots"] = dict(
@@ -4929,6 +4991,9 @@ def replay_snapshot_frame(
                     pass
 
         replay_return_ts = pd.Timestamp(entry.get("timestamp", ts))
+        pred.attrs["replay_requested_timestamp"] = pd.Timestamp(ts).isoformat()
+        pred.attrs["replay_resolved_timestamp"] = replay_return_ts.isoformat()
+        pred.attrs["replay_resolution_status"] = "EXACT_VALID"
         pred = _attach_first_alert_provenance(
             pred,
             day,
@@ -4936,13 +5001,30 @@ def replay_snapshot_frame(
         )
         return pred, replay_return_ts
 
-    # Explicit cache build is the normal path. This fallback is intentionally
-    # one-point only so selecting an uncached point can never silently rebuild
-    # an entire historical day.
+    # Controlled source completion is only used when the requested point is not
+    # already represented by a usable PIT entry. If the source point is empty
+    # or invalid, persist an explicit GAP and continue chronologically through
+    # existing valid PIT entries instead of returning an "incomplete" snapshot.
     df, loaded_ts = load_primary_snapshot(path, ts)
     loaded_ts = pd.to_datetime(loaded_ts, errors="coerce")
     if pd.isna(loaded_ts) or df is None or df.empty:
-        return pd.DataFrame(), pd.NaT
+        gap_entry = {
+            "timestamp": pd.Timestamp(ts).isoformat(),
+            "pred": pd.DataFrame(),
+            "snapshot_status": "GAP",
+            "gap_reason": "SOURCE_EMPTY_OR_INVALID",
+            "requested_timestamp": pd.Timestamp(ts).isoformat(),
+            "evidence_status": "gap",
+        }
+        entries[key] = gap_entry
+        day_cache["snapshots"] = dict(
+            sorted(entries.items(), key=lambda kv: kv[0])
+        )
+        cache[day] = day_cache
+        _save_day_point_cache(cache)
+        return _resolve_cached_fallback(
+            pd.Timestamp(ts), "SOURCE_EMPTY_OR_INVALID"
+        )
 
     state = load_state(STATE_JSON)
     base = (
@@ -4953,23 +5035,30 @@ def replay_snapshot_frame(
     if not base:
         files = snapshot_files(day)
         if files:
-            first_df, _ = load_primary_snapshot(files[0], observation_ts(files[0]))
+            first_df, _ = load_primary_snapshot(
+                files[0], observation_ts(files[0])
+            )
             base = frozen_base_from_df(derive_straddle_values(first_df))
 
     raw = derive_straddle_values(df)
     pred = candidates(
-                raw,
-                base or {},
-                snapshot_ts=loaded_ts,
-                snapshot_path=None,
-                first_alert_signature=_first_alert_source_signature(
-                    pd.Timestamp(loaded_ts).date().isoformat()
-                ),
-            )
+        raw,
+        base or {},
+        snapshot_ts=loaded_ts,
+        snapshot_path=None,
+        first_alert_signature=_first_alert_source_signature(
+            pd.Timestamp(loaded_ts).date().isoformat()
+        ),
+    )
     option_ev = _day_option_evidence(raw)
     future_ev = _read_ivrp_for_timestamp(day, loaded_ts)
     pred, _ = _merge_snapshot_evidence(pred, option_ev, future_ev)
     pred = _attach_first_alert_provenance(pred, day, loaded_ts)
+    pred.attrs["replay_requested_timestamp"] = pd.Timestamp(ts).isoformat()
+    pred.attrs["replay_resolved_timestamp"] = pd.Timestamp(
+        loaded_ts
+    ).isoformat()
+    pred.attrs["replay_resolution_status"] = "SOURCE_COMPLETION"
     return pred, loaded_ts
 
 def _load_day_cache_build_state() -> dict:
@@ -6177,9 +6266,25 @@ def latest_live() -> tuple[
             )
             return latest, pred, latest_ts, message
 
+        # For a completed prior trading session, first catch up the shared
+        # chronological LIVE intake through the persisted checkpoint.
+        if session_day and not current_day_has_source:
+            try:
+                _catch_path, _catch_events, _catch_df, catch_message = (
+                    process_latest_snapshot_for_today(session_day)
+                )
+            except Exception as exc:
+                return (
+                    None,
+                    pd.DataFrame(),
+                    pd.NaT,
+                    f"Chronological LIVE catch-up failed for {session_day}: "
+                    f"{type(exc).__name__}: {exc}",
+                )
+
         # Process the newly authoritative latest source point directly.
-        # Do not call process_latest_snapshot_for_today(), because that
-        # function may resolve "today" against a stale persisted session.
+        # This preserves the existing LIVE candidate/evidence path after
+        # chronological intake has completed.
         path, pred, ts, message = _build_live_prediction_from_source(latest)
 
         if path is not None and not pred.empty and pd.notna(ts):
@@ -6597,7 +6702,6 @@ def _uua_style(df: pd.DataFrame):
     return styler
 
 
-@st.cache_data(ttl=15, show_spinner=False)
 def _build_unusual_activity_table(
     current_day: str,
     end_iso: str,

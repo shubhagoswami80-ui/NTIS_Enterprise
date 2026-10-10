@@ -848,20 +848,40 @@ def _snapshot_sort_key(path: Path):
     return (_snapshot_timestamp(path), str(path).lower())
 
 
-def process_latest_snapshot_for_today():
+def process_latest_snapshot_for_today(trading_date=None):
     """
-    Process today's snapshots using source observation time ordering.
+    Chronological LIVE intake for today's Daywise source repository.
 
-    The first VALID snapshot establishes the frozen daily base. Later
-    snapshots reuse that base. Source files remain read-only.
+    Frozen semantics:
+      1. The first VALID snapshot establishes the daily frozen base.
+      2. Every later VALID source observation is processed strictly in
+         source-observation timestamp order.
+      3. The persisted last_observation_timestamp is the LIVE checkpoint.
+      4. Already-processed observations are never re-run merely because
+         the dashboard is rendered again.
+      5. Invalid/header-only observations are skipped and do not advance
+         the checkpoint.
+      6. Source workbooks remain read-only.
+
+    This function does NOT perform dashboard candidate rendering, Futures
+    evidence merging, LIVE snapshot persistence, or UI work. Those existing
+    dashboard paths remain untouched.
     """
-    trading_date = datetime.now().date().isoformat()
+    trading_date = (pd.Timestamp(trading_date).date().isoformat() if trading_date is not None else datetime.now().date().isoformat())
     files = list(discover_historical_snapshots(trading_date))
 
     if not files:
         return None, None, None, "No Daywise snapshot found for today."
 
-    ordered = sorted((Path(p) for p in files), key=_snapshot_sort_key)
+    ordered = sorted(
+        (Path(p) for p in files),
+        key=_snapshot_sort_key,
+    )
+
+    # ---------------------------------------------------------------
+    # Establish the frozen BASE exactly once, from the first VALID
+    # observation. This preserves the existing authoritative base rule.
+    # ---------------------------------------------------------------
     state = load_state(STATE_JSON)
     daily_bases = state.get("daily_opening_straddles", {})
 
@@ -872,51 +892,218 @@ def process_latest_snapshot_for_today():
         for candidate in ordered:
             observed_at = _snapshot_timestamp(candidate)
             try:
-                candidate_df, _ = load_primary_snapshot(candidate, observed_at)
+                candidate_df, _ = load_primary_snapshot(
+                    candidate,
+                    observed_at,
+                )
                 candidate_df = derive_straddle_values(
                     candidate_df,
                     breakout_multiplier=BREAKOUT_MULTIPLIER,
                     current_price_field=CURRENT_PRICE_FIELD,
                 )
-                required = ("Symbol", "daily_open_reference", "current_price", "atm_straddle_pct")
-                missing = [c for c in required if c not in candidate_df.columns]
+
+                required = (
+                    "Symbol",
+                    "daily_open_reference",
+                    "current_price",
+                    "atm_straddle_pct",
+                )
+                missing = [
+                    c for c in required
+                    if c not in candidate_df.columns
+                ]
                 if missing:
-                    skipped.append(f"{candidate.name}: missing {missing}")
+                    skipped.append(
+                        f"{candidate.name}: missing {missing}"
+                    )
                     continue
+
                 valid_mask = (
-                    candidate_df["Symbol"].astype(str).str.strip().ne("")
+                    candidate_df["Symbol"]
+                    .astype(str)
+                    .str.strip()
+                    .ne("")
                     & candidate_df["daily_open_reference"].notna()
                     & candidate_df["current_price"].notna()
                     & candidate_df["atm_straddle_pct"].notna()
                 )
-                if int(valid_mask.sum()) <= 0:
-                    skipped.append(f"{candidate.name}: no usable opening-base rows")
+
+                if not bool(valid_mask.any()):
+                    skipped.append(
+                        f"{candidate.name}: no valid observation rows"
+                    )
                     continue
+
                 valid_base_snapshot = (candidate, observed_at)
                 break
+
             except Exception as exc:
-                skipped.append(f"{candidate.name}: {type(exc).__name__}: {exc}")
+                skipped.append(
+                    f"{candidate.name}: "
+                    f"{type(exc).__name__}: {exc}"
+                )
 
         if valid_base_snapshot is None:
-            return None, None, None, "No valid opening-base snapshot is available yet."
+            return (
+                None,
+                None,
+                None,
+                "No valid opening-base snapshot is available yet.",
+            )
 
         first, first_observed_at = valid_base_snapshot
         process_snapshot(first, first_observed_at)
 
+    # Re-read state after BASE establishment.
     state = load_state(STATE_JSON)
-    frozen_base = state.get("daily_opening_straddles", {}).get(trading_date)
+    frozen_base = (
+        state
+        .get("daily_opening_straddles", {})
+        .get(trading_date)
+    )
     if not frozen_base:
-        return None, None, None, "Unable to establish today's frozen opening base."
+        return (
+            None,
+            None,
+            None,
+            "Unable to establish today's frozen opening base.",
+        )
 
-    latest = ordered[-1]
-    latest_observed_at = _snapshot_timestamp(latest)
-    base_reference_file = next(iter(frozen_base.values()), {}).get("opening_reference_source_file")
+    # ---------------------------------------------------------------
+    # LIVE checkpoint.
+    #
+    # The BASE timestamp is the minimum safe checkpoint when state is
+    # missing/stale for another trading date. This prevents reprocessing
+    # the immutable BASE while still guaranteeing every later observation
+    # is caught up.
+    # ---------------------------------------------------------------
+    checkpoint_raw = state.get("last_observation_timestamp")
+    checkpoint = (
+        pd.to_datetime(checkpoint_raw, errors="coerce")
+        if checkpoint_raw
+        else pd.NaT
+    )
 
-    if base_reference_file and str(latest) == str(base_reference_file):
-        return latest, pd.DataFrame(), None, "First valid snapshot processed and opening base frozen; no later snapshot available."
+    base_entry = next(iter(frozen_base.values()), {})
+    base_ts = pd.to_datetime(
+        base_entry.get("opening_reference_timestamp"),
+        errors="coerce",
+    )
 
-    events, df, processed_at = process_snapshot(latest, latest_observed_at)
-    return latest, events, df, "Opening base established from the first VALID snapshot; latest workbook processed using the frozen daily base."
+    if pd.isna(base_ts):
+        base_reference_file = base_entry.get(
+            "opening_reference_source_file"
+        )
+        if base_reference_file:
+            try:
+                base_ts = _snapshot_timestamp(
+                    Path(base_reference_file)
+                )
+            except Exception:
+                base_ts = pd.NaT
+
+    if pd.isna(checkpoint):
+        checkpoint = base_ts
+    elif checkpoint.date().isoformat() != trading_date:
+        checkpoint = base_ts
+    elif pd.notna(base_ts) and checkpoint < base_ts:
+        checkpoint = base_ts
+
+    # ---------------------------------------------------------------
+    # Build ONLY the observations newer than the persisted checkpoint.
+    # They are processed strictly chronologically.
+    # ---------------------------------------------------------------
+    pending = []
+
+    for candidate in ordered:
+        candidate_ts = _snapshot_timestamp(candidate)
+        if pd.isna(candidate_ts):
+            continue
+
+        if pd.notna(checkpoint) and candidate_ts <= checkpoint:
+            continue
+
+        # Do not advance LIVE on header-only/incomplete workbooks.
+        # Reuse the same validity contract used for BASE selection.
+        try:
+            candidate_df, _ = load_primary_snapshot(
+                candidate,
+                candidate_ts,
+            )
+            candidate_df = derive_straddle_values(
+                candidate_df,
+                breakout_multiplier=BREAKOUT_MULTIPLIER,
+                current_price_field=CURRENT_PRICE_FIELD,
+            )
+
+            required = (
+                "Symbol",
+                "daily_open_reference",
+                "current_price",
+                "atm_straddle_pct",
+            )
+            if any(c not in candidate_df.columns for c in required):
+                continue
+
+            valid_mask = (
+                candidate_df["Symbol"]
+                .astype(str)
+                .str.strip()
+                .ne("")
+                & candidate_df["daily_open_reference"].notna()
+                & candidate_df["current_price"].notna()
+                & candidate_df["atm_straddle_pct"].notna()
+            )
+            if not bool(valid_mask.any()):
+                continue
+
+            pending.append((candidate_ts, candidate))
+
+        except Exception:
+            # A source point that is not yet valid must not advance the
+            # checkpoint or prevent later valid points from being seen.
+            continue
+
+    if not pending:
+        latest = ordered[-1]
+        latest_ts = _snapshot_timestamp(latest)
+        return (
+            latest,
+            pd.DataFrame(),
+            latest_ts,
+            "No new valid Daywise observation after the persisted LIVE checkpoint.",
+        )
+
+    last_path = None
+    last_events = pd.DataFrame()
+    last_df = pd.DataFrame()
+    last_ts = pd.NaT
+
+    for next_ts, next_path in pending:
+        # process_snapshot() persists last_observation_timestamp only after
+        # the complete observation has been processed. Therefore a failure
+        # cannot silently advance the LIVE checkpoint.
+        next_events, next_df, processed_at = process_snapshot(
+            next_path,
+            next_ts,
+        )
+
+        last_path = next_path
+        last_events = next_events
+        last_df = next_df
+        last_ts = processed_at
+
+    return (
+        last_path,
+        last_events,
+        last_df,
+        (
+            f"Chronological LIVE catch-up complete: processed "
+            f"{len(pending)} new valid Daywise observation(s) "
+            f"from the first unprocessed point through "
+            f"{last_ts.isoformat() if pd.notna(last_ts) else 'latest'}."
+        ),
+    )
 
 
 def replay_trading_date(trading_date: str):
