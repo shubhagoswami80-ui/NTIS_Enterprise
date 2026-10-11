@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import date, datetime
 import gzip
@@ -7648,7 +7648,10 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
         checkpoint_valid = True
         checkpoint_reason = ""
         current_sources: list[Path] = []
-        if str(trading_date) == datetime.now().strftime("%Y-%m-%d"):
+        # The caller has already resolved trading_date to the authoritative
+        # available trading day. Keep the manual backlog control visible for
+        # both current-day and rollover/market-closed views.
+        if trading_date and source_root:
             try:
                 current_sources = _discover_sources(trading_date, source_root)
                 _checkpoint_ts, checkpoint_valid, checkpoint_reason = _live_checkpoint_info(
@@ -7676,13 +7679,13 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
             )
 
             if not current_sources:
-                backlog_label = "Today's Intraday Backlog â€¢ No snapshots"
+                backlog_label = "Intraday Backlog â€¢ No snapshots"
             elif not checkpoint_valid and checkpoint_reason == "NO_DURABLE_CHECKPOINT":
-                backlog_label = f"Initialize Today's Intraday State ({processed_total or len(current_groups)} snapshots)"
+                backlog_label = f"Initialize Intraday State ({processed_total or len(current_groups)} snapshots)"
             elif pending_sources:
-                backlog_label = f"Process Today's Intraday Backlog ({len(pending_sources)} pending)"
+                backlog_label = f"Process Intraday Backlog ({len(pending_sources)} pending)"
             else:
-                backlog_label = "Today's Intraday Backlog â€¢ Up to date"
+                backlog_label = "Intraday Backlog â€¢ Up to date"
 
             st.button(
                 backlog_label,
@@ -7691,7 +7694,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                 help=(
                     "Pause LIVE and process only logical snapshots after the durable current-day checkpoint. Missing replay/PIT cache entries do not block LIVE processing."
                     if backlog_available else
-                    "No unprocessed current-day snapshots. LIVE is already at the durable logical checkpoint."
+                    "No unprocessed snapshots for the resolved trading date. LIVE is already at the durable logical checkpoint."
                 ),
                 key="ds_current_day_backlog_button",
                 on_click=_request_current_day_backlog if backlog_available else None,
@@ -7847,11 +7850,26 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         persisted_source = ""
                         persisted_timestamp = ""
                 elif restored_for_rollover is not None:
-                    # IMPORTANT: a calendar-rollover day is historical backlog,
-                    # not LIVE. Never process its remaining snapshots from the
-                    # LIVE fragment. Historical/full-day backlog is explicitly
-                    # handled by the INTRADAY BACKLOG control below.
+                    # Calendar rollover starts from the durable last-complete PIT,
+                    # but it must NOT freeze the previous trading day. Remaining
+                    # snapshots belong to the same chronological LIVE consumer.
                     latest, timeline, persisted_source, persisted_timestamp = restored_for_rollover
+
+                    # Auto-LIVE continues previous-day catch-up after the
+                    # restoration-only first render. This is the same durable
+                    # checkpoint/cache path as normal LIVE processing, not replay.
+                    if (
+                        auto_update
+                        and rollover_backlog_pending
+                        and not backlog_lock_active
+                        and not skip_processing_once
+                    ):
+                        latest, timeline, state_changed_any = _auto_process_new_snapshots(
+                            sources,
+                            trading_date,
+                            max_batch=3,
+                            retracement_enabled=retracement_enabled,
+                        )
                 else:
                     latest, timeline, _ = _load_day_for_snapshot_view(
                         sources, trading_date
@@ -7872,7 +7890,7 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                 initial_live_render = initial_render_date != str(trading_date)
                 st.session_state["ds_live_initial_render_date"] = str(trading_date)
 
-                if backlog_pending and initial_live_render:
+                if False:
                     # Keep the first LIVE page render lightweight. Restore the last
                     # complete durable state now; chronological catch-up is left
                     # to the next scheduled LIVE cycle.
@@ -7921,9 +7939,20 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
             # This fixes the observed case where LIVE showed 09:52/10:02 processed
             # but Processing Output remained at 09:47 until the user clicked
             # Refresh.
+            # A completed LIVE batch must propagate the durable result to the
+            # non-fragment dashboard sections (Processing Output / Current Snapshot).
+            # The one-shot skip guard prevents this handoff from consuming another
+            # logical observation immediately. The next scheduled fragment resumes
+            # chronological LIVE processing normally.
             if state_changed_any and not skip_processing_once:
                 st.session_state["ds_live_skip_processing_once"] = True
-                st.rerun()
+                # This code executes inside the LIVE fragment. A plain
+                # st.rerun() reruns only the fragment, leaving the non-fragment
+                # Processing Output / Current Snapshot sections stale.
+                # Explicit app scope propagates the already-persisted result
+                # to the complete dashboard. The one-shot guard prevents the
+                # app rerun from consuming another LIVE batch immediately.
+                st.rerun(scope="app")
 
             session_state["finalized"] = not market_open
 
@@ -7983,12 +8012,12 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                 if durable_checkpoint_time is not None
                 else latest_time
             )
-            if auto_update and processing_time < source_latest_time:
-                status = (
-                    "LIVE FEED â€¢ processing catch-up â€¢ "
-                    "chronologically monitored"
-                )
-            elif not market_open:
+            if not market_open:
+                # A closed/non-working-day rollover is a read-only dashboard mode.
+                # The durable LAST COMPLETE state is authoritative until a new
+                # current-trading-day source stream appears. Do not compare that
+                # frozen state against older previous-day source inventory and label
+                # the dashboard as LIVE catch-up.
                 if persisted_source:
                     status = (
                         "LIVE FEED â€¢ SESSION CLOSED â€¢ "
@@ -7999,17 +8028,16 @@ def _live_auto_panel(source_root: Path, trading_date: str, rollover_fallback: bo
                         "LIVE FEED â€¢ SESSION CLOSED â€¢ "
                         "LAST AVAILABLE SNAPSHOT"
                     )
+            elif auto_update and processing_time < source_latest_time:
+                status = (
+                    "LIVE FEED â€¢ processing catch-up â€¢ "
+                    "chronologically monitored"
+                )
             elif auto_update:
-                if processing_time < source_latest_time:
-                    status = (
-                        "LIVE FEED â€¢ processing catch-up â€¢ "
-                        "chronologically monitored"
-                    )
-                else:
-                    status = (
-                        "LIVE FEED â€¢ last processed snapshot â€¢ "
-                        "chronologically monitored"
-                    )
+                status = (
+                    "LIVE FEED â€¢ last processed snapshot â€¢ "
+                    "chronologically monitored"
+                )
             else:
                 status = "LIVE FEED â€¢ last processed snapshot â€¢ Auto-update OFF"
 
@@ -8738,7 +8766,12 @@ def render() -> None:
             trading_date = prior_dates[-1]
             sources = _discover_sources(trading_date, source_root)
             if trading_date != selected_calendar_date:
-                st.info(f"No snapshots yet for {selected_calendar_date}. Showing latest available trading day: {trading_date}. New-session LIVE processing will begin when the first current-day snapshot arrives.")
+                st.info(
+                    f"No current-day snapshots for {selected_calendar_date}. "
+                    f"Showing latest available trading day: {trading_date}. "
+                    "LIVE is caught up through the latest available snapshot; "
+                    "new current-day files will be processed automatically when they arrive."
+                )
         else:
             st.warning("No Daywise snapshots are available yet.")
             return

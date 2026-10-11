@@ -23,7 +23,7 @@ class UUAConfig:
 ALIASES={
 "PE_OI":("pe_oi","PE OI","Tot PE OI","Total PE OI","Put OI"),
 "CE_OI":("ce_oi","CE OI","Tot CE OI","Total CE OI","Call OI"),
-"PE_MINUS_CE_OI":("__PE_MINUS_CE_OI","pe_minus_ce_oi","PE-CE OI","PE−CE OI","Tot PE-CE OI","PE CE OI","pece_value","PECE Value","PECE"),
+"PE_MINUS_CE_OI":("__PE_MINUS_CE_OI","pe_minus_ce_oi","PE-CE OI","PEÃ¢Ë†â€™CE OI","Tot PE-CE OI","PE CE OI","pece_value","PECE Value","PECE"),
 "FUTURES_OI":("futures_oi","Futures OI","Future OI","Fut OI","total_oi","Futures Open Interest"),
 "VOLUME":("volume","Volume","Vol","traded_volume","Traded Volume"),
 "PRICE":("price","Price","Close","current_price","LTP","Last Price","Spot Price"),
@@ -33,11 +33,11 @@ ALIASES={
 "PE_OI_CHANGE_PCT":("__PE_OI_CHANGE_PCT","pe_oi_chg_pct","pe_oi_change_pct","PE OI Chg %","PE OI Change %","Tot PE OI Chg %","Tot PE OI Change %"),
 "CE_OI_CHANGE":("__CE_OI_CHANGE","ce_oi_chg","ce_oi_change","CE OI Chg","CE OI Change","Tot CE OI Chg","Tot CE OI Change"),
 "CE_OI_CHANGE_PCT":("__CE_OI_CHANGE_PCT","ce_oi_chg_pct","ce_oi_change_pct","CE OI Chg %","CE OI Change %","Tot CE OI Chg %","Tot CE OI Change %"),
-"PE_MINUS_CE_OI_CHANGE":("__PE_MINUS_CE_OI_CHANGE","pe_minus_ce_oi_chg","pe_minus_ce_oi_change","PE-CE OI Chg","PE-CE OI Change","PE−CE OI Change","Tot PE-CE OI Chg","Tot PE-CE OI Change"),
-"PE_MINUS_CE_OI_CHANGE_PCT":("__PE_MINUS_CE_OI_CHANGE_PCT","pe_minus_ce_oi_chg_pct","pe_minus_ce_oi_change_pct","pece_change_pct","pe_ce_change_pct","PE-CE OI Chg %","PE-CE OI Change %","PE−CE OI Change %","Tot PE-CE OI Chg %","Tot PE-CE OI Change %"),
-"CE_MINUS_PE_OI_CHANGE":("__CE_MINUS_PE_OI_CHANGE","ce_minus_pe_oi_chg","ce_minus_pe_oi_change","CE-PE OI Chg","CE-PE OI Change","CE−PE OI Chg","CE−PE OI Change"),
+"PE_MINUS_CE_OI_CHANGE":("__PE_MINUS_CE_OI_CHANGE","pe_minus_ce_oi_chg","pe_minus_ce_oi_change","PE-CE OI Chg","PE-CE OI Change","PEÃ¢Ë†â€™CE OI Change","Tot PE-CE OI Chg","Tot PE-CE OI Change"),
+"PE_MINUS_CE_OI_CHANGE_PCT":("__PE_MINUS_CE_OI_CHANGE_PCT","pe_minus_ce_oi_chg_pct","pe_minus_ce_oi_change_pct","pece_change_pct","pe_ce_change_pct","PE-CE OI Chg %","PE-CE OI Change %","PEÃ¢Ë†â€™CE OI Change %","Tot PE-CE OI Chg %","Tot PE-CE OI Change %"),
+"CE_MINUS_PE_OI_CHANGE":("__CE_MINUS_PE_OI_CHANGE","ce_minus_pe_oi_chg","ce_minus_pe_oi_change","CE-PE OI Chg","CE-PE OI Change","CEÃ¢Ë†â€™PE OI Chg","CEÃ¢Ë†â€™PE OI Change"),
 "FUTURES_OI_CHANGE":("__FUTURES_OI_CHANGE","futures_oi_chg","futures_oi_change","Futures OI Chg","Futures OI Change","Fut OI Chg","Fut OI Change","futures_oi_delta"),
-"FUTURES_OI_CHANGE_PCT":("__FUTURES_OI_CHANGE_PCT","futures_oi_chg_pct","futures_oi_change_pct","Futures OI Chg %","Futures OI Change %","Fut OI Chg %","Fut OI Change %","Futures OI Δ %","fut_oi_change_pct"),
+"FUTURES_OI_CHANGE_PCT":("__FUTURES_OI_CHANGE_PCT","futures_oi_chg_pct","futures_oi_change_pct","Futures OI Chg %","Futures OI Change %","Fut OI Chg %","Fut OI Change %","Futures OI ÃŽâ€ %","fut_oi_change_pct"),
 "VOLUME_CHANGE":("__VOLUME_CHANGE","volume_chg","volume_change","Volume Chg","Volume Change","Traded Volume Change"),
 "VOLUME_CHANGE_PCT":("__VOLUME_CHANGE_PCT","volume_chg_pct","volume_change_pct","Volume Chg %","Volume Change %","volume_pct_change"),
 "PRICE_CHANGE":("__PRICE_CHANGE","price_chg","price_change","Price Chg","Price Change"),
@@ -49,11 +49,11 @@ ALIASES={
 }
 LABELS={k:k.replace("_"," ") for k in ALIASES}
 LABELS.update({
-"PE_MINUS_CE_OI":"PE−CE OI",
+"PE_MINUS_CE_OI":"PEÃ¢Ë†â€™CE OI",
 "PE_OI_CHANGE":"PE OI Change","PE_OI_CHANGE_PCT":"PE OI Change %",
 "CE_OI_CHANGE":"CE OI Change","CE_OI_CHANGE_PCT":"CE OI Change %",
-"PE_MINUS_CE_OI_CHANGE":"PE−CE OI Change","PE_MINUS_CE_OI_CHANGE_PCT":"PE−CE OI Change %",
-"CE_MINUS_PE_OI_CHANGE":"CE−PE OI Change",
+"PE_MINUS_CE_OI_CHANGE":"PEÃ¢Ë†â€™CE OI Change","PE_MINUS_CE_OI_CHANGE_PCT":"PEÃ¢Ë†â€™CE OI Change %",
+"CE_MINUS_PE_OI_CHANGE":"CEÃ¢Ë†â€™PE OI Change",
 "FUTURES_OI":"Futures OI","FUTURES_OI_CHANGE":"Futures OI Change","FUTURES_OI_CHANGE_PCT":"Futures OI Change %",
 "VOLUME_CHANGE":"Volume Change","VOLUME_CHANGE_PCT":"Volume Change %",
 "PRICE_CHANGE":"Price Change","PRICE_CHANGE_PCT":"Price Change %",
@@ -85,7 +85,7 @@ def _num(x):
     except Exception: return None
 
 def _norm(x):
-    return " ".join(str(x).strip().lower().replace("−","-").replace("%"," pct ").replace("_"," ").split())
+    return " ".join(str(x).strip().lower().replace("Ã¢Ë†â€™","-").replace("%"," pct ").replace("_"," ").split())
 
 def _find(d,aliases):
     if not isinstance(d,pd.DataFrame): return None
@@ -214,7 +214,9 @@ def flatten_cache(cache,trading_date=None):
     frames only.
     """
     if isinstance(cache,pd.DataFrame):
-        return _prepare(cache)
+        out=cache.copy()
+        out.attrs={}
+        return _prepare(out)
     if not isinstance(cache,Mapping):
         return pd.DataFrame()
     snapshots=cache.get("snapshots")
@@ -225,6 +227,8 @@ def flatten_cache(cache,trading_date=None):
                 f=value.copy()
                 if trading_date and _find(f,("trading_date","trade_date","date")) is None:
                     f["trading_date"]=trading_date
+                # Clear persisted nested DataFrame metadata before concat.
+                f.attrs={}
                 frames.append(f)
     if not frames:
         return pd.DataFrame()
@@ -386,7 +390,7 @@ def build_eod_uua(frame,historical_caches,timestamp=None,config=None,scope="LIVE
 # ---------------------------------------------------------------------------
 # Trader-facing UUA compares CHANGE values only. It never compares absolute
 # PE OI / CE OI / Futures OI balances. Options are represented only as
-# CE−PE OI CHANGE; Futures uses Futures OI CHANGE %. Historical references are
+# CEÃ¢Ë†â€™PE OI CHANGE; Futures uses Futures OI CHANGE %. Historical references are
 # prior-session EOD change values (1D) and the maximum absolute change over the
 # prior 3/5/10/20 completed sessions.
 CHANGE_COMPARE_METRICS = (
@@ -522,3 +526,283 @@ def build_historical_change_comparison(
                 "scope": scope,
             })
     return pd.DataFrame(rows, columns=CHANGE_COMPARE_COLUMNS)
+
+# UUA_SIGNED_COMPARISON_V2_OVERRIDE
+# Scope: historical UUA comparative evidence only.
+# SDL decision ownership / ranking / qualification are untouched.
+
+UUA_COMPARISON_METRICS = (
+    "FUTURES_OI_CHANGE_PCT",
+    "PE_MINUS_CE_OI_CHANGE",
+    "FUTURES_OI_CHANGE",
+    "VOLUME_CHANGE",
+    "VOLUME_CHANGE_PCT",
+    "PRICE_CHANGE",
+    "PRICE_CHANGE_PCT",
+    "IV_CHANGE",
+    "IV_CHANGE_PCT",
+    "PCR_CHANGE",
+    "PCR_CHANGE_PCT",
+)
+
+def _uua_v2_num(v):
+    try:
+        if isinstance(v, (list, tuple, set, dict)):
+            return None
+        x = float(v)
+        return x if x == x else None
+    except Exception:
+        return None
+
+def _uua_v2_find_col(frame, aliases):
+    return _find(frame, aliases)
+
+def _uua_v2_metric_column(frame, metric_key):
+    aliases = {
+        "FUTURES_OI_CHANGE_PCT": (
+            "FUTURES_OI_CHANGE_PCT", "__FUTURES_OI_CHANGE_PCT",
+            "futures_oi_change_pct", "Futures OI Change %",
+            "Futures OI Chg %", "Futures OI Chg %",
+        ),
+        "PE_MINUS_CE_OI_CHANGE": (
+            "PE_MINUS_CE_OI_CHANGE", "__PE_MINUS_CE_OI_CHANGE",
+            "pe_minus_ce_oi_chg", "pe_minus_ce_oi_change",
+            "PE-CE OI Chg", "PE-CE OI Change", "PEÃ¢Ë†â€™CE OI Change",
+            "Tot PE-CE OI Chg", "Tot PE-CE OI Change",
+        ),
+        "FUTURES_OI_CHANGE": (
+            "FUTURES_OI_CHANGE", "__FUTURES_OI_CHANGE",
+            "futures_oi_change", "Futures OI Change", "Futures OI Chg",
+        ),
+        "VOLUME_CHANGE": (
+            "VOLUME_CHANGE", "__VOLUME_CHANGE",
+            "volume_change", "Volume Change", "Volume Chg",
+        ),
+        "VOLUME_CHANGE_PCT": (
+            "VOLUME_CHANGE_PCT", "__VOLUME_CHANGE_PCT",
+            "volume_change_pct", "Volume Change %", "Volume Chg %",
+        ),
+        "PRICE_CHANGE": (
+            "PRICE_CHANGE", "__PRICE_CHANGE",
+            "price_change", "Price Change", "Price Chg",
+        ),
+        "PRICE_CHANGE_PCT": (
+            "PRICE_CHANGE_PCT", "__PRICE_CHANGE_PCT",
+            "price_change_pct", "Price Change %", "Price Chg %",
+        ),
+        "IV_CHANGE": (
+            "IV_CHANGE", "__IV_CHANGE",
+            "iv_change", "IV Change", "IV Chg",
+        ),
+        "IV_CHANGE_PCT": (
+            "IV_CHANGE_PCT", "__IV_CHANGE_PCT",
+            "iv_change_pct", "IV Change %", "IV Chg %",
+        ),
+        "PCR_CHANGE": (
+            "PCR_CHANGE", "__PCR_CHANGE",
+            "pcr_change", "PCR Change", "PCR Chg",
+        ),
+        "PCR_CHANGE_PCT": (
+            "PCR_CHANGE_PCT", "__PCR_CHANGE_PCT",
+            "pcr_change_pct", "PCR Change %", "PCR Chg %",
+        ),
+    }
+    return _uua_v2_find_col(frame, aliases.get(metric_key, (metric_key,)))
+
+def _uua_v2_signed_state(current, previous):
+    c = _uua_v2_num(current)
+    p = _uua_v2_num(previous)
+    if c is None or p is None:
+        return "UNAVAILABLE"
+    if p == 0 and c == 0:
+        return "BOTH_ZERO"
+    if p == 0:
+        return "FROM_ZERO"
+    if c == 0:
+        return "TO_ZERO"
+    if (c > 0 and p < 0) or (c < 0 and p > 0):
+        return "SIGN_FLIP"
+    if c > 0 and p > 0:
+        return "SAME_POSITIVE"
+    if c < 0 and p < 0:
+        return "SAME_NEGATIVE"
+    return "UNAVAILABLE"
+
+def _uua_v2_point_ratio(current, previous):
+    c = _uua_v2_num(current)
+    p = _uua_v2_num(previous)
+    if c is None or p is None or p == 0:
+        return None
+    # Ratio is only meaningful when signs agree.
+    if (c > 0 and p < 0) or (c < 0 and p > 0):
+        return None
+    return abs(c) / abs(p)
+
+def _uua_v2_history_values(history_by_date, symbol, metric_key, before_date):
+    out = []
+    for d in sorted(history_by_date.keys()):
+        if d >= before_date:
+            continue
+        frame = history_by_date[d]
+        col = _uua_v2_metric_column(frame, metric_key)
+        if col is None or frame.empty:
+            continue
+        sym = _find(frame, ("symbol","Symbol","ticker","Ticker"))
+        if sym is None:
+            continue
+        m = frame.loc[frame[sym].astype(str).str.upper().eq(str(symbol).upper()), col]
+        vals = [_uua_v2_num(v) for v in m.tolist()]
+        vals = [v for v in vals if v is not None]
+        if vals:
+            out.append((d, vals[-1]))
+    return out
+
+def _uua_v2_extreme(values, current):
+    vals = [v for v in values if _uua_v2_num(v) is not None]
+    c = _uua_v2_num(current)
+    if c is None or not vals:
+        return None
+    if c > max(vals):
+        return "HIGH"
+    if c < min(vals):
+        return "LOW"
+    return "IN_RANGE"
+
+def build_historical_change_comparison(cache, history_cache=None, config=None, trading_date=None, *args, **kwargs):
+    """
+    UUA V2 comparative contract:
+      * PEÃ¢Ë†â€™CE OI Change is the operative options metric; no sign inversion.
+      * 3D/5D/10D/20D are exact trading-day point-back observations.
+      * Historical extremes are separate HIGH/LOW flags.
+      * Signed comparisons never manufacture a ratio across a sign flip.
+      * UUA remains evidence-only and does not alter SDL qualification/ranking.
+    """
+    cfg = config if config is not None else UUAConfig(history_days=(3,5,10,20))
+    current = flatten_cache(cache, trading_date=trading_date)
+    if current is None or current.empty:
+        return pd.DataFrame()
+
+    current = current.copy()
+    sym_col = _find(current, ("symbol","Symbol","ticker","Ticker"))
+    ts_col = _find(current, ("source_timestamp","observation_timestamp","timestamp","observed_at","observation_time"))
+    date_col = _find(current, ("trading_date","trade_date","date"))
+    if sym_col is None or ts_col is None:
+        return pd.DataFrame()
+
+    current["_uua_symbol"] = current[sym_col].astype(str).str.strip().str.upper()
+    current["_uua_ts"] = pd.to_datetime(current[ts_col], errors="coerce")
+    if date_col is not None:
+        current["_uua_date"] = pd.to_datetime(current[date_col], errors="coerce").dt.date
+    else:
+        current["_uua_date"] = current["_uua_ts"].dt.date
+    current = current.loc[current["_uua_ts"].notna() & current["_uua_date"].notna()].copy()
+    if current.empty:
+        return pd.DataFrame()
+
+    current = current.sort_values(["_uua_symbol","_uua_ts"]).drop_duplicates(
+        ["_uua_symbol","_uua_ts"], keep="last"
+    )
+
+    # Normalize supplied historical cache to {date: frame}.
+    history_by_date = {}
+    if isinstance(history_cache, Mapping):
+        for k, v in history_cache.items():
+            if isinstance(v, pd.DataFrame) and not v.empty:
+                try:
+                    dk = pd.Timestamp(k).date()
+                except Exception:
+                    try:
+                        dk = pd.to_datetime(k).date()
+                    except Exception:
+                        continue
+                history_by_date[dk] = _prepare(v)
+    elif isinstance(history_cache, (list, tuple)):
+        for v in history_cache:
+            if not isinstance(v, pd.DataFrame) or v.empty:
+                continue
+            pv = _prepare(v)
+            dc = _find(pv, ("trading_date","trade_date","date"))
+            if dc is not None:
+                for dk, grp in pv.groupby(pd.to_datetime(pv[dc], errors="coerce").dt.date):
+                    if dk is not None:
+                        history_by_date[dk] = grp.copy()
+
+    rows = []
+    for _, r in current.iterrows():
+        symbol = str(r["_uua_symbol"])
+        current_date = r["_uua_date"]
+
+        for metric_key in UUA_COMPARISON_METRICS:
+            col = _uua_v2_metric_column(current, metric_key)
+            if col is None:
+                continue
+            cur = _uua_v2_num(r.get(col))
+            if cur is None:
+                continue
+
+            row = {
+                "symbol": symbol,
+                "metric_key": metric_key,
+                "metric": metric_key,
+                "current_timestamp": r["_uua_ts"],
+                "current_value": cur,
+                "comparison_days": tuple(getattr(cfg, "history_days", (3,5,10,20))),
+                "scope": "UUA",
+            }
+
+            previous = None
+            prior_rows = _uua_v2_history_values(history_by_date, symbol, metric_key, current_date)
+            if prior_rows:
+                previous = prior_rows[-1][1]
+                row["previous_eod_value"] = previous
+                row["ratio_last"] = _uua_v2_point_ratio(cur, previous)
+                row["signed_state_last"] = _uua_v2_signed_state(cur, previous)
+                row["absolute_change_last"] = cur - previous
+
+            # Exact point-back: nth earlier completed trading date.
+            prior_dates = [d for d, _ in prior_rows]
+            for n in (3,5,10,20):
+                key = f"{n}d_back_value"
+                if len(prior_rows) >= n:
+                    d, v = prior_rows[-n]
+                    row[key] = v
+                    row[f"ratio_{n}d"] = _uua_v2_point_ratio(cur, v)
+                    row[f"signed_state_{n}d"] = _uua_v2_signed_state(cur, v)
+                    row[f"absolute_change_{n}d"] = cur - v
+
+                vals = [v for d, v in prior_rows if d >= (prior_dates[-n] if len(prior_dates) >= n else prior_dates[0])]
+                extreme = _uua_v2_extreme(vals, cur)
+                row[f"new_{n}d_extreme"] = extreme
+                row[f"new_{n}d_high"] = extreme == "HIGH"
+                row[f"new_{n}d_low"] = extreme == "LOW"
+
+            row["pe_minus_ce_semantics"] = (
+                "PE_MINUS_CE_OI_CHANGE" if metric_key == "PE_MINUS_CE_OI_CHANGE" else None
+            )
+            rows.append(row)
+
+    return pd.DataFrame(rows)
+
+# UUA_FINAL_FIX_20261010
+# Final surgical correction: isolate persisted DataFrame metadata before concat.
+# This prevents pandas from comparing nested DataFrame objects stored in .attrs.
+def flatten_cache(cache,trading_date=None):
+    if isinstance(cache,pd.DataFrame):
+        f = cache.copy()
+        f.attrs = {}
+        return _prepare(f)
+    if not isinstance(cache,Mapping):
+        return pd.DataFrame()
+    snapshots = cache.get("snapshots")
+    frames = []
+    if isinstance(snapshots,Mapping):
+        for key,value in snapshots.items():
+            if str(key).startswith("logical::") and isinstance(value,pd.DataFrame) and not value.empty:
+                f = value.copy()
+                if trading_date and _find(f,("trading_date","trade_date","date")) is None:
+                    f["trading_date"] = trading_date
+                f.attrs = {}
+                frames.append(f)
+    if not frames:
+        return pd.DataFrame()
+    return _prepare(pd.concat(frames,ignore_index=True))

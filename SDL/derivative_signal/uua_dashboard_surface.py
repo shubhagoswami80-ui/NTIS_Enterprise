@@ -62,23 +62,84 @@ def _load_current_cache(trading_date: str) -> tuple[pd.DataFrame, dict]:
     raw = _read_cache(_cache_path(trading_date))
     if not isinstance(raw, dict):
         return pd.DataFrame(), {}
+
     frames = []
     snapshots = raw.get("snapshots", {})
+
     if isinstance(snapshots, dict):
         for key, frame in snapshots.items():
             if str(key).startswith("logical::") and isinstance(frame, pd.DataFrame) and not frame.empty:
-                # Cached logical snapshots can carry pandas attrs containing
-                # DataFrame/Series objects. pandas.concat compares attrs across
-                # frames and that comparison raises "truth value of a DataFrame
-                # is ambiguous". UUA does not depend on snapshot attrs, so strip
-                # them before concatenation while preserving all columns/values.
                 clean = frame.copy()
                 clean.attrs = {}
                 frames.append(clean)
+
+    # PIT replay compatibility:
+    # completed historical replay caches can legitimately store physical
+    # snapshot keys while point_in_time_cache stores the produced PIT results.
+    if not frames:
+        pit = raw.get("point_in_time_cache", {})
+        if isinstance(pit, dict):
+            pit_items = []
+            for key, value in pit.items():
+                if not isinstance(value, dict):
+                    continue
+                frame = value.get("result")
+                if not isinstance(frame, pd.DataFrame) or frame.empty:
+                    continue
+                ts = pd.to_datetime(value.get("source_timestamp"), errors="coerce")
+                if pd.isna(ts):
+                    ts = pd.to_datetime(
+                        frame.get(
+                            "source_timestamp",
+                            frame.get("observation_timestamp"),
+                        ),
+                        errors="coerce",
+                    )
+                    if isinstance(ts, pd.Series):
+                        valid = ts.dropna()
+                        ts = valid.iloc[0] if not valid.empty else pd.NaT
+                sort_ts = pd.Timestamp(ts) if not pd.isna(ts) else pd.Timestamp.max
+                pit_items.append((sort_ts, str(key), frame))
+
+            pit_items.sort(key=lambda item: (item[0], item[1]))
+            for _, _, frame in pit_items:
+                clean = frame.copy()
+                clean.attrs = {}
+                frames.append(clean)
+
+    # Older compatibility fallback: use any persisted DataFrame snapshots
+    # when the cache predates the PIT index.
+    if not frames and isinstance(snapshots, dict):
+        fallback_items = []
+        for key, frame in snapshots.items():
+            if not isinstance(frame, pd.DataFrame) or frame.empty:
+                continue
+            ts = pd.to_datetime(
+                frame.get(
+                    "source_timestamp",
+                    frame.get("observation_timestamp"),
+                ),
+                errors="coerce",
+            )
+            if isinstance(ts, pd.Series):
+                valid = ts.dropna()
+                ts = valid.iloc[0] if not valid.empty else pd.NaT
+            sort_ts = pd.Timestamp(ts) if not pd.isna(ts) else pd.Timestamp.max
+            fallback_items.append((sort_ts, str(key), frame))
+
+        fallback_items.sort(key=lambda item: (item[0], item[1]))
+        for _, _, frame in fallback_items:
+            clean = frame.copy()
+            clean.attrs = {}
+            frames.append(clean)
+
     if not frames:
         return pd.DataFrame(), raw
+
     current = pd.concat(frames, ignore_index=True)
-    current = current.loc[:, ~pd.Index(current.columns).duplicated(keep="first")].copy()
+    current = current.loc[
+        :, ~pd.Index(current.columns).duplicated(keep="first")
+    ].copy()
     return current, raw
 
 
